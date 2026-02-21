@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mr Jawad Simulation Homeostasis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); min-height: 100vh; color: #fff; padding: 10px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; padding: 15px; background: linear-gradient(90deg, #4CAF50, #9C27B0); border-radius: 15px; margin-bottom: 15px; }
+        .header h1 { font-size: 1.8em; }
+        .mission-bar { background: rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 10px; margin-bottom: 15px; text-align: center; font-size: 1.1em; border-left: 4px solid #E91E63; }
+        .main-layout { display: grid; grid-template-columns: 280px 1fr 280px; gap: 15px; }
+        .panel { background: rgba(255,255,255,0.08); border-radius: 15px; padding: 15px; }
+        .panel-title { font-size: 1.1em; font-weight: bold; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid rgba(255,255,255,0.2); }
+        .scenario-grid { display: flex; flex-direction: column; gap: 8px; }
+        .scenario-btn { padding: 12px; border: none; border-radius: 10px; font-size: 0.95em; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 10px; text-align: left; background: linear-gradient(135deg, #2d3748, #1a202c); color: #fff; }
+        .scenario-btn:hover:not(.completed) { transform: translateX(5px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .scenario-btn.active { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .scenario-btn.completed { background: linear-gradient(135deg, #38a169, #2f855a); }
+        .scenario-btn .icon { font-size: 1.3em; }
+        .scenario-btn .check { margin-left: auto; display: none; }
+        .scenario-btn.completed .check { display: inline; }
+        .reading-level-selector { display: flex; gap: 8px; margin-bottom: 15px; }
+        .level-btn { flex: 1; padding: 10px; border: 2px solid rgba(255,255,255,0.3); background: transparent; color: #fff; border-radius: 8px; cursor: pointer; font-size: 0.9em; }
+        .level-btn.active { background: #4CAF50; border-color: #4CAF50; }
+        .arena { min-height: 500px; display: flex; flex-direction: column; }
+        .step-indicator { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .step-badge { padding: 8px 16px; border-radius: 20px; font-size: 0.85em; font-weight: bold; background: rgba(255,255,255,0.1); opacity: 0.5; }
+        .step-badge.active { opacity: 1; transform: scale(1.1); }
+        .step-badge.predict { background: #9C27B0; }
+        .step-badge.read { background: #2196F3; }
+        .step-badge.watch { background: #FF9800; }
+        .step-badge.record { background: #4CAF50; }
+        .visual-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .body-animation { width: 100%; max-width: 700px; height: 420px; position: relative; display: none; background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%); border-radius: 20px; overflow: hidden; }
+        .body-animation.visible { display: block; }
+        .body-svg { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); width: 200px; height: 300px; }
+        .body-outline { fill: none; stroke: #64B5F6; stroke-width: 2; }
+        .body-fill { fill: rgba(100, 181, 246, 0.15); }
+        .brain-area { fill: #E1BEE7; stroke: #9C27B0; stroke-width: 2; }
+        .brain-area.active { fill: #F48FB1; filter: drop-shadow(0 0 15px #E91E63); animation: brainGlow 0.6s ease-in-out infinite alternate; }
+        @keyframes brainGlow { from { fill: #F48FB1; } to { fill: #FCE4EC; filter: drop-shadow(0 0 25px #E91E63); } }
+        .signal-dot { fill: #FFEB3B; opacity: 0; }
+        .signal-dot.active { animation: signalPulse 0.8s ease-in-out infinite; }
+        @keyframes signalPulse { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+        .temp-overlay { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); width: 220px; height: 320px; border-radius: 100px; opacity: 0; pointer-events: none; }
+        .temp-overlay.cold { background: radial-gradient(ellipse, rgba(33, 150, 243, 0.5) 0%, transparent 70%); }
+        .temp-overlay.hot { background: radial-gradient(ellipse, rgba(244, 67, 54, 0.5) 0%, transparent 70%); }
+        .temp-overlay.visible { opacity: 1; }
+        .shiver-container { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); width: 200px; height: 300px; pointer-events: none; }
+        .shiver-line { position: absolute; width: 25px; height: 4px; background: linear-gradient(90deg, #FFC107, #FF9800); border-radius: 2px; opacity: 0; }
+        .shiver-line.active { opacity: 1; animation: shiverMove 0.12s ease-in-out infinite alternate; }
+        @keyframes shiverMove { from { transform: translateX(-4px) rotate(-5deg); } to { transform: translateX(4px) rotate(5deg); } }
+        .sweat-container { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); width: 200px; height: 300px; pointer-events: none; }
+        .sweat { position: absolute; width: 10px; height: 14px; background: linear-gradient(180deg, #81D4FA, #29B6F6); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; opacity: 0; }
+        .sweat.active { animation: sweatDrip 1.2s ease-in infinite; }
+        @keyframes sweatDrip { 0% { opacity: 0; transform: translateY(0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(50px); } }
+        .particle-field { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); width: 200px; height: 300px; pointer-events: none; }
+        .particle { position: absolute; width: 12px; height: 12px; border-radius: 50%; opacity: 0; }
+        .particle.glucose { background: radial-gradient(circle, #FFF59D, #FFC107); box-shadow: 0 0 8px #FFC107; }
+        .particle.dopamine { background: radial-gradient(circle, #F8BBD0, #E91E63); box-shadow: 0 0 8px #E91E63; }
+        .particle.active { animation: particleBurst 1.5s ease-out infinite; }
+        @keyframes particleBurst { 0% { opacity: 0; } 30% { opacity: 1; transform: translateY(-10px); } 100% { opacity: 0; transform: translateY(-30px); } }
+        .receptor-field { position: absolute; left: 50%; top: 20%; transform: translateX(-50%); width: 120px; height: 60px; pointer-events: none; }
+        .receptor { position: absolute; width: 16px; height: 16px; background: #7C4DFF; border: 2px solid #4527A0; border-radius: 4px; transform: rotate(45deg); }
+        .receptor.fading { animation: receptorFadeOut 1s ease-out forwards; }
+        @keyframes receptorFadeOut { to { opacity: 0; transform: rotate(45deg) scale(0); } }
+        .stage-label { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 12px 30px; border-radius: 30px; font-size: 1.15em; font-weight: bold; min-width: 280px; text-align: center; }
+        .meter-container { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); text-align: center; }
+        .meter-label { font-size: 1em; font-weight: bold; margin-bottom: 8px; }
+        .meter { width: 320px; height: 35px; background: linear-gradient(90deg, #ef4444 0%, #ef4444 20%, #22c55e 20%, #22c55e 80%, #ef4444 80%, #ef4444 100%); border-radius: 20px; position: relative; }
+        .meter-zones { position: absolute; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; top: 50%; transform: translateY(-50%); font-size: 0.8em; font-weight: bold; }
+        .meter-needle { position: absolute; width: 8px; height: 50px; background: #fff; border-radius: 4px; top: -7px; left: 50%; transform: translateX(-50%); transition: left 1.8s ease-in-out; }
+        .reading-box { background: rgba(255,255,255,0.95); color: #1a1a2e; padding: 20px; border-radius: 15px; max-width: 620px; width: 100%; font-size: 1.1em; line-height: 1.7; display: none; max-height: 340px; overflow-y: auto; }
+        .reading-box.visible { display: block; }
+        .reading-box strong { color: #9C27B0; }
+        .prediction-box { text-align: center; display: none; max-width: 700px; }
+        .prediction-box.visible { display: block; }
+        .prediction-question { font-size: 1.5em; margin-bottom: 30px; line-height: 1.5; background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; border-left: 5px solid #9C27B0; }
+        .prediction-btns { display: flex; gap: 25px; justify-content: center; }
+        .pred-btn { padding: 20px 50px; font-size: 1.3em; border: none; border-radius: 15px; cursor: pointer; font-weight: bold; }
+        .pred-btn.toward { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
+        .pred-btn.away { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+        .pred-btn:hover { transform: scale(1.08); }
+        .action-btn { padding: 15px 30px; font-size: 1.1em; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; margin: 10px; }
+        .action-btn.primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+        .action-btn.success { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
+        .action-area { text-align: center; margin-top: 15px; }
+        .hud-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .hud-item { background: rgba(255,255,255,0.1); padding: 12px; border-radius: 10px; text-align: center; }
+        .hud-label { font-size: 0.8em; opacity: 0.8; margin-bottom: 5px; }
+        .hud-value { font-size: 1.4em; font-weight: bold; }
+        .hud-value.score { color: #fbbf24; }
+        .hud-value.streak { color: #f472b6; }
+        .progress-bar { height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; overflow: hidden; margin-bottom: 15px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-radius: 6px; transition: width 0.5s; }
+        .data-table-container { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 15px; margin-top: 15px; max-height: 260px; overflow-y: auto; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.8em; }
+        .data-table th { background: linear-gradient(135deg, #4CAF50, #2E7D32); padding: 8px 6px; text-align: left; }
+        .data-table td { padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .tutorial-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .tutorial-box { background: linear-gradient(135deg, #1e3a5f, #0f2744); padding: 40px; border-radius: 20px; max-width: 580px; text-align: center; border: 3px solid #4CAF50; }
+        .tutorial-box h2 { font-size: 2em; margin-bottom: 20px; color: #4CAF50; }
+        .tutorial-steps { text-align: left; margin: 20px 0; }
+        .tutorial-step { display: flex; align-items: center; gap: 15px; padding: 12px; margin: 8px 0; background: rgba(255,255,255,0.08); border-radius: 10px; }
+        .tutorial-step .num { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .tutorial-step:nth-child(1) .num { background: #9C27B0; }
+        .tutorial-step:nth-child(2) .num { background: #2196F3; }
+        .tutorial-step:nth-child(3) .num { background: #FF9800; }
+        .tutorial-step:nth-child(4) .num { background: #4CAF50; }
+        .requirement-box { background: rgba(156, 39, 176, 0.25); border: 2px solid #9C27B0; border-radius: 12px; padding: 15px; margin-top: 20px; }
+        .final-message { display: none; text-align: center; padding: 30px; }
+        .final-message.visible { display: block; }
+        .final-message h2 { font-size: 2em; color: #4CAF50; margin-bottom: 15px; }
+        .badge-earned { font-size: 4em; margin: 20px 0; animation: bounce 0.5s ease infinite alternate; }
+        @keyframes bounce { to { transform: translateY(-10px); } }
+        .pattern-reveal { background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(156, 39, 176, 0.2)); padding: 20px; border-radius: 15px; margin: 20px 0; border: 2px solid #4CAF50; }
+        .control-btns { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+        .ctrl-btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .ctrl-btn.reset { background: #ef4444; color: #fff; }
+        .ctrl-btn.new-run { background: #3b82f6; color: #fff; }
+        .word-bank { background: rgba(106, 27, 154, 0.3); padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.85em; }
+        .word-bank-title { font-weight: bold; color: #E1BEE7; margin-bottom: 5px; }
+        .feedback-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 15px 30px; border-radius: 10px; font-weight: bold; font-size: 1.2em; z-index: 500; display: none; }
+        .feedback-toast.correct { background: #22c55e; }
+        .feedback-toast.incorrect { background: #ef4444; }
+        .feedback-toast.visible { display: block; }
+        .hidden { display: none !important; }
+        .speak-btn { background: #2196F3; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+        .done-message { background: linear-gradient(135deg, #4CAF50, #2E7D32); padding: 15px 25px; border-radius: 12px; margin: 15px 0; text-align: center; }
+        .extra-message { background: linear-gradient(135deg, #9C27B0, #6A1B9A); padding: 15px 25px; border-radius: 12px; margin: 15px 0; text-align: center; }
+        @media (max-width: 1200px) { .main-layout { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="tutorial-overlay" id="tutorial">
+        <div class="tutorial-box">
+            <h2>🔬 Pattern Hunter!</h2>
+            <p>Discover how your body keeps itself balanced!</p>
+            <div class="tutorial-steps">
+                <div class="tutorial-step"><div class="num">1</div><div><strong>PREDICT</strong> - Guess what the body will do</div></div>
+                <div class="tutorial-step"><div class="num">2</div><div><strong>READ</strong> - Find out what really happens</div></div>
+                <div class="tutorial-step"><div class="num">3</div><div><strong>WATCH</strong> - See the body in action</div></div>
+                <div class="tutorial-step"><div class="num">4</div><div><strong>RECORD</strong> - Save data to your table</div></div>
+            </div>
+            <div class="requirement-box">
+                <p><strong style="color: #81C784;">✅ Pick any 4 scenarios</strong> that interest you!</p>
+                <p><strong style="color: #CE93D8;">🌟 All 6 = Extra Credit!</strong></p>
+            </div>
+            <button class="action-btn primary" onclick="closeTutorial()" style="margin-top: 20px;">Let's Go!</button>
+        </div>
+    </div>
+    <div class="feedback-toast" id="feedback"></div>
+    <div class="container">
+        <div class="header"><h1>🧬 Mr Jawad Simulation: Homeostasis</h1></div>
+        <div class="mission-bar">🎯 <strong>Pick any 4</strong> scenarios that interest you! <span style="color: #CE93D8;">All 6 = Extra Credit!</span></div>
+        <div class="main-layout">
+            <div class="panel">
+                <div class="panel-title">📋 Pick Any 4 You Like</div>
+                <div class="scenario-grid">
+                    <button class="scenario-btn" onclick="selectScenario(0)"><span class="icon">🥶</span><span>Too Cold</span><span class="check">✓</span></button>
+                    <button class="scenario-btn" onclick="selectScenario(1)"><span class="icon">🥵</span><span>Too Hot</span><span class="check">✓</span></button>
+                    <button class="scenario-btn" onclick="selectScenario(2)"><span class="icon">🍩</span><span>Blood Sugar Drop</span><span class="check">✓</span></button>
+                    <button class="scenario-btn" onclick="selectScenario(3)"><span class="icon">💊</span><span>Drug Addiction</span><span class="check">✓</span></button>
+                    <button class="scenario-btn" onclick="selectScenario(4)"><span class="icon">💕</span><span>Falling in Love</span><span class="check">✓</span></button>
+                    <button class="scenario-btn" onclick="selectScenario(5)"><span class="icon">🎰</span><span>Won the Lottery</span><span class="check">✓</span></button>
+                </div>
+                <div style="margin-top: 20px;">
+                    <div class="panel-title">📖 Reading Level</div>
+                    <div class="reading-level-selector">
+                        <button class="level-btn active" onclick="setLevel('low',this)">Low</button>
+                        <button class="level-btn" onclick="setLevel('medium',this)">Med</button>
+                        <button class="level-btn" onclick="setLevel('high',this)">High</button>
+                    </div>
+                </div>
+                <div class="word-bank"><div class="word-bank-title">📝 Key Words</div>homeostasis, set point, hypothalamus, receptor, response, tolerance</div>
+                <div class="control-btns">
+                    <button class="ctrl-btn reset" onclick="resetSim()">Reset</button>
+                    <button class="ctrl-btn new-run" onclick="newRun()">New Run</button>
+                </div>
+            </div>
+            <div class="panel arena">
+                <div class="step-indicator">
+                    <div class="step-badge predict" id="step-predict">1. PREDICT</div>
+                    <div class="step-badge read" id="step-read">2. READ</div>
+                    <div class="step-badge watch" id="step-watch">3. WATCH</div>
+                    <div class="step-badge record" id="step-record">4. RECORD</div>
+                </div>
+                <div class="visual-container">
+                    <div id="start-message"><p style="font-size: 1.8em; margin-bottom: 20px;">👈 Pick a scenario!</p><p style="opacity: 0.7;">Choose any topic that interests you.</p></div>
+                    <div class="prediction-box" id="prediction-box"><div class="prediction-question" id="pred-q"></div><div class="prediction-btns"><button class="pred-btn toward" onclick="predict('toward')">⬆️ Fix It</button><button class="pred-btn away" onclick="predict('away')">⬇️ Make It Worse</button></div></div>
+                    <div class="body-animation" id="body-anim">
+                        <div class="stage-label" id="stage-label">Loading...</div>
+                        <div class="temp-overlay cold" id="cold-ov"></div>
+                        <div class="temp-overlay hot" id="hot-ov"></div>
+                        <svg class="body-svg" viewBox="0 0 100 150">
+                            <ellipse class="body-fill body-outline" cx="50" cy="18" rx="16" ry="18"/>
+                            <ellipse class="brain-area" id="brain" cx="50" cy="15" rx="10" ry="8"/>
+                            <rect class="body-fill body-outline" x="44" y="35" width="12" height="10"/>
+                            <path class="body-fill body-outline" d="M30 45 L70 45 L65 95 L35 95 Z"/>
+                            <path class="body-fill body-outline" d="M30 47 L12 75 L18 78 L33 55"/>
+                            <path class="body-fill body-outline" d="M70 47 L88 75 L82 78 L67 55"/>
+                            <path class="body-fill body-outline" d="M35 95 L30 145 L40 145 L45 98"/>
+                            <path class="body-fill body-outline" d="M65 95 L70 145 L60 145 L55 98"/>
+                            <circle class="signal-dot" id="su1" cx="50" cy="85" r="4"/>
+                            <circle class="signal-dot" id="su2" cx="50" cy="65" r="4"/>
+                            <circle class="signal-dot" id="su3" cx="50" cy="45" r="4"/>
+                            <circle class="signal-dot" id="su4" cx="50" cy="30" r="4"/>
+                            <circle class="signal-dot" id="sd1" cx="45" cy="30" r="4" style="fill:#4CAF50"/>
+                            <circle class="signal-dot" id="sd2" cx="40" cy="50" r="4" style="fill:#4CAF50"/>
+                            <circle class="signal-dot" id="sd3" cx="35" cy="70" r="4" style="fill:#4CAF50"/>
+                            <circle class="signal-dot" id="sd4" cx="55" cy="30" r="4" style="fill:#4CAF50"/>
+                            <circle class="signal-dot" id="sd5" cx="60" cy="50" r="4" style="fill:#4CAF50"/>
+                            <circle class="signal-dot" id="sd6" cx="65" cy="70" r="4" style="fill:#4CAF50"/>
+                        </svg>
+                        <div class="shiver-container" id="shiver-c"><div class="shiver-line" style="left:15%;top:40%"></div><div class="shiver-line" style="left:75%;top:42%"></div><div class="shiver-line" style="left:20%;top:55%"></div><div class="shiver-line" style="left:70%;top:57%"></div><div class="shiver-line" style="left:25%;top:70%"></div><div class="shiver-line" style="left:65%;top:72%"></div></div>
+                        <div class="sweat-container" id="sweat-c"><div class="sweat" style="left:35%;top:15%"></div><div class="sweat" style="left:58%;top:17%"></div><div class="sweat" style="left:28%;top:35%"></div><div class="sweat" style="left:65%;top:37%"></div><div class="sweat" style="left:38%;top:50%"></div><div class="sweat" style="left:55%;top:52%"></div></div>
+                        <div class="particle-field" id="gluc-f"><div class="particle glucose" style="left:35%;top:55%"></div><div class="particle glucose" style="left:55%;top:60%"></div><div class="particle glucose" style="left:42%;top:65%"></div><div class="particle glucose" style="left:50%;top:58%"></div></div>
+                        <div class="particle-field" id="dopa-f"><div class="particle dopamine" style="left:42%;top:12%"></div><div class="particle dopamine" style="left:52%;top:14%"></div><div class="particle dopamine" style="left:47%;top:18%"></div><div class="particle dopamine" style="left:38%;top:16%"></div><div class="particle dopamine" style="left:56%;top:10%"></div></div>
+                        <div class="receptor-field" id="recept-f"><div class="receptor" style="left:10%;top:20%"></div><div class="receptor" style="left:30%;top:10%"></div><div class="receptor" style="left:50%;top:25%"></div><div class="receptor" style="left:70%;top:15%"></div><div class="receptor" style="left:85%;top:30%"></div></div>
+                        <div class="meter-container"><div class="meter-label" id="meter-lbl">Body Level</div><div class="meter"><div class="meter-zones"><span>LOW</span><span style="color:#fff">OK</span><span>HIGH</span></div><div class="meter-needle" id="needle"></div></div></div>
+                    </div>
+                    <div class="reading-box" id="reading-box"></div>
+                    <div class="action-area" id="action-area"></div>
+                    <div class="final-message" id="final-msg"><h2>🏆 Pattern Discovered!</h2><div class="badge-earned">🧬</div><div class="pattern-reveal"><h3>The Pattern:</h3><p style="font-size:1.2em;margin-top:10px">When something pushes the body OUT of balance, the body <strong>RESPONDS</strong> to bring it back toward normal. This is <strong>HOMEOSTASIS</strong>!</p></div></div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-title">📊 Progress</div>
+                <div class="hud-grid">
+                    <div class="hud-item"><div class="hud-label">Score</div><div class="hud-value score" id="score">0</div></div>
+                    <div class="hud-item"><div class="hud-label">Streak</div><div class="hud-value streak" id="streak">0</div></div>
+                    <div class="hud-item"><div class="hud-label">Completed</div><div class="hud-value" id="completed">0/4</div></div>
+                    <div class="hud-item"><div class="hud-label">Accuracy</div><div class="hud-value" id="accuracy">--%</div></div>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+                <div id="status" style="text-align:center;font-size:0.9em;color:#CE93D8;margin-bottom:10px"></div>
+                <div class="data-table-container">
+                    <div class="panel-title">📋 Data Table</div>
+                    <table class="data-table"><thead><tr><th>Scenario</th><th>Changed?</th><th>Response</th><th>Normal?</th></tr></thead><tbody id="tbl-body"></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+const S=[
+{name:"Too Cold",icon:"🥶",q:"You go outside without a jacket. You get really cold. Will your body try to FIX this or let it get WORSE?",ans:"toward",lbl:"Body Temperature",start:50,danger:12,end:48,type:"cold",
+reading:{low:`<p>You walk outside in winter without a jacket. Your body temperature drops below the <strong>set point</strong> of 98.6°F. A part of your brain called the <strong>hypothalamus</strong> detects that you are too cold.</p><p>The <strong>hypothalamus</strong> sends a signal to your muscles. Your muscles start <strong>shivering</strong> fast. Shivering makes heat. This heat warms your body back toward the OK zone.</p>`,medium:`<p>You walk outside on a freezing winter day without a jacket. Your skin and blood start to lose heat to the cold air. Your core body temperature drops below the normal <strong>set point</strong> of 98.6°F. Temperature <strong>receptors</strong> in your skin and brain detect this change and send a message to the <strong>hypothalamus</strong>.</p><p>The <strong>hypothalamus</strong> acts like a thermostat. It sends signals to your muscles telling them to <strong>shiver</strong>. Shivering creates heat energy that warms your blood and raises your body temperature back toward the <strong>set point</strong>.</p>`,high:`<p>You step outside on a freezing winter day without a jacket. The cold air pulls heat away from your skin through heat loss. Your core body temperature begins to drop below the normal <strong>set point</strong> of 98.6°F. Specialized temperature <strong>receptors</strong> in your skin detect this drop and send signals to the <strong>hypothalamus</strong>, which acts as the body's thermostat.</p><p>The <strong>hypothalamus</strong> triggers a <strong>response</strong>. It sends commands to your skeletal muscles to <strong>shiver</strong> — contracting rapidly to convert chemical energy into heat. The heat warms your blood and raises your core temperature back toward the <strong>set point</strong>, restoring <strong>homeostasis</strong>.</p>`},
+row:{c:"Temp ↓",r:"Shivering",n:"Yes ✓"}},
+{name:"Too Hot",icon:"🥵",q:"You run around on a hot day. You get way too hot. Will your body try to FIX this or let it get WORSE?",ans:"toward",lbl:"Body Temperature",start:50,danger:88,end:52,type:"hot",
+reading:{low:`<p>You run outside on a hot summer day. Your muscles make heat when you move. Your body temperature rises above the <strong>set point</strong> of 98.6°F. The <strong>hypothalamus</strong> in your brain detects that you are too hot.</p><p>The <strong>hypothalamus</strong> sends a signal to your <strong>sweat glands</strong>. Your sweat glands release sweat onto your skin. When the sweat <strong>evaporates</strong>, it takes heat away from your body. This cools you down toward OK.</p>`,medium:`<p>You go for a run on a hot summer afternoon. Your working muscles generate a lot of heat. Your core body temperature rises above the normal <strong>set point</strong> of 98.6°F. Temperature <strong>receptors</strong> in your body detect this increase and send signals to the <strong>hypothalamus</strong>.</p><p>The <strong>hypothalamus</strong> responds by activating your <strong>sweat glands</strong>. They release sweat onto your skin. When sweat <strong>evaporates</strong>, it absorbs heat from your skin through evaporative cooling, lowering your temperature back toward the <strong>set point</strong>.</p>`,high:`<p>You go for a run on a hot summer afternoon. Your skeletal muscles generate significant heat as a byproduct of movement. Your core body temperature rises above the normal <strong>set point</strong> of approximately 98.6°F. Thermoreceptors — specialized temperature <strong>receptors</strong> — detect this rise and transmit signals to the <strong>hypothalamus</strong>, the brain's temperature control center.</p><p>The <strong>hypothalamus</strong> initiates a cooling <strong>response</strong> by signaling your <strong>sweat glands</strong> to secrete sweat. When sweat <strong>evaporates</strong>, it absorbs thermal energy from your skin through evaporative cooling. This removes excess heat and drops your core temperature back toward the <strong>set point</strong>, restoring <strong>homeostasis</strong>.</p>`},
+row:{c:"Temp ↑",r:"Sweating",n:"Yes ✓"}},
+{name:"Blood Sugar Drop",icon:"🍩",q:"You skip breakfast. Your blood sugar crashes really low. Will your body try to FIX this or let it get WORSE?",ans:"toward",lbl:"Blood Sugar",start:50,danger:10,end:48,type:"glucose",
+reading:{low:`<p>You skip breakfast and feel tired and shaky. Your <strong>blood sugar</strong> (also called <strong>glucose</strong>) has dropped too low. Your body needs glucose for energy. The <strong>pancreas</strong> detects that blood sugar is below the <strong>set point</strong>.</p><p>The <strong>pancreas</strong> releases a hormone called <strong>glucagon</strong>. Glucagon travels to the <strong>liver</strong>. The liver stores extra sugar. Glucagon tells the liver to release stored sugar into the blood. This raises your blood sugar back toward the OK zone.</p>`,medium:`<p>You skip breakfast and by mid-morning you feel tired, shaky, and have trouble focusing. These are signs that your <strong>blood sugar</strong> has dropped below the normal <strong>set point</strong>. Special cells in the <strong>pancreas</strong> called alpha cells detect when blood glucose is too low.</p><p>When the alpha cells detect low blood sugar, they release a hormone called <strong>glucagon</strong> into the bloodstream. Glucagon travels to the <strong>liver</strong>, which stores glucose as glycogen. Glucagon signals the liver to break down glycogen and release glucose back into the blood, raising your blood sugar level back toward the <strong>set point</strong>.</p>`,high:`<p>You skip breakfast and by mid-morning you feel tired, shaky, and have difficulty concentrating. These symptoms indicate that your <strong>blood glucose</strong> level has dropped below the normal <strong>set point</strong> of approximately 70–100 mg/dL. The <strong>pancreas</strong> contains specialized alpha cells that continuously monitor blood glucose levels and detect when it falls too low.</p><p>The activated alpha cells release a hormone called <strong>glucagon</strong> into the bloodstream. Glucagon travels to the <strong>liver</strong>, triggering <strong>glycogenolysis</strong> — the breakdown of stored glycogen into glucose. These glucose molecules are released into the bloodstream, raising your blood sugar level back toward the <strong>set point</strong> and restoring <strong>homeostasis</strong>.</p>`},
+row:{c:"Sugar ↓",r:"Released sugar",n:"Yes ✓"}},
+{name:"Drug Addiction",icon:"💊",q:"A drug floods the brain with way too many feel-good chemicals. Will the brain try to FIX this overload or let it get WORSE?",ans:"toward",lbl:"Dopamine",start:50,danger:92,end:38,type:"dopamine",
+reading:{low:`<p>A person takes an addictive drug. The drug causes a flood of <strong>dopamine</strong> in the brain. Dopamine is a chemical that makes you feel good. The brain's <strong>receptors</strong> detect way too much dopamine — far above the normal <strong>set point</strong>.</p><p>The brain tries to fix this by <strong>reducing the number of receptors</strong>. Fewer receptors means the brain feels less of the dopamine. This is called <strong>tolerance</strong>. Now the person needs more of the drug just to feel normal. The brain moved toward balance, but created a new problem.</p>`,medium:`<p>When a person takes an addictive drug, it triggers a massive release of <strong>dopamine</strong> in the brain. Dopamine is a neurotransmitter linked to feelings of pleasure and reward. The flood of dopamine is far above the brain's normal <strong>set point</strong>. <strong>Receptors</strong> on brain cells detect this extreme surplus.</p><p>To correct this imbalance, the brain <strong>reduces the number of dopamine receptors</strong> on neurons. This is called <strong>downregulation</strong>. With fewer receptors, the same amount of dopamine has less effect — this is called <strong>tolerance</strong>. The person now needs more drug to feel the same effect.</p>`,high:`<p>When a person takes an addictive substance, it causes an unnatural surge of <strong>dopamine</strong> in the brain's reward pathways. Dopamine is a neurotransmitter responsible for feelings of pleasure and reward. Under normal circumstances, dopamine is released in moderate amounts. But addictive drugs spike dopamine far above the brain's normal <strong>set point</strong>. Specialized <strong>receptors</strong> detect this dangerous imbalance.</p><p>To restore balance, the brain initiates <strong>receptor downregulation</strong>. Neurons reduce the number of dopamine receptors on their surface. With fewer receptors, the neurons become less sensitive — a phenomenon called <strong>tolerance</strong>. The person must take more drug to achieve the same feeling, and without the drug, they feel worse than before because receptor counts are reduced.</p>`},
+row:{c:"Dopamine ↑↑",r:"↓ Receptors",n:"Tried"}},
+{name:"Falling in Love",icon:"💕",q:"You fall in love! Your brain floods with happy chemicals. Over time, will your brain try to FIX this overload or let it stay CRAZY forever?",ans:"toward",lbl:"Love Chemicals",start:50,danger:88,end:55,type:"dopamine",
+reading:{low:`<p>You fall in love with someone. Your brain releases a flood of chemicals like <strong>dopamine</strong> and <strong>oxytocin</strong>. These hormones make you feel excited and happy. The brain's <strong>receptors</strong> detect that hormone levels are way above the <strong>set point</strong>.</p><p>Over time, the brain <strong>reduces its sensitivity</strong> to these hormones. The receptors respond less strongly. This is why the intense "butterflies" feeling fades after a few months. The brain has adapted. The wild excitement calms into steady, comfortable attachment.</p>`,medium:`<p>When you fall in love, your brain releases a powerful mix of chemicals including <strong>dopamine</strong>, <strong>oxytocin</strong>, and norepinephrine. Dopamine creates pleasure; oxytocin promotes bonding. Together, these push your brain far above its normal <strong>set point</strong> for emotional arousal. <strong>Receptors</strong> throughout the brain detect this intense surge.</p><p>The brain responds by <strong>reducing receptor sensitivity</strong> over time — a process called habituation. This is why the obsessive, euphoric feelings of early love typically fade after several months. The intense passion transforms into calmer, steadier attachment. The brain has moved back toward its <strong>set point</strong>.</p>`,high:`<p>When you fall in love, your brain undergoes significant chemical changes. Large amounts of <strong>dopamine</strong> create intense pleasure, while <strong>oxytocin</strong> promotes attachment and trust. Norepinephrine causes a racing heart and excitement. This chemical cocktail pushes the brain far above its normal <strong>set point</strong> for emotional arousal. <strong>Receptors</strong> throughout the limbic system detect this sustained overactivation.</p><p>To restore balance, the brain gradually <strong>reduces receptor sensitivity</strong> through neural adaptation. The receptor proteins remain but respond less intensely over time. This explains why the obsessive, euphoric phase of romantic love — called limerence — typically lasts only 12 to 18 months. The brain achieves <strong>homeostasis</strong> by transforming wild passion into stable attachment.</p>`},
+row:{c:"Love chem ↑↑",r:"Calmed down",n:"Yes (months)"}},
+{name:"Won the Lottery",icon:"🎰",q:"You win millions of dollars! You feel AMAZING! Over time, will your brain try to FIX this extreme high or let you stay on cloud nine forever?",ans:"toward",lbl:"Happiness",start:50,danger:95,end:52,type:"dopamine",
+reading:{low:`<p>You win the lottery! Your brain floods with <strong>dopamine</strong> and you feel amazing. This is way above your normal <strong>set point</strong> for happiness. Your brain's <strong>receptors</strong> detect this extreme spike in feel-good chemicals.</p><p>Over time, your brain <strong>adapts</strong> to your new life. The receptors become less sensitive to the dopamine. Scientists call this <strong>hedonic adaptation</strong>. After a few months, lottery winners usually feel about as happy as before they won. The brain moved back toward its original balance point.</p>`,medium:`<p>Imagine you win a massive lottery jackpot. Your brain immediately releases a surge of <strong>dopamine</strong>, flooding your reward circuits with feel-good signals. You feel euphoric. This emotional spike is far above your brain's normal <strong>set point</strong> for baseline happiness. <strong>Receptors</strong> in your brain's reward system detect this extreme increase.</p><p>Research shows that the brain responds through a process called <strong>hedonic adaptation</strong>. Over weeks and months, the brain <strong>reduces receptor sensitivity</strong> to match the new circumstances. The initial thrill of being rich fades as your brain recalibrates what "normal" feels like. Studies found that within one to two years, most lottery winners returned to their pre-winning happiness levels.</p>`,high:`<p>Imagine winning a multi-million dollar lottery jackpot. Your brain's mesolimbic reward pathway releases a massive surge of <strong>dopamine</strong>. The nucleus accumbens — a key structure in processing reward — becomes highly activated. This represents a dramatic departure from your brain's normal <strong>set point</strong> for baseline happiness. <strong>Receptors</strong> throughout the reward circuitry detect this sustained elevation.</p><p>The brain's corrective mechanism is called <strong>hedonic adaptation</strong>. Over time, the brain <strong>downregulates receptor sensitivity</strong> and adjusts neurotransmitter production. Research found that lottery winners returned to happiness levels similar to their pre-winning baseline within 12 to 24 months. The brain recalibrates its expectations — wealth becomes the new normal. This demonstrates <strong>homeostasis</strong> operating at the psychological level.</p>`},
+row:{c:"Happy ↑↑",r:"Adapted",n:"Yes (months)"}}
+];
+let st={cur:null,step:null,lvl:'low',done:[],score:0,streak:0,total:0,correct:0,bonus:false};
+const $=id=>document.getElementById(id);
+function closeTutorial(){$('tutorial').style.display='none';}
+function setLevel(l,btn){st.lvl=l;document.querySelectorAll('.level-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+function selectScenario(i){if(st.done.includes(i))return;st.cur=i;st.step='predict';document.querySelectorAll('.scenario-btn').forEach((b,j)=>b.classList.toggle('active',j===i));updateStep();showPredict();}
+function updateStep(){['predict','read','watch','record'].forEach(s=>$('step-'+s).classList.toggle('active',st.step===s));}
+function showPredict(){$('start-message').classList.add('hidden');$('prediction-box').classList.add('visible');$('pred-q').textContent=S[st.cur].q;$('reading-box').classList.remove('visible');$('body-anim').classList.remove('visible');$('action-area').innerHTML='';$('final-msg').classList.remove('visible');resetAnim();}
+function predict(p){st.total++;const ok=p===S[st.cur].ans;if(ok){st.correct++;st.streak++;st.score+=10+(st.streak*2);showToast('✓ Correct! +'+(10+(st.streak*2))+' pts','correct');}else{st.streak=0;st.score+=5;showToast('Not quite! +5 pts','incorrect');}updateHUD();setTimeout(()=>{st.step='read';updateStep();showRead();},1500);}
+function showToast(msg,type){const f=$('feedback');f.textContent=msg;f.className='feedback-toast visible '+type;setTimeout(()=>f.classList.remove('visible'),2000);}
+function showRead(){$('prediction-box').classList.remove('visible');$('reading-box').innerHTML=S[st.cur].reading[st.lvl];$('reading-box').classList.add('visible');$('action-area').innerHTML='<button class="action-btn primary" onclick="goWatch()">▶️ Watch the Body Respond</button><button class="speak-btn" onclick="speak()">🔊 Read Aloud</button>';}
+function speak(){const t=$('reading-box').textContent;if('speechSynthesis' in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=0.9;speechSynthesis.speak(u);}}
+function goWatch(){st.step='watch';updateStep();showWatch();}
+function resetAnim(){$('brain').classList.remove('active');$('cold-ov').classList.remove('visible');$('hot-ov').classList.remove('visible');document.querySelectorAll('.signal-dot,.shiver-line,.sweat,.particle').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.receptor').forEach(e=>{e.classList.remove('fading');e.style.opacity='1';});}
+function showWatch(){const s=S[st.cur];$('reading-box').classList.remove('visible');$('action-area').innerHTML='';$('body-anim').classList.add('visible');$('meter-lbl').textContent=s.lbl;$('needle').style.left=s.start+'%';const lbl=$('stage-label');resetAnim();lbl.textContent='🔍 Body detects a problem...';setTimeout(()=>{$('needle').style.left=s.danger+'%';if(s.type==='cold')$('cold-ov').classList.add('visible');if(s.type==='hot')$('hot-ov').classList.add('visible');['su1','su2','su3','su4'].forEach((id,i)=>setTimeout(()=>$(id).classList.add('active'),i*200));},500);setTimeout(()=>{lbl.textContent='🧠 Brain receives signal!';$('brain').classList.add('active');if(s.type==='dopamine')document.querySelectorAll('#dopa-f .particle').forEach((e,i)=>setTimeout(()=>e.classList.add('active'),i*150));},2000);setTimeout(()=>{lbl.textContent='⚡ Brain sends signals to body...';['sd1','sd2','sd3','sd4','sd5','sd6'].forEach((id,i)=>setTimeout(()=>$(id).classList.add('active'),i*150));},3500);setTimeout(()=>{if(s.type==='cold'){lbl.textContent='💪 Muscles shivering → making heat!';document.querySelectorAll('.shiver-line').forEach((e,i)=>setTimeout(()=>e.classList.add('active'),i*80));}else if(s.type==='hot'){lbl.textContent='💧 Sweating → cooling down!';document.querySelectorAll('.sweat').forEach((e,i)=>setTimeout(()=>e.classList.add('active'),i*150));}else if(s.type==='glucose'){lbl.textContent='🍬 Liver releasing stored sugar!';document.querySelectorAll('#gluc-f .particle').forEach((e,i)=>setTimeout(()=>e.classList.add('active'),i*120));}else if(s.type==='dopamine'){lbl.textContent='📉 Brain reducing receptors...';document.querySelectorAll('.receptor').forEach((e,i)=>setTimeout(()=>e.classList.add('fading'),i*250));}},5000);setTimeout(()=>{$('needle').style.left=s.end+'%';lbl.textContent='✅ Moving back toward normal!';$('cold-ov').classList.remove('visible');$('hot-ov').classList.remove('visible');$('brain').classList.remove('active');},7000);setTimeout(()=>{lbl.textContent='🎯 Balance restored!';$('action-area').innerHTML='<button class="action-btn success" onclick="goRecord()">📝 Record Data</button>';},8500);}
+function goRecord(){st.step='record';updateStep();showRecord();}
+function showRecord(){const s=S[st.cur];$('body-anim').classList.remove('visible');const tr=document.createElement('tr');tr.innerHTML=`<td>${s.name}</td><td>${s.row.c}</td><td>${s.row.r}</td><td>${s.row.n}</td>`;$('tbl-body').appendChild(tr);st.done.push(st.cur);document.querySelectorAll('.scenario-btn')[st.cur].classList.remove('active');document.querySelectorAll('.scenario-btn')[st.cur].classList.add('completed');updateHUD();const n=st.done.length;let html='<p style="font-size:1.2em;color:#4CAF50;margin-bottom:15px">✅ Data recorded!</p>';if(n===6){st.score+=100;updateHUD();html+='<div class="extra-message"><strong>🌟 ALL 6 COMPLETE!</strong><br>Extra Credit! +100 bonus!</div><button class="action-btn success" onclick="showFinal()">🏆 See the Pattern!</button>';}else if(n>=4){if(!st.bonus){st.score+=50;st.bonus=true;updateHUD();}html+='<div class="done-message"><strong>🎯 '+n+' Done!</strong></div>';if(n<6)html+='<p style="margin:10px 0">Keep going for extra credit! ('+(6-n)+' more)</p>';html+='<button class="action-btn success" onclick="showFinal()">🏆 See the Pattern!</button>';}else{html+='<p>Nice! '+(4-n)+' more to find the pattern.</p>';}$('action-area').innerHTML=html;}
+function showFinal(){$('action-area').innerHTML='';$('final-msg').classList.add('visible');showToast('🧬 Pattern Master!','correct');}
+function updateHUD(){$('score').textContent=st.score;$('streak').textContent=st.streak;const n=st.done.length;$('completed').textContent=Math.min(n,4)+'/4';$('accuracy').textContent=st.total>0?Math.round((st.correct/st.total)*100)+'%':'--%';$('prog-fill').style.width=(Math.min(n,4)/4*100)+'%';if(n>=6)$('status').innerHTML='🌟 All 6 done! Extra credit!';else if(n>=4)$('status').innerHTML='✅ Pattern found! '+(6-n)+' more for extra credit';else $('status').innerHTML='Pick '+(4-n)+' more you like!';}
+function resetSim(){st={cur:null,step:null,lvl:st.lvl,done:[],score:0,streak:0,total:0,correct:0,bonus:false};document.querySelectorAll('.scenario-btn').forEach(b=>b.classList.remove('active','completed'));$('tbl-body').innerHTML='';$('start-message').classList.remove('hidden');$('prediction-box').classList.remove('visible');$('reading-box').classList.remove('visible');$('body-anim').classList.remove('visible');$('action-area').innerHTML='';$('final-msg').classList.remove('visible');resetAnim();updateHUD();updateStep();}
+function newRun(){resetSim();$('tutorial').style.display='flex';}
+updateHUD();
+</script>
+</body>
+</html>

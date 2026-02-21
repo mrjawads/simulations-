@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulation — Volcano</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg1:#1A1A2E;--bg2:#16213E;--accent1:#00D4FF;--accent2:#FFD93D;--accent3:#FF4757;--text:#F0F0F0;--textd:#8899AA;--panel:rgba(22,33,62,.92);--cardbg:rgba(0,212,255,.08);--ok:#22C55E;--no:#EF4444;--bdr:rgba(0,212,255,.2)}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text)}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;touch-action:manipulation}
+button:focus-visible{outline:2px solid var(--accent1);outline-offset:2px}
+
+.top-bar{height:52px;background:rgba(10,15,30,.95);display:flex;align-items:center;padding:0 12px;gap:10px;border-bottom:1px solid var(--bdr);z-index:100;position:relative;flex-shrink:0}
+.lv-badge{background:linear-gradient(135deg,var(--accent1),#0099CC);color:#000;font-weight:700;padding:3px 10px;border-radius:18px;font-size:12px;white-space:nowrap}
+.lv-name{font-size:14px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hud-s{background:var(--cardbg);border:1px solid var(--bdr);border-radius:10px;padding:3px 12px;font-size:13px;font-weight:600;color:var(--accent2)}
+.hud-ev{font-size:12px;color:var(--textd);white-space:nowrap}
+.prog-w{width:100px;height:7px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden}
+.prog-f{height:100%;background:linear-gradient(90deg,var(--accent1),var(--accent2));border-radius:4px;transition:width .5s}
+
+.main{display:flex;height:calc(100vh - 52px - 44px);overflow:hidden}
+.ev-side{width:200px;min-width:160px;background:var(--panel);border-right:1px solid var(--bdr);overflow-y:auto;padding:8px;flex-shrink:0}
+.arena-w{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.arena{flex:1;position:relative;overflow:hidden}
+.arena canvas{width:100%;height:100%;display:block}
+.fp{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:var(--accent2);padding:8px 20px;border-radius:10px;font-size:14px;font-weight:600;text-align:center;z-index:50;max-width:90%;border:1px solid rgba(255,217,61,.3);transition:opacity 1s;pointer-events:none;display:none}
+.fp.subtle{opacity:.45;font-size:11px;padding:5px 12px;top:3px}
+.iz{min-height:170px;max-height:280px;background:rgba(10,15,30,.95);border-top:1px solid var(--bdr);padding:12px 16px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:8px}
+.eb-side{width:230px;min-width:180px;background:var(--panel);border-left:1px solid var(--bdr);overflow-y:auto;padding:8px;flex-shrink:0}
+
+.bot-bar{height:44px;background:rgba(10,15,30,.95);display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-top:1px solid var(--bdr);z-index:100;flex-shrink:0}
+.bot-bar button{background:var(--cardbg);border:1px solid var(--bdr);color:var(--text);padding:5px 12px;border-radius:8px;font-size:12px;min-height:34px}
+.bot-bar button:hover{background:rgba(0,212,255,.15)}
+
+.iz-p{font-size:15px;font-weight:600;text-align:center;line-height:1.4}
+.iz-opts{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%}
+.opt{background:var(--cardbg);border:2px solid var(--bdr);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--text);min-height:48px;transition:all .2s;flex:1;min-width:130px;max-width:300px;text-align:center;line-height:1.3}
+.opt:hover{border-color:var(--accent1);background:rgba(0,212,255,.12)}
+.opt.sel{border-color:var(--accent1);background:rgba(0,212,255,.2);box-shadow:0 0 10px rgba(0,212,255,.3)}
+.opt.cflash{border-color:var(--ok);background:rgba(34,197,94,.2);animation:cpulse .6s}
+.opt.wflash{border-color:var(--no);background:rgba(239,68,68,.15);animation:wshake .5s}
+.opt.elim{opacity:.3;pointer-events:none;text-decoration:line-through;border-color:rgba(255,255,255,.1)}
+.opt.dim{opacity:.4;pointer-events:none}
+
+.lock-btn{background:linear-gradient(135deg,var(--accent1),#0099CC);color:#000;font-weight:700;padding:10px 32px;border-radius:10px;font-size:15px;min-height:48px;transition:all .2s;opacity:0;pointer-events:none}
+.lock-btn.act{opacity:1;pointer-events:auto}
+.lock-btn:hover{transform:scale(1.03);box-shadow:0 4px 16px rgba(0,212,255,.4)}
+.try-btn{background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;font-weight:700;padding:10px 32px;border-radius:10px;font-size:15px;min-height:48px}
+
+.coach{background:rgba(255,217,61,.1);border:1px solid rgba(255,217,61,.3);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--accent2);text-align:center;width:100%;max-width:580px;line-height:1.4;animation:slu .3s}
+
+.tc{background:var(--cardbg);border:2px solid var(--bdr);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text);cursor:pointer;min-height:48px;display:flex;align-items:center;text-align:center;justify-content:center;transition:all .2s;line-height:1.3;user-select:none}
+.tc:hover{border-color:var(--accent1);background:rgba(0,212,255,.12)}
+.tc.sel{border-color:var(--accent1);background:rgba(0,212,255,.2)}
+.tc.used{opacity:.3;pointer-events:none}
+
+.dz{border:2px dashed var(--bdr);border-radius:8px;padding:8px 10px;min-height:50px;min-width:90px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--textd);transition:all .2s;text-align:center;cursor:pointer;flex-wrap:wrap;gap:4px}
+.dz.filled{border-style:solid;border-color:var(--ok);background:rgba(34,197,94,.08)}
+.dz.wflash{border-color:var(--no);animation:wshake .5s}
+
+.sslot{border:2px dashed var(--bdr);border-radius:8px;padding:8px;min-height:50px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--textd);transition:all .2s;cursor:pointer}
+.sslot.filled{border-style:solid;border-color:var(--accent1);background:var(--cardbg);color:var(--text)}
+.sslot.sok{border-color:var(--ok);background:rgba(34,197,94,.12)}
+.sslot.swrong{border-color:var(--no);animation:wshake .5s}
+
+.ev-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:12px;margin-bottom:4px;border:1px solid transparent;transition:all .3s}
+.ev-item.locked{color:var(--textd)}.ev-item.cur{border-color:var(--accent1);background:rgba(0,212,255,.08);animation:pulse 2s infinite}.ev-item.done{color:var(--ok);border-color:rgba(34,197,94,.2)}
+.ev-ico{width:24px;height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:13px;background:rgba(255,255,255,.06);flex-shrink:0}
+
+.eb-t{font-size:12px;font-weight:600;color:var(--accent2);margin-bottom:6px;text-align:center}
+.eb-c{background:var(--cardbg);border:1px solid var(--bdr);border-radius:6px;padding:6px;margin-bottom:6px;font-size:10px;color:var(--textd);display:flex;align-items:center;gap:4px;animation:slu .4s}
+.cm-bar{width:100%;height:100px;background:rgba(255,255,255,.05);border-radius:6px;border:1px solid var(--bdr);position:relative;overflow:hidden;margin-top:8px}
+.cm-fill{position:absolute;bottom:0;width:100%;background:linear-gradient(to top,var(--ok),#10B981);border-radius:0 0 6px 6px;transition:height .8s}
+.cm-lbl{position:absolute;right:3px;font-size:8px;color:var(--textd)}
+
+.v-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:none;align-items:center;justify-content:center}
+.v-ov.show{display:flex}
+.v-pan{background:var(--bg2);border:1px solid var(--bdr);border-radius:14px;padding:18px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto}
+.v-pan h3{color:var(--accent1);font-size:16px;margin-bottom:10px;text-align:center}
+.v-term{margin-bottom:10px;padding:8px;background:var(--cardbg);border-radius:8px;border:1px solid var(--bdr)}
+.v-term strong{color:var(--accent2);font-size:14px}
+.v-term p{font-size:12px;color:var(--textd);margin-top:3px;line-height:1.4}
+.v-close{display:block;margin:10px auto 0;background:var(--accent1);color:#000;font-weight:700;padding:8px 24px;border-radius:8px;font-size:13px}
+
+.h-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:400;display:none;align-items:center;justify-content:center}
+.h-ov.show{display:flex}
+.sbs-p{background:var(--bg2);border:1px solid var(--bdr);border-radius:14px;padding:20px;max-width:460px;width:90%;text-align:center}
+.sbs-p .sbs-t{font-size:14px;line-height:1.5;margin-bottom:12px;min-height:50px}
+.sbs-c{font-size:11px;color:var(--textd);margin-bottom:8px}
+.sbs-n{background:var(--accent1);color:#000;font-weight:700;padding:8px 24px;border-radius:8px;font-size:13px}
+
+.g-ov{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:450;display:none;align-items:center;justify-content:center}
+.g-ov.show{display:flex}
+.g-msg{background:var(--bg2);border:2px solid var(--accent2);border-radius:14px;padding:24px;max-width:380px;width:90%;text-align:center;font-size:15px;color:var(--accent2);line-height:1.4}
+
+.li-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px}
+.li-ov.show{display:flex}
+.li-b{background:linear-gradient(135deg,var(--accent1),#0099CC);color:#000;font-weight:700;padding:6px 20px;border-radius:20px;font-size:16px}
+.li-n{font-size:20px;font-weight:600;text-align:center}
+.li-ph{font-size:13px;color:var(--accent2)}
+
+.cel-ov{position:fixed;inset:0;z-index:600;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;pointer-events:none}
+.cel-ov.show{display:flex;pointer-events:auto}
+.cel-ov canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.cel-msg{font-size:26px;font-weight:700;color:#fff;text-shadow:0 2px 16px rgba(0,0,0,.5);z-index:1;text-align:center}
+.cel-aff{font-size:20px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.4);z-index:1;text-align:center;animation:fio 2s}
+.cel-btns{z-index:1;display:flex;gap:10px}
+.cel-btns button{padding:10px 24px;border-radius:10px;font-size:15px;font-weight:700;min-height:48px}
+.cb-pri{background:linear-gradient(135deg,var(--accent1),#0099CC);color:#000}
+.cb-sec{background:var(--cardbg);border:1px solid var(--bdr);color:var(--text)}
+
+.rec-ov{position:fixed;inset:0;background:var(--bg1);z-index:700;display:none;overflow-y:auto}
+.rec-ov.show{display:block}
+.rec{max-width:620px;margin:16px auto;padding:20px;background:var(--panel);border-radius:14px;border:1px solid var(--bdr)}
+.rec h2{text-align:center;color:var(--accent1);font-size:18px;margin-bottom:3px}
+.rec .r-sub{text-align:center;color:var(--textd);font-size:13px;margin-bottom:12px}
+.r-nr{display:flex;gap:8px;align-items:center;margin-bottom:14px}
+.r-nr input{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--bdr);border-radius:6px;padding:8px 12px;color:var(--text);font-size:14px}
+.r-nr input:disabled{opacity:.5}
+.r-nr button{background:var(--accent1);color:#000;font-weight:700;padding:8px 16px;border-radius:6px;font-size:13px}
+.r-ov{text-align:center;margin:16px 0;padding:16px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--bdr)}
+.r-pct{font-size:44px;font-weight:700}
+.r-pct.grn{color:var(--ok)}.r-pct.ylw{color:var(--accent2)}.r-pct.red{color:var(--accent3)}
+.r-lbl{font-size:14px;color:var(--textd);margin-top:3px}
+.r-tbl{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+.r-tbl th{background:rgba(0,212,255,.1);padding:6px 8px;text-align:left;border-bottom:1px solid var(--bdr);color:var(--accent1);font-weight:600}
+.r-tbl td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
+.r-tbl tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.sc-grn{color:var(--ok)}.sc-ylw{color:var(--accent2)}.sc-red{color:var(--accent3)}
+.r-ft{text-align:center;margin-top:12px;padding:12px;background:rgba(0,212,255,.05);border-radius:8px;border:1px solid var(--bdr)}
+.r-ft p{font-size:13px;margin-bottom:8px;color:var(--textd)}
+.r-ft button{background:var(--accent1);color:#000;font-weight:700;padding:8px 20px;border-radius:8px;font-size:13px;margin:3px}
+.r-rst{margin-top:10px;background:transparent;border:1px solid var(--accent3)!important;color:var(--accent3);padding:6px 16px;border-radius:6px;font-size:12px;display:inline-block}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+@keyframes cpulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}100%{box-shadow:0 0 16px 6px rgba(34,197,94,0)}}
+@keyframes wshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+@keyframes slu{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fio{0%{opacity:0}20%{opacity:1}80%{opacity:1}100%{opacity:0}}
+
+@media(max-width:900px){.ev-side,.eb-side{display:none}.main{flex-direction:column}.arena{min-height:32vh}.iz{min-height:auto;max-height:none;flex:1;overflow-y:auto}}
+@media(max-width:600px){.top-bar{padding:0 6px;gap:4px}.lv-badge{font-size:10px;padding:2px 6px}.lv-name{font-size:12px}.hud-s{font-size:11px;padding:2px 6px}.prog-w{width:50px}.opt{min-width:90px;font-size:12px;padding:8px 10px}.tc{font-size:11px;padding:6px 8px}}
+@media print{.game-ui,.top-bar,.bot-bar,.main,.cel-ov,.li-ov,.v-ov,.h-ov,.g-ov{display:none!important}.rec-ov{position:static!important;display:block!important;background:#fff!important}.rec{color:#000;border:2px solid #000;max-width:100%}.rec h2,.rec .r-sub,.r-lbl,.r-ft p{color:#333!important}.r-pct.grn,.sc-grn{color:#22C55E!important}.r-pct.ylw,.sc-ylw{color:#B8860B!important}.r-pct.red,.sc-red{color:#C00!important}.r-tbl th{background:#eee!important;color:#000!important}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.r-ft button,.r-rst,.r-nr button{display:none!important}}
+</style>
+</head>
+<body>
+<div class="top-bar game-ui">
+  <span class="lv-badge" id="tBadge">&#128270; Evidence #1</span>
+  <span class="lv-name" id="tName">First Look</span>
+  <span class="hud-s" id="tScore">Score: 0</span>
+  <span class="hud-ev" id="tEv">Evidence: 0/4</span>
+  <div class="prog-w"><div class="prog-f" id="progF" style="width:0%"></div></div>
+</div>
+<div class="main game-ui">
+  <div class="ev-side" id="evSide"></div>
+  <div class="arena-w">
+    <div class="arena" id="arenaCont"><canvas id="aC"></canvas><div class="fp" id="fp"></div></div>
+    <div class="iz" id="iz"></div>
+  </div>
+  <div class="eb-side" id="ebSide">
+    <div class="eb-t">Evidence Board</div>
+    <div id="ebCards"></div>
+    <div class="cm-bar"><div class="cm-fill" id="cmF" style="height:0%"></div><span class="cm-lbl" style="bottom:3px">Observing</span><span class="cm-lbl" style="bottom:45%">Analyzing</span><span class="cm-lbl" style="top:3px">Case Closed</span></div>
+  </div>
+</div>
+<div class="bot-bar game-ui">
+  <div style="display:flex;gap:6px"><button onclick="showVocab()">&#128214; Vocab</button><button id="hintBtn" onclick="useHint()">&#128161; Hint</button></div>
+  <span style="font-size:12px;color:var(--textd)" id="botInd">Evidence 1 of 8</span>
+  <button onclick="if(confirm('Reset?'))location.reload()">&#9881;&#65039;</button>
+</div>
+<div class="v-ov" id="vOv"><div class="v-pan"><h3>Key Vocabulary</h3><div class="v-term"><strong>MAGMA</strong><p>Melted rock under Earth's surface</p></div><div class="v-term"><strong>PRESSURE</strong><p>Force pushing outward from inside</p></div><div class="v-term"><strong>THICKNESS</strong><p>How easily magma flows</p></div><div class="v-term"><strong>ERUPTION</strong><p>Magma escaping to the surface</p></div><button class="v-close" onclick="document.getElementById('vOv').classList.remove('show')">Close</button></div></div>
+<div class="h-ov" id="hOv"><div class="sbs-p"><div class="sbs-c" id="sbsC"></div><div class="sbs-t" id="sbsT"></div><button class="sbs-n" id="sbsN" onclick="nextSbs()">Next</button></div></div>
+<div class="g-ov" id="gOv"><div class="g-msg" id="gMsg">Slow down.<div id="gTmr" style="font-size:12px;color:var(--textd);margin-top:6px"></div></div></div>
+<div class="li-ov" id="liOv"><span class="li-b" id="liB"></span><span class="li-n" id="liN"></span><span class="li-ph" id="liP"></span></div>
+<div class="cel-ov" id="celOv"><canvas id="celC"></canvas><div class="cel-msg" id="celMsg"></div><div class="cel-aff" id="celAff"></div><div class="cel-btns" id="celBtns"></div></div>
+<div class="rec-ov" id="recOv"><div class="rec" id="recC"></div></div>
+
+<script>
+"use strict";
+const T="Mr. Jawad",TOPIC="Volcano";
+let audioCtx=null;
+function gAC(){if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)}catch(e){}return audioCtx}
+
+const affs=[T+" is proud of you!",T+" knew you could do it!","That's the kind of thinking "+T+" loves to see!",T+" says: you're getting it!","Strong work — "+T+" sees your effort!",T+" is impressed right now!","You're showing "+T+" what you can do!",T+" says: keep that energy!"];
+let lastAff=-1;
+function gAff(){let i;do{i=Math.floor(Math.random()*affs.length)}while(i===lastAff&&affs.length>1);lastAff=i;return affs[i]}
+
+const GS={name:"",locked:false,cur:0,phase:"",levels:[],evCol:0,evBoard:[],conPct:0};
+let LS={hints:0,resets:0,att:0,wrongs:0,start:0,elim:[],fastW:0,cfW:0,selCard:null,match:{},seq:[],hsStep:0,hsW:0,pred:null,predOk:null,phaseStart:0,doDone:false,proveDone:false};
+function resetLS(){LS={hints:0,resets:0,att:0,wrongs:0,start:Date.now(),elim:[],fastW:0,cfW:0,selCard:null,match:{},seq:[],hsStep:0,hsW:0,pred:null,predOk:null,phaseStart:Date.now(),doDone:false,proveDone:false}}
+
+// ===== LEVEL DATA =====
+const L=[
+{num:1,name:"First Look — The Eruptions",phase:"Observe (1 of 2)",req:true,evType:"eruption",
+fp:"Watch both eruption clips — look at HOW the material comes out of each volcano.",
+wNar:"Mount St. Helens erupted in 1980. The blast flattened every tree for miles. Kilauea has been erupting since 1983. People watch it from platforms.",wDur:15000,
+doM:"coach",doPr:"How did St. Helens' material come out?",
+doOpts:["Flowed gently downhill","Exploded outward with force","Dripped slowly from the crater"],doCor:1,doHL:"sh",
+doWF:["Look again at St. Helens — the material isn't flowing gently.",null,"Dripping means slow. Look at the speed of that blast."],
+pvQ:"How is Kilauea's eruption different from St. Helens'?",
+pvOpts:["Kilauea's lava flows gently downhill","Kilauea's eruption is bigger and more violent","Kilauea doesn't have any lava"],pvCor:0,
+pvWF:[null,"Look at the Kilauea side — tourists are standing nearby. Does that look more violent?","There IS lava on the Kilauea side — look at the glowing orange rivers flowing downhill."],
+hl:{h1:{t:"Look at the Kilauea side of the screen — is the lava launching upward or flowing downhill?",tgt:"k"},h2:{t:"People don't watch violent eruptions for fun.",elim:1},
+sbs:[{t:"Look at the Kilauea lava rivers — the lava is moving slowly downhill.",tgt:"k"},{t:"Gentle flow means people can stand nearby safely.",tgt:null},{t:"Select the option that describes a gentle flow.",tgt:null}]},
+ebE:{label:"Eruption: Explosive Blast vs. Gentle Flow"},conPct:10,guided:true},
+
+{num:2,name:"The Damage",phase:"Observe (2 of 2)",req:true,evType:"damage",
+fp:"Watch both damage maps — look at how FAR the damage spreads from each volcano.",
+wNar:"St. Helens destroyed everything in a huge zone. The blast reached 230 square miles. Kilauea's lava follows narrow paths downhill. It moves slowly enough to evacuate.",wDur:15000,
+doM:"match",doPr:"Drag each damage description to the correct volcano.",
+doItems:["Wide blast zone — all directions","Narrow flow paths — downhill only"],doTgts:["St. Helens","Kilauea"],
+doCMap:{"Wide blast zone — all directions":"St. Helens","Narrow flow paths — downhill only":"Kilauea"},
+doWFG:"Look at the shapes — one is a wide fan, the other is narrow rivers.",
+pvQ:"Which volcano's damage pattern shows an explosion?",
+pvOpts:["St. Helens — damage goes in all directions","Kilauea — damage follows valleys","Both show the same damage pattern"],pvCor:0,
+pvWF:[null,"Damage that follows valleys downhill means lava flowed — it didn't explode outward.","Look again — one is a wide fan shape, the other is narrow paths. Those are very different patterns."],
+hl:{h1:{t:"Look at the shape of St. Helens' damage zone — does it spread out in all directions or follow a path?",tgt:"shd"},h2:{t:"Flowing lava follows gravity downhill. Explosions push outward.",elim:1},
+sbs:[{t:"The St. Helens damage zone is a wide fan shape — damage in ALL directions means explosive force.",tgt:"shd"},{t:"Explosions push material outward from the source.",tgt:null},{t:"Select the option that describes an explosion pattern.",tgt:null}]},
+ebE:{label:"Damage: Blast Zone vs. Flow Path"},conPct:20},
+
+{num:3,name:"Underground Evidence — Magma Samples",phase:"Analyze (1 of 2)",req:true,evType:"magma",
+fp:"Watch the magma samples appear — look at the TEXTURE of each volcano's magma.",
+wNar:"Scientists collected magma samples from both volcanoes. St. Helens magma is thick and chunky. Kilauea magma is thin and runny. Thickness changes how gas moves inside.",wDur:15000,
+doM:"hotspot",doPr:"Tap the thick magma — then tap what's happening to the gas inside it.",
+doHS:[{id:"thick",x:.18,y:.65,r:.1},{id:"gas",x:.18,y:.52,r:.09}],
+doWFhs:["Look at the thickness bars — which one reads HIGH?","Look inside the thick magma — are the gas bubbles moving freely or stuck?"],
+pvQ:"What happens to gas bubbles in thick magma?",
+pvOpts:["They get trapped — can't escape","They float up freely","They disappear"],pvCor:0,
+pvWF:[null,"Look at the St. Helens chamber — the bubbles aren't floating up freely. They're stuck.","The bubbles are still there — look at the chamber. They're trapped inside the thick magma."],
+hl:{h1:{t:"Look at the thickness bars beside each magma chamber — which one reads HIGH? Tap that magma first.",tgt:"tb"},h2:{t:"The Kilauea side reads LOW — that's thin magma. Look INSIDE the thick magma for bubbles.",elim:null},
+sbs:[{t:"The St. Helens thickness bar reads HIGH. That means thick magma. Tap it.",tgt:"shm"},{t:"The bubbles are stuck — thick magma traps gas.",tgt:"shg"},{t:"Complete the remaining tap.",tgt:null}]},
+ebE:{label:"Thickness: Thick Magma Traps Gas"},conPct:40},
+
+{num:4,name:"Underground Evidence — Pressure Readings",phase:"Analyze (2 of 2)",req:true,evType:"pressure",
+fp:"You saw that St. Helens has thick magma that traps gas. PREDICT what the pressure gauge will show — then watch.",
+wNar:"Johnston's instruments showed huge pressure at St. Helens. Trapped gas kept building force. Kilauea's pressure stays low. The thin magma lets gas escape before it builds.",wDur:15000,
+hasPred:true,predPr:"St. Helens has thick magma trapping gas. What will the pressure gauge show?",
+predOpts:["High pressure — gas is trapped and pushing","Low pressure — gas escapes easily"],predCor:0,
+doM:"seq",doPr:"Put the cause-and-effect chain in order.",
+doSeq:["Thick magma traps gas","Trapped gas builds pressure","Explosive eruption"],
+doWFG:"What happens FIRST — underground, before the eruption? Start at the magma.",
+pvQ:"WHY is St. Helens' pressure so much higher than Kilauea's?",
+pvOpts:["Thick magma traps gas, building pressure","St. Helens is a bigger volcano","St. Helens is in a colder climate"],pvCor:0,
+pvWF:[null,"Size doesn't control pressure — look at what's happening INSIDE each magma chamber.","Climate doesn't control pressure underground — look at the magma thickness and gas behavior."],
+hl:{h1:{t:"Look inside the St. Helens magma chamber — what's happening to the gas bubbles?",tgt:"shg"},h2:{t:"Volcano size doesn't control pressure. Gas trapping does.",elim:1},
+sbs:[{t:"Gas is TRAPPED in thick magma — look at the St. Helens chamber.",tgt:"shg"},{t:"Trapped gas builds pressure — that's why the gauge reads HIGH.",tgt:"pg"},{t:"Select the option about trapped gas building pressure.",tgt:null}]},
+ebE:{label:"Pressure: St. Helens = High"},conPct:55},
+
+{num:5,name:"Building the Explanation — St. Helens",phase:"Conclude (1 of 2)",req:true,evType:null,
+fp:"Watch the St. Helens evidence chain light up — follow the path from magma to eruption.",
+wNar:"Here is what happened at St. Helens. Thick magma trapped gas. Trapped gas built huge pressure. That pressure caused an explosive eruption.",wDur:18000,
+doM:"match",doPr:"Drag each evidence type to what it MEASURES.",
+doItems:["Magma sample","Pressure gauge","Eruption footage","Damage map"],doTgts:["Thickness","Pressure","Eruption Type","Damage Range"],
+doCMap:{"Magma sample":"Thickness","Pressure gauge":"Pressure","Eruption footage":"Eruption Type","Damage map":"Damage Range"},
+doWFG:"What does this evidence SHOW? A pressure gauge shows pressure — which step is about pressure?",
+pvQ:"Which evidence proves St. Helens had thick magma?",
+pvOpts:["The magma sample — chunky and dark red","The damage map — wide blast zone","The pressure gauge — high reading"],pvCor:0,
+pvWF:[null,"The damage map shows what the eruption DID — not what the magma looked like.","The pressure gauge shows pressure, not thickness. Those are different things."],
+hl:{h1:{t:"Look at the evidence board — which card showed you what the magma LOOKED like?",tgt:"eb"},h2:{t:"Pressure gauge measures pressure, not thickness.",elim:2},
+sbs:[{t:"The magma sample is evidence — it shows thickness.",tgt:"eb"},{t:"Chunky dark red means thick magma. That's what St. Helens had.",tgt:null},{t:"Select the magma sample option.",tgt:null}]},
+ebE:null,conPct:75},
+
+{num:6,name:"Building the Explanation — Kilauea",phase:"Conclude (2 of 2)",req:true,evType:null,
+fp:"Watch the Kilauea evidence chain — compare it to St. Helens' chain you just built.",
+wNar:"Now compare. Kilauea has thin magma. Gas escapes easily. Pressure stays low. The eruption is gentle. Same process — different thickness — completely different result.",wDur:18000,
+doM:"claim",doPr:"Match each claim to the evidence that supports it.",
+doClaims:["St. Helens erupted explosively because its magma was thick","Kilauea erupts gently because its magma is thin"],
+doEv:["Magma sample: chunky, dark red","Magma sample: smooth, bright orange","Pressure gauge: needle in red zone","Pressure gauge: needle in green zone"],
+doEvMap:{"Magma sample: chunky, dark red":0,"Magma sample: smooth, bright orange":1,"Pressure gauge: needle in red zone":0,"Pressure gauge: needle in green zone":1},
+doWFG:"Chunky dark red magma — is that thick or thin? Which volcano had that kind?",
+pvQ:"What is the MAIN reason the eruptions are different?",
+pvOpts:["The magma thickness is different","The volcanoes are in different countries","One volcano is older"],pvCor:0,
+pvWF:[null,"Location doesn't control eruption type — the magma inside does.","Age doesn't control eruption type — the magma thickness does."],
+hl:{h1:{t:"Look at the label on the first step of each chain — one says THICK MAGMA, the other says THIN MAGMA.",tgt:"cl"},h2:{t:"The chains start with magma thickness, not volcano age.",elim:2},
+sbs:[{t:"THICK MAGMA on St. Helens and THIN MAGMA on Kilauea — that's the starting difference.",tgt:"cl"},{t:"Different thickness leads to different gas behavior, different pressure, different eruption.",tgt:null},{t:"Select the option about magma thickness.",tgt:null}]},
+ebE:null,conPct:90},
+
+{num:7,name:"New Case — Nyiragongo",phase:"Extend (1 of 2)",req:false,evType:null,
+fp:"Watch Nyiragongo's data appear — look at the thickness and gas levels to predict the eruption type.",
+wNar:"Mount Nyiragongo erupted in 2002 in DR Congo. Its magma is thin — like Kilauea. But this lava flowed through city streets. Thin magma can still be dangerous.",wDur:18000,
+doM:"coach",doPr:"Nyiragongo's eruption type is most similar to which volcano?",
+doOpts:["St. Helens — explosive blast","Kilauea — gentle flow","Something completely new"],doCor:1,doHL:"ny",
+doWF:["St. Helens had thick magma and high pressure. Look at Nyiragongo's data — does it match?",null,"Look at the thickness and pressure data — you've seen this pattern before."],
+pvQ:"If Nyiragongo flows gently like Kilauea, why is it still dangerous?",
+pvOpts:["It's near a city — lava flows into streets","It has high pressure like St. Helens","Its magma is thicker than it looks"],pvCor:0,
+pvWF:[null,"Look at Nyiragongo's pressure gauge — it reads LOW. Look at where the city is.","The data card says thin magma — the danger comes from WHERE the lava goes, not how thick it is."],
+hl:{h1:{t:"Look at the base of Nyiragongo — what's near the volcano that isn't near Kilauea?",tgt:"city"},h2:{t:"The pressure gauge reads LOW.",elim:1},
+sbs:[{t:"A city sits right at the base of Nyiragongo.",tgt:"city"},{t:"Even gentle lava is dangerous if people live in the path.",tgt:null},{t:"Select the option about the city.",tgt:null}]},
+ebE:null,conPct:95},
+
+{num:8,name:"The Full Picture — Pattern Lock",phase:"Extend (2 of 2)",req:false,evType:null,
+fp:"Look at all three volcanoes side by side — match each one to its complete data profile.",
+wNar:"Three volcanoes. Three data profiles. You've seen the evidence for all three. Now prove you can read the pattern.",wDur:15000,
+doM:"match",doPr:"Complete Nyiragongo's data row — drag the correct labels.",
+doItems:["Thin","Low","Gentle Flow"],doTgts:["Thickness","Pressure","Eruption Type"],
+doCMap:{"Thin":"Thickness","Low":"Pressure","Gentle Flow":"Eruption Type"},
+doDist:["Thick","High","Explosive"],
+doWFG:"Look at Nyiragongo's cross-section — is that magma chunky or smooth? Check the pressure gauge too.",
+pvQ:"The pattern shows: thick magma leads to ___ pressure.",
+pvOpts:["High pressure","Low pressure","No pressure"],pvCor:0,
+pvWF:[null,"Look at the data table — St. Helens has thick magma AND high pressure.","There's always some pressure. Thick magma traps gas, which builds MORE pressure."],
+hl:{h1:{t:"Look at the St. Helens row in the data table — what pressure level goes with thick magma?",tgt:"dt"},h2:{t:"The completed rows show thick = high, thin = low.",elim:1},
+sbs:[{t:"St. Helens data: Thick magma goes with High pressure.",tgt:"dt"},{t:"Thick magma traps gas. Trapped gas builds high pressure.",tgt:null},{t:"Select the option for high pressure.",tgt:null}]},
+ebE:null,conPct:100}
+];
+
+L.forEach(l=>GS.levels.push({num:l.num,name:l.name,req:l.req,done:false,score:0,att:0,hints:0,resets:0,time:0}));
+
+// ===== SAFE DOM HELPERS =====
+function $(id){return document.getElementById(id)}
+function cls(el,action,cn){if(el&&el.classList)el.classList[action](cn)}
+function clsA(el,c){cls(el,'add',c)}
+function clsR(el,c){cls(el,'remove',c)}
+function clsH(el,c){return el&&el.classList?el.classList.contains(c):false}
+
+// ===== CANVAS =====
+let canvas,ctx,aW,aH,animF=null;
+let AS={lvl:0,bt:0,bubSH:[],bubK:[],hlTgt:null};
+
+function initC(){
+  try{
+    canvas=$('aC');const co=$('arenaCont');
+    const dpr=window.devicePixelRatio||1;
+    canvas.width=co.clientWidth*dpr;canvas.height=co.clientHeight*dpr;
+    ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+    aW=co.clientWidth;aH=co.clientHeight;
+    AS.bubSH=[];AS.bubK=[];
+    for(let i=0;i<8;i++){
+      AS.bubSH.push({x:.12+Math.random()*.1,y:.55+Math.random()*.3,sp:.0003+Math.random()*.0002,sz:3+Math.random()*4});
+      AS.bubK.push({x:.62+Math.random()*.1,y:.55+Math.random()*.3,sp:.001+Math.random()*.001,sz:2+Math.random()*2});
+    }
+  }catch(e){console.error('initC',e)}
+}
+
+function draw(){
+  try{
+    if(!ctx)return;ctx.clearRect(0,0,aW,aH);
+    let g=ctx.createLinearGradient(0,0,0,aH);g.addColorStop(0,'#0a0f1e');g.addColorStop(1,'#16213E');ctx.fillStyle=g;ctx.fillRect(0,0,aW,aH);
+    const cl=GS.cur;
+    if(cl>=6&&cl<=6) drawThree();
+    else if(cl>=7) drawThreeTable();
+    else drawSplit();
+    if(AS.hlTgt) drawHL(AS.hlTgt);
+    AS.bt+=.016;
+  }catch(e){}
+}
+
+function drawSplit(){
+  const mx=aW/2;
+  ctx.strokeStyle='rgba(0,212,255,.25)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(mx,0);ctx.lineTo(mx,aH);ctx.stroke();ctx.setLineDash([]);
+  ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle='#FF4757';ctx.fillText('MT. ST. HELENS',mx*.5,16);
+  ctx.fillStyle='#00D4FF';ctx.fillText('KILAUEA',mx*1.5,16);
+  const cl=GS.cur;
+  // Dim cross-sections on levels 0-1 so eruption/damage visuals dominate
+  if(cl<=1) ctx.globalAlpha=.35;
+  drawV(mx*.08,26,mx*.84,aH-36,'sh');
+  drawV(mx*1.08,26,mx*.84,aH-36,'k');
+  ctx.globalAlpha=1;
+  if(cl===0) drawErupt(mx);
+  else if(cl===1) drawDmg(mx);
+  else{
+    if(cl>=2) drawThickBars(mx);
+    if(cl>=3) drawPGauges(mx);
+    if(cl>=4) drawChains(mx);
+  }
+}
+
+function drawV(x,y,w,h,type){
+  const cx=x+w/2,by=y+h,py=y+h*.15,cy=y+h*.7;
+  // Mountain
+  ctx.beginPath();ctx.moveTo(x,by);ctx.lineTo(cx-w*.08,py);ctx.lineTo(cx+w*.08,py);ctx.lineTo(x+w,by);ctx.closePath();
+  let mg=ctx.createLinearGradient(cx,py,cx,by);mg.addColorStop(0,'#5C4033');mg.addColorStop(1,'#4A3728');ctx.fillStyle=mg;ctx.fill();
+  // Cutaway
+  ctx.beginPath();ctx.moveTo(cx-w*.22,by);ctx.lineTo(cx-w*.06,py+h*.05);ctx.lineTo(cx+w*.06,py+h*.05);ctx.lineTo(cx+w*.22,by);ctx.closePath();
+  ctx.fillStyle='rgba(20,15,10,.8)';ctx.fill();
+  // Chamber
+  const mc=type==='sh'?'#8B1A1A':'#FF6600';
+  let cg=ctx.createRadialGradient(cx,cy+h*.08,2,cx,cy+h*.08,w*.18);cg.addColorStop(0,mc);cg.addColorStop(1,'rgba(0,0,0,.3)');
+  ctx.beginPath();ctx.ellipse(cx,cy+h*.08,w*.18,h*.09,0,0,Math.PI*2);ctx.fillStyle=cg;ctx.fill();
+  // Glow
+  let ga=.2+.1*Math.sin(AS.bt*2);
+  ctx.beginPath();ctx.ellipse(cx,cy+h*.08,w*.2,h*.1,0,0,Math.PI*2);
+  ctx.strokeStyle=type==='sh'?`rgba(255,50,50,${ga})`:`rgba(255,150,0,${ga})`;ctx.lineWidth=2;ctx.stroke();
+  // Vent
+  ctx.fillStyle=type==='sh'?'rgba(139,26,26,.35)':'rgba(255,102,0,.25)';
+  ctx.fillRect(cx-w*.04,py+h*.05,w*.08,cy-py-h*.05+h*.08);
+  // Bubbles
+  const bubs=type==='sh'?AS.bubSH:AS.bubK;
+  bubs.forEach(b=>{
+    let bx=x+b.x*w*2.5,bby;
+    if(type==='sh'){bby=cy-h*.02+Math.sin(AS.bt*3+b.x*10)*h*.03;}
+    else{b.y-=b.sp;if(b.y<.2)b.y=.85;bby=y+b.y*h;}
+    ctx.beginPath();ctx.arc(bx,bby,b.sz,0,Math.PI*2);
+    ctx.fillStyle=type==='sh'?'rgba(255,200,100,.45)':'rgba(255,200,50,.55)';ctx.fill();
+  });
+  // Smoke
+  for(let i=0;i<3;i++){let sx=cx+Math.sin(AS.bt*.5+i*2)*w*.03,sy=py-5-i*7;ctx.beginPath();ctx.arc(sx,sy,2+i,0,Math.PI*2);ctx.fillStyle=`rgba(180,180,180,${.12-i*.03})`;ctx.fill();}
+  // Labels
+  ctx.font='bold 9px sans-serif';ctx.textAlign='center';
+  const cl=GS.cur;
+  if(cl>=2){ctx.fillStyle='#FFD93D';ctx.fillText('MAGMA',cx,cy+h*.2);}
+  if(cl>=2){ctx.fillStyle=type==='sh'?'#FF4757':'#00D4FF';ctx.fillText(type==='sh'?'THICK':'THIN',cx+w*.26,cy+h*.08);}
+  if(cl>=3){ctx.fillStyle=type==='sh'?'#FF4757':'#00D4FF';ctx.fillText(type==='sh'?'HIGH PRESSURE':'LOW PRESSURE',cx,cy-h*.12);}
+}
+
+function drawErupt(mx){
+  // === ST. HELENS: MASSIVE EXPLOSIVE BLAST (left half) ===
+  const lx=mx*.5, ly=aH*.22;
+  // Giant ash plume rising from crater — thick, billowing, fills upper left
+  for(let layer=0;layer<4;layer++){
+    for(let i=0;i<8;i++){
+      let spread=mx*(.08+layer*.07);
+      let px=lx+Math.sin(AS.bt*.6+i*1.1+layer)*spread;
+      let py=ly-layer*aH*.06-i*aH*.03+Math.sin(AS.bt+i*.5)*5;
+      let r=12+layer*8+i*3+Math.sin(AS.bt*.5+i)*4;
+      let a=.35-layer*.06-i*.02;if(a<.03)a=.03;
+      ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(140,130,120,${a})`;ctx.fill();
+    }
+  }
+  // Explosive debris — rocks and hot fragments flying outward in all directions
+  for(let i=0;i<18;i++){
+    let angle=Math.PI*(.5)+((i/18)*Math.PI*1.4)-Math.PI*.7;
+    let speed=1.2+Math.sin(i*2.7)*.5;
+    let dist=(30+i*8+(AS.bt*40)%80)*speed;
+    let maxD=mx*.42;if(dist>maxD)dist=dist%maxD;
+    let px=lx+Math.cos(angle)*dist;
+    let py=ly+aH*.1+Math.sin(angle)*dist*.55;
+    let sz=2+Math.random()*2.5;
+    let hot=i%3===0;
+    ctx.beginPath();ctx.arc(px,py,sz,0,Math.PI*2);
+    ctx.fillStyle=hot?`rgba(255,80,30,.7)`:`rgba(120,100,80,.5)`;ctx.fill();
+    if(hot){ctx.beginPath();ctx.arc(px,py,sz+2,0,Math.PI*2);ctx.fillStyle='rgba(255,150,50,.15)';ctx.fill();}
+  }
+  // Shockwave ring expanding outward from crater
+  let ringR=20+(AS.bt*25)%mx*.35;
+  let ringA=.25-ringR/(mx*.5);if(ringA<0)ringA=0;
+  ctx.beginPath();ctx.arc(lx,ly+aH*.12,ringR,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(255,100,60,${ringA})`;ctx.lineWidth=3;ctx.stroke();
+  // Fire/glow at the crater
+  let glR=18+Math.sin(AS.bt*3)*5;
+  let fGrd=ctx.createRadialGradient(lx,ly+aH*.1,4,lx,ly+aH*.1,glR);
+  fGrd.addColorStop(0,'rgba(255,200,50,.7)');fGrd.addColorStop(.5,'rgba(255,80,20,.4)');fGrd.addColorStop(1,'rgba(255,50,20,0)');
+  ctx.beginPath();ctx.arc(lx,ly+aH*.1,glR,0,Math.PI*2);ctx.fillStyle=fGrd;ctx.fill();
+  // Flattened trees radiating outward (simple lines knocked down)
+  ctx.strokeStyle='rgba(80,60,40,.4)';ctx.lineWidth=2;
+  for(let i=0;i<10;i++){
+    let angle=Math.PI*.3+i*(Math.PI*.14);
+    let bx=lx+Math.cos(angle)*mx*.28;
+    let by=ly+aH*.12+Math.sin(angle)*aH*.2;
+    let ex=bx+Math.cos(angle)*12;
+    let ey=by+Math.sin(angle)*4;
+    ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(ex,ey);ctx.stroke();
+  }
+  // "EXPLOSIVE BLAST" label
+  ctx.font='bold 13px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,71,87,.85)';ctx.fillText('EXPLOSIVE BLAST',lx,aH*.72);
+  ctx.font='10px sans-serif';ctx.fillStyle='rgba(255,120,120,.6)';ctx.fillText('Material launches outward',lx,aH*.76);
+
+  // === KILAUEA: GENTLE LAVA FLOW (right half) ===
+  const rx=mx*1.5, ry=aH*.25;
+  // Multiple bright lava rivers flowing downhill — thick, glowing, obvious
+  for(let river=0;river<4;river++){
+    let startX=rx+(river-1.5)*mx*.06;
+    let startY=ry+aH*.05;
+    // Outer glow
+    ctx.beginPath();ctx.moveTo(startX,startY);
+    for(let i=1;i<8;i++){
+      let fx=startX+(river-1.5)*i*4+Math.sin(AS.bt*1.5+i+river)*5;
+      let fy=startY+i*aH*.065;
+      ctx.lineTo(fx,fy);
+    }
+    ctx.strokeStyle='rgba(255,130,0,.2)';ctx.lineWidth=14;ctx.stroke();
+    // Main lava stream
+    ctx.beginPath();ctx.moveTo(startX,startY);
+    for(let i=1;i<8;i++){
+      let fx=startX+(river-1.5)*i*4+Math.sin(AS.bt*1.5+i+river)*5;
+      let fy=startY+i*aH*.065;
+      ctx.lineTo(fx,fy);
+    }
+    ctx.strokeStyle='rgba(255,100,0,.7)';ctx.lineWidth=5;ctx.stroke();
+    // Hot center line
+    ctx.beginPath();ctx.moveTo(startX,startY);
+    for(let i=1;i<8;i++){
+      let fx=startX+(river-1.5)*i*4+Math.sin(AS.bt*1.5+i+river)*5;
+      let fy=startY+i*aH*.065;
+      ctx.lineTo(fx,fy);
+    }
+    ctx.strokeStyle='rgba(255,200,50,.5)';ctx.lineWidth=2;ctx.stroke();
+  }
+  // Gentle orange glow at crater
+  let kGrd=ctx.createRadialGradient(rx,ry+aH*.03,3,rx,ry+aH*.03,25);
+  kGrd.addColorStop(0,'rgba(255,160,30,.5)');kGrd.addColorStop(1,'rgba(255,100,0,0)');
+  ctx.beginPath();ctx.arc(rx,ry+aH*.03,25,0,Math.PI*2);ctx.fillStyle=kGrd;ctx.fill();
+  // Tourists on viewing platform — simple stick figures with platform
+  let platX=rx+mx*.22, platY=ry+aH*.48;
+  ctx.fillStyle='rgba(100,120,140,.5)';ctx.fillRect(platX-20,platY,40,4);// platform
+  ctx.fillStyle='rgba(120,140,160,.3)';ctx.fillRect(platX-22,platY,2,8);ctx.fillRect(platX+20,platY,2,8);// rails
+  for(let i=0;i<4;i++){// stick people
+    let px=platX-12+i*8;
+    ctx.fillStyle='rgba(200,200,220,.5)';
+    ctx.beginPath();ctx.arc(px,platY-6,2.5,0,Math.PI*2);ctx.fill();// head
+    ctx.strokeStyle='rgba(200,200,220,.4)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(px,platY-3.5);ctx.lineTo(px,platY);ctx.stroke();// body
+  }
+  ctx.font='9px sans-serif';ctx.fillStyle='rgba(0,212,255,.7)';ctx.textAlign='center';
+  ctx.fillText('Tourists watching safely',platX,platY+18);
+  // "GENTLE FLOW" label
+  ctx.font='bold 13px sans-serif';ctx.fillStyle='rgba(0,212,255,.85)';ctx.fillText('GENTLE LAVA FLOW',rx,aH*.72);
+  ctx.font='10px sans-serif';ctx.fillStyle='rgba(100,200,255,.6)';ctx.fillText('Lava flows slowly downhill',rx,aH*.76);
+}
+
+function drawDmg(mx){
+  // === ST. HELENS: WIDE FAN-SHAPED BLAST ZONE (left half) ===
+  const lx=mx*.5, ly=aH*.3;
+  // Large red fan-shaped blast zone
+  ctx.beginPath();ctx.moveTo(lx,ly);ctx.arc(lx,ly,mx*.35,Math.PI*.6,Math.PI*1.7);ctx.closePath();
+  let bGrd=ctx.createRadialGradient(lx,ly,10,lx,ly,mx*.35);
+  bGrd.addColorStop(0,'rgba(255,71,87,.3)');bGrd.addColorStop(.5,'rgba(255,71,87,.15)');bGrd.addColorStop(1,'rgba(255,71,87,.03)');
+  ctx.fillStyle=bGrd;ctx.fill();
+  ctx.strokeStyle='rgba(255,71,87,.5)';ctx.lineWidth=2;ctx.setLineDash([6,3]);ctx.stroke();ctx.setLineDash([]);
+  // Destruction rings
+  for(let r=1;r<=3;r++){
+    ctx.beginPath();ctx.arc(lx,ly,mx*.1*r+mx*.05,Math.PI*.6,Math.PI*1.7);
+    ctx.strokeStyle=`rgba(255,71,87,${.3-.07*r})`;ctx.lineWidth=1;ctx.stroke();
+  }
+  // Flattened tree icons in the blast zone
+  ctx.strokeStyle='rgba(100,70,40,.45)';ctx.lineWidth=2;
+  for(let i=0;i<14;i++){
+    let angle=Math.PI*.65+i*(Math.PI*1.05/14);
+    let dist=mx*(.1+Math.random()*.2);
+    let tx=lx+Math.cos(angle)*dist;
+    let ty=ly+Math.sin(angle)*dist*.7;
+    // Fallen tree — line pointing away from crater
+    let ex=tx+Math.cos(angle)*10;
+    let ey=ty+Math.sin(angle)*5;
+    ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(ex,ey);ctx.stroke();
+  }
+  // Labels
+  ctx.font='bold 13px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,71,87,.85)';ctx.fillText('BLAST ZONE',lx,ly-mx*.35-6);
+  ctx.font='11px sans-serif';ctx.fillStyle='rgba(255,120,120,.7)';ctx.fillText('230 square miles',lx,ly+mx*.35+16);
+  ctx.fillText('Damage in ALL directions',lx,ly+mx*.35+30);
+  // Arrow showing "all directions"
+  for(let i=0;i<6;i++){
+    let angle=Math.PI*.7+i*(Math.PI*.18);
+    let sx=lx+Math.cos(angle)*mx*.06;let sy=ly+Math.sin(angle)*mx*.04;
+    let ex=lx+Math.cos(angle)*mx*.14;let ey=ly+Math.sin(angle)*mx*.1;
+    ctx.strokeStyle='rgba(255,71,87,.4)';ctx.lineWidth=1.5;ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(ex,ey);ctx.stroke();
+    // Arrowhead
+    let ha=Math.atan2(ey-sy,ex-sx);
+    ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex-5*Math.cos(ha-.4),ey-5*Math.sin(ha-.4));ctx.moveTo(ex,ey);ctx.lineTo(ex-5*Math.cos(ha+.4),ey-5*Math.sin(ha+.4));ctx.stroke();
+  }
+
+  // === KILAUEA: NARROW FLOW PATHS DOWNHILL (right half) ===
+  const rx=mx*1.5, ry=aH*.22;
+  // Crater dot
+  ctx.beginPath();ctx.arc(rx,ry,6,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,130,0,.5)';ctx.fill();
+  // Multiple narrow lava flow paths going downhill
+  for(let p=0;p<4;p++){
+    let offX=(p-1.5)*mx*.08;
+    ctx.beginPath();ctx.moveTo(rx,ry);
+    let points=[];
+    for(let i=0;i<=7;i++){
+      let fx=rx+offX+Math.sin(i*.8+p*1.5)*mx*.03+i*offX*.3;
+      let fy=ry+i*aH*.075;
+      points.push({x:fx,y:fy});
+      ctx.lineTo(fx,fy);
+    }
+    // Outer glow
+    ctx.strokeStyle='rgba(255,130,0,.15)';ctx.lineWidth=14;ctx.stroke();
+    // Main flow
+    ctx.beginPath();ctx.moveTo(rx,ry);
+    points.forEach(pt=>ctx.lineTo(pt.x,pt.y));
+    ctx.strokeStyle='rgba(255,100,0,.5)';ctx.lineWidth=5;ctx.stroke();
+    // Hot center
+    ctx.beginPath();ctx.moveTo(rx,ry);
+    points.forEach(pt=>ctx.lineTo(pt.x,pt.y));
+    ctx.strokeStyle='rgba(255,180,50,.35)';ctx.lineWidth=2;ctx.stroke();
+  }
+  // House icons along flow paths
+  ctx.fillStyle='rgba(150,150,170,.4)';
+  [{x:rx-mx*.15,y:ry+aH*.35},{x:rx+mx*.08,y:ry+aH*.45},{x:rx-mx*.05,y:ry+aH*.5}].forEach(h=>{
+    ctx.fillRect(h.x-4,h.y-5,8,6);ctx.beginPath();ctx.moveTo(h.x-5,h.y-5);ctx.lineTo(h.x,h.y-9);ctx.lineTo(h.x+5,h.y-5);ctx.closePath();ctx.fill();
+  });
+  // Labels
+  ctx.font='bold 13px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,212,255,.85)';ctx.fillText('FLOW PATHS',rx,aH*.72);
+  ctx.font='11px sans-serif';ctx.fillStyle='rgba(100,200,255,.7)';ctx.fillText('Narrow paths downhill',rx,aH*.76);
+  ctx.fillText('Slow enough to evacuate',rx,aH*.80);
+  // Arrow showing "downhill only"
+  ctx.strokeStyle='rgba(255,150,0,.4)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(rx,ry+aH*.58);ctx.lineTo(rx,ry+aH*.64);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(rx,ry+aH*.64);ctx.lineTo(rx-4,ry+aH*.64-5);ctx.moveTo(rx,ry+aH*.64);ctx.lineTo(rx+4,ry+aH*.64-5);ctx.stroke();
+  ctx.font='9px sans-serif';ctx.fillStyle='rgba(255,150,0,.5)';ctx.fillText('downhill',rx,ry+aH*.67);
+}
+
+function drawThickBars(mx){
+  const bw=7,bh=40;
+  let bx=mx*.5+mx*.32,by=aH*.53;
+  ctx.fillStyle='#FF4757';ctx.fillRect(bx,by,bw,bh);
+  ctx.font='bold 7px sans-serif';ctx.fillStyle='#FFD93D';ctx.textAlign='center';ctx.fillText('HIGH',bx+bw/2,by-3);
+  bx=mx*1.5+mx*.32;
+  ctx.fillStyle='rgba(255,255,255,.06)';ctx.fillRect(bx,by,bw,bh);
+  ctx.fillStyle='#00D4FF';ctx.fillRect(bx,by+bh*.7,bw,bh*.3);
+  ctx.fillText('LOW',bx+bw/2,by-3);
+}
+
+function drawPGauges(mx){
+  dGauge(mx*.5-mx*.28,aH*.18,20,.85,'#FF4757');
+  dGauge(mx*1.5-mx*.28,aH*.18,20,.2,'#00D4FF');
+}
+function dGauge(x,y,r,v,c){
+  ctx.beginPath();ctx.arc(x,y,r,Math.PI,0);ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=2.5;ctx.stroke();
+  let ea=Math.PI+v*Math.PI;ctx.beginPath();ctx.arc(x,y,r,Math.PI,ea);ctx.strokeStyle=c;ctx.lineWidth=2.5;ctx.stroke();
+  let nx=x+Math.cos(ea)*(r-4),ny=y+Math.sin(ea)*(r-4);
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(nx,ny);ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+  ctx.font='6px sans-serif';ctx.fillStyle=c;ctx.textAlign='center';ctx.fillText(v>.5?'HIGH':'LOW',x,y+10);
+}
+
+function drawChains(mx){
+  if(GS.cur<4)return;
+  ctx.font='bold 8px sans-serif';ctx.textAlign='center';
+  const s=['THICK MAGMA','GAS TRAPPED','HIGH PRESSURE','EXPLOSIVE'],co=['#FFD93D','#FF8C00','#FF4757','#FF4757'];
+  s.forEach((t,i)=>{ctx.fillStyle=co[i];ctx.fillText(t,mx*.5,aH*.76+i*12);if(i<s.length-1){ctx.fillStyle='#888';ctx.fillText('|',mx*.5,aH*.76+i*12+7);}});
+  if(GS.cur>=5){
+    const sk=['THIN MAGMA','GAS ESCAPES','LOW PRESSURE','GENTLE FLOW'],ck=['#FFD93D','#00D4FF','#00D4FF','#00D4FF'];
+    sk.forEach((t,i)=>{ctx.fillStyle=ck[i];ctx.fillText(t,mx*1.5,aH*.76+i*12);if(i<sk.length-1){ctx.fillStyle='#888';ctx.fillText('|',mx*1.5,aH*.76+i*12+7);}});
+  }
+}
+
+function drawThree(){
+  const tw=aW/3;
+  ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle='#FF4757';ctx.fillText('ST. HELENS',tw*.5,14);
+  ctx.fillStyle='#FFD93D';ctx.fillText('NYIRAGONGO',tw*1.5,14);
+  ctx.fillStyle='#00D4FF';ctx.fillText('KILAUEA',tw*2.5,14);
+  ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(tw,0);ctx.lineTo(tw,aH);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(tw*2,0);ctx.lineTo(tw*2,aH);ctx.stroke();ctx.setLineDash([]);
+  drawV(tw*.03,20,tw*.65,aH*.55,'sh');
+  drawVSimple(tw+tw*.15,20,tw*.65,aH*.55);
+  drawV(tw*2+tw*.03,20,tw*.65,aH*.55,'k');
+  // City
+  const ncx=tw*1.5,nby=20+aH*.55;
+  for(let i=0;i<5;i++){let bx=ncx-25+i*12,bh=6+Math.random()*10;ctx.fillStyle='rgba(100,120,150,.4)';ctx.fillRect(bx,nby-bh,8,bh);ctx.fillStyle='rgba(255,220,100,.3)';ctx.fillRect(bx+1,nby-bh+2,2,2);ctx.fillRect(bx+5,nby-bh+2,2,2);}
+  ctx.font='8px sans-serif';ctx.fillStyle='rgba(255,217,61,.6)';ctx.fillText('CITY',ncx,nby+10);
+  // Data card
+  ctx.fillStyle='rgba(0,0,0,.45)';rr(ctx,tw+8,aH*.7,tw-16,aH*.22,6);ctx.fill();
+  ctx.strokeStyle='rgba(255,217,61,.25)';rr(ctx,tw+8,aH*.7,tw-16,aH*.22,6);ctx.stroke();
+  ctx.font='bold 9px sans-serif';ctx.fillStyle='#FFD93D';ctx.fillText('Nyiragongo Data:',tw*1.5,aH*.7+14);
+  ctx.font='8px sans-serif';ctx.fillStyle='#bbb';ctx.fillText('Thin magma | Low pressure',tw*1.5,aH*.7+28);
+}
+
+function drawVSimple(x,y,w,h){
+  const cx=x+w/2,by=y+h,py=y+h*.2;
+  ctx.beginPath();ctx.moveTo(x,by);ctx.lineTo(cx-w*.08,py);ctx.lineTo(cx+w*.08,py);ctx.lineTo(x+w,by);ctx.closePath();
+  let g=ctx.createLinearGradient(cx,py,cx,by);g.addColorStop(0,'#5C4033');g.addColorStop(1,'#4A3728');ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx,y+h*.75,w*.12,h*.06,0,0,Math.PI*2);
+  let mg=ctx.createRadialGradient(cx,y+h*.75,2,cx,y+h*.75,w*.12);mg.addColorStop(0,'#FF6600');mg.addColorStop(1,'rgba(255,100,0,.2)');ctx.fillStyle=mg;ctx.fill();
+  ctx.strokeStyle='#FF6600';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,py);
+  for(let i=1;i<5;i++)ctx.lineTo(cx+6+i*4+Math.sin(AS.bt+i)*2,py+i*(h*.12));ctx.stroke();
+  ctx.font='bold 7px sans-serif';ctx.fillStyle='#00D4FF';ctx.textAlign='center';ctx.fillText('LOW PRESSURE',cx,y+h*.5);
+  ctx.fillStyle='#FFD93D';ctx.fillText('THIN',cx,y+h*.85);
+}
+
+function drawThreeTable(){
+  drawThree();
+  const tY=aH*.68,tW=aW*.82,tX=(aW-tW)/2,rh=16;
+  ctx.fillStyle='rgba(0,0,0,.55)';rr(ctx,tX,tY,tW,rh*4+4,5);ctx.fill();
+  ctx.fillStyle='rgba(0,212,255,.12)';ctx.fillRect(tX+2,tY+2,tW-4,rh);
+  ctx.font='bold 9px sans-serif';ctx.fillStyle='#00D4FF';ctx.textAlign='center';
+  const cw=tW/4;['Volcano','Thickness','Pressure','Eruption Type'].forEach((c,i)=>ctx.fillText(c,tX+cw*i+cw/2,tY+12));
+  ctx.font='9px sans-serif';
+  ctx.fillStyle='#FF4757';ctx.fillText('St. Helens',tX+cw*.5,tY+rh+12);ctx.fillStyle='#ccc';ctx.fillText('Thick',tX+cw*1.5,tY+rh+12);ctx.fillText('High',tX+cw*2.5,tY+rh+12);ctx.fillText('Explosive',tX+cw*3.5,tY+rh+12);
+  ctx.fillStyle='#00D4FF';ctx.fillText('Kilauea',tX+cw*.5,tY+rh*2+12);ctx.fillStyle='#ccc';ctx.fillText('Thin',tX+cw*1.5,tY+rh*2+12);ctx.fillText('Low',tX+cw*2.5,tY+rh*2+12);ctx.fillText('Gentle Flow',tX+cw*3.5,tY+rh*2+12);
+  ctx.fillStyle='#FFD93D';ctx.fillText('Nyiragongo',tX+cw*.5,tY+rh*3+12);
+  if(!LS.doDone){ctx.fillStyle='rgba(255,217,61,.3)';ctx.fillText('?',tX+cw*1.5,tY+rh*3+12);ctx.fillText('?',tX+cw*2.5,tY+rh*3+12);ctx.fillText('?',tX+cw*3.5,tY+rh*3+12);}
+  else{ctx.fillStyle='#ccc';ctx.fillText('Thin',tX+cw*1.5,tY+rh*3+12);ctx.fillText('Low',tX+cw*2.5,tY+rh*3+12);ctx.fillText('Gentle Flow',tX+cw*3.5,tY+rh*3+12);}
+}
+
+function drawHL(tgt){
+  let a=.3+.2*Math.sin(AS.bt*4);ctx.strokeStyle=`rgba(255,217,61,${a})`;ctx.lineWidth=2.5;
+  if(tgt==='sh'||tgt==='shd')ctx.strokeRect(4,4,aW/2-8,aH-8);
+  else if(tgt==='k')ctx.strokeRect(aW/2+4,4,aW/2-8,aH-8);
+  else if(tgt==='tb'){ctx.strokeRect(aW*.28,aH*.48,aW*.18,aH*.18);ctx.strokeRect(aW*.68,aH*.48,aW*.18,aH*.18);}
+  else if(tgt==='shm'||tgt==='shg')ctx.strokeRect(aW*.08,aH*.48,aW*.28,aH*.25);
+  else if(tgt==='pg')dGauge(aW*.22,aH*.18,24,.85,`rgba(255,217,61,${a+.3})`);
+  else if(tgt==='city')ctx.strokeRect(aW*.35,aH*.5,aW*.3,aH*.15);
+  else if(tgt==='dt')ctx.strokeRect(aW*.1,aH*.68,aW*.8,aH*.25);
+}
+
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath()}
+
+function startALoop(){(function lp(){draw();animF=requestAnimationFrame(lp)})()}
+
+// ===== SOUNDS =====
+function sOk(){try{const a=gAC();if(!a)return;[523,659,784].forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(.07,a.currentTime+i*.1);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+i*.1+.3);o.start(a.currentTime+i*.1);o.stop(a.currentTime+i*.1+.3)})}catch(e){}}
+function sNo(){try{const a=gAC();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.type='sine';o.frequency.value=200;g.gain.setValueAtTime(.05,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.3);o.start();o.stop(a.currentTime+.3)}catch(e){}}
+function sSnap(){try{const a=gAC();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(.04,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.1);o.start();o.stop(a.currentTime+.1)}catch(e){}}
+
+// ===== SPEECH =====
+let spOk=false,resInt=null;
+function initSp(){try{spOk='speechSynthesis'in window}catch(e){}}
+function speak(txt,cb){
+  if(!spOk){if(cb)cb();return}
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.rate=.85;
+  let done=false;const to=Math.max(txt.length*80,5000)+3000;
+  const tm=setTimeout(()=>{if(!done){done=true;speechSynthesis.cancel();clearInterval(resInt);if(cb)cb()}},to);
+  resInt=setInterval(()=>{if(speechSynthesis.speaking)speechSynthesis.resume()},10000);
+  u.onend=()=>{if(!done){done=true;clearTimeout(tm);clearInterval(resInt);if(cb)cb()}};
+  u.onerror=()=>{if(!done){done=true;clearTimeout(tm);clearInterval(resInt);if(cb)cb()}};
+  speechSynthesis.speak(u)}catch(e){if(cb)cb()}}
+
+// ===== HUD =====
+function upHUD(){
+  const l=L[GS.cur];if(!l)return;
+  const el=id=>$(id);
+  el('tBadge').innerHTML='&#128270; Evidence #'+l.num;
+  el('tName').textContent=l.name;
+  el('tScore').textContent='Score: '+GS.levels.reduce((s,v)=>s+v.score,0);
+  el('tEv').textContent='Evidence: '+GS.evCol+'/4';
+  el('progF').style.width=(GS.cur/L.length*100)+'%';
+  el('botInd').textContent='Evidence '+l.num+' of '+L.length;
+}
+function upEvSide(){
+  const sb=$('evSide');if(!sb)return;
+  sb.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--accent1);margin-bottom:6px">Evidence List</div>';
+  L.forEach((l,i)=>{
+    let c='ev-item',ic='&#9675;';
+    if(i<GS.cur){c+=' done';ic='&#9745;'}else if(i===GS.cur){c+=' cur';ic='&#9654;'}else{c+=' locked';ic='&#128274;'}
+    sb.innerHTML+=`<div class="${c}"><span class="ev-ico">${ic}</span><span style="font-size:11px">${l.num}. ${l.name}</span></div>`;
+  });
+}
+function upEB(){
+  const cd=$('ebCards');if(!cd)return;cd.innerHTML='';
+  GS.evBoard.forEach(e=>{cd.innerHTML+=`<div class="eb-c"><span>&#128204;</span><span>${e.label}</span></div>`;});
+  const cf=$('cmF');if(cf)cf.style.height=GS.conPct+'%';
+}
+
+// ===== LEVEL FLOW =====
+function startLvl(idx){
+  try{
+    GS.cur=idx;if(idx>=L.length){showReceipt();return}
+    resetLS();upHUD();upEvSide();
+    const l=L[idx],ov=$('liOv');
+    $('liB').textContent='Evidence #'+l.num;$('liN').textContent=l.name;$('liP').textContent=l.phase+(l.req?'':' (BONUS)');
+    clsA(ov,'show');
+    setTimeout(()=>{clsR(ov,'show');if(l.hasPred)showPred();else showFW()},1500);
+  }catch(e){console.error('startLvl',e);safeAdv()}
+}
+
+function showPred(){
+  const l=L[GS.cur],iz=$('iz');
+  iz.innerHTML=`<div class="iz-p">${l.predPr}</div><div class="iz-opts" id="predO"></div>`;
+  l.predOpts.forEach((o,i)=>{
+    const b=document.createElement('button');b.className='opt';b.textContent=o;
+    b.onclick=()=>{LS.pred=i;LS.predOk=(i===l.predCor);
+      document.querySelectorAll('#predO .opt').forEach(x=>clsR(x,'sel'));clsA(b,'sel');
+      setTimeout(showFW,600)};
+    $('predO').appendChild(b);
+  });
+}
+
+function showFW(){
+  const l=L[GS.cur],fp=$('fp');
+  fp.textContent=l.fp;fp.style.display='block';fp.style.opacity='1';clsR(fp,'subtle');
+  $('iz').innerHTML=l.guided?'<div class="coach">Watch carefully — you will be asked about this next.</div>':'<div style="color:var(--textd);font-size:13px">Watch the evidence...</div>';
+  setTimeout(()=>clsA(fp,'subtle'),3000);
+  GS.phase='watch';speak(l.wNar,()=>{});
+  setTimeout(()=>{try{if(GS.phase==='watch'){speechSynthesis.cancel();
+    if(l.hasPred&&LS.pred!==null)showPredRes();else startDo()}}catch(e){startDo()}},l.wDur);
+}
+
+function showPredRes(){
+  const l=L[GS.cur],ok=LS.predOk;
+  $('iz').innerHTML=`<div class="coach" style="${ok?'border-color:rgba(34,197,94,.4);color:#22C55E':''}">Your prediction: ${l.predOpts[LS.pred]} — ${ok?'Correct!':'Not quite. The thick magma trapped gas, building pressure.'}</div>`;
+  setTimeout(startDo,2500);
+}
+
+function startDo(){
+  GS.phase='do';LS.phaseStart=Date.now();clsA($('fp'),'subtle');
+  const l=L[GS.cur];
+  switch(l.doM){case 'coach':rCoach(l);break;case 'match':rMatch(l);break;case 'hotspot':rHot(l);break;case 'seq':rSeq(l);break;case 'claim':rClaim(l);break;default:rCoach(l)}
+}
+
+// ===== COACH-CLICK =====
+function rCoach(l){
+  const iz=$('iz');iz.innerHTML=`<div class="iz-p">${l.doPr}</div><div class="iz-opts" id="ccO"></div><button class="lock-btn" id="lkBtn" onclick="subCC()">Lock In</button><div id="ccFB"></div>`;
+  l.doOpts.forEach((o,i)=>{
+    const b=document.createElement('button');b.className='opt';b.textContent=o;b.dataset.i=i;
+    if(LS.elim.includes(i))clsA(b,'elim');
+    if(l.guided&&i===l.doCor)b.style.boxShadow='0 0 6px rgba(0,212,255,.12)';
+    b.onclick=()=>{if(clsH(b,'elim'))return;
+      document.querySelectorAll('#ccO .opt').forEach(x=>clsR(x,'sel'));clsA(b,'sel');LS.selCard=i;
+      const lb=$('lkBtn');if(lb)clsA(lb,'act')};
+    $('ccO').appendChild(b)});
+}
+
+function subCC(){
+  if(LS.selCard===null)return;
+  const l=L[GS.cur],el=Date.now()-LS.phaseStart,wi=LS.selCard; // capture index
+  if(wi===l.doCor){doDone();return}
+  if(el<2000){LS.cfW++;if(LS.cfW>=2){showGate("Read the evidence label first.",5000);LS.cfW=0;return}}else LS.cfW=0;
+  LS.wrongs++;LS.att++;sNo();
+  const btns=document.querySelectorAll('#ccO .opt');
+  if(btns[wi]){clsA(btns[wi],'wflash');setTimeout(()=>{if(btns[wi])clsR(btns[wi],'wflash')},500)}
+  if(l.doHL){AS.hlTgt=l.doHL;setTimeout(()=>{AS.hlTgt=null},3000)}
+  const fb=l.doWF[wi];if(fb){const el2=$('ccFB');if(el2)el2.innerHTML=`<div class="coach">${fb}</div>`}
+  const lb=$('lkBtn');if(lb)clsR(lb,'act');LS.selCard=null;chkHint();
+}
+
+// ===== DRAG-TO-MATCH =====
+function rMatch(l){
+  const iz=$('iz'),all=l.doDist?[...l.doItems,...l.doDist]:l.doItems,shuf=shuffle([...all]);
+  let tH='<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%">';
+  l.doTgts.forEach(t=>{tH+=`<div class="dz" data-t="${esc(t)}" onclick="dropClk('${esc(t)}')" style="flex:1;min-width:90px">${t}</div>`});tH+='</div>';
+  let iH='<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%" id="mTray">';
+  shuf.forEach(it=>{iH+=`<div class="tc" data-it="${esc(it)}" onclick="mItClk(this)">${it}</div>`});iH+='</div>';
+  iz.innerHTML=`<div class="iz-p">${l.doPr}</div>${tH}${iH}<button class="lock-btn" id="lkBtn" onclick="subMatch()">Lock In</button><div id="mFB"></div>`;
+  LS.match={};LS.selCard=null;
+}
+function esc(s){return s.replace(/'/g,'&#39;')}
+function mItClk(el){
+  if(clsH(el,'used'))return;
+  document.querySelectorAll('#mTray .tc').forEach(c=>clsR(c,'sel'));clsA(el,'sel');LS.selCard=el.dataset.it;
+}
+function dropClk(tgt){
+  if(!LS.selCard)return;const it=LS.selCard;
+  Object.entries(LS.match).forEach(([k,v])=>{if(v===tgt){delete LS.match[k];document.querySelectorAll('#mTray .tc').forEach(c=>{if(c.dataset.it===k)clsR(c,'used')})}});
+  LS.match[it]=tgt;
+  document.querySelectorAll('#mTray .tc').forEach(c=>{if(c.dataset.it===it){clsA(c,'used');clsR(c,'sel')}});
+  document.querySelectorAll('.dz').forEach(d=>{if(d.dataset.t===tgt){d.textContent=it;clsA(d,'filled')}});
+  sSnap();LS.selCard=null;
+  const l=L[GS.cur],filled=new Set(Object.values(LS.match));
+  if(filled.size>=l.doTgts.length){const lb=$('lkBtn');if(lb)clsA(lb,'act')}
+}
+function subMatch(){
+  const l=L[GS.cur],el=Date.now()-LS.phaseStart;
+  let ok=true,wrong=[];
+  l.doTgts.forEach(tgt=>{const p=Object.entries(LS.match).find(([i,t])=>t===tgt);
+    if(!p){ok=false}else if(l.doCMap[p[0]]!==tgt){ok=false;wrong.push(p[0])}});
+  if(ok&&Object.entries(LS.match).filter(([i,t])=>l.doCMap[i]===t).length>=Object.keys(l.doCMap).length){doDone();return}
+  if(el<2000){LS.cfW++;if(LS.cfW>=2){showGate("Slow down — look at the evidence on screen.",5000);LS.cfW=0;return}}
+  LS.wrongs++;LS.att++;sNo();
+  wrong.forEach(it=>{const t=LS.match[it];document.querySelectorAll('.dz').forEach(d=>{if(d.dataset.t===t){clsA(d,'wflash');setTimeout(()=>clsR(d,'wflash'),500)}})});
+  const fb=$('mFB');if(fb)fb.innerHTML=`<div class="coach">${l.doWFG}</div>`;
+  setTimeout(()=>{LS.match={};
+    document.querySelectorAll('.dz').forEach(d=>{clsR(d,'filled');d.textContent=d.dataset.t});
+    document.querySelectorAll('#mTray .tc').forEach(c=>{clsR(c,'used');clsR(c,'sel')});
+    const lb=$('lkBtn');if(lb)clsR(lb,'act');LS.selCard=null},800);
+  chkHint();
+}
+
+// ===== HOTSPOT =====
+function rHot(l){
+  $('iz').innerHTML=`<div class="iz-p">${l.doPr}</div><div class="coach" style="border-color:var(--bdr);color:var(--textd)">Tap on the arena above to identify the correct area.</div><div id="hsFB"></div>`;
+  LS.hsStep=0;LS.hsW=0;$('arenaCont').onclick=hsClk;
+}
+function hsClk(e){
+  const l=L[GS.cur];if(GS.phase!=='do'||l.doM!=='hotspot'||LS.hsStep>=l.doHS.length)return;
+  const r=e.currentTarget.getBoundingClientRect(),cx=(e.clientX-r.left)/r.width,cy=(e.clientY-r.top)/r.height;
+  const tgt=l.doHS[LS.hsStep],d=Math.sqrt((cx-tgt.x)**2+(cy-tgt.y)**2);
+  if(d<tgt.r+.06){sSnap();LS.hsStep++;AS.hlTgt=tgt.id;setTimeout(()=>{AS.hlTgt=null},1500);
+    if(LS.hsStep>=l.doHS.length){$('arenaCont').onclick=null;doDone()}
+    else $('iz').innerHTML=`<div class="iz-p">Now tap what's happening to the gas inside it.</div><div class="coach" style="border-color:rgba(34,197,94,.3);color:var(--ok)">First tap correct. Now find the gas behavior.</div><div id="hsFB"></div>`;
+  }else{LS.hsW++;LS.wrongs++;sNo();
+    const fb=l.doWFhs?l.doWFhs[LS.hsStep]:"Look more carefully.";
+    const el2=$('hsFB');if(el2)el2.innerHTML=`<div class="coach">${fb}</div>`;
+    if(LS.hsW>=3){AS.hlTgt=tgt.id;LS.hsW=0}chkHint()}
+}
+
+// ===== SEQUENCE =====
+function rSeq(l){
+  const iz=$('iz'),shuf=shuffle([...l.doSeq]);
+  let sH='<div style="display:flex;gap:6px;width:100%;justify-content:center;flex-wrap:wrap" id="seqS">';
+  l.doSeq.forEach((s,i)=>{sH+=`<div class="sslot" data-i="${i}" onclick="sSlotClk(${i})" style="flex:1;min-width:100px">${i+1}. Drop here</div>`});sH+='</div>';
+  let tH='<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%" id="seqT">';
+  shuf.forEach(it=>{tH+=`<div class="tc" data-it="${esc(it)}" onclick="sCardClk(this)">${it}</div>`});tH+='</div>';
+  iz.innerHTML=`<div class="iz-p">${l.doPr}</div>${sH}${tH}<button class="lock-btn" id="lkBtn" onclick="subSeq()">Lock In</button><div id="seqFB"></div>`;
+  LS.seq=new Array(l.doSeq.length).fill(null);LS.selCard=null;
+}
+function sCardClk(el){if(clsH(el,'used'))return;document.querySelectorAll('#seqT .tc').forEach(c=>clsR(c,'sel'));clsA(el,'sel');LS.selCard=el.dataset.it}
+function sSlotClk(idx){
+  if(!LS.selCard)return;const it=LS.selCard;
+  if(LS.seq[idx]){const old=LS.seq[idx];document.querySelectorAll('#seqT .tc').forEach(c=>{if(c.dataset.it===old)clsR(c,'used')})}
+  LS.seq.forEach((p,i)=>{if(p===it)LS.seq[i]=null});
+  LS.seq[idx]=it;
+  const slots=document.querySelectorAll('#seqS .sslot');if(slots[idx]){slots[idx].textContent=it;clsA(slots[idx],'filled')}
+  document.querySelectorAll('#seqT .tc').forEach(c=>{if(c.dataset.it===it){clsA(c,'used');clsR(c,'sel')}});
+  sSnap();LS.selCard=null;
+  if(LS.seq.every(p=>p!==null)){const lb=$('lkBtn');if(lb)clsA(lb,'act')}
+}
+function subSeq(){
+  const l=L[GS.cur],slots=document.querySelectorAll('#seqS .sslot');let ok=true;
+  LS.seq.forEach((p,i)=>{if(p!==l.doSeq[i]){ok=false;if(slots[i]){clsA(slots[i],'swrong');setTimeout(()=>{if(slots[i])clsR(slots[i],'swrong')},500)}}else if(slots[i])clsA(slots[i],'sok')});
+  if(ok){doDone();return}
+  LS.wrongs++;LS.att++;sNo();
+  const fb=$('seqFB');if(fb)fb.innerHTML=`<div class="coach">${l.doWFG}</div>`;
+  AS.hlTgt='shm';setTimeout(()=>{AS.hlTgt=null},3000);
+  setTimeout(()=>{LS.seq=new Array(l.doSeq.length).fill(null);
+    slots.forEach((s,i)=>{s.textContent=(i+1)+'. Drop here';s.className='sslot'});
+    document.querySelectorAll('#seqT .tc').forEach(c=>{clsR(c,'used');clsR(c,'sel')});
+    const lb=$('lkBtn');if(lb)clsR(lb,'act')},1000);
+  chkHint();
+}
+
+// ===== CLAIM BUILDER =====
+function rClaim(l){
+  const iz=$('iz');
+  let cH='<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%">';
+  l.doClaims.forEach((c,i)=>{cH+=`<div style="flex:1;min-width:180px"><div style="font-size:12px;font-weight:600;color:var(--accent2);margin-bottom:4px;text-align:center">Claim ${i+1}</div><div style="font-size:11px;text-align:center;color:var(--textd);margin-bottom:6px;padding:6px;background:var(--cardbg);border-radius:6px;border:1px solid var(--bdr)">${c}</div><div class="dz" data-cl="${i}" onclick="clDrop(${i})" style="min-height:70px">Drop evidence here</div></div>`});cH+='</div>';
+  const shuf=shuffle([...l.doEv]);
+  let eH='<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%" id="cbT">';
+  shuf.forEach(e=>{eH+=`<div class="tc" data-it="${esc(e)}" onclick="cbCard(this)" style="font-size:11px">${e}</div>`});eH+='</div>';
+  iz.innerHTML=`<div class="iz-p">${l.doPr}</div>${cH}${eH}<button class="lock-btn" id="lkBtn" onclick="subClaim()">Lock In</button><div id="cbFB"></div>`;
+  LS.match={};LS.selCard=null;
+}
+function cbCard(el){if(clsH(el,'used'))return;document.querySelectorAll('#cbT .tc').forEach(c=>clsR(c,'sel'));clsA(el,'sel');LS.selCard=el.dataset.it}
+function clDrop(ci){
+  if(!LS.selCard)return;const it=LS.selCard;LS.match[it]=ci;
+  document.querySelectorAll('#cbT .tc').forEach(c=>{if(c.dataset.it===it){clsA(c,'used');clsR(c,'sel')}});
+  const dz=document.querySelector(`.dz[data-cl="${ci}"]`);
+  if(dz){const ex=dz.innerHTML.includes('Drop evidence')?'':dz.innerHTML;
+    dz.innerHTML=ex+`<div style="font-size:10px;padding:3px;background:rgba(0,212,255,.08);border-radius:3px;margin:2px">${it}</div>`;clsA(dz,'filled')}
+  sSnap();LS.selCard=null;
+  const l=L[GS.cur];if(Object.keys(LS.match).length>=l.doEv.length){const lb=$('lkBtn');if(lb)clsA(lb,'act')}
+}
+function subClaim(){
+  const l=L[GS.cur];let ok=true;
+  Object.entries(LS.match).forEach(([ev,ci])=>{if(l.doEvMap[ev]!==ci)ok=false});
+  if(ok&&Object.keys(LS.match).length>=l.doEv.length){doDone();return}
+  LS.wrongs++;LS.att++;sNo();
+  const fb=$('cbFB');if(fb)fb.innerHTML=`<div class="coach">${l.doWFG}</div>`;
+  setTimeout(()=>{LS.match={};
+    document.querySelectorAll('.dz[data-cl]').forEach(d=>{d.innerHTML='Drop evidence here';clsR(d,'filled')});
+    document.querySelectorAll('#cbT .tc').forEach(c=>{clsR(c,'used');clsR(c,'sel')});
+    const lb=$('lkBtn');if(lb)clsR(lb,'act')},1000);
+  chkHint();
+}
+
+// ===== DO CORRECT → PROVE =====
+function doDone(){
+  LS.doDone=true;sOk();$('arenaCont').onclick=null;
+  const l=L[GS.cur];
+  if(l.ebE&&!GS.evBoard.find(e=>e.label===l.ebE.label)){GS.evBoard.push(l.ebE);if(l.evType)GS.evCol=Math.min(4,GS.evCol+1)}
+  GS.conPct=l.conPct;upEB();upHUD();
+  $('iz').innerHTML='<div style="color:var(--ok);font-size:17px;font-weight:700;text-align:center">Correct!</div>';
+  setTimeout(startPv,1200);
+}
+
+function startPv(){
+  GS.phase='prove';LS.phaseStart=Date.now();LS.wrongs=0;LS.selCard=null;
+  const l=L[GS.cur],iz=$('iz');
+  iz.innerHTML=`<div class="iz-p">${l.pvQ}</div><div class="iz-opts" id="pvO"></div><button class="lock-btn" id="lkBtn" onclick="subPv()">Lock In</button><div id="pvFB"></div>`;
+  l.pvOpts.forEach((o,i)=>{
+    const b=document.createElement('button');b.className='opt';b.textContent=o;b.dataset.i=i;
+    if(LS.elim.includes('pv-'+i))clsA(b,'elim');
+    b.onclick=()=>{if(clsH(b,'elim'))return;
+      document.querySelectorAll('#pvO .opt').forEach(x=>clsR(x,'sel'));clsA(b,'sel');LS.selCard=i;
+      const lb=$('lkBtn');if(lb)clsA(lb,'act')};
+    $('pvO').appendChild(b)});
+}
+
+function subPv(){
+  if(LS.selCard===null)return;
+  const l=L[GS.cur],el=Date.now()-LS.phaseStart,wi=LS.selCard;
+  if(wi===l.pvCor){pvDone();return}
+  if(el<2000){LS.cfW++;if(LS.cfW>=2){showGate("Slow down — read the question carefully.",5000);LS.cfW=0;return}}
+  LS.wrongs++;LS.att++;sNo();
+  const btns=document.querySelectorAll('#pvO .opt');
+  if(btns[wi]){clsA(btns[wi],'wflash');setTimeout(()=>{if(btns[wi])clsR(btns[wi],'wflash')},500)}
+  LS.elim.push('pv-'+wi);
+  setTimeout(()=>{if(btns[wi])clsA(btns[wi],'elim')},600);
+  const fb=l.pvWF[wi];if(fb){const el2=$('pvFB');if(el2)el2.innerHTML=`<div class="coach">${fb}</div>`}
+  const lb=$('lkBtn');if(lb)clsR(lb,'act');LS.selCard=null;chkHint();
+}
+
+function pvDone(){
+  LS.proveDone=true;sOk();
+  const l=L[GS.cur],gs=GS.levels[GS.cur];
+  let sc=100;if(LS.hints>=3||LS.resets>0)sc=50;else if(LS.hints===2)sc=70;else if(LS.hints===1)sc=85;
+  if(l.hasPred&&LS.predOk===false&&sc===100)sc=85;
+  gs.done=true;gs.score=sc;gs.att=LS.att+1;gs.hints=LS.hints;gs.resets=LS.resets;gs.time=Math.round((Date.now()-LS.start)/1000);
+  upHUD();upEvSide();
+  const iz=$('iz');iz.innerHTML=`<div style="text-align:center"><div style="color:var(--ok);font-size:18px;font-weight:700">Level Complete!</div><div style="font-size:26px;font-weight:700;color:${sc>=85?'var(--ok)':sc>=70?'var(--accent2)':'var(--accent3)'};margin:6px 0">+${sc}</div></div>`;
+  if(sc===100)iz.innerHTML+=`<div style="text-align:center;color:var(--accent2);font-size:15px;animation:fio 2s">${gAff()}</div>`;
+  const done=GS.levels.filter(l=>l.done).length,reqD=GS.levels.filter((l,i)=>L[i].req&&l.done).length;
+  setTimeout(()=>{
+    if(reqD===6&&!GS.reqDone){GS.reqDone=true;showCel("Required Levels Complete!",true)}
+    else if(done===8){GS.allDone=true;showCel("BONUS COMPLETE!",false,true)}
+    else if(done%2===0&&done>0)showMiniCel();
+    else advNext()
+  },2000);
+}
+
+// ===== HINTS =====
+function chkHint(){if(LS.wrongs>=3&&LS.hints>=3){LS.resets++;if(LS.resets>=3)forceAdv()}}
+function useHint(){
+  const l=L[GS.cur];if(GS.phase!=='do'&&GS.phase!=='prove')return;
+  LS.hints++;const h=l.hl;
+  if(LS.hints===1){showHB(h.h1.t);if(h.h1.tgt){AS.hlTgt=h.h1.tgt;setTimeout(()=>{AS.hlTgt=null},4000)}}
+  else if(LS.hints===2){showHB(h.h2.t);
+    if(h.h2.elim!=null&&GS.phase==='prove'){LS.elim.push('pv-'+h.h2.elim);const b=document.querySelectorAll('#pvO .opt');if(b[h.h2.elim])clsA(b[h.h2.elim],'elim')}}
+  else showSBS(h.sbs);
+}
+function showHB(t){const iz=$('iz');if(!iz)return;let hb=document.getElementById('hintBar');
+  if(!hb){hb=document.createElement('div');hb.id='hintBar';hb.className='coach';hb.style.borderColor='rgba(255,217,61,.4)';iz.appendChild(hb)}
+  hb.innerHTML='&#128161; '+t}
+
+let sbsP=[],sbsI=0;
+function showSBS(steps){sbsP=steps;sbsI=0;$('sbsC').textContent=`Step 1 of ${steps.length}`;$('sbsT').textContent=steps[0].t;$('sbsN').textContent=sbsI<steps.length-1?'Next':'Got It';clsA($('hOv'),'show');if(steps[0].tgt)AS.hlTgt=steps[0].tgt}
+function nextSbs(){sbsI++;if(sbsI>=sbsP.length){clsR($('hOv'),'show');AS.hlTgt=null;return}
+  $('sbsC').textContent=`Step ${sbsI+1} of ${sbsP.length}`;$('sbsT').textContent=sbsP[sbsI].t;$('sbsN').textContent=sbsI<sbsP.length-1?'Next':'Got It';
+  if(sbsP[sbsI].tgt)AS.hlTgt=sbsP[sbsI].tgt;else AS.hlTgt=null}
+
+function showGate(msg,dur){$('gMsg').innerHTML=msg+'<div id="gTmr" style="font-size:12px;color:var(--textd);margin-top:6px"></div>';clsA($('gOv'),'show');
+  let r=Math.ceil(dur/1000);const ti=setInterval(()=>{r--;const e=$('gTmr');if(e)e.textContent=r+'s';if(r<=0){clearInterval(ti);clsR($('gOv'),'show')}},1000)}
+
+function forceAdv(){
+  const gs=GS.levels[GS.cur],l=L[GS.cur];gs.done=true;gs.score=50;gs.att=LS.att;gs.hints=LS.hints;gs.resets=LS.resets;gs.time=Math.round((Date.now()-LS.start)/1000);
+  if(l.ebE&&!GS.evBoard.find(e=>e.label===l.ebE.label)){GS.evBoard.push(l.ebE);if(l.evType)GS.evCol=Math.min(4,GS.evCol+1)}
+  GS.conPct=l.conPct;upEB();upHUD();upEvSide();
+  $('iz').innerHTML='<div style="text-align:center;color:var(--accent2);font-size:15px">Let\'s move on — you\'ll see this idea again.<br><span style="font-size:22px;font-weight:700;color:var(--accent3)">+50</span></div>';
+  $('arenaCont').onclick=null;setTimeout(advNext,2500);
+}
+function safeAdv(){try{advNext()}catch(e){GS.cur++;if(GS.cur<L.length)startLvl(GS.cur);else showReceipt()}}
+function advNext(){const n=GS.cur+1;if(n>=L.length)showReceipt();else startLvl(n)}
+
+// ===== CELEBRATIONS =====
+function showMiniCel(){showCelOv("Nice work!",gAff(),1800);setTimeout(advNext,2000)}
+function showCel(title,choice,final){
+  $('celMsg').textContent=title;$('celAff').textContent=gAff();
+  const btns=$('celBtns');btns.innerHTML='';
+  if(choice)btns.innerHTML='<button class="cb-pri" onclick="closeCel();advNext()">Keep Going</button><button class="cb-sec" onclick="closeCel();showReceipt()">See Score</button>';
+  else if(final)btns.innerHTML='<button class="cb-pri" onclick="closeCel();showReceipt()">See Score</button>';
+  clsA($('celOv'),'show');confetti(final?100:50);sOk();
+  if(!choice&&!final)setTimeout(()=>{closeCel();advNext()},2500);
+  if(final)setTimeout(()=>{if(clsH($('celOv'),'show')){closeCel();showReceipt()}},4000);
+}
+function showCelOv(msg,sub,dur){$('celMsg').textContent=msg;$('celAff').textContent=sub||'';$('celBtns').innerHTML='';clsA($('celOv'),'show');confetti(30);sOk();setTimeout(closeCel,dur||2000)}
+function closeCel(){clsR($('celOv'),'show')}
+
+function confetti(n){
+  try{const c=$('celC'),cx=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;
+  const ps=[],cols=['#00D4FF','#FFD93D','#FF4757','#22C55E','#FF6B35','#FF1493'];
+  for(let i=0;i<n;i++)ps.push({x:Math.random()*c.width,y:Math.random()*c.height*.3-c.height*.1,vx:(Math.random()-.5)*4,vy:Math.random()*3+2,sz:Math.random()*5+3,co:cols[Math.floor(Math.random()*cols.length)],r:Math.random()*Math.PI*2,rv:(Math.random()-.5)*.2,li:1});
+  let f;(function anim(){cx.clearRect(0,0,c.width,c.height);let alive=false;ps.forEach(p=>{if(p.li<=0)return;alive=true;p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.r+=p.rv;p.li-=.008;cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.fillStyle=p.co;cx.globalAlpha=p.li;cx.fillRect(-p.sz/2,-p.sz/2,p.sz,p.sz);cx.restore()});if(alive)f=requestAnimationFrame(anim)})();
+  setTimeout(()=>cancelAnimationFrame(f),3000)}catch(e){}}
+
+// ===== RECEIPT =====
+function showReceipt(){
+  const req=GS.levels.filter((l,i)=>L[i].req&&l.done),base=req.length?Math.round(req.reduce((s,l)=>s+l.score,0)/req.length):0;
+  const bon=GS.levels.filter((l,i)=>!L[i].req&&l.done).length,overall=Math.min(100,base+bon*5);
+  const totT=GS.levels.reduce((s,l)=>s+l.time,0);
+  const pc=overall>=85?'grn':overall>=70?'ylw':'red',lb=overall>=85?'STRONG MASTERY':overall>=70?'APPROACHING MASTERY':'NEEDS MORE PRACTICE';
+  let rows='';GS.levels.forEach((l,i)=>{if(!l.done)return;const bon2=!L[i].req,sc=l.score>=85?'sc-grn':l.score>=70?'sc-ylw':'sc-red',m=Math.floor(l.time/60),s=l.time%60;
+    rows+=`<tr${bon2?' style="font-style:italic"':''}><td>${bon2?'&#11088; ':''}${l.num}</td><td>${l.name}</td><td class="${sc}">${l.score}%</td><td>${l.att||1}</td><td>${m}:${String(s).padStart(2,'0')}</td></tr>`});
+  const reqOk=GS.levels.filter((l,i)=>L[i].req).every(l=>l.done),allOk=GS.levels.every(l=>l.done);
+  const tm=Math.floor(totT/60),ts=totT%60;
+  $('recC').innerHTML=`<h2>${T}'s Simulation</h2><div class="r-sub">${TOPIC} — Tuesday Score Report</div>
+    <div class="r-nr"><input id="rNm" placeholder="Type your name here..."${GS.locked?' disabled value="'+GS.name+'"':''}><button onclick="lockNm()">${GS.locked?'Locked':'Lock'}</button></div>
+    <div class="r-ov"><div class="r-pct ${pc}">${overall}%</div><div class="r-lbl">${lb}</div></div>
+    <table class="r-tbl"><thead><tr><th>#</th><th>Level</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="font-size:13px;color:var(--textd);text-align:center;margin:8px 0">Total Time: ${tm}:${String(ts).padStart(2,'0')} | ${allOk?'&#9989; All Complete (Bonus!)':reqOk?'&#9989; Required Complete':'In Progress'}</div>
+    <div class="r-ft"><p>Take a screenshot and upload to Google Classroom</p><button onclick="window.print()">&#128424; Print</button></div>
+    <div style="text-align:center;margin-top:8px"><button class="r-rst" onclick="if(confirm('Start over? All progress will be lost.'))location.reload()">Start Over</button></div>`;
+  clsA($('recOv'),'show');
+}
+function lockNm(){const i=$('rNm');if(!i||!i.value.trim())return;GS.name=i.value.trim();GS.locked=true;i.disabled=true}
+
+function showVocab(){clsA($('vOv'),'show')}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+// ===== INIT =====
+window.addEventListener('load',()=>{
+  try{initC()}catch(e){console.error('initC',e)}
+  try{initSp()}catch(e){}
+  try{startALoop()}catch(e){}
+  try{startLvl(0)}catch(e){console.error('startLvl',e)}
+});
+window.addEventListener('resize',()=>{try{initC()}catch(e){}});
+document.addEventListener('click',function f(){try{gAC()}catch(e){}document.removeEventListener('click',f)},{once:true});
+</script>
+</body>
+</html>

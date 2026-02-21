@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulation — Volcano</title>
+<style>
+:root {
+  --bg1:#F0F4F8;--bg2:#E8EEF4;--accent1:#3B82F6;--accent2:#10B981;--accent3:#8B5CF6;
+  --text:#1E293B;--textLight:#64748B;--white:#FFFFFF;--card:#FFFFFF;
+  --correct:#10B981;--wrong:#EF4444;--warn:#F59E0B;--hintBg1:#FFF9C4;--hintBg2:#FFE0B2;
+  --green:#10B981;--yellow:#F59E0B;--red:#EF4444;
+  --gaugeGreen:#22C55E;--gaugeYellow:#EAB308;--gaugeOrange:#F97316;--gaugeRed:#EF4444;
+  --shadow:0 2px 12px rgba(0,0,0,0.08);--radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);min-height:100vh;overflow-x:hidden;}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;touch-action:manipulation;}
+button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px;}
+
+/* TOP BAR */
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--white);border-bottom:2px solid #E2E8F0;position:sticky;top:0;z-index:100;gap:8px;flex-wrap:wrap;}
+.tb-left{display:flex;align-items:center;gap:10px;}
+.phase-badge{background:var(--accent1);color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;letter-spacing:0.5px;}
+.round-name{font-weight:700;font-size:15px;color:var(--text);}
+.tb-right{display:flex;align-items:center;gap:14px;}
+.score-display{font-weight:700;font-size:16px;color:var(--accent1);}
+.progress-bar-wrap{width:140px;height:10px;background:#E2E8F0;border-radius:5px;overflow:hidden;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent1),var(--accent2));transition:width 0.5s;border-radius:5px;}
+
+/* MAIN LAYOUT */
+.main-area{display:flex;gap:0;min-height:calc(100vh - 110px);}
+.left-panel{width:240px;min-width:200px;background:var(--white);border-right:2px solid #E2E8F0;padding:14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;}
+.center-panel{flex:1;display:flex;flex-direction:column;position:relative;min-width:0;}
+.right-panel{width:260px;min-width:220px;background:var(--white);border-left:2px solid #E2E8F0;padding:14px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+
+/* CANVAS ARENA */
+.arena-wrap{flex:1;position:relative;background:#F8FAFC;overflow:hidden;}
+#volcanoCanvas{width:100%;height:100%;display:block;}
+
+/* FOCUS PROMPT */
+.focus-prompt{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(59,130,246,0.92);color:#fff;padding:8px 20px;border-radius:8px;font-size:14px;font-weight:600;max-width:90%;text-align:center;z-index:20;transition:opacity 1s;pointer-events:none;}
+.focus-prompt.fade{opacity:0.3;font-size:12px;top:4px;}
+
+/* SLIDER CONTROLS */
+.slider-group{display:flex;flex-direction:column;gap:4px;}
+.slider-label{font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px;}
+.slider-label .lock-icon{color:var(--textLight);font-size:12px;}
+.slider-wrap{position:relative;}
+.slider-wrap input[type=range]{width:100%;height:36px;-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;}
+.slider-wrap input[type=range]::-webkit-slider-track{height:8px;border-radius:4px;background:linear-gradient(90deg,#FFA94D,#E03131);}
+.slider-wrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--white);border:3px solid var(--accent1);margin-top:-10px;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
+.slider-wrap.gas input[type=range]::-webkit-slider-track{background:linear-gradient(90deg,#A5D8FF,#7048E8);}
+.slider-wrap.locked{opacity:0.45;pointer-events:none;}
+.slider-ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--textLight);font-weight:600;padding:0 4px;}
+.slider-value{text-align:center;font-weight:700;font-size:14px;color:var(--accent1);margin-top:2px;}
+.test-btn{width:100%;padding:14px;font-size:16px;font-weight:700;border-radius:var(--radius);color:#fff;background:linear-gradient(135deg,var(--accent2),#059669);transition:all 0.2s;margin-top:8px;}
+.test-btn:disabled{background:#CBD5E1;color:#94A3B8;cursor:not-allowed;}
+.test-btn:not(:disabled):hover{transform:scale(1.03);box-shadow:0 4px 12px rgba(16,185,129,0.3);}
+.guided-overlay{background:var(--hintBg1);border:2px solid var(--warn);border-radius:8px;padding:8px 10px;font-size:12px;color:#92400E;font-weight:600;line-height:1.4;}
+
+/* DATA TABLE */
+.data-table-title{font-weight:700;font-size:14px;color:var(--text);padding-bottom:4px;border-bottom:2px solid #E2E8F0;}
+.data-table{width:100%;border-collapse:collapse;font-size:11px;}
+.data-table th{background:#F1F5F9;padding:5px 4px;text-align:left;font-weight:700;color:var(--textLight);border-bottom:2px solid #E2E8F0;position:sticky;top:0;}
+.data-table td{padding:5px 4px;border-bottom:1px solid #F1F5F9;transition:background 0.3s;}
+.data-table tr.current td{background:#EFF6FF;font-weight:600;}
+.data-table tr.verified td{background:#F0FDF4;}
+.data-table td.error-cell{background:#FEF3C7;cursor:pointer;animation:pulse-yellow 1s infinite;}
+.data-table td.corrected{background:#D1FAE5;}
+@keyframes pulse-yellow{0%,100%{box-shadow:inset 0 0 0 2px transparent}50%{box-shadow:inset 0 0 0 2px #F59E0B}}
+
+/* INTERACTION ZONE */
+.interaction-zone{background:var(--white);border-top:2px solid #E2E8F0;padding:16px;min-height:140px;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.iz-prompt{font-size:15px;font-weight:600;color:var(--text);text-align:center;max-width:600px;line-height:1.5;}
+.iz-options{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;width:100%;max-width:700px;}
+.opt-card{padding:12px 18px;border-radius:var(--radius);border:2px solid #E2E8F0;background:var(--white);font-size:14px;font-weight:600;transition:all 0.2s;min-height:48px;display:flex;align-items:center;cursor:pointer;user-select:none;flex:1;min-width:160px;justify-content:center;text-align:center;}
+.opt-card:hover{border-color:var(--accent1);background:#EFF6FF;}
+.opt-card.selected{border-color:var(--accent1);background:#DBEAFE;color:var(--accent1);}
+.opt-card.correct-reveal{border-color:var(--correct);background:#D1FAE5;color:#065F46;}
+.opt-card.wrong-reveal{border-color:var(--wrong);background:#FEE2E2;color:#991B1B;}
+.opt-card.dimmed{opacity:0.35;pointer-events:none;text-decoration:line-through;}
+.opt-card.eliminated{opacity:0.3;pointer-events:none;border-style:dashed;}
+.lock-in-btn{padding:14px 40px;font-size:16px;font-weight:700;border-radius:var(--radius);color:#fff;background:linear-gradient(135deg,var(--accent1),#2563EB);transition:all 0.2s;min-height:48px;}
+.lock-in-btn:disabled{background:#CBD5E1;color:#94A3B8;cursor:not-allowed;}
+.lock-in-btn:not(:disabled):hover{transform:scale(1.03);}
+.try-again-btn{padding:12px 32px;font-size:15px;font-weight:700;border-radius:var(--radius);color:#fff;background:linear-gradient(135deg,var(--accent1),var(--accent3));min-height:48px;}
+.try-again-btn:hover{transform:scale(1.03);}
+
+/* COACHING BAR */
+.coaching-bar{background:var(--hintBg1);border:2px solid #FDE68A;border-radius:var(--radius);padding:10px 14px;font-size:13px;color:#92400E;font-weight:600;max-width:600px;text-align:center;line-height:1.5;animation:slideUp 0.3s;}
+.coaching-bar.hint2{background:var(--hintBg2);border-color:#FDBA74;color:#9A3412;}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* BOTTOM BAR */
+.bottom-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--white);border-top:2px solid #E2E8F0;gap:8px;flex-wrap:wrap;}
+.bb-btn{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;background:#F1F5F9;color:var(--text);border:1px solid #E2E8F0;}
+.bb-btn:hover{background:#E2E8F0;}
+.bb-center{font-size:13px;color:var(--textLight);font-weight:600;}
+
+/* DRAG-TO-MATCH */
+.dtm-container{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;width:100%;max-width:700px;}
+.dtm-items{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+.dtm-drag{padding:10px 16px;background:#EFF6FF;border:2px solid var(--accent1);border-radius:8px;font-size:13px;font-weight:600;cursor:grab;touch-action:none;min-height:48px;display:flex;align-items:center;user-select:none;}
+.dtm-drag.placed{opacity:0.3;pointer-events:none;}
+.dtm-zones{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;}
+.dtm-zone{min-width:160px;min-height:80px;border:2px dashed #CBD5E1;border-radius:8px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:4px;background:#F8FAFC;transition:all 0.2s;}
+.dtm-zone-label{font-size:12px;font-weight:700;color:var(--textLight);}
+.dtm-zone .dtm-placed-item{padding:6px 12px;background:#DBEAFE;border:2px solid var(--accent1);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
+.dtm-zone.highlight{border-color:var(--accent1);background:#EFF6FF;}
+
+/* HOTSPOT */
+.hotspot-area{position:relative;width:100%;max-width:500px;cursor:crosshair;}
+.hotspot-marker{position:absolute;width:24px;height:24px;border-radius:50%;border:3px solid;transform:translate(-50%,-50%);pointer-events:none;z-index:5;}
+.hotspot-marker.correct{border-color:var(--correct);background:rgba(16,185,129,0.3);animation:expandRing 0.5s;}
+.hotspot-marker.wrong{border-color:var(--wrong);background:rgba(239,68,68,0.3);}
+@keyframes expandRing{from{width:10px;height:10px}to{width:24px;height:24px}}
+
+/* SEQUENCE BUILDER */
+.seq-container{display:flex;flex-direction:column;gap:10px;width:100%;max-width:600px;}
+.seq-source{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:56px;}
+.seq-slots{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+.seq-slot{min-width:130px;min-height:52px;border:2px dashed #CBD5E1;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:6px;font-size:11px;color:var(--textLight);font-weight:600;background:#F8FAFC;transition:all 0.2s;cursor:pointer;}
+.seq-slot.filled{border-style:solid;border-color:var(--accent1);background:#DBEAFE;color:var(--text);cursor:pointer;}
+.seq-slot.highlight{border-color:var(--accent1);background:#EFF6FF;}
+.seq-card{padding:10px 14px;background:#EFF6FF;border:2px solid var(--accent1);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;min-height:48px;display:flex;align-items:center;text-align:center;user-select:none;transition:all 0.2s;}
+.seq-card:hover{background:#DBEAFE;}
+.seq-card.selected{border-color:var(--accent3);background:#EDE9FE;box-shadow:0 0 0 3px rgba(139,92,246,0.2);}
+.seq-card.placed{opacity:0.3;pointer-events:none;}
+.seq-card.locked{border-color:var(--correct);background:#D1FAE5;pointer-events:none;}
+
+/* CLAIM BUILDER */
+.claim-container{display:flex;flex-direction:column;gap:12px;width:100%;max-width:650px;}
+.claim-frame{border:2px solid var(--accent3);border-radius:var(--radius);padding:12px;background:#FAF5FF;min-height:80px;}
+.claim-frame-label{font-size:13px;font-weight:700;color:var(--accent3);margin-bottom:8px;}
+.claim-evidence-area{display:flex;flex-wrap:wrap;gap:6px;min-height:40px;}
+.claim-card{padding:8px 14px;border-radius:8px;border:2px solid #E2E8F0;background:var(--white);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;min-height:48px;display:flex;align-items:center;}
+.claim-card:hover{border-color:var(--accent3);background:#FAF5FF;}
+.claim-card.selected{border-color:var(--accent3);background:#EDE9FE;}
+.claim-card.in-frame{border-color:var(--accent3);background:#EDE9FE;}
+.claim-card.eliminated{opacity:0.3;pointer-events:none;text-decoration:line-through;}
+
+/* PREDICTION */
+.predict-container{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:600px;}
+.predict-prompt{font-size:15px;font-weight:600;text-align:center;line-height:1.5;}
+.predict-cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+.predict-card{padding:14px 20px;border-radius:var(--radius);border:2px solid #E2E8F0;background:var(--white);font-size:14px;font-weight:600;cursor:pointer;min-height:56px;min-width:200px;display:flex;align-items:center;text-align:center;justify-content:center;transition:all 0.2s;}
+.predict-card:hover{border-color:var(--accent3);background:#FAF5FF;}
+.predict-card.selected{border-color:var(--accent3);background:#EDE9FE;color:var(--accent3);}
+
+/* RECORD VERIFY */
+.record-zone{display:flex;flex-direction:column;align-items:center;gap:10px;}
+.record-msg{font-size:14px;font-weight:600;color:var(--text);text-align:center;}
+.confirm-btn{padding:12px 32px;font-size:15px;font-weight:700;border-radius:var(--radius);color:#fff;background:linear-gradient(135deg,var(--accent2),#059669);min-height:48px;transition:all 0.2s;}
+.confirm-btn:disabled{background:#CBD5E1;color:#94A3B8;cursor:not-allowed;}
+.confirm-btn:not(:disabled):hover{transform:scale(1.03);}
+
+/* VOCAB POPUP */
+.vocab-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:500;display:none;align-items:center;justify-content:center;}
+.vocab-overlay.show{display:flex;}
+.vocab-panel{background:var(--white);border-radius:16px;padding:24px;max-width:420px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.vocab-title{font-size:18px;font-weight:700;margin-bottom:16px;color:var(--text);}
+.vocab-item{padding:10px;border-radius:8px;background:#F8FAFC;margin-bottom:8px;border-left:4px solid var(--accent1);}
+.vocab-term{font-weight:700;font-size:14px;color:var(--accent1);}
+.vocab-def{font-size:13px;color:var(--textLight);margin-top:2px;}
+.vocab-close{padding:10px 24px;border-radius:8px;background:var(--accent1);color:#fff;font-weight:700;font-size:14px;margin-top:12px;}
+
+/* CELEBRATION OVERLAY */
+.celebration-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:400;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);}
+.celebration-overlay.show{display:flex;}
+.celebration-card{background:var(--white);border-radius:20px;padding:32px;text-align:center;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);animation:celebPop 0.4s;}
+@keyframes celebPop{from{transform:scale(0.8);opacity:0}to{transform:scale(1);opacity:1}}
+.celeb-title{font-size:22px;font-weight:800;color:var(--accent1);margin-bottom:8px;}
+.celeb-msg{font-size:15px;color:var(--text);margin-bottom:6px;line-height:1.5;}
+.celeb-affirmation{font-size:17px;color:var(--accent2);font-weight:700;margin-top:8px;opacity:0;animation:fadeAffirm 1.5s 0.5s forwards;}
+@keyframes fadeAffirm{0%{opacity:0;transform:translateY(8px)}30%{opacity:1;transform:translateY(0)}100%{opacity:1}}
+.celeb-btns{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap;}
+.celeb-btn{padding:12px 24px;border-radius:var(--radius);font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--accent1),var(--accent2));min-height:48px;}
+.celeb-btn.secondary{background:linear-gradient(135deg,var(--accent3),#7C3AED);}
+
+/* HINT STEP-BY-STEP MODAL */
+.sbs-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:450;display:none;align-items:center;justify-content:center;}
+.sbs-overlay.show{display:flex;}
+.sbs-panel{background:var(--white);border-radius:16px;padding:24px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.sbs-title{font-size:16px;font-weight:700;margin-bottom:12px;color:var(--accent1);}
+.sbs-step{font-size:14px;line-height:1.6;color:var(--text);margin-bottom:12px;padding:10px;background:#F8FAFC;border-radius:8px;border-left:3px solid var(--accent1);display:none;}
+.sbs-step.active{display:block;}
+.sbs-nav{display:flex;gap:10px;justify-content:flex-end;}
+.sbs-btn{padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;color:#fff;background:var(--accent1);min-height:44px;}
+
+/* RECEIPT SCREEN */
+.receipt-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:600;display:none;overflow-y:auto;}
+.receipt-overlay.show{display:flex;justify-content:center;padding:20px;}
+.receipt-card{background:var(--white);border-radius:20px;padding:28px;max-width:600px;width:100%;box-shadow:var(--shadow);margin:auto;}
+.receipt-header{text-align:center;margin-bottom:20px;}
+.receipt-header h2{font-size:20px;color:var(--text);}
+.receipt-header h3{font-size:15px;color:var(--textLight);}
+.name-input-wrap{display:flex;gap:8px;margin:16px 0;align-items:center;}
+.name-input-wrap input{flex:1;padding:10px;border:2px solid #E2E8F0;border-radius:8px;font-size:15px;}
+.name-input-wrap button{padding:10px 20px;border-radius:8px;background:var(--accent1);color:#fff;font-weight:700;}
+.overall-score{text-align:center;margin:20px 0;}
+.overall-pct{font-size:48px;font-weight:800;}
+.overall-label{font-size:16px;font-weight:700;margin-top:4px;}
+.receipt-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;}
+.receipt-table th{background:#F1F5F9;padding:8px;text-align:left;font-weight:700;border-bottom:2px solid #E2E8F0;}
+.receipt-table td{padding:8px;border-bottom:1px solid #F1F5F9;}
+.receipt-table tr:nth-child(even) td{background:#FAFBFC;}
+.receipt-table .bonus-row td{background:#FEF9C3;font-style:italic;}
+.receipt-footer{text-align:center;margin-top:16px;font-size:14px;color:var(--text);font-weight:600;}
+.print-btn{padding:12px 28px;border-radius:var(--radius);background:var(--accent1);color:#fff;font-weight:700;font-size:15px;margin-top:12px;}
+.restart-btn{padding:10px 20px;border-radius:8px;background:#F1F5F9;color:var(--text);font-weight:600;font-size:13px;margin-top:8px;border:1px solid #E2E8F0;}
+.score-green{color:var(--green)}.score-yellow{color:var(--yellow)}.score-red{color:var(--red)}
+
+/* ANTI-GUESS COACHING SCREEN */
+.ag-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:470;display:none;align-items:center;justify-content:center;}
+.ag-screen.show{display:flex;}
+.ag-card{background:var(--white);border-radius:16px;padding:28px;max-width:400px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.ag-card h3{font-size:18px;font-weight:700;color:var(--text);margin-bottom:10px;}
+.ag-card p{font-size:14px;color:var(--textLight);line-height:1.6;}
+.ag-timer{font-size:24px;font-weight:800;color:var(--accent1);margin-top:12px;}
+
+/* START SCREEN */
+.start-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:700;display:flex;align-items:center;justify-content:center;}
+.start-overlay.hidden{display:none;}
+.start-card{background:var(--white);border-radius:20px;padding:36px;max-width:480px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.15);}
+.start-card h1{font-size:22px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.start-card h2{font-size:16px;color:var(--accent1);margin-bottom:16px;font-weight:600;}
+.start-card p{font-size:14px;color:var(--textLight);line-height:1.6;margin-bottom:20px;}
+.start-btn{padding:16px 40px;border-radius:var(--radius);font-size:18px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--accent1),var(--accent2));box-shadow:0 4px 16px rgba(59,130,246,0.3);}
+.start-btn:hover{transform:scale(1.05);}
+
+/* CANVAS CONFETTI */
+#confettiCanvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:410;}
+
+/* PRINT */
+@media print{
+  .top-bar,.bottom-bar,.main-area,.start-overlay,.celebration-overlay,.vocab-overlay,.sbs-overlay,.ag-screen,#confettiCanvas{display:none!important;}
+  .receipt-overlay{position:static!important;display:block!important;}
+  .receipt-card{box-shadow:none;max-width:100%;}
+  .print-btn,.restart-btn{display:none!important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+
+/* MOBILE */
+@media(max-width:900px){
+  .main-area{flex-direction:column;}
+  .left-panel,.right-panel{width:100%;min-width:0;max-height:200px;border:none;border-bottom:2px solid #E2E8F0;flex-direction:row;flex-wrap:wrap;overflow-x:auto;padding:10px;}
+  .right-panel{border-bottom:none;border-top:2px solid #E2E8F0;max-height:160px;}
+  .arena-wrap{min-height:260px;}
+  .slider-group{min-width:140px;}
+}
+@media(max-width:500px){
+  .opt-card,.predict-card{min-width:100%;font-size:13px;}
+  .iz-prompt{font-size:14px;}
+  .dtm-drag,.seq-card,.claim-card{font-size:11px;padding:8px 10px;}
+}
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div class="start-overlay" id="startScreen">
+<div class="start-card">
+<h1>Mr. Jawad's Simulation</h1>
+<h2>Volcano — Cause-and-Effect Lab</h2>
+<p>You control what's inside the volcano — can you make it explode on purpose?</p>
+<p style="font-size:13px;color:var(--textLight)">8 rounds. Adjust the sliders. Watch what happens. Prove what you learned.</p>
+<button class="start-btn" onclick="startGame()">Start Lab</button>
+</div>
+</div>
+
+<!-- TOP BAR -->
+<div class="top-bar" id="topBar" style="display:none">
+<div class="tb-left">
+<span class="phase-badge" id="phaseBadge">CHANGE</span>
+<span class="round-name" id="roundName">Round 1</span>
+</div>
+<div class="tb-right">
+<span class="score-display" id="scoreDisplay">Score: 0</span>
+<div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+</div>
+
+<!-- MAIN AREA -->
+<div class="main-area" id="mainArea" style="display:none">
+
+<!-- LEFT: VARIABLE CONTROLS -->
+<div class="left-panel" id="leftPanel">
+<div id="guidedMsg" class="guided-overlay" style="display:none"></div>
+<div class="slider-group" id="thickGroup">
+<div class="slider-label">THICKNESS <span class="lock-icon" id="thickLock" style="display:none">🔒 Locked</span></div>
+<div class="slider-wrap" id="thickSliderWrap">
+<input type="range" id="thickSlider" min="0" max="2" step="1" value="0">
+<div class="slider-ticks"><span>Thin</span><span>Medium</span><span>Thick</span></div>
+</div>
+<div class="slider-value" id="thickValue">Thin</div>
+</div>
+<div class="slider-group" id="gasGroup">
+<div class="slider-label">GAS AMOUNT <span class="lock-icon" id="gasLock" style="display:none">🔒 Locked</span></div>
+<div class="slider-wrap gas" id="gasSliderWrap">
+<input type="range" id="gasSlider" min="0" max="2" step="1" value="0">
+<div class="slider-ticks"><span>Low</span><span>Medium</span><span>High</span></div>
+</div>
+<div class="slider-value" id="gasValue">Low</div>
+</div>
+<button class="test-btn" id="testBtn" disabled onclick="pressTest()">TEST</button>
+</div>
+
+<!-- CENTER: ARENA -->
+<div class="center-panel">
+<div class="arena-wrap" id="arenaWrap">
+<canvas id="volcanoCanvas"></canvas>
+<div class="focus-prompt" id="focusPrompt" style="display:none"></div>
+</div>
+<!-- INTERACTION ZONE -->
+<div class="interaction-zone" id="interactionZone" style="display:none"></div>
+</div>
+
+<!-- RIGHT: DATA TABLE -->
+<div class="right-panel" id="rightPanel">
+<div class="data-table-title">Data Table</div>
+<table class="data-table" id="dataTable">
+<thead><tr><th>Rnd</th><th>Thick</th><th>Gas</th><th>Press</th><th>Eruption</th><th>Danger</th></tr></thead>
+<tbody id="dataBody"></tbody>
+</table>
+</div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar" id="bottomBar" style="display:none">
+<div>
+<button class="bb-btn" onclick="showVocab()">📖 Vocab</button>
+<button class="bb-btn" id="hintBtn" onclick="useHint()" style="display:none">💡 Hint</button>
+</div>
+<div class="bb-center" id="roundCounter">Round 1 of 8</div>
+<button class="bb-btn" onclick="showSettings()">⚙️</button>
+</div>
+
+<!-- VOCAB POPUP -->
+<div class="vocab-overlay" id="vocabOverlay">
+<div class="vocab-panel">
+<div class="vocab-title">Key Vocabulary</div>
+<div class="vocab-item"><div class="vocab-term">MAGMA</div><div class="vocab-def">Melted rock under Earth's surface</div></div>
+<div class="vocab-item" style="border-color:var(--accent3)"><div class="vocab-term" style="color:var(--accent3)">PRESSURE</div><div class="vocab-def">Force pushing outward from inside</div></div>
+<div class="vocab-item" style="border-color:var(--warn)"><div class="vocab-term" style="color:var(--warn)">THICKNESS</div><div class="vocab-def">How easily magma flows</div></div>
+<div class="vocab-item" style="border-color:var(--red)"><div class="vocab-term" style="color:var(--red)">ERUPTION</div><div class="vocab-def">Magma escaping to the surface</div></div>
+<button class="vocab-close" onclick="hideVocab()">Close</button>
+</div>
+</div>
+
+<!-- CELEBRATION -->
+<div class="celebration-overlay" id="celebOverlay"><div class="celebration-card" id="celebCard"></div></div>
+
+<!-- STEP-BY-STEP MODAL -->
+<div class="sbs-overlay" id="sbsOverlay"><div class="sbs-panel" id="sbsPanel"></div></div>
+
+<!-- ANTI-GUESS SCREEN -->
+<div class="ag-screen" id="agScreen"><div class="ag-card" id="agCard"></div></div>
+
+<!-- CONFETTI -->
+<canvas id="confettiCanvas"></canvas>
+
+<!-- RECEIPT -->
+<div class="receipt-overlay" id="receiptOverlay"></div>
+
+<script>
+// ============ SAFE CALL ============
+function safeCall(fn,msg){try{fn()}catch(e){console.error(msg,e)}}
+
+// ============ AUDIO (LAZY) ============
+let audioCtx=null;
+function getAudioContext(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playTone(freq,dur){safeCall(()=>{const c=getAudioContext(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=freq;g.gain.value=0.15;o.start();g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+dur);o.stop(c.currentTime+dur);},'audio err')}
+function playCorrect(){playTone(523,0.1);setTimeout(()=>playTone(659,0.1),100);setTimeout(()=>playTone(784,0.15),200);}
+function playWrong(){playTone(200,0.2);}
+
+// ============ SPEECH (LAZY) ============
+let speechReady=false,readAloud=true;
+function initSpeech(){if(!window.speechSynthesis)return;speechReady=true;}
+let resumeInterval=null;
+function speak(text,cb){
+  if(!readAloud||!speechReady){if(cb)setTimeout(cb,Math.min(text.length*50,5000));return;}
+  safeCall(()=>{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);u.rate=0.85;
+    const timeout=setTimeout(()=>{speechSynthesis.cancel();clearInterval(resumeInterval);if(cb)cb();},text.length*80+3000);
+    resumeInterval=setInterval(()=>{if(speechSynthesis.speaking)speechSynthesis.resume();},10000);
+    u.onend=()=>{clearTimeout(timeout);clearInterval(resumeInterval);if(cb)cb();};
+    u.onerror=()=>{clearTimeout(timeout);clearInterval(resumeInterval);if(cb)cb();};
+    speechSynthesis.speak(u);
+  },'speech err');
+}
+
+// ============ TEACHER AFFIRMATIONS ============
+const teacherName="Mr. Jawad";
+const affirmations=[
+  `${teacherName} is proud of you!`,`${teacherName} knew you could do it!`,
+  `That's the kind of thinking ${teacherName} loves to see!`,`${teacherName} says: you're getting it!`,
+  `Strong work — ${teacherName} sees your effort!`,`${teacherName} is impressed right now!`,
+  `You're showing ${teacherName} what you can do!`,`${teacherName} says: keep that energy!`
+];
+let lastAffIdx=-1;
+function getAffirmation(){let i;do{i=Math.floor(Math.random()*affirmations.length)}while(i===lastAffIdx);lastAffIdx=i;return affirmations[i];}
+
+// ============ GAME STATE ============
+const thickLabels=["Thin","Medium","Thick"];
+const gasLabels=["Low","Medium","High"];
+const OUTCOME_MATRIX={
+  "0-0":{pressure:"Low",eruption:"Gentle Flow",danger:"Low",pressN:0.15,dangerN:0.15},
+  "0-1":{pressure:"Low-Medium",eruption:"Moderate Flow",danger:"Low-Medium",pressN:0.3,dangerN:0.3},
+  "0-2":{pressure:"Medium",eruption:"Moderate Eruption",danger:"Medium",pressN:0.5,dangerN:0.5},
+  "1-0":{pressure:"Medium",eruption:"Slow Buildup",danger:"Medium",pressN:0.45,dangerN:0.45},
+  "1-1":{pressure:"Medium-High",eruption:"Moderate Eruption",danger:"Medium-High",pressN:0.6,dangerN:0.6},
+  "1-2":{pressure:"High",eruption:"Explosive Eruption",danger:"High",pressN:0.8,dangerN:0.8},
+  "2-0":{pressure:"High",eruption:"Warning State",danger:"High",pressN:0.75,dangerN:0.75},
+  "2-1":{pressure:"Very High",eruption:"Large Eruption",danger:"Very High",pressN:0.88,dangerN:0.88},
+  "2-2":{pressure:"Extreme",eruption:"Violently Explosive",danger:"Extreme",pressN:1.0,dangerN:1.0}
+};
+
+const GS={
+  studentName:"",currentRound:0,phase:"",
+  levels:[],overallScore:0,totalTimeMs:0,
+  requiredComplete:false,allComplete:false,
+  prevThick:-1,prevGas:-1,
+  roundStartTime:0,phaseStartTime:0,
+  wrongCount:0,hintsUsed:0,resets:0,
+  consecutiveFastWrongs:0,
+  prediction:null,predictionCorrect:null,
+  recordError:null,recordCorrected:false,
+  animState:{pressure:0,thickness:0,gas:0,erupting:false,eruptType:"none"},
+  confirmDisabledUntil:0
+};
+
+// ============ ROUND DATA ============
+const ROUNDS=[
+// ROUND 1
+{
+  num:1,name:"First Eruption — Thin + High Gas",required:true,
+  phase:"explore",scienceSkill:"Observe the effect of one variable while another is controlled",
+  focusPrompt:"Watch the pressure gauge on the left — how high does it fill when the magma is thin?",
+  lockThick:false,lockGas:true,gasLockVal:2,thickLockVal:null,
+  guided:"Gas is locked at HIGH. Slide thickness to THIN. Press TEST.",
+  guidedThick:0,guidedGas:null,
+  expectedThick:0,expectedGas:2,
+  recordError:null,
+  prove:{
+    mechanic:"coach-click",
+    prompt:"The magma was thin — why wasn't the eruption gentle?",
+    options:["High gas still built some pressure","Thin magma always causes explosions","The volcano was too hot"],
+    correct:0,
+    wrongFeedback:[
+      null,
+      "Look at the data table. Is thin magma always explosive? You will test more later.",
+      "Temperature is not a variable in this lab. Look at the two sliders."
+    ],
+    arenaHighlight:["gas","thickness","sliders"]
+  },
+  hintLadder:{
+    hint1:{text:"Look at the gas slider — it is locked at HIGH. Even thin magma has to deal with all that gas.",target:"gas"},
+    hint2:{text:"Temperature is not something you can control here. Focus on the two variables you CAN see.",eliminate:2},
+    stepByStep:{panels:[
+      {text:"The gas slider is locked at HIGH — lots of gas in the magma."},
+      {text:"Even thin magma cannot let ALL that gas escape — some pressure built up."},
+      {text:"Which answer says gas still built pressure? Select it now."}
+    ]}
+  }
+},
+// ROUND 2
+{
+  num:2,name:"Same Gas, Thick Magma",required:true,
+  phase:"explore",scienceSkill:"Compare outcomes when one variable changes and the other stays constant",
+  focusPrompt:"Watch the pressure gauge again — compare how high it fills now with thick magma versus thin magma in Round 1.",
+  lockThick:false,lockGas:true,gasLockVal:2,thickLockVal:null,
+  guided:"Gas is still locked at HIGH. Now slide thickness to THICK. Press TEST.",
+  guidedThick:2,guidedGas:null,
+  expectedThick:2,expectedGas:2,
+  recordError:{col:"eruption",wrongVal:"Large Eruption",correctVal:"Violently Explosive",
+    nudge:"Look at Row 2 again. Does 'Large Eruption' match that massive blast you just saw? Compare it to Round 1's 'Moderate Eruption.'"},
+  prove:{
+    mechanic:"drag-to-match",
+    prompt:"Drag each label to the correct round.",
+    items:["Moderate Eruption","Extreme Pressure","Gas Escaped Easily"],
+    zones:[
+      {label:"Round 1 (Thin + High)",accepts:[0,2]},
+      {label:"Round 2 (Thick + High)",accepts:[1]}
+    ],
+    wrongFeedback:"Look at the pressure column in your data table. Which round had higher pressure?"
+  },
+  hintLadder:{
+    hint1:{text:"Look at the pressure column in your data table — which round shows higher pressure?",target:"dataPress"},
+    hint2:{text:"Thin magma lets bubbles rise — you saw that in Round 1. 'Gas Escaped Easily' locks into Round 1.",lockItem:{item:2,zone:0}},
+    stepByStep:{panels:[
+      {text:"Round 1 had thin magma — gas bubbles escaped, so pressure was only medium."},
+      {text:"Round 2 had thick magma — gas got trapped, so pressure was extreme."},
+      {text:"Drag each label to match. Extreme pressure goes with the thick magma round."}
+    ]}
+  }
+},
+// ROUND 3
+{num:3,name:"Thick Magma, Low Gas",required:true,phase:"pattern",scienceSkill:"Observe how changing the second variable affects the outcome",
+focusPrompt:"Watch the pressure gauge — thick magma is still here, but now gas is low. Does the eruption match Round 2?",
+lockThick:true,lockGas:false,thickLockVal:2,gasLockVal:null,
+guided:"Thickness is locked at THICK. Slide gas to LOW. Press TEST.",
+guidedThick:null,guidedGas:0,expectedThick:2,expectedGas:0,recordError:null,
+prove:{
+  mechanic:"hotspot",
+  prompt:"Tap the part of the volcano that proves gas matters.",
+  wrongFeedback:[
+    "The crater shows the result, not the cause. What is different INSIDE the magma?",
+    "The cracks show pressure building — but what controls how much pressure? Look inside."
+  ]
+},
+hintLadder:{
+  hint1:{text:"Look inside the magma chamber — count the gas bubbles. Compare to Round 2.",target:"gas"},
+  hint2:{text:"The answer is inside the volcano, not outside. The entire magma chamber interior is where to look.",target:"gas"},
+  stepByStep:{panels:[
+    {text:"Round 2 had HIGH gas — lots of big bubbles trapped in the thick magma."},
+    {text:"Round 3 has LOW gas — only a few small bubbles. Less gas = less pressure = no eruption yet."},
+    {text:"Tap the gas bubbles inside the magma chamber to show gas matters."}
+  ]}
+}},
+// ROUND 4
+{num:4,name:"Thick Magma, Medium Gas",required:true,phase:"pattern",scienceSkill:"Identify a pattern across multiple data points",
+focusPrompt:"Watch the pressure gauge and the eruption — with thick magma, you have now seen low gas and high gas. Where does medium gas land?",
+lockThick:true,lockGas:false,thickLockVal:2,gasLockVal:null,
+guided:"Thickness is still locked at THICK. Slide gas to MEDIUM. Press TEST.",
+guidedThick:null,guidedGas:1,expectedThick:2,expectedGas:1,recordError:null,
+prove:{
+  mechanic:"sequence",
+  prompt:"Put the thick-magma eruptions in order: weakest to strongest.",
+  items:["Low Gas: Warning State","Medium Gas: Large Eruption","High Gas: Violently Explosive"],
+  correct:[0,1,2],
+  wrongFeedback:"Look at the eruption type column for Rounds 2, 3, and 4. Which was the weakest eruption?"
+},
+hintLadder:{
+  hint1:{text:"Look at the Eruption Type column in your data table — read down rows 2, 3, and 4.",target:"dataPress"},
+  hint2:{text:"'Low Gas: Warning State' is the weakest — it did not even erupt. That goes first.",lockFirst:true},
+  stepByStep:{panels:[
+    {text:"Low gas made the volcano warn but not erupt — that is weakest."},
+    {text:"Medium gas caused a large eruption — stronger. High gas caused a violent explosion — strongest."},
+    {text:"Drag them in order: Low Gas first, then Medium Gas, then High Gas."}
+  ]}
+}},
+// ROUND 5
+{num:5,name:"Predict — Medium + Medium",required:true,phase:"predict",scienceSkill:"Predict an outcome using observed patterns before testing",
+focusPrompt:"Before you press TEST, look at your data table — what pattern do you see about medium settings?",
+lockThick:false,lockGas:false,thickLockVal:null,gasLockVal:null,guided:null,guidedThick:null,guidedGas:null,expectedThick:1,expectedGas:1,
+prediction:{prompt:"If I set thickness to MEDIUM and gas to MEDIUM, I think...",options:["The volcano will have a moderate eruption","The volcano will have a gentle flow"],correct:0,setThick:1,setGas:1},
+recordError:{col:"pressure",wrongVal:"Low",correctVal:"Medium-High",nudge:"Look at Row 5's pressure. You SAW the pressure gauge fill past the middle. Does 'Low' match?"},
+prove:{
+  mechanic:"coach-click",
+  prompt:"Why was this eruption not as strong as thick magma rounds?",
+  options:["Medium thickness trapped some gas but not all","Medium gas is always safe","The pressure gauge was broken"],
+  correct:0,
+  wrongFeedback:[
+    null,
+    "Look at your data table. In Round 4, thick magma + medium gas caused a large eruption. Medium gas is not always safe — thickness matters too.",
+    "The pressure gauge worked fine — you just corrected the data. Focus on what the magma is doing."
+  ],
+  arenaHighlight:[null,"dataPress","gas"]
+},
+hintLadder:{
+  hint1:{text:"Look at the magma chamber — some bubbles are escaping and some are trapped. Medium thickness does not trap ALL the gas.",target:"gas"},
+  hint2:{text:"The gauge is working correctly. Focus on what the magma thickness does to the gas.",eliminate:2},
+  stepByStep:{panels:[
+    {text:"With thick magma, ALL gas gets trapped — extreme pressure."},
+    {text:"With medium magma, SOME gas escapes — less pressure builds up."},
+    {text:"Select the answer that says medium thickness trapped some gas but not all."}
+  ]}
+}},
+// ROUND 6
+{num:6,name:"Predict — Thin + Low",required:true,phase:"predict",scienceSkill:"Predict an outcome and confirm using the observed pattern",
+focusPrompt:"Before you press TEST, look at Round 1 — thin magma with high gas was a moderate eruption. What happens with thin magma and LOW gas?",
+lockThick:false,lockGas:false,thickLockVal:null,gasLockVal:null,guided:null,guidedThick:null,guidedGas:null,expectedThick:0,expectedGas:0,
+prediction:{prompt:"If I set thickness to THIN and gas to LOW, I think...",options:["The volcano will build high pressure","The volcano will have a gentle flow"],correct:1,setThick:0,setGas:0},
+recordError:null,
+prove:{
+  mechanic:"drag-to-match",
+  prompt:"Drag each combination to its eruption type.",
+  items:["Thin + Low Gas","Medium + Medium Gas","Thick + High Gas"],
+  zones:[
+    {label:"Gentle Flow",accepts:[0]},
+    {label:"Moderate Eruption",accepts:[1]},
+    {label:"Violently Explosive",accepts:[2]}
+  ],
+  wrongFeedback:"Look at Row 6 in your data table. Thin + Low gave you the weakest result."
+},
+hintLadder:{
+  hint1:{text:"Look at the Eruption Type column in your data table — match each row's combination to its result.",target:"dataPress"},
+  hint2:{text:"'Thick + High Gas' goes with 'Violently Explosive' — that is placed. Now match the other two.",lockItem:{item:2,zone:2}},
+  stepByStep:{panels:[
+    {text:"Thin + Low = everything is low. That is a gentle flow."},
+    {text:"Medium + Medium = some trapping. That is a moderate eruption."},
+    {text:"Thick + High = everything trapped. That is violently explosive. Drag each to match."}
+  ]}
+}},
+// ROUND 7
+{num:7,name:"Reverse Engineer — Moderate Eruption",required:false,phase:"challenge",scienceSkill:"Work backward from an outcome to identify the cause",
+focusPrompt:"Look at the eruption result shown at the crater — now find a slider combination that matches it.",
+lockThick:false,lockGas:false,thickLockVal:null,gasLockVal:null,guided:null,guidedThick:null,guidedGas:null,expectedThick:null,expectedGas:null,
+reverseTarget:"Moderate Eruption",
+recordError:{col:"gas",wrongVal:"Low",correctVal:null,nudge:"Check the Gas column for Row 7. Does it match where your gas slider is right now?"},
+prove:{
+  mechanic:"claim-builder",
+  prompt:"Build a claim: more than one combination can cause the same eruption.",
+  items:["Thin + High Gas = Moderate Eruption","Medium + Medium Gas = Moderate Eruption","Thick + Low Gas = Warning State"],
+  correct:[0,1],
+  frame:"A moderate eruption can happen because ___.",
+  wrongFeedback:"Look at your data table. Did thick + low gas cause a moderate eruption, or something different?"
+},
+hintLadder:{
+  hint1:{text:"Look at the Eruption Type column in your data table — find every row that says 'Moderate Eruption.'",target:"dataPress"},
+  hint2:{text:"'Thick + Low Gas = Warning State' does not match — remove it. Focus on the two that DO say moderate eruption.",eliminateDistractor:2},
+  stepByStep:{panels:[
+    {text:"Your data table shows two different combinations that both caused moderate eruptions."},
+    {text:"Thin + High AND Medium + Medium both produced the same result — different paths, same eruption."},
+    {text:"Drag both matching evidence cards into the claim frame."}
+  ]}
+}},
+// ROUND 8
+{num:8,name:"Scenario — City Near a Volcano",required:false,phase:"challenge",scienceSkill:"Apply the pattern to a real-world decision using data",
+focusPrompt:"Look at the scientist's report about this volcano — use your data table to predict what eruption the city should prepare for.",
+lockThick:false,lockGas:false,thickLockVal:null,gasLockVal:null,guided:null,guidedThick:null,guidedGas:null,expectedThick:1,expectedGas:2,
+prediction:{prompt:"A city sits next to a volcano. Scientists report: MEDIUM thickness magma. Gas levels are RISING toward HIGH. Based on your data, what eruption should the city prepare for?",options:["Gentle flow — low danger, no evacuation needed","Explosive eruption — high danger, evacuate now"],correct:1,setThick:1,setGas:2,isScenario:true},
+recordError:null,
+prove:{
+  mechanic:"sequence",
+  prompt:"Put the cause-and-effect chain in order for this city's volcano.",
+  items:["Gas levels rise inside the magma","Medium-thick magma traps most of the gas","Pressure builds to dangerous levels","Explosive eruption threatens the city"],
+  correct:[0,1,2,3],
+  wrongFeedback:"The eruption is the last thing that happens — it is the EFFECT. What started the chain?"
+},
+hintLadder:{
+  hint1:{text:"Look inside the magma chamber — what happened FIRST? The gas started rising.",target:"gas"},
+  hint2:{text:"'Gas levels rise' is the starting event — it goes first. Now figure out what happens next inside the thick magma.",lockFirst:true},
+  stepByStep:{panels:[
+    {text:"First, gas levels rise inside the magma — that is what the scientists measured."},
+    {text:"The medium-thick magma traps most of that gas, and trapped gas builds pressure."},
+    {text:"High pressure causes an explosive eruption. Drag the cards: gas, trapping, pressure, eruption."}
+  ]}
+}}
+];
+
+// ============ UI HELPERS ============
+const $=id=>document.getElementById(id);
+function show(el){if(typeof el==='string')el=$(el);if(el)el.style.display='';}
+function hide(el){if(typeof el==='string')el=$(el);if(el)el.style.display='none';}
+
+function updateHUD(){
+  const r=ROUNDS[GS.currentRound];
+  $('roundName').textContent=`Round ${r.num}: ${r.name}`;
+  $('roundCounter').textContent=`Round ${r.num} of 8`;
+  const totalScore=GS.levels.reduce((s,l)=>s+(l.score||0),0);
+  const completed=GS.levels.filter(l=>l.completed).length;
+  $('scoreDisplay').textContent=`Score: ${totalScore}`;
+  $('progressFill').style.width=`${(completed/8)*100}%`;
+}
+
+function setPhase(p){
+  GS.phase=p;GS.phaseStartTime=Date.now();
+  const labels={change:"CHANGE",watch:"WATCH",record:"RECORD",prove:"PROVE",predict:"PREDICT"};
+  $('phaseBadge').textContent=labels[p]||p.toUpperCase();
+  $('phaseBadge').style.background=p==='watch'?'var(--accent3)':p==='prove'?'var(--accent2)':p==='record'?'var(--warn)':'var(--accent1)';
+}
+
+function showFocus(text,dur){
+  const fp=$('focusPrompt');fp.textContent=text;fp.className='focus-prompt';fp.style.display='';
+  setTimeout(()=>{fp.classList.add('fade')},dur||3000);
+  setTimeout(()=>{fp.style.display='none'},dur?dur+5000:8000);
+}
+
+// ============ VOLCANO CANVAS ============
+const canvas=$('volcanoCanvas');const ctx=canvas.getContext('2d');
+let cW=800,cH=500,animFrame=null;
+let bubbles=[],particles=[],pressureArrows=[];
+let targetPressure=0,currentPressure=0;
+let eruptionPhase=0,eruptionTimer=0;
+let magmaThick=0,magmaGas=0;
+let shakeX=0,shakeY=0,shakeIntensity=0;
+let dangerLevel=0,targetDanger=0;
+let warningCracks=false,cityVisible=false;
+let eruptTypeLabel="",highlightZone="";
+
+function resizeCanvas(){
+  const w=$('arenaWrap');if(!w)return;
+  cW=w.clientWidth;cH=w.clientHeight;
+  canvas.width=cW;canvas.height=cH;
+}
+window.addEventListener('resize',resizeCanvas);
+
+function initBubbles(){
+  bubbles=[];
+  const count=magmaGas===0?4:magmaGas===1?10:22;
+  const chamberX=cW*0.35,chamberY=cH*0.65,chamberW=cW*0.3,chamberH=cH*0.25;
+  for(let i=0;i<count;i++){
+    bubbles.push({
+      x:chamberX+Math.random()*chamberW,
+      y:chamberY+Math.random()*chamberH,
+      r:(magmaGas===0?3:magmaGas===1?5:8)+Math.random()*4,
+      speed:(magmaThick===2?0.15:magmaThick===1?0.4:0.8)+Math.random()*0.3,
+      baseY:chamberY+Math.random()*chamberH,
+      ox:Math.random()*Math.PI*2
+    });
+  }
+}
+
+function getMagmaColor(){
+  if(magmaThick===0)return{main:'#FF8C00',dark:'#FF6600',light:'#FFA500'};
+  if(magmaThick===1)return{main:'#D4380D',dark:'#B71C1C',light:'#E65100'};
+  return{main:'#8B0000',dark:'#5D0000',light:'#A52A2A'};
+}
+
+function drawVolcano(t){
+  ctx.save();
+  ctx.translate(shakeX,shakeY);
+
+  // Sky
+  const sky=ctx.createLinearGradient(0,0,0,cH*0.4);
+  sky.addColorStop(0,'#B3E5FC');sky.addColorStop(1,'#E1F5FE');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,cW,cH*0.4);
+
+  // Ground
+  ctx.fillStyle='#8D6E63';ctx.fillRect(0,cH*0.78,cW,cH*0.22);
+  const grd=ctx.createLinearGradient(0,cH*0.78,0,cH*0.82);
+  grd.addColorStop(0,'#A1887F');grd.addColorStop(1,'#8D6E63');
+  ctx.fillStyle=grd;ctx.fillRect(0,cH*0.78,cW,cH*0.04);
+
+  // Mountain
+  const peakX=cW*0.5,peakY=cH*0.18;
+  const baseL=cW*0.15,baseR=cW*0.85,baseY=cH*0.78;
+  ctx.beginPath();ctx.moveTo(baseL,baseY);
+  ctx.lineTo(peakX-30,peakY);ctx.lineTo(peakX+30,peakY);
+  ctx.lineTo(baseR,baseY);ctx.closePath();
+  const mtnGrd=ctx.createLinearGradient(0,peakY,0,baseY);
+  mtnGrd.addColorStop(0,'#78909C');mtnGrd.addColorStop(0.4,'#607D8B');mtnGrd.addColorStop(1,'#546E7A');
+  ctx.fillStyle=mtnGrd;ctx.fill();
+
+  // Snow cap
+  ctx.beginPath();ctx.moveTo(peakX-35,peakY+15);ctx.lineTo(peakX-28,peakY);ctx.lineTo(peakX+28,peakY);ctx.lineTo(peakX+35,peakY+15);
+  ctx.quadraticCurveTo(peakX,peakY+25,peakX-35,peakY+15);
+  ctx.fillStyle='rgba(255,255,255,0.7)';ctx.fill();
+
+  // Crater opening
+  ctx.beginPath();ctx.ellipse(peakX,peakY+5,28,10,0,0,Math.PI*2);
+  ctx.fillStyle='#37474F';ctx.fill();
+
+  // Underground cross-section
+  const ugTop=cH*0.72,ugBot=cH;
+  const ugGrd=ctx.createLinearGradient(0,ugTop,0,ugBot);
+  ugGrd.addColorStop(0,'#5D4037');ugGrd.addColorStop(0.5,'#4E342E');ugGrd.addColorStop(1,'#3E2723');
+  ctx.fillStyle=ugGrd;
+  ctx.beginPath();ctx.rect(cW*0.2,ugTop,cW*0.6,ugBot-ugTop);ctx.fill();
+  ctx.strokeStyle='#6D4C41';ctx.lineWidth=2;ctx.stroke();
+
+  // Magma chamber
+  const mc=getMagmaColor();
+  const mcX=cW*0.3,mcY=cH*0.76,mcW=cW*0.4,mcH=cH*0.18;
+  const magGrd=ctx.createRadialGradient(mcX+mcW/2,mcY+mcH/2,10,mcX+mcW/2,mcY+mcH/2,mcW/2);
+  magGrd.addColorStop(0,mc.light);magGrd.addColorStop(0.6,mc.main);magGrd.addColorStop(1,mc.dark);
+  ctx.fillStyle=magGrd;
+  ctx.beginPath();
+  ctx.moveTo(mcX+10,mcY);ctx.lineTo(mcX+mcW-10,mcY);
+  ctx.quadraticCurveTo(mcX+mcW,mcY,mcX+mcW,mcY+10);
+  ctx.lineTo(mcX+mcW,mcY+mcH-10);ctx.quadraticCurveTo(mcX+mcW,mcY+mcH,mcX+mcW-10,mcY+mcH);
+  ctx.lineTo(mcX+10,mcY+mcH);ctx.quadraticCurveTo(mcX,mcY+mcH,mcX,mcY+mcH-10);
+  ctx.lineTo(mcX,mcY+10);ctx.quadraticCurveTo(mcX,mcY,mcX+10,mcY);
+  ctx.fill();
+
+  // Magma glow
+  ctx.shadowColor=mc.light;ctx.shadowBlur=20;
+  ctx.fillStyle='rgba(255,100,0,0.1)';ctx.fill();
+  ctx.shadowBlur=0;
+
+  // Chunky texture for thick magma
+  if(magmaThick>=1){
+    for(let i=0;i<(magmaThick===2?20:10);i++){
+      const cx=mcX+20+Math.random()*(mcW-40);
+      const cy=mcY+10+Math.random()*(mcH-20);
+      ctx.beginPath();ctx.arc(cx,cy,2+Math.random()*3,0,Math.PI*2);
+      ctx.fillStyle=magmaThick===2?'rgba(80,0,0,0.5)':'rgba(120,30,0,0.4)';ctx.fill();
+    }
+  }
+
+  // LABEL: MAGMA
+  ctx.font='bold 11px sans-serif';ctx.fillStyle='#FFCC80';ctx.textAlign='center';
+  ctx.fillText('MAGMA',mcX+mcW/2,mcY+mcH/2+4);
+
+  // Vent / conduit
+  const ventX=peakX-12,ventW=24;
+  const ventGrd=ctx.createLinearGradient(ventX,peakY+10,ventX,mcY);
+  ventGrd.addColorStop(0,'#37474F');ventGrd.addColorStop(1,'#4E342E');
+  ctx.fillStyle=ventGrd;ctx.fillRect(ventX,peakY+10,ventW,mcY-peakY-10);
+
+  // Pressure arrows in vent
+  const arrowCount=Math.floor(currentPressure*6)+1;
+  const arrowSize=6+currentPressure*8;
+  for(let i=0;i<arrowCount;i++){
+    const ay=peakY+20+(mcY-peakY-30)*(i/arrowCount)+Math.sin(t*3+i)*5;
+    const ax=peakX;
+    ctx.beginPath();ctx.moveTo(ax-arrowSize/2,ay+arrowSize/2);ctx.lineTo(ax,ay-arrowSize/2);ctx.lineTo(ax+arrowSize/2,ay+arrowSize/2);
+    ctx.closePath();
+    const alpha=0.3+currentPressure*0.7;
+    ctx.fillStyle=`rgba(255,${180-currentPressure*100},0,${alpha})`;ctx.fill();
+  }
+
+  // Gas bubbles
+  bubbles.forEach(b=>{
+    b.y-=b.speed;
+    b.x+=Math.sin(t*2+b.ox)*0.5;
+    if(b.y<mcY)b.y=mcY+mcH-5;
+    ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,0.35)`;ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=1;ctx.stroke();
+  });
+
+  // Highlight zone
+  if(highlightZone==='gas'){
+    ctx.strokeStyle='rgba(255,215,0,0.8)';ctx.lineWidth=3;ctx.setLineDash([5,5]);
+    ctx.strokeRect(mcX+5,mcY+5,mcW-10,mcH-10);ctx.setLineDash([]);
+  }
+
+  // Pressure gauge (left)
+  const gX=cW*0.08,gY=cH*0.2,gW=30,gH=cH*0.5;
+  ctx.fillStyle='#263238';ctx.fillRect(gX-2,gY-2,gW+4,gH+4);
+  // Gauge bg zones
+  const zones=[{c:'#22C55E',s:0,e:0.25},{c:'#EAB308',s:0.25,e:0.5},{c:'#F97316',s:0.5,e:0.75},{c:'#EF4444',s:0.75,e:1}];
+  zones.forEach(z=>{
+    ctx.fillStyle=z.c+'40';
+    ctx.fillRect(gX,gY+gH*(1-z.e),gW,gH*(z.e-z.s));
+  });
+  // Fill
+  const fillH=gH*currentPressure;
+  const fillGrd=ctx.createLinearGradient(0,gY+gH-fillH,0,gY+gH);
+  fillGrd.addColorStop(0,currentPressure>0.75?'#EF4444':currentPressure>0.5?'#F97316':currentPressure>0.25?'#EAB308':'#22C55E');
+  fillGrd.addColorStop(1,'#FF6B00');
+  ctx.fillStyle=fillGrd;ctx.fillRect(gX,gY+gH-fillH,gW,fillH);
+  // Glowing edge
+  ctx.fillStyle='rgba(255,255,255,0.6)';ctx.fillRect(gX,gY+gH-fillH-2,gW,3);
+  // Label
+  ctx.save();ctx.translate(gX-8,gY+gH/2);ctx.rotate(-Math.PI/2);
+  ctx.font='bold 12px sans-serif';ctx.fillStyle='#B0BEC5';ctx.textAlign='center';ctx.fillText('PRESSURE',0,0);
+  ctx.restore();
+
+  if(highlightZone==='dataPress'||highlightZone==='pressure'){
+    ctx.strokeStyle='rgba(255,215,0,0.8)';ctx.lineWidth=3;ctx.setLineDash([5,5]);
+    ctx.strokeRect(gX-4,gY-4,gW+8,gH+8);ctx.setLineDash([]);
+  }
+
+  // Danger meter (top right)
+  const dmX=cW*0.75,dmY=cH*0.05,dmW=cW*0.2,dmH=14;
+  ctx.fillStyle='#263238';ctx.fillRect(dmX-1,dmY-1,dmW+2,dmH+2);
+  ctx.fillStyle='#37474F';ctx.fillRect(dmX,dmY,dmW,dmH);
+  const dangerFill=dmW*dangerLevel;
+  const dc=dangerLevel>0.8?'#EF4444':dangerLevel>0.6?'#F97316':dangerLevel>0.3?'#EAB308':'#22C55E';
+  ctx.fillStyle=dc;ctx.fillRect(dmX,dmY,dangerFill,dmH);
+  ctx.font='bold 10px sans-serif';ctx.fillStyle='#B0BEC5';ctx.textAlign='left';
+  ctx.fillText('DANGER LEVEL',dmX,dmY-3);
+  if(dangerLevel>0.8){
+    ctx.fillStyle=`rgba(239,68,68,${0.5+Math.sin(t*5)*0.5})`;
+    ctx.fillText(dangerLevel>=0.95?'EXTREME':'WARNING',dmX+dmW+5,dmY+11);
+  }
+
+  // Eruption effects
+  if(eruptionPhase>0){
+    drawEruption(t,peakX,peakY);
+  }
+
+  // Warning cracks
+  if(warningCracks){
+    for(let i=0;i<5;i++){
+      const cx=peakX-60+i*30+Math.sin(t+i)*3;
+      const cy=peakY+40+i*15;
+      ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+15+Math.sin(t*2+i)*5,cy+10);
+      ctx.strokeStyle=`rgba(255,${140+Math.sin(t*3)*50},0,${0.5+Math.sin(t*4+i)*0.3})`;
+      ctx.lineWidth=2;ctx.stroke();
+    }
+    // Steam wisps
+    for(let i=0;i<3;i++){
+      const sx=peakX-20+i*20;
+      const sy=peakY+20-Math.sin(t*2+i)*10;
+      ctx.beginPath();ctx.arc(sx,sy,3+Math.sin(t+i)*2,0,Math.PI*2);
+      ctx.fillStyle='rgba(200,200,200,0.3)';ctx.fill();
+    }
+  }
+
+  // City silhouette (Round 8)
+  if(cityVisible){
+    const cityX=cW*0.78,cityY=cH*0.72;
+    ctx.fillStyle='#455A64';
+    ctx.fillRect(cityX,cityY-30,12,30);ctx.fillRect(cityX+15,cityY-20,10,20);
+    ctx.fillRect(cityX+28,cityY-35,14,35);ctx.fillRect(cityX+45,cityY-15,10,15);
+    ctx.fillRect(cityX+58,cityY-25,12,25);
+    ctx.font='bold 9px sans-serif';ctx.fillStyle='#CFD8DC';ctx.textAlign='center';
+    ctx.fillText('CITY',cityX+35,cityY+12);
+    if(dangerLevel>0.7){
+      ctx.fillStyle=`rgba(239,68,68,${0.3+Math.sin(t*6)*0.3})`;
+      ctx.fillRect(cityX-5,cityY-40,75,45);
+      ctx.font='bold 11px sans-serif';ctx.fillStyle='#fff';ctx.fillText('EVACUATE',cityX+35,cityY-44);
+    }
+  }
+
+  // LABEL: ERUPTION at crater
+  ctx.font='bold 10px sans-serif';ctx.fillStyle='#FFCC80';ctx.textAlign='center';
+  ctx.fillText('ERUPTION',peakX,peakY-10);
+
+  ctx.restore();
+}
+
+function drawEruption(t,px,py){
+  if(eruptTypeLabel==='Gentle Flow'||eruptTypeLabel==='Moderate Flow'){
+    // Lava flow
+    const flowSpeed=eruptTypeLabel==='Gentle Flow'?1:1.5;
+    ctx.fillStyle='#FF6D00';
+    for(let i=0;i<8;i++){
+      const lx=px-15+i*4+Math.sin(t*flowSpeed+i)*3;
+      const ly=py+10+i*5+Math.sin(t*2+i)*2;
+      ctx.beginPath();ctx.arc(lx,ly,4+Math.sin(t+i)*2,0,Math.PI*2);ctx.fill();
+    }
+    ctx.fillStyle='rgba(255,140,0,0.4)';
+    ctx.beginPath();ctx.arc(px,py+5,20,0,Math.PI*2);ctx.fill();
+  } else if(eruptTypeLabel==='Moderate Eruption'){
+    // Ash burst
+    for(let i=0;i<15;i++){
+      const ax=px+Math.sin(t*3+i*0.7)*30;
+      const ay=py-20-i*8+Math.sin(t*2+i)*5;
+      ctx.beginPath();ctx.arc(ax,ay,3+Math.random()*3,0,Math.PI*2);
+      ctx.fillStyle=i%2?'rgba(120,120,120,0.5)':'rgba(255,140,0,0.4)';ctx.fill();
+    }
+  } else if(eruptTypeLabel==='Large Eruption'){
+    // Tall column + pyroclastic
+    for(let i=0;i<25;i++){
+      const ax=px+Math.sin(t*4+i)*40;
+      const ay=py-30-i*10+Math.sin(t*3+i)*8;
+      ctx.beginPath();ctx.arc(ax,ay,4+Math.random()*4,0,Math.PI*2);
+      ctx.fillStyle=i%3===0?'rgba(255,100,0,0.5)':'rgba(100,100,100,0.4)';ctx.fill();
+    }
+    // Pyroclastic flows
+    for(let i=0;i<10;i++){
+      const fx=px+(i%2?1:-1)*(30+i*8+Math.sin(t*2)*5);
+      const fy=py+20+i*3;
+      ctx.beginPath();ctx.arc(fx,fy,5+Math.random()*3,0,Math.PI*2);
+      ctx.fillStyle='rgba(130,130,130,0.4)';ctx.fill();
+    }
+    shakeIntensity=Math.max(shakeIntensity,2);
+  } else if(eruptTypeLabel==='Explosive Eruption'){
+    for(let i=0;i<35;i++){
+      const ax=px+Math.sin(t*5+i)*50;
+      const ay=py-40-i*12+Math.sin(t*3+i)*10;
+      ctx.beginPath();ctx.arc(ax,ay,5+Math.random()*5,0,Math.PI*2);
+      ctx.fillStyle=i%2?'rgba(255,80,0,0.5)':'rgba(80,80,80,0.5)';ctx.fill();
+    }
+    for(let i=0;i<15;i++){
+      const fx=px+(i%2?1:-1)*(40+i*10);
+      const fy=py+15+i*4;
+      ctx.beginPath();ctx.arc(fx,fy,6,0,Math.PI*2);
+      ctx.fillStyle='rgba(110,110,110,0.4)';ctx.fill();
+    }
+    shakeIntensity=Math.max(shakeIntensity,4);
+  } else if(eruptTypeLabel==='Violently Explosive'){
+    // Massive blast
+    for(let i=0;i<50;i++){
+      const ax=px+Math.sin(t*6+i)*70;
+      const ay=py-50-i*10+Math.sin(t*4+i)*12;
+      ctx.beginPath();ctx.arc(ax,ay,5+Math.random()*7,0,Math.PI*2);
+      ctx.fillStyle=i%3===0?'rgba(255,60,0,0.6)':i%3===1?'rgba(60,60,60,0.5)':'rgba(200,200,200,0.3)';ctx.fill();
+    }
+    // Lateral blast
+    for(let i=0;i<20;i++){
+      const fx=px+(i%2?1:-1)*(50+i*12+Math.sin(t*2)*8);
+      const fy=py+10+Math.sin(t+i)*5;
+      ctx.beginPath();ctx.arc(fx,fy,6+Math.random()*4,0,Math.PI*2);
+      ctx.fillStyle='rgba(90,90,90,0.5)';ctx.fill();
+    }
+    // Debris
+    for(let i=0;i<12;i++){
+      const dx=px+(Math.random()-0.5)*cW*0.4;
+      const dy=py-20+Math.random()*60;
+      ctx.fillStyle='rgba(80,50,30,0.6)';
+      ctx.fillRect(dx,dy,3+Math.random()*4,3+Math.random()*4);
+    }
+    shakeIntensity=Math.max(shakeIntensity,6);
+  } else if(eruptTypeLabel==='Warning State'){
+    warningCracks=true;
+  } else if(eruptTypeLabel==='Slow Buildup'){
+    ctx.fillStyle='rgba(255,180,0,0.3)';
+    ctx.beginPath();ctx.arc(px,py+5,15+Math.sin(t*3)*5,0,Math.PI*2);ctx.fill();
+  }
+}
+
+let animT=0;
+function animLoop(){
+  animT+=0.016;
+  ctx.clearRect(0,0,cW,cH);
+
+  // Smooth pressure
+  currentPressure+=(targetPressure-currentPressure)*0.03;
+  dangerLevel+=(targetDanger-dangerLevel)*0.03;
+
+  // Shake
+  if(shakeIntensity>0){
+    shakeX=(Math.random()-0.5)*shakeIntensity;
+    shakeY=(Math.random()-0.5)*shakeIntensity;
+    shakeIntensity*=0.98;
+    if(shakeIntensity<0.1)shakeIntensity=0;
+  } else { shakeX=0;shakeY=0; }
+
+  drawVolcano(animT);
+  animFrame=requestAnimationFrame(animLoop);
+}
+
+// ============ SLIDER EVENTS ============
+$('thickSlider').addEventListener('input',function(){
+  const v=parseInt(this.value);
+  $('thickValue').textContent=thickLabels[v];
+  magmaThick=v;
+  initBubbles();
+  checkTestReady();
+});
+$('gasSlider').addEventListener('input',function(){
+  const v=parseInt(this.value);
+  $('gasValue').textContent=gasLabels[v];
+  magmaGas=v;
+  initBubbles();
+  checkTestReady();
+});
+
+function checkTestReady(){
+  const th=parseInt($('thickSlider').value);
+  const gs=parseInt($('gasSlider').value);
+  const changed=(th!==GS.prevThick||gs!==GS.prevGas);
+  $('testBtn').disabled=!changed||GS.phase!=='change';
+}
+
+// ============ CORE FLOW ============
+function startGame(){
+  $('startScreen').classList.add('hidden');
+  show('topBar');show('bottomBar');
+  $('mainArea').style.display='flex';
+  safeCall(()=>initSpeech(),'speech init err');
+  resizeCanvas();
+  // Init levels
+  ROUNDS.forEach((r,i)=>{
+    GS.levels.push({num:r.num,name:r.name,required:r.required,completed:false,score:0,attempts:0,hintsUsed:0,resets:0,timeMs:0});
+  });
+  animLoop();
+  loadRound(0);
+}
+
+function loadRound(idx){
+  safeCall(()=>{
+    GS.currentRound=idx;
+    const r=ROUNDS[idx];
+    GS.wrongCount=0;GS.hintsUsed=0;GS.resets=0;
+    GS.consecutiveFastWrongs=0;
+    GS.prediction=null;GS.predictionCorrect=null;
+    GS.recordCorrected=false;GS.recordError=r.recordError;
+    warningCracks=false;eruptionPhase=0;eruptTypeLabel="";highlightZone="";
+    cityVisible=(idx===7);
+    GS.roundStartTime=Date.now();
+
+    updateHUD();
+    hide('interactionZone');
+    $('interactionZone').innerHTML='';
+    hide('hintBtn');
+
+    // Setup sliders
+    if(r.lockThick){
+      $('thickSliderWrap').classList.add('locked');
+      $('thickSlider').value=r.thickLockVal;
+      $('thickValue').textContent=thickLabels[r.thickLockVal];
+      magmaThick=r.thickLockVal;
+      $('thickLock').style.display='';$('thickLock').textContent='🔒 Locked at '+thickLabels[r.thickLockVal];
+    } else {
+      $('thickSliderWrap').classList.remove('locked');
+      $('thickLock').style.display='none';
+    }
+    if(r.lockGas){
+      $('gasSliderWrap').classList.add('locked');
+      $('gasSlider').value=r.gasLockVal;
+      $('gasValue').textContent=gasLabels[r.gasLockVal];
+      magmaGas=r.gasLockVal;
+      $('gasLock').style.display='';$('gasLock').textContent='🔒 Locked at '+gasLabels[r.gasLockVal];
+    } else {
+      $('gasSliderWrap').classList.remove('locked');
+      $('gasLock').style.display='none';
+    }
+    initBubbles();
+
+    GS.prevThick=r.lockThick?r.thickLockVal:-1;
+    GS.prevGas=r.lockGas?r.gasLockVal:-1;
+
+    // Show guided msg
+    if(r.guided){
+      $('guidedMsg').style.display='';
+      $('guidedMsg').textContent=r.guided;
+    } else {
+      hide('guidedMsg');
+    }
+
+    // Prediction rounds
+    if(r.prediction&&!r.reverseTarget){
+      startPredictPhase(r);
+    } else if(r.reverseTarget){
+      startReversePhase(r);
+    } else {
+      setPhase('change');
+      $('testBtn').disabled=true;
+      showFocus(r.focusPrompt,3000);
+    }
+  },'loadRound err');
+}
+
+// ============ PREDICTION PHASE ============
+function startPredictPhase(r){
+  setPhase('predict');
+  $('testBtn').disabled=true;
+  const iz=$('interactionZone');iz.innerHTML='';show(iz);
+  const pred=r.prediction;
+  let html=`<div class="predict-container">
+    <div class="predict-prompt">${pred.prompt}</div>
+    <div class="predict-cards">`;
+  pred.options.forEach((o,i)=>{
+    html+=`<div class="predict-card" data-idx="${i}" onclick="selectPrediction(${i})">${String.fromCharCode(65+i)}) ${o}</div>`;
+  });
+  html+=`</div><button class="lock-in-btn" id="predLockBtn" disabled onclick="lockPrediction()">Lock In Prediction</button></div>`;
+  iz.innerHTML=html;show(iz);
+  showFocus(r.focusPrompt,4000);
+  // Speak the prompt
+  speak(pred.prompt);
+}
+function selectPrediction(idx){
+  document.querySelectorAll('.predict-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('.predict-card')[idx].classList.add('selected');
+  GS.prediction=idx;
+  const btn=$('predLockBtn');if(btn)btn.disabled=false;
+}
+function lockPrediction(){
+  const r=ROUNDS[GS.currentRound];
+  GS.predictionCorrect=(GS.prediction===r.prediction.correct);
+  hide('interactionZone');
+  // Now set sliders
+  if(r.prediction.setThick!==undefined){
+    $('thickSlider').value=r.prediction.setThick;
+    $('thickValue').textContent=thickLabels[r.prediction.setThick];
+    magmaThick=r.prediction.setThick;
+  }
+  if(r.prediction.setGas!==undefined){
+    $('gasSlider').value=r.prediction.setGas;
+    $('gasValue').textContent=gasLabels[r.prediction.setGas];
+    magmaGas=r.prediction.setGas;
+  }
+  initBubbles();
+  setPhase('change');
+  // Mark prev as different so TEST enables
+  GS.prevThick=-1;GS.prevGas=-1;
+  $('testBtn').disabled=false;
+  const gm=$('guidedMsg');
+  gm.style.display='';gm.textContent="Press TEST to see the result.";
+}
+
+// ============ REVERSE ENGINEER PHASE ============
+function startReversePhase(r){
+  setPhase('change');
+  hide('guidedMsg');
+  const target=r.reverseTarget;
+  eruptTypeLabel=target;eruptionPhase=1;
+  showFocus(r.focusPrompt,3000);
+  const iz=$('interactionZone');iz.innerHTML=`<div style="text-align:center;font-size:14px;font-weight:600;color:var(--text)">
+    This volcano produced: <strong>${target}</strong>. Set the sliders to match, then press TEST.</div>`;
+  show(iz);
+  $('testBtn').disabled=true;
+  GS.prevThick=-1;GS.prevGas=-1;
+}
+
+// ============ TEST BUTTON ============
+function pressTest(){
+  const r=ROUNDS[GS.currentRound];
+  const th=parseInt($('thickSlider').value);
+  const gs=parseInt($('gasSlider').value);
+
+  // Anti-guess: no change
+  if(th===GS.prevThick&&gs===GS.prevGas&&!r.reverseTarget){
+    showAntiGuess("Change at least one slider before testing.",3);return;
+  }
+
+  hide('guidedMsg');
+  $('testBtn').disabled=true;
+
+  // Reverse engineer check
+  if(r.reverseTarget){
+    const key=th+'-'+gs;
+    const outcome=OUTCOME_MATRIX[key];
+    if(outcome.eruption!==r.reverseTarget){
+      const iz=$('interactionZone');
+      iz.innerHTML=`<div class="coaching-bar">That combination produced: ${outcome.eruption}. Try a different combination.</div>
+        <button class="try-again-btn" onclick="retryReverse()">Try Again</button>`;
+      show(iz);
+      $('testBtn').disabled=true;
+      GS.prevThick=-1;GS.prevGas=-1;
+      return;
+    }
+  }
+
+  GS.prevThick=th;GS.prevGas=gs;
+  magmaThick=th;magmaGas=gs;
+  initBubbles();
+
+  startWatchPhase(th,gs);
+}
+
+function retryReverse(){
+  setPhase('change');
+  GS.prevThick=-1;GS.prevGas=-1;
+  $('testBtn').disabled=true;
+  const r=ROUNDS[GS.currentRound];
+  const iz=$('interactionZone');
+  iz.innerHTML=`<div style="text-align:center;font-size:14px;font-weight:600;color:var(--text)">
+    This volcano produced: <strong>${r.reverseTarget}</strong>. Set the sliders to match, then press TEST.</div>`;
+  show(iz);
+  eruptTypeLabel=r.reverseTarget;eruptionPhase=1;
+}
+
+// ============ WATCH PHASE ============
+function startWatchPhase(th,gs){
+  setPhase('watch');
+  const key=th+'-'+gs;
+  const outcome=OUTCOME_MATRIX[key];
+  const r=ROUNDS[GS.currentRound];
+
+  showFocus(r.focusPrompt,2000);
+
+  // Animate pressure
+  targetPressure=outcome.pressN;
+  targetDanger=outcome.dangerN;
+  eruptTypeLabel=outcome.eruption;
+  warningCracks=(outcome.eruption==='Warning State');
+
+  // Eruption after pressure builds
+  setTimeout(()=>{
+    eruptionPhase=1;
+    if(outcome.pressN>=0.88)shakeIntensity=6;
+    else if(outcome.pressN>=0.7)shakeIntensity=3;
+  },3000);
+
+  // Prediction banner
+  if(GS.predictionCorrect!==null){
+    setTimeout(()=>{
+      const iz=$('interactionZone');
+      if(GS.predictionCorrect){
+        iz.innerHTML='<div style="color:var(--correct);font-size:16px;font-weight:700;text-align:center">Prediction Correct!</div>';
+      } else {
+        iz.innerHTML='<div style="color:var(--warn);font-size:16px;font-weight:700;text-align:center">Let\'s see why...</div>';
+      }
+      show(iz);
+    },2000);
+  }
+
+  const watchDur=(outcome.pressN>=0.88)?8000:6000;
+  setTimeout(()=>{
+    // Store outcome for record
+    GS._lastOutcome=outcome;
+    GS._lastTh=th;GS._lastGs=gs;
+    startRecordPhase(outcome,th,gs);
+  },watchDur);
+}
+
+// ============ RECORD PHASE ============
+function startRecordPhase(outcome,th,gs){
+  setPhase('record');
+  const r=ROUNDS[GS.currentRound];
+  const row=r.num;
+
+  // Build data row
+  let rowData={
+    round:row,
+    thick:thickLabels[th],
+    gas:gasLabels[gs],
+    pressure:outcome.pressure,
+    eruption:outcome.eruption,
+    danger:outcome.danger
+  };
+
+  // Apply intentional error
+  let hasError=false;
+  if(r.recordError){
+    hasError=true;
+    rowData[r.recordError.col]=r.recordError.wrongVal;
+    if(r.recordError.col==='gas'&&r.recordError.correctVal===null){
+      r.recordError.correctVal=gasLabels[gs];
+    }
+  }
+
+  // Add to table
+  const tbody=$('dataBody');
+  const tr=document.createElement('tr');
+  tr.className='current';tr.id='dataRow'+row;
+  const cols=['round','thick','gas','pressure','eruption','danger'];
+  cols.forEach(c=>{
+    const td=document.createElement('td');
+    td.textContent=rowData[c];
+    td.dataset.col=c;
+    if(hasError&&c===r.recordError.col){
+      td.classList.add('error-cell');
+      td.onclick=function(){correctErrorCell(this,r.recordError.correctVal,row)};
+    }
+    tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+
+  // Scroll table
+  const rp=$('rightPanel');rp.scrollTop=rp.scrollHeight;
+
+  // Interaction zone: confirm
+  const iz=$('interactionZone');
+  GS.confirmDisabledUntil=Date.now()+2000;
+  iz.innerHTML=`<div class="record-zone">
+    <div class="record-msg">Check your data table row. Does everything look right?</div>
+    <button class="confirm-btn" id="confirmBtn" disabled onclick="confirmRecord(${row},${hasError})">Confirm</button>
+  </div>`;
+  show(iz);
+
+  setTimeout(()=>{
+    const btn=$('confirmBtn');if(btn)btn.disabled=false;
+  },2000);
+}
+
+function correctErrorCell(td,correctVal,row){
+  td.textContent=correctVal;
+  td.classList.remove('error-cell');
+  td.classList.add('corrected');
+  td.onclick=null;
+  GS.recordCorrected=true;
+  playCorrect();
+}
+
+function confirmRecord(row,hasError){
+  // Anti-guess: too fast
+  if(Date.now()<GS.confirmDisabledUntil+1000&&!GS.recordCorrected){
+    showCoaching("Take a moment to check the newest row in your data table.");
+    return;
+  }
+
+  const r=ROUNDS[GS.currentRound];
+  if(hasError&&!GS.recordCorrected){
+    // Student confirmed without correcting
+    showCoaching(r.recordError.nudge);
+    // Highlight the error cell
+    const tr=$('dataRow'+row);
+    if(tr){
+      tr.querySelectorAll('td').forEach(td=>{
+        if(td.classList.contains('error-cell')){
+          td.style.animation='none';
+          td.offsetHeight;
+          td.style.animation='pulse-yellow 0.5s 3';
+        }
+      });
+    }
+    return;
+  }
+
+  // Mark row verified
+  const tr=$('dataRow'+row);
+  if(tr){tr.className='verified';}
+  hide('interactionZone');
+
+  // Start PROVE
+  startProvePhase();
+}
+
+// ============ PROVE PHASE ============
+function startProvePhase(){
+  setPhase('prove');
+  GS.wrongCount=0;GS.phaseStartTime=Date.now();
+  show('hintBtn');
+  const r=ROUNDS[GS.currentRound];
+  const p=r.prove;
+
+  switch(p.mechanic){
+    case 'coach-click': renderCoachClick(p,r); break;
+    case 'drag-to-match': renderDragToMatch(p,r); break;
+    case 'hotspot': renderHotspot(p,r); break;
+    case 'sequence': renderSequence(p,r); break;
+    case 'claim-builder': renderClaimBuilder(p,r); break;
+  }
+}
+
+// ============ COACH-CLICK MECHANIC ============
+function renderCoachClick(p,r){
+  const iz=$('interactionZone');
+  let html=`<div class="iz-prompt">${p.prompt}</div><div class="iz-options">`;
+  p.options.forEach((o,i)=>{
+    html+=`<div class="opt-card" data-idx="${i}" onclick="ccSelect(this,${i})">${String.fromCharCode(65+i)}) ${o}</div>`;
+  });
+  html+=`</div><button class="lock-in-btn" id="ccLockBtn" disabled onclick="ccLockIn()">Lock In</button>`;
+  iz.innerHTML=html;show(iz);
+  GS._ccSelection=null;GS._ccEliminated=[];
+}
+function ccSelect(el,idx){
+  if(GS._ccEliminated.includes(idx))return;
+  document.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');GS._ccSelection=idx;
+  const btn=$('ccLockBtn');if(btn)btn.disabled=false;
+}
+function ccLockIn(){
+  const r=ROUNDS[GS.currentRound];const p=r.prove;
+  const sel=GS._ccSelection;if(sel===null)return;
+  const timeTaken=Date.now()-GS.phaseStartTime;
+
+  if(sel===p.correct){
+    onProveCorrect();
+  } else {
+    // Anti-guess: fast click
+    if(timeTaken<1500){GS.consecutiveFastWrongs++;if(GS.consecutiveFastWrongs>=2){showAntiGuess("Slow down and read each option carefully.",5);GS.consecutiveFastWrongs=0;return;}}
+    GS.wrongCount++;GS.levels[GS.currentRound].attempts++;
+    const card=document.querySelectorAll('.opt-card')[sel];
+    card.classList.add('wrong-reveal');
+    playWrong();
+    setTimeout(()=>card.classList.remove('wrong-reveal'),500);
+
+    // Coaching
+    const fb=p.wrongFeedback[sel]||"Look at the arena and think again.";
+    highlightZone=p.arenaHighlight?p.arenaHighlight[sel]:'';
+
+    const iz=$('interactionZone');
+    // Add coaching + try again
+    let coachDiv=iz.querySelector('.coaching-bar');
+    if(!coachDiv){coachDiv=document.createElement('div');coachDiv.className='coaching-bar';iz.appendChild(coachDiv);}
+    coachDiv.textContent=fb;
+
+    let tryBtn=iz.querySelector('.try-again-btn');
+    if(!tryBtn){tryBtn=document.createElement('button');tryBtn.className='try-again-btn';tryBtn.textContent='Try Again';tryBtn.onclick=()=>{
+      card.classList.add('dimmed');GS._ccEliminated.push(sel);GS._ccSelection=null;
+      $('ccLockBtn').disabled=true;coachDiv.remove();tryBtn.remove();highlightZone='';
+      checkHintNeeded();
+    };iz.appendChild(tryBtn);}
+
+    if(GS.wrongCount>=3&&GS.resets>=3){forceAdvance();return;}
+  }
+}
+
+// ============ DRAG-TO-MATCH MECHANIC ============
+function renderDragToMatch(p,r){
+  const iz=$('interactionZone');
+  GS._dtmPlacements={};GS._dtmWrongCounts={};
+
+  let html=`<div class="iz-prompt">${p.prompt}</div><div class="dtm-container">
+    <div class="dtm-items" id="dtmItems">`;
+  p.items.forEach((item,i)=>{
+    html+=`<div class="dtm-drag" data-idx="${i}" onclick="dtmSelectItem(this,${i})">${item}</div>`;
+  });
+  html+=`</div><div class="dtm-zones" id="dtmZones">`;
+  p.zones.forEach((z,i)=>{
+    html+=`<div class="dtm-zone" data-zone="${i}" onclick="dtmSelectZone(${i})">
+      <div class="dtm-zone-label">${z.label}</div>
+      <div class="dtm-zone-items" id="dtmZone${i}"></div>
+    </div>`;
+  });
+  html+=`</div></div><button class="lock-in-btn" id="dtmLockBtn" disabled onclick="dtmLockIn()">Lock In</button>`;
+  iz.innerHTML=html;show(iz);
+  GS._dtmSelectedItem=null;
+}
+
+function dtmSelectItem(el,idx){
+  document.querySelectorAll('.dtm-drag').forEach(d=>d.style.boxShadow='');
+  el.style.boxShadow='0 0 0 3px var(--accent3)';
+  GS._dtmSelectedItem=idx;
+}
+
+function dtmSelectZone(zoneIdx){
+  if(GS._dtmSelectedItem===null)return;
+  const itemIdx=GS._dtmSelectedItem;
+  const p=ROUNDS[GS.currentRound].prove;
+
+  // Remove from any other zone
+  Object.keys(GS._dtmPlacements).forEach(k=>{
+    if(GS._dtmPlacements[k]===parseInt(itemIdx))delete GS._dtmPlacements[k];
+  });
+
+  // Place
+  const key=zoneIdx+'-'+itemIdx;
+  GS._dtmPlacements[zoneIdx+'_'+itemIdx]=true;
+
+  // Update visuals
+  refreshDtmZones(p);
+
+  // Mark item as placed
+  document.querySelectorAll('.dtm-drag').forEach(d=>{
+    const di=parseInt(d.dataset.idx);
+    d.classList.toggle('placed',Object.values(GS._dtmPlacements).includes(di)||isItemInAnyZone(di));
+    d.style.boxShadow='';
+  });
+  GS._dtmSelectedItem=null;
+
+  // Check if all placed
+  const totalNeeded=p.items.length;
+  const placed=countPlacedItems();
+  $('dtmLockBtn').disabled=(placed<totalNeeded);
+}
+
+function isItemInAnyZone(idx){
+  const zones=document.querySelectorAll('.dtm-zone-items');
+  for(let z of zones){
+    if(z.querySelector(`[data-item="${idx}"]`))return true;
+  }
+  return false;
+}
+function countPlacedItems(){
+  let c=0;
+  document.querySelectorAll('.dtm-zone-items').forEach(z=>{c+=z.children.length});
+  return c;
+}
+
+function refreshDtmZones(p){
+  // Clear all zone contents
+  p.zones.forEach((z,zi)=>{$('dtmZone'+zi).innerHTML='';});
+
+  // Rebuild from scratch based on what's placed
+  // Simple: track which item is in which zone
+  if(!GS._dtmItemZoneMap)GS._dtmItemZoneMap={};
+  const itemIdx=GS._dtmSelectedItem;
+  // Remove item from old zone
+  Object.keys(GS._dtmItemZoneMap).forEach(k=>{
+    if(parseInt(k)===itemIdx)delete GS._dtmItemZoneMap[k];
+  });
+  // Find which zone was clicked - use last selectZone call
+  // Actually let's simplify: rebuild the tap-to-place logic
+}
+
+// Simplified DTM with tap-to-select, tap-to-place
+function renderDragToMatch2(p,r){
+  const iz=$('interactionZone');
+  GS._dtmMap={};// itemIdx -> zoneIdx
+  GS._dtmSel=null;
+
+  let html=`<div class="iz-prompt">${p.prompt}</div><div class="dtm-container">
+    <div class="dtm-items" id="dtmItems">`;
+  p.items.forEach((item,i)=>{
+    html+=`<div class="dtm-drag" data-idx="${i}" id="dtmItem${i}">${item}</div>`;
+  });
+  html+=`</div><div class="dtm-zones" id="dtmZones">`;
+  p.zones.forEach((z,i)=>{
+    html+=`<div class="dtm-zone" data-zone="${i}" id="dtmZoneEl${i}">
+      <div class="dtm-zone-label">${z.label}</div>
+      <div class="dtm-zone-items" id="dtmZone${i}"></div>
+    </div>`;
+  });
+  html+=`</div></div><button class="lock-in-btn" id="dtmLockBtn" disabled onclick="dtmLockIn()">Lock In</button>`;
+  iz.innerHTML=html;show(iz);
+
+  // Attach events
+  p.items.forEach((item,i)=>{
+    $('dtmItem'+i).onclick=()=>dtmTapItem(i,p);
+  });
+  p.zones.forEach((z,i)=>{
+    $('dtmZoneEl'+i).onclick=()=>dtmTapZone(i,p);
+  });
+}
+
+function dtmTapItem(idx,p){
+  // If already placed, remove
+  if(GS._dtmMap[idx]!==undefined){
+    delete GS._dtmMap[idx];
+    dtmRefresh(p);
+    return;
+  }
+  document.querySelectorAll('.dtm-drag').forEach(d=>d.style.boxShadow='');
+  $('dtmItem'+idx).style.boxShadow='0 0 0 3px var(--accent3)';
+  GS._dtmSel=idx;
+}
+
+function dtmTapZone(zoneIdx,p){
+  if(GS._dtmSel===null)return;
+  GS._dtmMap[GS._dtmSel]=zoneIdx;
+  GS._dtmSel=null;
+  dtmRefresh(p);
+}
+
+function dtmRefresh(p){
+  // Clear zones
+  p.zones.forEach((z,i)=>{$('dtmZone'+i).innerHTML='';});
+  // Place items
+  Object.entries(GS._dtmMap).forEach(([itemIdx,zoneIdx])=>{
+    const div=document.createElement('div');
+    div.className='dtm-placed-item';
+    div.textContent=p.items[parseInt(itemIdx)];
+    div.dataset.item=itemIdx;
+    div.onclick=()=>{delete GS._dtmMap[parseInt(itemIdx)];dtmRefresh(p);};
+    $('dtmZone'+zoneIdx).appendChild(div);
+  });
+  // Update source items
+  p.items.forEach((item,i)=>{
+    const el=$('dtmItem'+i);
+    el.classList.toggle('placed',GS._dtmMap[i]!==undefined);
+    el.style.boxShadow='';
+  });
+  // Check completeness
+  $('dtmLockBtn').disabled=(Object.keys(GS._dtmMap).length<p.items.length);
+}
+
+function dtmLockIn(){
+  const r=ROUNDS[GS.currentRound];const p=r.prove;
+  // Check correctness
+  let allCorrect=true;
+  Object.entries(GS._dtmMap).forEach(([itemIdx,zoneIdx])=>{
+    const zone=p.zones[zoneIdx];
+    if(!zone.accepts.includes(parseInt(itemIdx)))allCorrect=false;
+  });
+
+  if(allCorrect){
+    onProveCorrect();
+  } else {
+    GS.wrongCount++;GS.levels[GS.currentRound].attempts++;
+    playWrong();
+    const fb=p.wrongFeedback||"Check your data table again.";
+    highlightZone='dataPress';
+
+    const iz=$('interactionZone');
+    let coachDiv=iz.querySelector('.coaching-bar');
+    if(!coachDiv){coachDiv=document.createElement('div');coachDiv.className='coaching-bar';iz.appendChild(coachDiv);}
+    coachDiv.textContent=fb;
+
+    let tryBtn=iz.querySelector('.try-again-btn');
+    if(!tryBtn){tryBtn=document.createElement('button');tryBtn.className='try-again-btn';tryBtn.textContent='Try Again';tryBtn.onclick=()=>{
+      GS._dtmMap={};GS._dtmSel=null;dtmRefresh(p);coachDiv.remove();tryBtn.remove();highlightZone='';
+      checkHintNeeded();
+    };iz.appendChild(tryBtn);}
+
+    if(GS.wrongCount>=3&&GS.resets>=3){forceAdvance();return;}
+  }
+}
+
+// Override renderDragToMatch to use the tap version
+var renderDragToMatch=renderDragToMatch2;
+
+// ============ HOTSPOT MECHANIC ============
+function renderHotspot(p,r){
+  const iz=$('interactionZone');
+  iz.innerHTML=`<div class="iz-prompt">${p.prompt}</div>
+    <div style="text-align:center;font-size:13px;color:var(--textLight)">Tap the correct area on the volcano above.</div>
+    <button class="lock-in-btn" id="hsLockBtn" style="display:none">Lock In</button>`;
+  show(iz);
+  GS._hsClickCount=0;
+  GS._hsDone=false;
+
+  // Click on canvas
+  canvas.onclick=function(e){
+    if(GS._hsDone||GS.phase!=='prove')return;
+    const rect=canvas.getBoundingClientRect();
+    const x=(e.clientX-rect.left)*(cW/rect.width);
+    const y=(e.clientY-rect.top)*(cH/rect.height);
+    handleHotspotClick(x,y,p,r);
+  };
+}
+
+function handleHotspotClick(x,y,p,r){
+  // Define correct zone: gas bubbles in magma chamber
+  const mcX=cW*0.3,mcY=cH*0.76,mcW=cW*0.4,mcH=cH*0.18;
+  const inChamber=(x>=mcX&&x<=mcX+mcW&&y>=mcY&&y<=mcY+mcH);
+
+  // Crater zone
+  const craterX=cW*0.5,craterY=cH*0.18;
+  const nearCrater=Math.hypot(x-craterX,y-craterY)<50;
+
+  // Surface cracks
+  const nearSurface=(y>cH*0.3&&y<cH*0.5&&x>cW*0.3&&x<cW*0.7);
+
+  GS._hsClickCount++;
+
+  if(inChamber){
+    GS._hsDone=true;
+    canvas.onclick=null;
+    onProveCorrect();
+  } else {
+    playWrong();
+    GS.wrongCount++;GS.levels[GS.currentRound].attempts++;
+
+    let fb;
+    if(nearCrater)fb=p.wrongFeedback[0]||"The crater shows the result, not the cause. What is different INSIDE the magma?";
+    else if(nearSurface)fb=p.wrongFeedback[1]||"The cracks show pressure building — but what controls how much pressure? Look inside.";
+    else fb="Look inside the volcano at the magma chamber.";
+
+    highlightZone='gas';
+    showCoaching(fb);
+
+    if(GS._hsClickCount>=3){
+      GS.resets++;
+      highlightZone='gas';
+      checkHintNeeded();
+    }
+    if(GS.wrongCount>=3&&GS.resets>=3){canvas.onclick=null;forceAdvance();return;}
+  }
+}
+
+// ============ SEQUENCE BUILDER ============
+function renderSequence(p,r){
+  const iz=$('interactionZone');
+  GS._seqSlots=new Array(p.items.length).fill(null);
+  GS._seqSel=null;
+
+  let html=`<div class="iz-prompt">${p.prompt}</div><div class="seq-container">
+    <div class="seq-source" id="seqSource">`;
+  p.items.forEach((item,i)=>{
+    html+=`<div class="seq-card" data-idx="${i}" id="seqCard${i}">${item}</div>`;
+  });
+  html+=`</div><div class="seq-slots" id="seqSlots">`;
+  for(let i=0;i<p.items.length;i++){
+    html+=`<div class="seq-slot" data-slot="${i}" id="seqSlot${i}">${i+1}.</div>`;
+  }
+  html+=`</div></div><button class="lock-in-btn" id="seqLockBtn" disabled onclick="seqLockIn()">Lock In</button>`;
+  iz.innerHTML=html;show(iz);
+
+  // Attach events
+  p.items.forEach((item,i)=>{
+    $('seqCard'+i).onclick=()=>seqTapCard(i,p);
+  });
+  for(let i=0;i<p.items.length;i++){
+    $('seqSlot'+i).onclick=()=>seqTapSlot(i,p);
+  }
+}
+
+function seqTapCard(idx,p){
+  if(GS._seqSlots.includes(idx)){
+    // Remove from slot
+    const si=GS._seqSlots.indexOf(idx);
+    GS._seqSlots[si]=null;
+    seqRefresh(p);
+    return;
+  }
+  document.querySelectorAll('.seq-card').forEach(c=>c.classList.remove('selected'));
+  $('seqCard'+idx).classList.add('selected');
+  GS._seqSel=idx;
+}
+
+function seqTapSlot(slotIdx,p){
+  if(GS._seqSel===null){
+    // If slot has item, remove it
+    if(GS._seqSlots[slotIdx]!==null){
+      GS._seqSlots[slotIdx]=null;
+      seqRefresh(p);
+    }
+    return;
+  }
+  // Remove selected from old slot
+  const oldSlot=GS._seqSlots.indexOf(GS._seqSel);
+  if(oldSlot>=0)GS._seqSlots[oldSlot]=null;
+
+  GS._seqSlots[slotIdx]=GS._seqSel;
+  GS._seqSel=null;
+  seqRefresh(p);
+}
+
+function seqRefresh(p){
+  // Update slots
+  for(let i=0;i<p.items.length;i++){
+    const slot=$('seqSlot'+i);
+    if(GS._seqSlots[i]!==null){
+      slot.className='seq-slot filled';
+      slot.textContent=`${i+1}. ${p.items[GS._seqSlots[i]]}`;
+    } else {
+      slot.className='seq-slot';
+      slot.textContent=`${i+1}.`;
+    }
+  }
+  // Update cards
+  p.items.forEach((item,i)=>{
+    $('seqCard'+i).classList.toggle('placed',GS._seqSlots.includes(i));
+    $('seqCard'+i).classList.remove('selected');
+  });
+  // Check completeness
+  $('seqLockBtn').disabled=GS._seqSlots.includes(null);
+}
+
+function seqLockIn(){
+  const r=ROUNDS[GS.currentRound];const p=r.prove;
+  const correct=p.correct;
+  const match=GS._seqSlots.every((v,i)=>v===correct[i]);
+
+  if(match){
+    onProveCorrect();
+  } else {
+    GS.wrongCount++;GS.levels[GS.currentRound].attempts++;
+    playWrong();
+    const fb=p.wrongFeedback||"Check the order again.";
+    highlightZone='';
+
+    const iz=$('interactionZone');
+    let coachDiv=iz.querySelector('.coaching-bar');
+    if(!coachDiv){coachDiv=document.createElement('div');coachDiv.className='coaching-bar';iz.appendChild(coachDiv);}
+    coachDiv.textContent=fb;
+
+    let tryBtn=iz.querySelector('.try-again-btn');
+    if(!tryBtn){tryBtn=document.createElement('button');tryBtn.className='try-again-btn';tryBtn.textContent='Try Again';tryBtn.onclick=()=>{
+      GS._seqSlots=new Array(p.items.length).fill(null);GS._seqSel=null;seqRefresh(p);
+      coachDiv.remove();tryBtn.remove();highlightZone='';
+      checkHintNeeded();
+    };iz.appendChild(tryBtn);}
+
+    if(GS.wrongCount>=3&&GS.resets>=3){forceAdvance();return;}
+  }
+}
+
+// ============ CLAIM BUILDER ============
+function renderClaimBuilder(p,r){
+  const iz=$('interactionZone');
+  GS._claimSelected=new Set();GS._claimEliminated=new Set();
+
+  let html=`<div class="iz-prompt">${p.prompt}</div><div class="claim-container">
+    <div class="claim-frame"><div class="claim-frame-label">${p.frame}</div>
+      <div class="claim-evidence-area" id="claimArea">Tap evidence cards below to add them here.</div>
+    </div>
+    <div class="iz-options" id="claimCards">`;
+  p.items.forEach((item,i)=>{
+    html+=`<div class="claim-card" data-idx="${i}" id="claimCard${i}">${item}</div>`;
+  });
+  html+=`</div></div><button class="lock-in-btn" id="claimLockBtn" disabled onclick="claimLockIn()">Lock In</button>`;
+  iz.innerHTML=html;show(iz);
+
+  p.items.forEach((item,i)=>{
+    $('claimCard'+i).onclick=()=>claimToggle(i,p);
+  });
+}
+
+function claimToggle(idx,p){
+  if(GS._claimEliminated.has(idx))return;
+  if(GS._claimSelected.has(idx)){GS._claimSelected.delete(idx);}
+  else{GS._claimSelected.add(idx);}
+  claimRefresh(p);
+}
+
+function claimRefresh(p){
+  const area=$('claimArea');
+  area.innerHTML='';
+  GS._claimSelected.forEach(i=>{
+    const div=document.createElement('div');div.className='claim-card in-frame';
+    div.textContent=p.items[i];
+    div.onclick=()=>{GS._claimSelected.delete(i);claimRefresh(p);};
+    area.appendChild(div);
+  });
+  if(GS._claimSelected.size===0)area.textContent='Tap evidence cards below to add them here.';
+
+  p.items.forEach((item,i)=>{
+    const el=$('claimCard'+i);
+    el.classList.toggle('selected',GS._claimSelected.has(i));
+    el.classList.toggle('eliminated',GS._claimEliminated.has(i));
+  });
+  $('claimLockBtn').disabled=(GS._claimSelected.size===0);
+}
+
+function claimLockIn(){
+  const r=ROUNDS[GS.currentRound];const p=r.prove;
+  const sel=Array.from(GS._claimSelected).sort();
+  const correct=p.correct.sort();
+  const match=(sel.length===correct.length&&sel.every((v,i)=>v===correct[i]));
+
+  if(match){
+    onProveCorrect();
+  } else {
+    GS.wrongCount++;GS.levels[GS.currentRound].attempts++;
+    playWrong();
+
+    // Find wrong items
+    sel.forEach(i=>{
+      if(!correct.includes(i)){
+        GS._claimEliminated.add(i);GS._claimSelected.delete(i);
+      }
+    });
+
+    const fb=p.wrongFeedback||"Read the data table carefully.";
+    const iz=$('interactionZone');
+    let coachDiv=iz.querySelector('.coaching-bar');
+    if(!coachDiv){coachDiv=document.createElement('div');coachDiv.className='coaching-bar';iz.appendChild(coachDiv);}
+    coachDiv.textContent=fb;
+    claimRefresh(p);
+
+    let tryBtn=iz.querySelector('.try-again-btn');
+    if(!tryBtn){tryBtn=document.createElement('button');tryBtn.className='try-again-btn';tryBtn.textContent='Try Again';tryBtn.onclick=()=>{
+      GS._claimSelected=new Set();claimRefresh(p);coachDiv.remove();tryBtn.remove();
+      checkHintNeeded();
+    };iz.appendChild(tryBtn);}
+
+    if(GS.wrongCount>=3&&GS.resets>=3){forceAdvance();return;}
+  }
+}
+
+// ============ PROVE CORRECT / SCORING ============
+function onProveCorrect(){
+  playCorrect();highlightZone='';
+  canvas.onclick=null;
+  hide('hintBtn');
+
+  const level=GS.levels[GS.currentRound];
+  level.completed=true;level.attempts++;
+  level.timeMs=Date.now()-GS.roundStartTime;
+
+  // Score
+  const h=GS.hintsUsed;const re=GS.resets;
+  if(re>=1)level.score=50;
+  else if(h>=3)level.score=60;
+  else if(h>=2)level.score=70;
+  else if(h>=1)level.score=85;
+  else level.score=100;
+
+  // Prediction bonus
+  if(GS.predictionCorrect===false&&level.score>85)level.score=85;
+
+  level.hintsUsed=GS.hintsUsed;level.resets=GS.resets;
+
+  updateHUD();
+
+  // Show feedback
+  const iz=$('interactionZone');
+  const isFirstTry=(GS.hintsUsed===0&&GS.resets===0&&level.attempts<=1);
+  let html=`<div style="text-align:center">
+    <div style="font-size:20px;font-weight:800;color:var(--correct)">Correct! +${level.score}</div>`;
+  if(isFirstTry){
+    html+=`<div class="celeb-affirmation" style="opacity:1">${getAffirmation()}</div>`;
+  }
+  html+=`</div>`;
+  iz.innerHTML=html;show(iz);
+
+  // Check milestones
+  setTimeout(()=>{
+    hide('interactionZone');
+    checkMilestone();
+  },2000);
+}
+
+function forceAdvance(){
+  canvas.onclick=null;hide('hintBtn');
+  const level=GS.levels[GS.currentRound];
+  level.completed=true;level.score=50;level.attempts++;
+  level.hintsUsed=GS.hintsUsed;level.resets=GS.resets;
+  level.timeMs=Date.now()-GS.roundStartTime;
+  updateHUD();
+
+  const iz=$('interactionZone');
+  iz.innerHTML=`<div style="text-align:center;font-size:14px;color:var(--textLight);font-weight:600">Let's move on — you'll see this idea again.</div>`;
+  show(iz);
+  setTimeout(()=>{hide('interactionZone');checkMilestone();},2000);
+}
+
+// ============ MILESTONES / CELEBRATIONS ============
+function checkMilestone(){
+  const idx=GS.currentRound;
+  const r=ROUNDS[idx];
+  const completed=GS.levels.filter(l=>l.completed).length;
+  const requiredDone=GS.levels.filter((l,i)=>ROUNDS[i].required&&l.completed).length;
+
+  if(idx===1){showCelebration("Two tests done!","Same gas, different thickness — did you see the difference?",null,()=>nextRound());}
+  else if(idx===3){showCelebration("Patterns are forming...","You've tested 4 combinations! Keep going!",null,()=>nextRound());}
+  else if(idx===5){
+    // Required complete
+    GS.requiredComplete=true;
+    showCelebration("All required rounds done!","You've mapped the eruption spectrum!",
+      [{text:"See My Score",action:()=>showReceipt()},{text:"Continue to Bonus (+10 pts)",action:()=>nextRound(),secondary:true}]);
+  }
+  else if(idx===7){
+    GS.allComplete=true;
+    showCelebration("BONUS COMPLETE!","You mastered the volcano lab!",null,()=>showReceipt(),true);
+  }
+  else{nextRound();}
+}
+
+function showCelebration(title,msg,buttons,defaultAction,isBig){
+  const overlay=$('celebOverlay');const card=$('celebCard');
+  let html=`<div class="celeb-title">${title}</div><div class="celeb-msg">${msg}</div>
+    <div class="celeb-affirmation">${getAffirmation()}</div>`;
+  if(buttons){
+    html+=`<div class="celeb-btns">`;
+    buttons.forEach((b,i)=>{
+      html+=`<button class="celeb-btn ${b.secondary?'secondary':''}" id="celebBtn${i}">${b.text}</button>`;
+    });
+    html+=`</div>`;
+  }
+  card.innerHTML=html;overlay.classList.add('show');
+
+  if(buttons){
+    buttons.forEach((b,i)=>{
+      $('celebBtn'+i).onclick=()=>{overlay.classList.remove('show');b.action();};
+    });
+  } else {
+    const dur=isBig?3000:2000;
+    setTimeout(()=>{overlay.classList.remove('show');if(defaultAction)defaultAction();},dur);
+  }
+
+  safeCall(()=>fireConfetti(),'confetti err');
+}
+
+function nextRound(){
+  if(GS.currentRound<ROUNDS.length-1){
+    loadRound(GS.currentRound+1);
+  } else {
+    showReceipt();
+  }
+}
+
+// ============ HINT SYSTEM ============
+function useHint(){
+  const r=ROUNDS[GS.currentRound];const h=r.hintLadder;
+  GS.hintsUsed++;
+
+  if(GS.hintsUsed===1&&h.hint1){
+    showCoaching(h.hint1.text,'hint1');
+    if(h.hint1.target)highlightZone=h.hint1.target;
+  } else if(GS.hintsUsed===2&&h.hint2){
+    showCoaching(h.hint2.text,'hint2');
+    if(h.hint2.eliminate!==undefined){
+      // Eliminate wrong option for coach-click
+      const cards=document.querySelectorAll('.opt-card');
+      if(cards[h.hint2.eliminate])cards[h.hint2.eliminate].classList.add('eliminated');
+    }
+    if(h.hint2.lockItem){
+      // Lock item for DTM
+      const li=h.hint2.lockItem;
+      if(GS._dtmMap!==undefined){
+        GS._dtmMap[li.item]=li.zone;
+        const r2=ROUNDS[GS.currentRound];
+        dtmRefresh(r2.prove);
+      }
+    }
+    if(h.hint2.lockFirst){
+      // Lock first card in sequence
+      if(GS._seqSlots){
+        GS._seqSlots[0]=0;
+        const r2=ROUNDS[GS.currentRound];
+        seqRefresh(r2.prove);
+        const card=$('seqCard0');if(card)card.classList.add('locked');
+      }
+    }
+    if(h.hint2.eliminateDistractor!==undefined){
+      // Eliminate distractor in claim builder
+      if(GS._claimEliminated){
+        GS._claimEliminated.add(h.hint2.eliminateDistractor);
+        const r2=ROUNDS[GS.currentRound];
+        claimRefresh(r2.prove);
+      }
+    }
+  } else {
+    // Step by step
+    showStepByStep(h.stepByStep.panels);
+  }
+}
+
+function checkHintNeeded(){
+  // Auto-show hint after wrong attempts
+  if(GS.wrongCount>=1&&GS.hintsUsed===0){
+    show('hintBtn');// Just make hint visible, don't auto-trigger
+  }
+}
+
+function showCoaching(text,level){
+  const iz=$('interactionZone');
+  let bar=iz.querySelector('.coaching-bar');
+  if(!bar){bar=document.createElement('div');iz.appendChild(bar);}
+  bar.className='coaching-bar'+(level==='hint2'?' hint2':'');
+  bar.textContent=text;
+  speak(text);
+}
+
+function showStepByStep(panels){
+  const overlay=$('sbsOverlay');const panel=$('sbsPanel');
+  let currentStep=0;
+  let html=`<div class="sbs-title">Step-by-Step Help</div>`;
+  panels.forEach((p,i)=>{
+    html+=`<div class="sbs-step ${i===0?'active':''}" id="sbsStep${i}">${p.text}</div>`;
+  });
+  html+=`<div class="sbs-nav"><button class="sbs-btn" id="sbsNext">Next</button></div>`;
+  panel.innerHTML=html;overlay.classList.add('show');
+
+  $('sbsNext').onclick=()=>{
+    currentStep++;
+    if(currentStep>=panels.length){
+      overlay.classList.remove('show');
+      return;
+    }
+    document.querySelectorAll('.sbs-step').forEach(s=>s.classList.remove('active'));
+    $('sbsStep'+currentStep).classList.add('active');
+    if(currentStep===panels.length-1)$('sbsNext').textContent='Close';
+  };
+}
+
+// ============ ANTI-GUESSING ============
+function showAntiGuess(msg,dur){
+  const screen=$('agScreen');const card=$('agCard');
+  card.innerHTML=`<h3>Hold on!</h3><p>${msg}</p><div class="ag-timer" id="agTimer">${dur}</div>`;
+  screen.classList.add('show');
+  let remaining=dur;
+  const iv=setInterval(()=>{
+    remaining--;
+    const t=$('agTimer');if(t)t.textContent=remaining;
+    if(remaining<=0){clearInterval(iv);screen.classList.remove('show');}
+  },1000);
+}
+
+// ============ VOCAB ============
+function showVocab(){$('vocabOverlay').classList.add('show');}
+function hideVocab(){$('vocabOverlay').classList.remove('show');}
+
+// ============ SETTINGS ============
+function showSettings(){
+  readAloud=!readAloud;
+  // Simple toggle for now
+}
+
+// ============ CONFETTI ============
+function fireConfetti(){
+  const cc=$('confettiCanvas');const cx=cc.getContext('2d');
+  cc.width=window.innerWidth;cc.height=window.innerHeight;
+  const particles=[];
+  const colors=['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#22C55E'];
+  for(let i=0;i<60;i++){
+    particles.push({
+      x:cc.width/2+((Math.random()-0.5)*200),
+      y:cc.height/2,
+      vx:(Math.random()-0.5)*12,
+      vy:-Math.random()*15-5,
+      r:3+Math.random()*4,
+      c:colors[Math.floor(Math.random()*colors.length)],
+      life:1,rot:Math.random()*Math.PI*2,
+      rotV:(Math.random()-0.5)*0.2
+    });
+  }
+  let frame=0;
+  function draw(){
+    cx.clearRect(0,0,cc.width,cc.height);
+    let alive=false;
+    particles.forEach(p=>{
+      if(p.life<=0)return;alive=true;
+      p.x+=p.vx;p.y+=p.vy;p.vy+=0.4;p.life-=0.012;p.rot+=p.rotV;
+      cx.save();cx.translate(p.x,p.y);cx.rotate(p.rot);
+      cx.globalAlpha=p.life;ctx.fillStyle=p.c;
+      cx.fillStyle=p.c;cx.fillRect(-p.r,-p.r/2,p.r*2,p.r);
+      cx.restore();
+    });
+    if(alive&&frame<120){frame++;requestAnimationFrame(draw);}
+    else{cx.clearRect(0,0,cc.width,cc.height);}
+  }
+  draw();
+}
+
+// ============ RECEIPT ============
+function showReceipt(){
+  const overlay=$('receiptOverlay');
+  const reqScores=GS.levels.filter((l,i)=>ROUNDS[i].required&&l.completed).map(l=>l.score);
+  const baseGrade=reqScores.length?Math.round(reqScores.reduce((a,b)=>a+b,0)/reqScores.length):0;
+  const bonusCount=GS.levels.filter((l,i)=>!ROUNDS[i].required&&l.completed).length;
+  const overall=Math.min(100,baseGrade+bonusCount*5);
+  const colorClass=overall>=85?'score-green':overall>=70?'score-yellow':'score-red';
+  const label=overall>=85?'Mastery':overall>=70?'Approaching Mastery':'Needs More Practice';
+  const totalTime=GS.levels.reduce((s,l)=>s+l.timeMs,0);
+  const totalMin=Math.floor(totalTime/60000);
+  const totalSec=Math.floor((totalTime%60000)/1000);
+
+  let html=`<div class="receipt-card">
+    <div class="receipt-header">
+      <h2>Mr. Jawad's Simulation</h2>
+      <h3>Volcano — Wednesday Score Report</h3>
+    </div>
+    <div class="name-input-wrap">
+      <input type="text" id="nameInput" placeholder="Type your name here">
+      <button onclick="lockName()">Lock</button>
+    </div>
+    <div class="overall-score">
+      <div class="overall-pct ${colorClass}">${overall}%</div>
+      <div class="overall-label ${colorClass}">${label}</div>
+    </div>
+    <table class="receipt-table">
+      <thead><tr><th>#</th><th>Round</th><th>Score</th><th>Attempts</th><th>Time</th></tr></thead><tbody>`;
+  GS.levels.forEach((l,i)=>{
+    if(!l.completed)return;
+    const t=Math.floor(l.timeMs/1000);
+    const m=Math.floor(t/60);const s=t%60;
+    const sc=l.score>=85?'score-green':l.score>=70?'score-yellow':'score-red';
+    const bonus=!ROUNDS[i].required?' bonus-row':'';
+    html+=`<tr class="${bonus}"><td>${ROUNDS[i].required?l.num:'⭐ '+l.num}</td>
+      <td>${l.name}</td><td class="${sc}">${l.score}%</td><td>${l.attempts}</td>
+      <td>${m}:${String(s).padStart(2,'0')}</td></tr>`;
+  });
+  html+=`</tbody></table>
+    <div style="font-size:13px;color:var(--textLight)">Total Time: ${totalMin}:${String(totalSec).padStart(2,'0')}</div>
+    <div class="receipt-footer">Take a screenshot and upload to Google Classroom</div>
+    <button class="print-btn" onclick="window.print()">Print</button><br>
+    <button class="restart-btn" onclick="confirmRestart()">Start Over</button>
+  </div>`;
+  overlay.innerHTML=html;overlay.classList.add('show');
+}
+
+function lockName(){
+  const input=$('nameInput');
+  if(!input)return;
+  GS.studentName=input.value;
+  input.disabled=true;
+  input.nextElementSibling.disabled=true;
+  input.nextElementSibling.textContent='Locked';
+}
+
+function confirmRestart(){
+  if(confirm('Start over? This will reset all your progress.')){location.reload();}
+}
+
+// ============ INIT ============
+resizeCanvas();
+</script>
+</body>
+</html>
