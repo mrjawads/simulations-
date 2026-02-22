@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Science Department Simulation Species Interactions</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0a1628;color:#fff;overflow:hidden;height:100vh;width:100vw;}
+#tutorial-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
+#tutorial-overlay.hidden{display:none;}
+.tut-box{background:linear-gradient(135deg,#1a2a4a,#0d1b2a);border:2px solid rgba(255,255,255,.12);border-radius:24px;padding:40px 50px;max-width:640px;text-align:center;box-shadow:0 20px 80px rgba(0,0,0,.7);}
+.tut-box .tut-icon{font-size:56px;margin-bottom:10px;}
+.tut-box h2{font-size:26px;margin-bottom:6px;background:linear-gradient(90deg,#66BB6A,#A5D6A7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.tut-mission{font-size:15px;color:#FFD180;margin:10px 0 18px;line-height:1.5;}
+.tut-steps{text-align:left;margin:14px auto;font-size:14px;color:#B0BEC5;line-height:2;max-width:440px;}
+.tut-steps span{color:#81C784;font-weight:700;margin-right:6px;}
+.tut-goal{color:#FF9800;font-size:14px;margin:14px 0 6px;font-weight:700;line-height:1.5;}
+.tut-start{padding:16px 52px;border:none;border-radius:14px;font-size:18px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#E65100,#FF6D00);color:#fff;box-shadow:0 4px 24px rgba(255,109,0,.4);transition:all .3s;margin-top:10px;}
+.tut-start:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(255,109,0,.5);}
+
+#app{display:grid;grid-template-columns:250px 1fr 270px;grid-template-rows:auto 1fr;height:100vh;}
+#topbar{grid-column:1/-1;background:linear-gradient(90deg,#1B5E20,#2E7D32,#388E3C);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 3px 16px rgba(0,0,0,.5);}
+#topbar h1{font-size:17px;font-weight:700;text-shadow:0 2px 6px rgba(0,0,0,.4);}
+.round-badge{background:rgba(255,255,255,.15);border-radius:20px;padding:5px 18px;font-size:15px;font-weight:700;}
+
+#controls{background:linear-gradient(180deg,#0f1d30,#0a1522);padding:14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;border-right:1px solid rgba(255,255,255,.05);}
+.ctrl-section{background:rgba(255,255,255,.04);border-radius:14px;padding:12px;border:1px solid rgba(255,255,255,.06);}
+.ctrl-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#64B5F6;margin-bottom:8px;font-weight:700;}
+.species-btn,.cond-btn{width:100%;padding:10px;border:2px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.02);color:#999;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:5px;transition:all .3s;text-align:left;display:flex;align-items:center;gap:8px;}
+.species-btn:hover,.cond-btn:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18);color:#ccc;}
+.species-btn.active{border-color:#FF9800;background:rgba(255,152,0,.1);color:#FFD180;box-shadow:0 0 14px rgba(255,152,0,.12);}
+.cond-btn.active{border-color:#29B6F6;background:rgba(41,182,246,.08);color:#81D4FA;box-shadow:0 0 14px rgba(41,182,246,.12);}
+.sp-icon{font-size:24px;}
+.sp-name{display:flex;flex-direction:column;gap:1px;}
+.sp-sub{font-size:10px;color:#666;font-weight:400;}
+
+#release-btn{width:100%;padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#E65100,#FF6D00);color:#fff;box-shadow:0 4px 20px rgba(255,109,0,.3);transition:all .3s;text-transform:uppercase;letter-spacing:2px;}
+#release-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,109,0,.45);}
+#release-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;}
+#release-btn.wait{background:linear-gradient(135deg,#37474F,#455A64);box-shadow:none;}
+.info-tip{font-size:11px;color:#78909C;text-align:center;padding:6px 8px;line-height:1.4;background:rgba(255,255,255,.03);border-radius:8px;min-height:32px;}
+.powerup-btn{width:100%;padding:11px;border:2px solid #43A047;border-radius:12px;background:rgba(67,160,71,.06);color:#A5D6A7;font-size:12px;font-weight:700;cursor:pointer;transition:all .3s;display:none;text-align:center;}
+.powerup-btn.available{display:block;animation:pGlow 2s infinite;}
+@keyframes pGlow{0%,100%{box-shadow:0 0 6px rgba(76,175,80,.15);}50%{box-shadow:0 0 20px rgba(76,175,80,.4);}}
+.small-btn{padding:9px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;flex:1;transition:all .2s;}
+#reset-btn{background:linear-gradient(135deg,#b71c1c,#d32f2f);color:#fff;}
+#newrun-btn{background:linear-gradient(135deg,#0D47A1,#1565C0);color:#fff;}
+.btn-row{display:flex;gap:8px;margin-top:auto;padding-top:6px;}
+
+#arena-wrap{position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 55%,#0d2818 0%,#060e08 65%,#030806 100%);}
+#arena-canvas{width:100%;height:100%;display:block;}
+#event-toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);background:rgba(8,8,18,.93);border:2px solid #FF9800;border-radius:20px;padding:24px 36px;text-align:center;z-index:100;transition:transform .4s cubic-bezier(.34,1.56,.64,1);pointer-events:none;backdrop-filter:blur(8px);}
+#event-toast.show{transform:translate(-50%,-50%) scale(1);}
+.ev-icon{font-size:48px;}.ev-text{font-size:15px;font-weight:700;margin-top:8px;color:#FFD180;}
+#round-toast{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(8,8,18,.8);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:8px 22px;font-size:13px;font-weight:600;color:#B0BEC5;backdrop-filter:blur(6px);pointer-events:none;opacity:0;transition:opacity .4s;}
+#round-toast.show{opacity:1;}
+
+#sidebar{background:linear-gradient(180deg,#0f1d30,#0a1522);padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;border-left:1px solid rgba(255,255,255,.05);}
+.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.hud-card{background:rgba(255,255,255,.04);border-radius:12px;padding:10px 6px;text-align:center;border:1px solid rgba(255,255,255,.05);}
+.hud-val{font-size:24px;font-weight:800;}
+.hud-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#607D8B;margin-top:3px;}
+#balance-wrap{background:rgba(255,255,255,.04);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,.05);}
+.meter-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#607D8B;margin-bottom:6px;}
+#balance-bar-outer{height:20px;background:#0d1520;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.04);}
+#balance-bar{height:100%;width:70%;border-radius:10px;transition:width 1s ease,background 1s ease;background:linear-gradient(90deg,#2E7D32,#66BB6A);position:relative;}
+#balance-label{font-size:13px;text-align:center;margin-top:5px;font-weight:700;}
+.cascade-wrap{background:rgba(255,255,255,.04);border-radius:12px;padding:10px;border:1px solid rgba(255,255,255,.05);}
+.cascade-arrows{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;flex-wrap:wrap;min-height:20px;}
+.c-arrow{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:rgba(255,255,255,.05);opacity:.25;transition:all .4s;}
+.c-arrow.lit-up{opacity:1;background:rgba(76,175,80,.2);color:#66BB6A;box-shadow:0 0 8px rgba(76,175,80,.25);}
+.c-arrow.lit-down{opacity:1;background:rgba(244,67,54,.2);color:#EF5350;box-shadow:0 0 8px rgba(244,67,54,.25);}
+#progress-wrap{background:rgba(255,255,255,.04);border-radius:12px;padding:10px;border:1px solid rgba(255,255,255,.05);}
+#progress-bar-outer{height:12px;background:#0d1520;border-radius:6px;overflow:hidden;margin-top:6px;border:1px solid rgba(255,255,255,.03);}
+#progress-bar{height:100%;width:0%;border-radius:6px;transition:width .6s;background:linear-gradient(90deg,#7C4DFF,#B388FF);}
+#progress-text{font-size:11px;text-align:center;margin-top:4px;color:#B388FF;font-weight:600;}
+#badge-area{text-align:center;min-height:20px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;}
+.badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-stable{background:linear-gradient(135deg,#1B5E20,#2E7D32);color:#A5D6A7;}
+.badge-ec{background:linear-gradient(135deg,#E65100,#FF6D00);color:#FFE0B2;}
+#data-section{flex:1;overflow-y:auto;background:rgba(255,255,255,.03);border-radius:12px;border:1px solid rgba(255,255,255,.05);}
+.dt-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#607D8B;padding:8px 10px 4px;font-weight:700;}
+#data-table{width:100%;border-collapse:collapse;}
+#data-table th{background:rgba(255,255,255,.05);padding:6px 3px;font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#607D8B;position:sticky;top:0;z-index:2;}
+#data-table td{padding:6px 3px;border-top:1px solid rgba(255,255,255,.03);text-align:center;font-size:10px;color:#B0BEC5;}
+.row-new{animation:rowGlow 1.2s;}
+@keyframes rowGlow{0%{background:rgba(255,152,0,.15);}100%{background:transparent;}}
+
+#completion-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:300;flex-direction:column;gap:16px;backdrop-filter:blur(6px);}
+#completion-overlay.show{display:flex;}
+.co-icon{font-size:72px;animation:coB 1.2s infinite;}
+.co-title{font-size:28px;font-weight:800;background:linear-gradient(90deg,#FFD740,#FF6D00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.co-sub{font-size:16px;color:#B0BEC5;}
+.co-btn{padding:14px 32px;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#1565C0,#1E88E5);color:#fff;margin-top:8px;transition:all .3s;}
+.co-btn:hover{transform:translateY(-2px);}
+@keyframes coB{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+</style>
+</head>
+<body>
+
+<div id="tutorial-overlay">
+<div class="tut-box">
+<div class="tut-icon">🌳🪲🦌🐺</div>
+<h2>Invaders vs. Natives: Who Really Belongs?</h2>
+<div class="tut-mission">A mystery species just entered Staten Island's food web.<br>Will it save the ecosystem — or destroy it?</div>
+<div class="tut-steps">
+<span>1.</span> Pick a species to release into the food web<br>
+<span>2.</span> Set the ecosystem's starting condition<br>
+<span>3.</span> Press RELEASE and watch the cascade ripple<br>
+<span>4.</span> Keep the Balance Meter green for 3 rounds = Badge<br>
+<span>5.</span> Complete 5 rounds (all 8 = extra credit)
+</div>
+<div class="tut-goal">🎯 GOAL: Find which species + condition combos keep the food web balanced!</div>
+<button class="tut-start" onclick="startGame()">START</button>
+</div>
+</div>
+
+<div id="app">
+<div id="topbar">
+<h1>🌿 Science Department — Species Interactions</h1>
+<div class="round-badge" id="round-display">Round 0 / 8</div>
+</div>
+
+<div id="controls">
+<div class="ctrl-section">
+<div class="ctrl-label">Pick a Species</div>
+<button class="species-btn" data-sp="invasive" onclick="selectSpecies('invasive')"><span class="sp-icon">🪲</span><span class="sp-name">Invasive Pest<span class="sp-sub">Non-native, no predators</span></span></button>
+<button class="species-btn" data-sp="native" onclick="selectSpecies('native')"><span class="sp-icon">🦌</span><span class="sp-name">Returning Native<span class="sp-sub">Belongs, but world changed</span></span></button>
+<button class="species-btn" data-sp="predator" onclick="selectSpecies('predator')"><span class="sp-icon">🐺</span><span class="sp-name">Keystone Predator<span class="sp-sub">Controls prey populations</span></span></button>
+</div>
+<div class="ctrl-section">
+<div class="ctrl-label">Set Ecosystem</div>
+<button class="cond-btn active" data-cd="healthy" onclick="selectCondition('healthy')"><span class="sp-icon">🌳</span><span class="sp-name">Healthy<span class="sp-sub">All species present</span></span></button>
+<button class="cond-btn" data-cd="stressed" onclick="selectCondition('stressed')"><span class="sp-icon">⚠️</span><span class="sp-name">Stressed<span class="sp-sub">Low populations</span></span></button>
+<button class="cond-btn" data-cd="missing" onclick="selectCondition('missing')"><span class="sp-icon">❌</span><span class="sp-name">Missing Predators<span class="sp-sub">No wolves or hawks</span></span></button>
+</div>
+<button id="release-btn" class="wait" onclick="doRelease()" disabled>🚀 RELEASE</button>
+<div class="info-tip" id="info-tip">Pick a species, then hit Release!</div>
+<button class="powerup-btn" id="powerup-btn" onclick="usePowerup()">🛡️ Conservation Boost</button>
+<div class="btn-row">
+<button class="small-btn" id="reset-btn" onclick="resetSim()">🔄 Reset</button>
+<button class="small-btn" id="newrun-btn" onclick="newRun()">🆕 New Run</button>
+</div>
+</div>
+
+<div id="arena-wrap">
+<canvas id="arena-canvas"></canvas>
+<div id="event-toast"><div class="ev-icon" id="ev-icon"></div><div class="ev-text" id="ev-text"></div></div>
+<div id="round-toast"></div>
+</div>
+
+<div id="sidebar">
+<div class="hud-grid">
+<div class="hud-card"><div class="hud-val" id="hud-score" style="color:#FFD740;">0</div><div class="hud-lbl">Score</div></div>
+<div class="hud-card"><div class="hud-val" id="hud-streak" style="color:#69F0AE;">0</div><div class="hud-lbl">Streak</div></div>
+<div class="hud-card"><div class="hud-val" id="hud-completed" style="color:#B388FF;">0/8</div><div class="hud-lbl">Rounds</div></div>
+<div class="hud-card"><div class="hud-val" id="hud-balanced" style="color:#4FC3F7;">0</div><div class="hud-lbl">Balanced</div></div>
+</div>
+<div id="balance-wrap">
+<div class="meter-title">Ecosystem Balance</div>
+<div id="balance-bar-outer"><div id="balance-bar"></div></div>
+<div id="balance-label" style="color:#81C784;">Stable</div>
+</div>
+<div class="cascade-wrap">
+<div class="meter-title">Cascade Chain</div>
+<div class="cascade-arrows" id="cascade-arrows"></div>
+</div>
+<div id="progress-wrap">
+<div class="meter-title">Progress</div>
+<div id="progress-bar-outer"><div id="progress-bar"></div></div>
+<div id="progress-text">Complete 5 rounds</div>
+</div>
+<div id="badge-area"></div>
+<div id="data-section">
+<div class="dt-title">Results Table</div>
+<table id="data-table"><thead><tr><th>Rnd</th><th>Species</th><th>Effect</th><th>Balance</th></tr></thead><tbody id="data-body"></tbody></table>
+</div>
+</div>
+</div>
+
+<div id="completion-overlay">
+<div class="co-icon" id="co-icon">🏆</div>
+<div class="co-title" id="co-title"></div>
+<div class="co-sub" id="co-sub"></div>
+<button class="co-btn" id="co-btn" onclick="dismissOverlay()">Continue</button>
+</div>
+
+<script>
+const canvas=document.getElementById('arena-canvas');
+const ctx=canvas.getContext('2d');
+let W=800,H=600;
+
+function resize(){
+  const r=canvas.parentElement.getBoundingClientRect();
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=r.width*dpr;canvas.height=r.height*dpr;
+  canvas.style.width=r.width+'px';canvas.style.height=r.height+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  W=r.width;H=r.height;
+}
+window.addEventListener('resize',resize);
+
+function startGame(){document.getElementById('tutorial-overlay').classList.add('hidden');}
+
+const spInfo={
+  invasive:{name:'Invasive Pest',short:'Invasive',icon:'🪲',color:'#FF5722'},
+  native:{name:'Returning Native',short:'Native',icon:'🦌',color:'#8BC34A'},
+  predator:{name:'Keystone Predator',short:'Predator',icon:'🐺',color:'#AB47BC'}
+};
+
+// SPECIES SVG ILLUSTRATIONS
+const speciesSVGs={
+  trees:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#66BB6A"/><stop offset="1" stop-color="#2E7D32"/></linearGradient></defs><rect x="35" y="55" width="10" height="18" rx="2" fill="#795548"/><polygon points="40,8 12,42 24,42 14,56 66,56 56,42 68,42" fill="url(#tg)"/><ellipse cx="40" cy="30" rx="3" ry="3" fill="#81C784" opacity=".5"/><ellipse cx="30" cy="44" rx="2.5" ry="2.5" fill="#A5D6A7" opacity=".4"/><ellipse cx="52" cy="40" rx="2" ry="2" fill="#C8E6C9" opacity=".4"/></svg>`,
+  flowers:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect x="37" y="45" width="6" height="26" rx="2" fill="#4CAF50"/><ellipse cx="28" cy="60" rx="10" ry="5" fill="#388E3C" opacity=".6" transform="rotate(-20,28,60)"/><ellipse cx="52" cy="58" rx="9" ry="4" fill="#43A047" opacity=".5" transform="rotate(15,52,58)"/><g transform="translate(40,32)"><ellipse cx="0" cy="-14" rx="8" ry="12" fill="#F06292"/><ellipse cx="0" cy="-14" rx="8" ry="12" fill="#EC407A" transform="rotate(60)"/><ellipse cx="0" cy="-14" rx="8" ry="12" fill="#F48FB1" transform="rotate(120)"/><ellipse cx="0" cy="-14" rx="8" ry="12" fill="#E91E63" transform="rotate(180)"/><ellipse cx="0" cy="-14" rx="8" ry="12" fill="#F06292" transform="rotate(240)"/><ellipse cx="0" cy="-14" rx="8" ry="12" fill="#EC407A" transform="rotate(300)"/><circle cx="0" cy="0" r="7" fill="#FFD54F"/></g></svg>`,
+  insects:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><g transform="translate(40,42)"><ellipse cx="-16" cy="-12" rx="14" ry="18" fill="#FFF176" opacity=".55" transform="rotate(-30)"/><ellipse cx="16" cy="-12" rx="14" ry="18" fill="#FFF176" opacity=".55" transform="rotate(30)"/><ellipse cx="-14" cy="-18" rx="11" ry="14" fill="#FFF9C4" opacity=".4" transform="rotate(-35)"/><ellipse cx="14" cy="-18" rx="11" ry="14" fill="#FFF9C4" opacity=".4" transform="rotate(35)"/><ellipse cx="0" cy="5" rx="6" ry="14" fill="#F9A825" rx="4"/><ellipse cx="0" cy="-4" rx="5" ry="5" fill="#FF8F00"/><circle cx="-3" cy="-6" r="1.5" fill="#333"/><circle cx="3" cy="-6" r="1.5" fill="#333"/><line x1="-3" y1="-10" x2="-8" y2="-22" stroke="#795548" stroke-width="1.2" stroke-linecap="round"/><line x1="3" y1="-10" x2="8" y2="-22" stroke="#795548" stroke-width="1.2" stroke-linecap="round"/><circle cx="-8" cy="-22" r="1.5" fill="#FF8F00"/><circle cx="8" cy="-22" r="1.5" fill="#FF8F00"/></g></svg>`,
+  birds:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><g transform="translate(40,40)"><ellipse cx="0" cy="2" rx="14" ry="10" fill="#42A5F5"/><ellipse cx="14" cy="0" rx="6" ry="4" fill="#1E88E5" transform="rotate(-10,14,0)"/><polygon points="20,-1 28,0 20,3" fill="#FF8F00"/><circle cx="17" cy="-2" r="2" fill="#333"/><circle cx="17.5" cy="-2.5" r=".7" fill="#fff"/><path d="M-6,6 Q-22,2 -30,-14" fill="none" stroke="#1565C0" stroke-width="3.5" stroke-linecap="round"/><path d="M-4,8 Q-18,8 -26,-6" fill="none" stroke="#1E88E5" stroke-width="3" stroke-linecap="round"/><path d="M0,10 Q4,18 -2,22" fill="none" stroke="#90CAF9" stroke-width="2" stroke-linecap="round"/><path d="M2,10 Q8,17 4,22" fill="none" stroke="#90CAF9" stroke-width="2" stroke-linecap="round"/><ellipse cx="4" cy="4" rx="6" ry="4" fill="#64B5F6" opacity=".5"/></g></svg>`,
+  deer:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><g transform="translate(40,42)"><ellipse cx="0" cy="4" rx="16" ry="10" fill="#8D6E63"/><ellipse cx="16" cy="-6" rx="7" ry="5.5" fill="#A1887F" transform="rotate(15,16,-6)"/><ellipse cx="19" cy="-8" rx="4" ry="3" fill="#BCAAA4" transform="rotate(10,19,-8)"/><circle cx="21" cy="-10" r="1.5" fill="#333"/><circle cx="21.3" cy="-10.3" r=".5" fill="#fff"/><ellipse cx="22" cy="-5" rx="2" ry="1" fill="#795548"/><path d="M14,-14 Q12,-28 6,-32 M14,-14 Q16,-28 20,-30 M8,-26 Q4,-30 2,-28 M18,-26 Q22,-30 24,-28" fill="none" stroke="#5D4037" stroke-width="2" stroke-linecap="round"/><rect x="-12" y="12" width="4" height="16" rx="1.5" fill="#6D4C41"/><rect x="-4" y="12" width="4" height="16" rx="1.5" fill="#6D4C41"/><rect x="4" y="12" width="4" height="16" rx="1.5" fill="#795548"/><rect x="12" y="12" width="4" height="14" rx="1.5" fill="#795548"/><ellipse cx="0" cy="3" rx="10" ry="5" fill="#A1887F" opacity=".3"/></g></svg>`,
+  wolves:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><g transform="translate(40,40)"><ellipse cx="0" cy="5" rx="15" ry="11" fill="#7B1FA2"/><ellipse cx="14" cy="-4" rx="9" ry="7" fill="#8E24AA"/><polygon points="6,-12 10,-26 16,-10" fill="#7B1FA2"/><polygon points="8,-14 10,-22 14,-12" fill="#CE93D8" opacity=".4"/><polygon points="18,-10 22,-24 26,-8" fill="#7B1FA2"/><polygon points="20,-12 22,-20 24,-10" fill="#CE93D8" opacity=".4"/><circle cx="18" cy="-6" r="2.2" fill="#FFC107"/><circle cx="18" cy="-6" r="1.2" fill="#333"/><circle cx="12" cy="-5" r="2" fill="#FFC107"/><circle cx="12" cy="-5" r="1" fill="#333"/><ellipse cx="22" cy="0" rx="4" ry="2.5" fill="#6A1B9A"/><ellipse cx="23" cy="0" rx="1.2" ry=".8" fill="#333"/><rect x="-10" y="14" width="4" height="14" rx="1.5" fill="#6A1B9A"/><rect x="-3" y="14" width="4" height="14" rx="1.5" fill="#6A1B9A"/><rect x="4" y="14" width="4" height="13" rx="1.5" fill="#7B1FA2"/><rect x="11" y="14" width="4" height="12" rx="1.5" fill="#7B1FA2"/><path d="M-8,8 Q-14,6 -18,10 Q-14,14 -10,10" fill="#9C27B0" opacity=".5"/></g></svg>`,
+  fungi:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect x="35" y="42" width="10" height="22" rx="3" fill="#FFCCBC"/><ellipse cx="40" cy="42" rx="22" ry="16" fill="#FF7043"/><ellipse cx="40" cy="42" rx="22" ry="16" fill="url(#fg)" opacity=".3"/><circle cx="32" cy="36" r="3.5" fill="#FFAB91" opacity=".6"/><circle cx="48" cy="38" r="2.5" fill="#FFCCBC" opacity=".5"/><circle cx="38" cy="44" r="2" fill="#FFAB91" opacity=".5"/><circle cx="45" cy="33" r="1.8" fill="#FFCCBC" opacity=".4"/><defs><radialGradient id="fg"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><ellipse cx="24" cy="62" rx="8" ry="6" fill="#A5D6A7" opacity=".4"/><ellipse cx="56" cy="64" rx="7" ry="5" fill="#81C784" opacity=".35"/></svg>`
+};
+
+const speciesImgs={};
+let imgsLoaded=0;
+const imgTotal=Object.keys(speciesSVGs).length;
+Object.entries(speciesSVGs).forEach(([k,svg])=>{
+  const img=new Image();
+  img.onload=()=>{imgsLoaded++;};
+  img.src='data:image/svg+xml;base64,'+btoa(svg);
+  speciesImgs[k]=img;
+});
+
+const nodes=[
+  {id:'trees',lbl:'Trees',icon:'🌳',bx:.50,by:.87,pop:85,base:85,col:'#4CAF50',tp:85},
+  {id:'flowers',lbl:'Flowers',icon:'🌸',bx:.18,by:.75,pop:70,base:70,col:'#E91E63',tp:70},
+  {id:'insects',lbl:'Insects',icon:'🦗',bx:.16,by:.48,pop:65,base:65,col:'#FFC107',tp:65},
+  {id:'birds',lbl:'Birds',icon:'🐦',bx:.78,by:.52,pop:60,base:60,col:'#2196F3',tp:60},
+  {id:'deer',lbl:'Deer',icon:'🦌',bx:.48,by:.40,pop:45,base:45,col:'#8D6E63',tp:45},
+  {id:'wolves',lbl:'Wolves',icon:'🐺',bx:.50,by:.10,pop:25,base:25,col:'#9C27B0',tp:25},
+  {id:'fungi',lbl:'Decomposers',icon:'🍄',bx:.84,by:.80,pop:50,base:50,col:'#FF7043',tp:50}
+];
+
+const links=[
+  {from:'trees',to:'insects'},{from:'trees',to:'deer'},{from:'flowers',to:'insects'},
+  {from:'insects',to:'birds'},{from:'deer',to:'wolves'},{from:'birds',to:'wolves'},
+  {from:'trees',to:'fungi'},{from:'insects',to:'fungi'}
+];
+
+let state={};
+let particles=[];
+let glowT=0;
+let shakeAmt=0;
+
+function resetPops(){
+  nodes.forEach(n=>{
+    let b=n.base;
+    if(state.condition==='stressed')b*=.6;
+    if(state.condition==='missing'){
+      if(n.id==='wolves')b=5;
+      else if(n.id==='deer')b*=1.4;
+    }
+    n.pop=b;n.tp=b;
+  });
+}
+
+function initState(){
+  state={round:0,score:0,streak:0,balancedCount:0,species:null,condition:'healthy',
+    released:false,done:false,animating:false,powerupAvail:false,powerupUsed:false,
+    consecutiveBalanced:0,badgeStable:false,badgeEC:false,balance:70};
+  particles=[];shakeAmt=0;
+  resetPops();updateUI();
+  document.getElementById('data-body').innerHTML='';
+  document.getElementById('badge-area').innerHTML='';
+  document.getElementById('completion-overlay').classList.remove('show');
+  document.getElementById('cascade-arrows').innerHTML='';
+  document.querySelectorAll('.species-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.cond-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('[data-cd="healthy"]').classList.add('active');
+  document.getElementById('powerup-btn').classList.remove('available');
+  document.getElementById('release-btn').disabled=true;
+  document.getElementById('release-btn').classList.add('wait');
+  document.getElementById('info-tip').textContent='Pick a species, then hit Release!';
+}
+
+function selectSpecies(sp){
+  if(state.animating||state.done)return;
+  state.species=sp;
+  document.querySelectorAll('.species-btn').forEach(b=>b.classList.toggle('active',b.dataset.sp===sp));
+  checkBtn();
+}
+function selectCondition(cd){
+  if(state.animating||state.done)return;
+  state.condition=cd;
+  document.querySelectorAll('.cond-btn').forEach(b=>b.classList.toggle('active',b.dataset.cd===cd));
+  resetPops();checkBtn();
+}
+function checkBtn(){
+  const btn=document.getElementById('release-btn');
+  if(state.species&&!state.released){btn.disabled=false;btn.classList.remove('wait');}
+  else{btn.disabled=true;btn.classList.add('wait');}
+}
+
+function calcOutcome(sp,cond){
+  let fx={};let balD=0;let fxText='';let balText='';let rndEv=null;
+  if(state.round>1&&Math.random()<.25){
+    rndEv=['new_invasive','predator_removed','habitat_restored'][Math.floor(Math.random()*3)];
+  }
+  if(sp==='invasive'){
+    if(cond==='healthy'){fx={trees:-25,flowers:-20,insects:-15,birds:-12,deer:-5,wolves:0,fungi:8};balD=-25;fxText='Plants declined, birds declined';balText='Medium (Unstable)';}
+    else if(cond==='stressed'){fx={trees:-40,flowers:-35,insects:-30,birds:-25,deer:-10,wolves:-5,fungi:12};balD=-45;fxText='All species declined sharply';balText='Low (Unstable)';}
+    else{fx={trees:-35,flowers:-25,insects:-20,birds:-15,deer:-5,wolves:0,fungi:10};balD=-35;fxText='Plants and insects crashed';balText='Low (Unstable)';}
+  }else if(sp==='native'){
+    if(cond==='healthy'){fx={trees:-10,flowers:-8,insects:5,birds:5,deer:18,wolves:5,fungi:0};balD=-8;fxText='Deer grew, mild disruption';balText='High (Stable)';}
+    else if(cond==='stressed'){fx={trees:-20,flowers:-15,insects:-5,birds:-5,deer:12,wolves:-5,fungi:5};balD=-18;fxText='Deer grew, plants stressed';balText='Medium (Unstable)';}
+    else{fx={trees:-32,flowers:-25,insects:-10,birds:-10,deer:28,wolves:0,fungi:5};balD=-30;fxText='Deer overpopulated, plants crashed';balText='Low (Unstable)';}
+  }else{
+    if(cond==='healthy'){fx={trees:8,flowers:5,insects:5,birds:5,deer:-12,wolves:18,fungi:0};balD=10;fxText='Prey balanced, web stabilized';balText='High (Stable)';}
+    else if(cond==='stressed'){fx={trees:-5,flowers:-3,insects:-8,birds:-5,deer:-22,wolves:12,fungi:5};balD=-15;fxText='Prey crashed too fast';balText='Medium (Unstable)';}
+    else{fx={trees:10,flowers:8,insects:5,birds:8,deer:-18,wolves:22,fungi:0};balD=15;fxText='Predator restored balance';balText='High (Stable)';}
+  }
+  if(rndEv==='new_invasive'){Object.keys(fx).forEach(k=>fx[k]-=8);balD-=12;}
+  else if(rndEv==='predator_removed'){fx.wolves=(fx.wolves||0)-15;fx.deer=(fx.deer||0)+10;balD-=10;}
+  else if(rndEv==='habitat_restored'){fx.trees=(fx.trees||0)+15;fx.flowers=(fx.flowers||0)+12;balD+=10;}
+  return{fx,balD,fxText,balText,rndEv};
+}
+
+async function doRelease(){
+  if(!state.species||state.animating||state.done||state.released)return;
+  state.released=true;state.animating=true;state.round++;
+  checkBtn();
+  document.getElementById('round-display').textContent=`Round ${state.round} / 8`;
+  const out=calcOutcome(state.species,state.condition);
+
+  if(out.rndEv){showToast(out.rndEv);await sleep(1800);hideToast();await sleep(300);}
+
+  const sp=spInfo[state.species];
+  showRT(`Releasing ${sp.icon} ${sp.short}...`);
+
+  const eid=state.species==='predator'?'wolves':state.species==='native'?'deer':'insects';
+  const en=nodes.find(n=>n.id===eid);
+  spawnBurst(en.bx*W,en.by*H,sp.color,28);
+  await sleep(500);
+
+  await doCascade(out.fx);
+  hideRT();
+
+  state.balance=Math.max(0,Math.min(100,state.balance+out.balD));
+  const isBal=state.balance>=55;
+  if(isBal){state.consecutiveBalanced++;state.streak++;state.balancedCount++;}
+  else{state.consecutiveBalanced=0;state.streak=0;}
+
+  let pts=isBal?100:30;
+  if(state.streak>=3)pts+=50;
+  state.score+=pts;
+
+  if(state.consecutiveBalanced>=3&&!state.badgeStable){
+    state.badgeStable=true;
+    document.getElementById('badge-area').innerHTML='<div class="badge badge-stable">🌿 Stable Ecosystem</div>';
+  }
+  if(state.round>=4&&!state.powerupAvail){
+    state.powerupAvail=true;
+    document.getElementById('powerup-btn').classList.add('available');
+  }
+
+  addRow(state.round,sp.short,out.fxText,out.balText);
+  document.getElementById('info-tip').textContent=isBal?'✅ Balanced! Keep it going.':'⚠️ Unstable — try a different combo.';
+  state.animating=false;updateUI();
+
+  if(state.round===5){
+    document.getElementById('co-icon').textContent='🏆';
+    document.getElementById('co-title').textContent='Required Complete!';
+    document.getElementById('co-sub').textContent='Keep going for extra credit — 3 more rounds!';
+    document.getElementById('co-btn').textContent='Continue';
+    document.getElementById('completion-overlay').classList.add('show');
+  }else if(state.round===8){
+    state.done=true;state.badgeEC=true;
+    document.getElementById('badge-area').innerHTML+=' <div class="badge badge-ec">⭐ Extra Credit!</div>';
+    document.getElementById('co-icon').textContent='🌟';
+    document.getElementById('co-title').textContent='Extra Credit Complete!';
+    document.getElementById('co-sub').textContent=`Final Score: ${state.score}`;
+    document.getElementById('co-btn').textContent='View Results';
+    document.getElementById('completion-overlay').classList.add('show');
+  }
+
+  if(!state.done){
+    state.released=false;state.species=null;
+    document.querySelectorAll('.species-btn').forEach(b=>b.classList.remove('active'));
+    checkBtn();
+  }
+}
+
+async function doCascade(fx){
+  const el=document.getElementById('cascade-arrows');el.innerHTML='';
+  const ids=Object.keys(fx);const arrows=[];
+  ids.forEach(id=>{
+    const a=document.createElement('span');
+    a.className='c-arrow';a.textContent=fx[id]>=0?'▲':'▼';
+    el.appendChild(a);arrows.push(a);
+  });
+  for(let i=0;i<ids.length;i++){
+    const node=nodes.find(n=>n.id===ids[i]);
+    if(!node)continue;
+    node.tp=Math.max(5,Math.min(100,node.pop+fx[ids[i]]));
+    arrows[i].classList.add(fx[ids[i]]>=0?'lit-up':'lit-down');
+    spawnBurst(node.bx*W,node.by*H,fx[ids[i]]>=0?'#4CAF50':'#F44336',8);
+    if(Math.abs(fx[ids[i]])>20)shakeAmt=5;
+    await sleep(180);
+  }
+  for(let t=0;t<30;t++){
+    nodes.forEach(n=>{n.pop+=(n.tp-n.pop)*.1;});
+    await sleep(22);
+  }
+  nodes.forEach(n=>n.pop=Math.round(n.tp));
+}
+
+function spawnBurst(x,y,color,count){
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2;const spd=1.5+Math.random()*4;
+    particles.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,life:40+Math.random()*30,ml:70,color,size:2+Math.random()*4});
+  }
+}
+
+function showToast(ev){
+  const icons={new_invasive:'🪲',predator_removed:'💀',habitat_restored:'🌱'};
+  const texts={new_invasive:'Surprise Invasive!',predator_removed:'Predator Removed!',habitat_restored:'Habitat Restored!'};
+  document.getElementById('ev-icon').textContent=icons[ev];
+  document.getElementById('ev-text').textContent=texts[ev];
+  document.getElementById('event-toast').classList.add('show');
+}
+function hideToast(){document.getElementById('event-toast').classList.remove('show');}
+function showRT(t){const e=document.getElementById('round-toast');e.textContent=t;e.classList.add('show');}
+function hideRT(){document.getElementById('round-toast').classList.remove('show');}
+
+function addRow(rnd,sp,fx,bal){
+  const tr=document.createElement('tr');tr.className='row-new';
+  tr.innerHTML=`<td style="font-weight:700">${rnd}</td><td>${sp}</td><td style="font-size:9px">${fx}</td><td style="font-weight:600">${bal}</td>`;
+  document.getElementById('data-body').appendChild(tr);
+}
+
+function updateUI(){
+  document.getElementById('hud-score').textContent=state.score;
+  document.getElementById('hud-streak').textContent=state.streak;
+  document.getElementById('hud-completed').textContent=`${state.round}/8`;
+  document.getElementById('hud-balanced').textContent=state.balancedCount;
+  document.getElementById('round-display').textContent=`Round ${state.round} / 8`;
+  const bar=document.getElementById('balance-bar');
+  bar.style.width=Math.max(0,state.balance)+'%';
+  const lbl=document.getElementById('balance-label');
+  if(state.balance>=55){bar.style.background='linear-gradient(90deg,#2E7D32,#66BB6A)';lbl.textContent='🟢 Stable';lbl.style.color='#81C784';}
+  else if(state.balance>=30){bar.style.background='linear-gradient(90deg,#E65100,#FFB74D)';lbl.textContent='🟡 Unstable';lbl.style.color='#FFB74D';}
+  else{bar.style.background='linear-gradient(90deg,#B71C1C,#EF5350)';lbl.textContent='🔴 Critical';lbl.style.color='#EF5350';}
+  const pP=Math.min(100,(state.round/5)*100);
+  document.getElementById('progress-bar').style.width=pP+'%';
+  document.getElementById('progress-text').textContent=state.round<5?`${5-state.round} more required`:(state.round<8?`Extra credit: ${8-state.round} left`:'All 8 complete!');
+}
+
+function usePowerup(){
+  if(!state.powerupAvail||state.animating)return;
+  state.powerupAvail=false;state.powerupUsed=true;
+  document.getElementById('powerup-btn').classList.remove('available');
+  const cr=nodes.filter(n=>n.pop<30).sort((a,b)=>a.pop-b.pop);
+  if(cr.length>0){cr[0].pop=Math.min(100,cr[0].pop+28);cr[0].tp=cr[0].pop;
+  spawnBurst(cr[0].bx*W,cr[0].by*H,'#4CAF50',20);
+  state.balance=Math.min(100,state.balance+8);updateUI();
+  document.getElementById('info-tip').textContent=`🛡️ Restored ${cr[0].lbl}!`;}
+}
+
+function resetSim(){initState();}
+function newRun(){initState();}
+function dismissOverlay(){document.getElementById('completion-overlay').classList.remove('show');}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ====== CANVAS DRAW ======
+function safeArc(cx,cy,r,sa,ea){ctx.arc(cx,cy,Math.max(0.1,r),sa,ea);}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  glowT+=.02;
+  if(shakeAmt>0){ctx.save();ctx.translate((Math.random()-.5)*shakeAmt,(Math.random()-.5)*shakeAmt);shakeAmt*=.88;if(shakeAmt<.2)shakeAmt=0;}
+
+  // BG glow based on balance
+  const bgG=ctx.createRadialGradient(W*.5,H*.55,30,W*.5,H*.55,W*.6);
+  if(state.balance>=55){bgG.addColorStop(0,`rgba(20,80,40,${.12+Math.sin(glowT)*.03})`);bgG.addColorStop(1,'rgba(0,0,0,0)');}
+  else if(state.balance>=30){bgG.addColorStop(0,`rgba(80,50,10,${.1+Math.sin(glowT)*.02})`);bgG.addColorStop(1,'rgba(0,0,0,0)');}
+  else{bgG.addColorStop(0,`rgba(80,15,10,${.12+Math.sin(glowT)*.03})`);bgG.addColorStop(1,'rgba(0,0,0,0)');}
+  ctx.fillStyle=bgG;ctx.fillRect(0,0,W,H);
+
+  // Ambient floating motes
+  if(Math.random()<.12){
+    const mc=state.balance>=55?'#2E7D32':'#F44336';
+    particles.push({x:Math.random()*W,y:H+5,vx:(Math.random()-.5)*.4,vy:-(0.3+Math.random()*.5),life:100,ml:100,color:mc,size:1+Math.random()*2});
+  }
+
+  // DRAW LINKS
+  links.forEach(link=>{
+    const fn=nodes.find(n=>n.id===link.from);
+    const tn=nodes.find(n=>n.id===link.to);
+    if(!fn||!tn)return;
+    const x1=fn.bx*W,y1=fn.by*H,x2=tn.bx*W,y2=tn.by*H;
+    const avg=(fn.pop+tn.pop)/2;
+    const stress=Math.max(0,Math.min(1,(75-avg)/55));
+    const r=Math.round(70+185*stress),g=Math.round(200-150*stress),b=Math.round(70-50*stress);
+    const al=.15+stress*.2;
+
+    // Glow
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+    ctx.strokeStyle=`rgba(${r},${g},${b},${al*.4})`;ctx.lineWidth=5+stress*3;ctx.stroke();
+    // Line
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+    ctx.strokeStyle=`rgba(${r},${g},${b},${al})`;ctx.lineWidth=1.5+stress;ctx.stroke();
+
+    // Animated energy dot
+    const t=((glowT*.4+fn.bx*4)%1+1)%1;
+    const dx=x1+(x2-x1)*t,dy=y1+(y2-y1)*t;
+    const dotR=Math.max(0.5,2+stress*2.5);
+    ctx.beginPath();safeArc(dx,dy,dotR,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${r},${g},${b},${al+.25})`;ctx.fill();
+
+    // Arrow at midpoint
+    const mx=(x1+x2)/2,my=(y1+y2)/2;
+    const ang=Math.atan2(y2-y1,x2-x1);
+    ctx.save();ctx.translate(mx,my);ctx.rotate(ang);
+    ctx.beginPath();ctx.moveTo(7,0);ctx.lineTo(-4,-4);ctx.lineTo(-4,4);ctx.closePath();
+    ctx.fillStyle=`rgba(${r},${g},${b},${al+.1})`;ctx.fill();ctx.restore();
+  });
+
+  // DRAW NODES
+  nodes.forEach(node=>{
+    const x=node.bx*W,y=node.by*H;
+    const popF=Math.max(0,Math.min(1,node.pop/100));
+    const radius=Math.max(6,24+popF*28);
+    const imgSize=Math.max(28,radius*2.2);
+
+    // Outer glow ring (pulses with ecosystem health)
+    const glR=Math.max(1,radius+18+Math.sin(glowT+node.bx*7)*5);
+    const og=ctx.createRadialGradient(x,y,radius*.6,x,y,glR);
+    og.addColorStop(0,node.col+'25');og.addColorStop(.6,node.col+'10');og.addColorStop(1,'transparent');
+    ctx.beginPath();safeArc(x,y,glR,0,Math.PI*2);ctx.fillStyle=og;ctx.fill();
+
+    // Soft circular backdrop for the species image
+    const bgR=Math.max(8,imgSize*.52);
+    ctx.beginPath();safeArc(x,y,bgR,0,Math.PI*2);
+    ctx.fillStyle='rgba(20,20,30,.45)';ctx.fill();
+    ctx.strokeStyle=node.col+'66';ctx.lineWidth=2.5;
+    ctx.setLineDash([]);ctx.stroke();
+
+    // Health ring: colored arc proportional to population
+    const healthArc=popF*Math.PI*2;
+    if(healthArc>0.05){
+      ctx.beginPath();
+      safeArc(x,y,bgR,-.5*Math.PI,-.5*Math.PI+healthArc);
+      ctx.strokeStyle=popF>.5?'#4CAF50cc':popF>.25?'#FF9800cc':'#F44336cc';
+      ctx.lineWidth=3;ctx.stroke();
+    }
+
+    // Draw species SVG image
+    const img=speciesImgs[node.id];
+    if(img&&img.complete&&img.naturalWidth>0){
+      const s=imgSize;
+      ctx.save();
+      // Clip to circle for clean look
+      ctx.beginPath();safeArc(x,y,bgR-2,0,Math.PI*2);ctx.clip();
+      // Slight scale pulse when population changes
+      const pulse=1+Math.sin(glowT*2+node.bx*5)*.02;
+      ctx.drawImage(img,x-s*pulse/2,y-s*pulse/2,s*pulse,s*pulse);
+      ctx.restore();
+    }else{
+      // Fallback emoji if image not loaded
+      const iSz=Math.max(14,18+popF*14);
+      ctx.font=`${iSz}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(node.icon,x,y);
+    }
+
+    // Label with shadow
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font='bold 13px "Segoe UI",Arial';ctx.fillStyle='#ffffffdd';
+    ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=5;
+    ctx.fillText(node.lbl,x,y+bgR+14);ctx.shadowBlur=0;
+
+    // Pop bar
+    const bW=50,bH=7,bX=x-bW/2,bY=y+bgR+22;
+    ctx.fillStyle='rgba(0,0,0,.5)';
+    rr(ctx,bX,bY,bW,bH,3.5);ctx.fill();
+    const fW=Math.max(0,bW*popF);
+    if(fW>0.5){
+      ctx.fillStyle=popF>.5?'#4CAF50':popF>.25?'#FF9800':'#F44336';
+      rr(ctx,bX,bY,fW,bH,3.5);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.18)';
+      rr(ctx,bX,bY,fW,bH*.45,3.5);ctx.fill();
+    }
+    // Pop number
+    ctx.font='bold 10px "Segoe UI",Arial';ctx.fillStyle='#ffffffaa';
+    ctx.fillText(Math.round(node.pop),x,bY+bH+11);
+  });
+
+  // PARTICLES
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx;p.y+=p.vy;p.life--;p.vx*=.97;p.vy*=.97;
+    const alpha=Math.max(0,Math.min(1,p.life/(p.ml||70)));
+    const sz=Math.max(0,p.size*alpha);
+    if(sz>0.2){
+      ctx.beginPath();safeArc(p.x,p.y,sz,0,Math.PI*2);
+      let hex=Math.round(alpha*200).toString(16).padStart(2,'0');
+      ctx.fillStyle=p.color+hex;ctx.fill();
+    }
+    if(p.life<=0)particles.splice(i,1);
+  }
+
+  if(shakeAmt>0)ctx.restore();
+  requestAnimationFrame(draw);
+}
+
+function rr(c,x,y,w,h,r){
+  w=Math.max(0,w);h=Math.max(0,h);r=Math.min(r,w/2,h/2);
+  c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);
+  c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);
+  c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();
+}
+
+resize();initState();draw();
+</script>
+</body>
+</html>

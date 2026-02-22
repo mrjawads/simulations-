@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulation: How Lungs Deliver Oxygen to the Body</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:linear-gradient(135deg,#0a1628,#1a2a4a);color:#fff;overflow-x:hidden;min-height:100vh;}
+#app{display:flex;height:100vh;}
+
+/* LEFT PANEL - Controls */
+#controls{width:280px;min-width:280px;background:linear-gradient(180deg,#0d1f3c,#162d50);border-right:2px solid #1e3a5f;padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+.ctrl-title{font-size:18px;font-weight:800;text-align:center;background:linear-gradient(90deg,#00b4d8,#0077b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-transform:uppercase;letter-spacing:2px;}
+.mission-line{font-size:11px;color:#90caf9;text-align:center;font-style:italic;}
+.round-counter{text-align:center;font-size:22px;font-weight:900;color:#ffd54f;text-shadow:0 0 10px rgba(255,213,79,0.5);}
+.challenge-card{background:linear-gradient(135deg,#1a237e,#283593);border:2px solid #5c6bc0;border-radius:12px;padding:10px;text-align:center;min-height:60px;display:flex;align-items:center;justify-content:center;}
+.challenge-text{font-size:14px;font-weight:700;color:#e8eaf6;}
+.var-group{background:rgba(255,255,255,0.05);border-radius:10px;padding:8px;border:1px solid rgba(255,255,255,0.1);}
+.var-label{font-size:11px;font-weight:700;color:#80cbc4;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.var-buttons{display:flex;gap:4px;flex-wrap:wrap;}
+.var-btn{flex:1;min-width:60px;padding:6px 4px;border:2px solid #37474f;border-radius:8px;background:linear-gradient(180deg,#263238,#1a2327);color:#b0bec5;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.3s;text-align:center;}
+.var-btn:hover{border-color:#4dd0e1;color:#fff;transform:translateY(-1px);}
+.var-btn.selected{border-color:#00e676;background:linear-gradient(180deg,#1b5e20,#2e7d32);color:#fff;box-shadow:0 0 12px rgba(0,230,118,0.4);}
+.var-btn.locked{opacity:0.3;pointer-events:none;border-color:#424242;}
+.breathe-btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:18px;font-weight:900;cursor:pointer;text-transform:uppercase;letter-spacing:3px;transition:all 0.3s;background:linear-gradient(180deg,#e53935,#b71c1c);color:#fff;box-shadow:0 4px 15px rgba(229,57,53,0.5);}
+.breathe-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(229,57,53,0.7);}
+.breathe-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.breathe-btn.ready{background:linear-gradient(180deg,#00c853,#00891a);box-shadow:0 4px 15px rgba(0,200,83,0.5);}
+.breathe-btn.ready:hover{box-shadow:0 6px 20px rgba(0,200,83,0.7);}
+.action-btns{display:flex;gap:6px;}
+.action-btns button{flex:1;padding:8px;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+#resetBtn{background:#c62828;color:#fff;}
+#newRunBtn{background:#1565c0;color:#fff;}
+.action-btns button:hover{transform:translateY(-1px);filter:brightness(1.2);}
+.power-up-indicator{background:linear-gradient(135deg,#ff6f00,#f57c00);border-radius:8px;padding:6px;text-align:center;font-size:11px;font-weight:700;display:none;}
+.random-event-banner{background:linear-gradient(135deg,#d50000,#ff1744);border-radius:8px;padding:6px;text-align:center;font-size:11px;font-weight:700;display:none;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.7;}}
+
+/* CENTER - Visual Arena */
+#arena-wrap{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+#arena{flex:1;position:relative;background:linear-gradient(180deg,#0a0e27,#111b3a);}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+
+/* RIGHT PANEL - HUD & Data */
+#hud{width:300px;min-width:300px;background:linear-gradient(180deg,#0d1f3c,#162d50);border-left:2px solid #1e3a5f;padding:10px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;}
+.hud-title{font-size:14px;font-weight:800;color:#ffd54f;text-transform:uppercase;letter-spacing:1px;text-align:center;}
+.meters{display:flex;flex-direction:column;gap:6px;}
+.meter{background:rgba(0,0,0,0.3);border-radius:10px;padding:8px;border:1px solid rgba(255,255,255,0.1);}
+.meter-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;display:flex;justify-content:space-between;}
+.meter-bar-bg{height:18px;background:#1a1a2e;border-radius:9px;overflow:hidden;position:relative;}
+.meter-bar{height:100%;border-radius:9px;transition:width 1s ease,background 0.5s;position:relative;}
+.meter-bar::after{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:linear-gradient(180deg,rgba(255,255,255,0.2),transparent);border-radius:9px 9px 0 0;}
+.o2-bar{background:linear-gradient(90deg,#1e88e5,#42a5f5);}
+.co2-bar{background:linear-gradient(90deg,#757575,#9e9e9e);}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.stat-box{background:rgba(255,255,255,0.05);border-radius:8px;padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.08);}
+.stat-val{font-size:20px;font-weight:900;}
+.stat-lbl{font-size:9px;color:#90a4ae;text-transform:uppercase;letter-spacing:1px;}
+.badge-area{text-align:center;min-height:30px;}
+.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;}
+.badge-streak{background:linear-gradient(90deg,#ff6f00,#ffa000);color:#fff;}
+.badge-master{background:linear-gradient(90deg,#ffd600,#ffab00);color:#000;animation:glow 2s infinite;}
+@keyframes glow{0%,100%{box-shadow:0 0 5px rgba(255,214,0,0.5);}50%{box-shadow:0 0 20px rgba(255,214,0,0.8);}}
+.feedback-box{min-height:40px;border-radius:10px;padding:8px;text-align:center;font-weight:700;font-size:13px;transition:all 0.5s;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);}
+.feedback-good{background:rgba(0,200,83,0.15);border-color:#00c853;color:#69f0ae;}
+.feedback-warn{background:rgba(255,152,0,0.15);border-color:#ff9800;color:#ffcc02;}
+.feedback-bad{background:rgba(244,67,54,0.15);border-color:#f44336;color:#ef9a9a;}
+.data-header{display:flex;justify-content:space-between;align-items:center;}
+.copy-btn{padding:4px 10px;border:none;border-radius:6px;background:#1565c0;color:#fff;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.copy-btn:hover{background:#1976d2;}
+.data-table-wrap{overflow-y:auto;max-height:200px;border-radius:8px;border:1px solid #1e3a5f;}
+table{width:100%;border-collapse:collapse;font-size:10px;}
+th{background:#1a237e;color:#c5cae9;padding:4px 3px;text-align:center;position:sticky;top:0;z-index:1;font-size:9px;}
+td{padding:4px 3px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05);color:#cfd8dc;}
+tr:nth-child(even){background:rgba(255,255,255,0.02);}
+.complete-msg{text-align:center;padding:10px;border-radius:10px;font-weight:700;display:none;}
+.complete-required{background:linear-gradient(135deg,#1b5e20,#2e7d32);border:2px solid #4caf50;}
+.complete-extra{background:linear-gradient(135deg,#e65100,#ff6d00);border:2px solid #ff9800;animation:glow 2s infinite;}
+.progress-bar-wrap{background:#1a1a2e;border-radius:6px;height:10px;overflow:hidden;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,#00c853,#69f0ae);transition:width 0.5s;border-radius:6px;}
+</style>
+</head>
+<body>
+<div id="app">
+<!-- LEFT: Controls -->
+<div id="controls">
+<div class="ctrl-title">Mr. Jawad's Simulation</div>
+<div class="mission-line">Keep organs oxygenated</div>
+<div class="round-counter">Round <span id="roundNum">1</span> / 8</div>
+<div class="challenge-card"><div class="challenge-text" id="challengeText">Pick a variable</div></div>
+<div class="random-event-banner" id="randomBanner">Surprise Sprint!</div>
+<div class="power-up-indicator" id="powerUpBanner">Deep Breath Boost!</div>
+
+<div class="var-group">
+<div class="var-label">Breathing Depth</div>
+<div class="var-buttons" id="depthBtns">
+<button class="var-btn" data-var="depth" data-val="shallow" onclick="selectVar(this)">Shallow</button>
+<button class="var-btn selected" data-var="depth" data-val="medium" onclick="selectVar(this)">Medium</button>
+<button class="var-btn" data-var="depth" data-val="deep" onclick="selectVar(this)">Deep</button>
+</div>
+</div>
+<div class="var-group">
+<div class="var-label">Breathing Rate</div>
+<div class="var-buttons" id="rateBtns">
+<button class="var-btn" data-var="rate" data-val="slow" onclick="selectVar(this)">Slow</button>
+<button class="var-btn selected" data-var="rate" data-val="normal" onclick="selectVar(this)">Normal</button>
+<button class="var-btn" data-var="rate" data-val="fast" onclick="selectVar(this)">Fast</button>
+</div>
+</div>
+<div class="var-group">
+<div class="var-label">Activity Level</div>
+<div class="var-buttons" id="actBtns">
+<button class="var-btn selected" data-var="activity" data-val="resting" onclick="selectVar(this)">Resting</button>
+<button class="var-btn" data-var="activity" data-val="walking" onclick="selectVar(this)">Walking</button>
+<button class="var-btn" data-var="activity" data-val="running" onclick="selectVar(this)">Running</button>
+</div>
+</div>
+<div class="var-group">
+<div class="var-label">Air Quality</div>
+<div class="var-buttons" id="airBtns">
+<button class="var-btn selected" data-var="air" data-val="clean" onclick="selectVar(this)">Clean</button>
+<button class="var-btn" data-var="air" data-val="moderate" onclick="selectVar(this)">Moderate</button>
+<button class="var-btn" data-var="air" data-val="polluted" onclick="selectVar(this)">Polluted</button>
+</div>
+</div>
+
+<button class="breathe-btn" id="breatheBtn" onclick="runRound()" disabled>BREATHE</button>
+<div class="action-btns">
+<button id="resetBtn" onclick="resetSim()">Reset</button>
+<button id="newRunBtn" onclick="newRun()">New Run</button>
+</div>
+</div>
+
+<!-- CENTER: Arena -->
+<div id="arena-wrap">
+<div id="arena"><canvas id="canvas"></canvas></div>
+</div>
+
+<!-- RIGHT: HUD & Data -->
+<div id="hud">
+<div class="hud-title">Body Status</div>
+<div class="meters">
+<div class="meter">
+<div class="meter-label"><span style="color:#42a5f5;">Brain O₂</span><span id="brainO2Val">85%</span></div>
+<div class="meter-bar-bg"><div class="meter-bar o2-bar" id="brainO2Bar" style="width:85%"></div></div>
+</div>
+<div class="meter">
+<div class="meter-label"><span style="color:#66bb6a;">Muscle O₂</span><span id="muscleO2Val">80%</span></div>
+<div class="meter-bar-bg"><div class="meter-bar o2-bar" id="muscleO2Bar" style="width:80%;background:linear-gradient(90deg,#43a047,#66bb6a);"></div></div>
+</div>
+<div class="meter">
+<div class="meter-label"><span style="color:#bdbdbd;">CO₂ Level</span><span id="co2Val">30%</span></div>
+<div class="meter-bar-bg"><div class="meter-bar co2-bar" id="co2Bar" style="width:30%"></div></div>
+</div>
+</div>
+<div class="stats-grid">
+<div class="stat-box"><div class="stat-val" id="scoreVal" style="color:#ffd54f;">0</div><div class="stat-lbl">Score</div></div>
+<div class="stat-box"><div class="stat-val" id="streakVal" style="color:#ff9800;">0</div><div class="stat-lbl">Streak</div></div>
+<div class="stat-box"><div class="stat-val" id="completedVal" style="color:#4dd0e1;">0/5</div><div class="stat-lbl">Done</div></div>
+<div class="stat-box"><div class="stat-val" id="accuracyVal" style="color:#69f0ae;">-</div><div class="stat-lbl">Accuracy</div></div>
+</div>
+<div class="badge-area" id="badgeArea"></div>
+<div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+<div class="feedback-box" id="feedbackBox">Choose a variable and click BREATHE</div>
+<div class="complete-msg complete-required" id="reqMsg">Required Complete! Extra Credit?</div>
+<div class="complete-msg complete-extra" id="extraMsg">Extra Credit Complete!</div>
+<div class="data-header">
+<div class="hud-title" style="font-size:12px;">Data Table</div>
+<button class="copy-btn" id="copyBtn" onclick="copyTable()">📋 Copy Table</button>
+</div>
+<div class="data-table-wrap">
+<table id="dataTable">
+<thead><tr><th>Round</th><th>Changed</th><th>Brain O₂</th><th>Muscle O₂</th><th>CO₂</th></tr></thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+
+<script>
+// ========== STATE ==========
+let state = {
+  round: 1,
+  score: 0,
+  streak: 0,
+  successes: 0,
+  totalRounds: 0,
+  completed: false,
+  extraComplete: false,
+  brainO2: 85,
+  muscleO2: 80,
+  co2: 30,
+  baseline: {depth:'medium',rate:'normal',activity:'resting',air:'clean'},
+  current: {depth:'medium',rate:'normal',activity:'resting',air:'clean'},
+  changedVar: null,
+  changedDetail: '',
+  animating: false,
+  powerUpReady: false,
+  powerUpUsed: false,
+  isRandomEvent: false,
+  roundData: []
+};
+
+const challenges = [
+  "Deliver oxygen!",
+  "Try deeper breaths",
+  "Speed up breathing",
+  "Handle exercise",
+  "Beat pollution",
+  "Oxygen challenge!",
+  "Max delivery!",
+  "Final push!"
+];
+
+const randomEventRound = 4; // Round 4 is Surprise Sprint
+const powerUpUnlockAt = 3; // After 3 successes
+
+// ========== CANVAS ==========
+let canvas, ctx, W, H;
+let particles = [];
+let co2Particles = [];
+let alveoliBubbles = [];
+let lungScale = 1;
+let lungPhase = 0;
+let organColors = {brain:'#4caf50', muscles:'#4caf50'};
+let targetOrganColors = {brain:'#4caf50', muscles:'#4caf50'};
+let breathAnimFrame = 0;
+let isBreathing = false;
+let ambientTime = 0;
+
+function initCanvas(){
+  canvas = document.getElementById('canvas');
+  ctx = canvas.getContext('2d');
+  resize();
+  window.addEventListener('resize', resize);
+  requestAnimationFrame(draw);
+}
+
+function resize(){
+  const r = canvas.parentElement.getBoundingClientRect();
+  canvas.width = r.width * window.devicePixelRatio;
+  canvas.height = r.height * window.devicePixelRatio;
+  W = canvas.width;
+  H = canvas.height;
+  ctx.setTransform(window.devicePixelRatio,0,0,window.devicePixelRatio,0,0);
+}
+
+function getColor(pct){
+  if(pct >= 75) return '#4caf50';
+  if(pct >= 50) return '#ffc107';
+  return '#f44336';
+}
+
+function lerpColor(a,b,t){
+  const pa = parseInt(a.slice(1),16), pb = parseInt(b.slice(1),16);
+  const r = Math.round(((pa>>16)&255)*(1-t)+((pb>>16)&255)*t);
+  const g = Math.round(((pa>>8)&255)*(1-t)+((pb>>8)&255)*t);
+  const bl = Math.round((pa&255)*(1-t)+(pb&255)*t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function draw(){
+  try {
+    const w = canvas.width / window.devicePixelRatio;
+    const h = canvas.height / window.devicePixelRatio;
+    ctx.clearRect(0,0,w,h);
+    ambientTime += 0.02;
+
+    // Background gradient
+    const bg = ctx.createLinearGradient(0,0,0,h);
+    bg.addColorStop(0,'#0a0e27');
+    bg.addColorStop(1,'#111b3a');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,w,h);
+
+    // Ambient stars
+    for(let i=0; i<30; i++){
+      const sx = (Math.sin(i*3.7+ambientTime*0.3)*0.5+0.5)*w;
+      const sy = (Math.cos(i*2.3+ambientTime*0.2)*0.5+0.5)*h;
+      const sa = 0.2+Math.sin(ambientTime+i)*0.15;
+      ctx.fillStyle = `rgba(255,255,255,${sa})`;
+      ctx.beginPath();
+      ctx.arc(sx,sy,1,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    const cx = w*0.5;
+    const cy = h*0.48;
+
+    drawBody(cx, cy, w, h);
+    drawOxygenParticles(cx, cy, w, h);
+    drawCO2Particles(cx, cy, w, h);
+    drawAlveoli(cx, cy, w, h);
+    drawLabels(cx, cy, w, h);
+
+    // Smoothly transition organ colors
+    organColors.brain = lerpToTarget(organColors.brain, targetOrganColors.brain, 0.05);
+    organColors.muscles = lerpToTarget(organColors.muscles, targetOrganColors.muscles, 0.05);
+
+  } catch(e){}
+  requestAnimationFrame(draw);
+}
+
+function lerpToTarget(current, target, speed){
+  // Simple approach - just return target for now
+  return target;
+}
+
+function drawBody(cx, cy, w, h){
+  const scale = Math.min(w/800, h/600);
+
+  // Torso outline
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+
+  // Body silhouette
+  ctx.fillStyle = 'rgba(30,60,100,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(0, 30, 120, 180, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(100,150,200,0.2)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // HEAD / BRAIN
+  const brainGlow = state.brainO2 >= 75 ? 0.4 : state.brainO2 >= 50 ? 0.2 : 0.1;
+  ctx.shadowColor = organColors.brain;
+  ctx.shadowBlur = 20 * brainGlow * (1 + Math.sin(ambientTime*2)*0.2);
+  ctx.fillStyle = organColors.brain;
+  ctx.globalAlpha = 0.8;
+  ctx.beginPath();
+  ctx.ellipse(0, -190, 55, 45, 0, 0, Math.PI*2);
+  ctx.fill();
+  // Brain folds
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-30,-200); ctx.quadraticCurveTo(-10,-215,10,-195);
+  ctx.moveTo(-15,-185); ctx.quadraticCurveTo(5,-200,25,-188);
+  ctx.moveTo(-25,-195); ctx.quadraticCurveTo(0,-208,20,-200);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+
+  // LUNGS
+  const breathAmt = isBreathing ? Math.sin(lungPhase) * 0.3 : Math.sin(ambientTime*1.5)*0.05;
+  const lScale = 1 + breathAmt;
+
+  // Left lung
+  ctx.save();
+  ctx.translate(-65, -30);
+  ctx.scale(lScale, lScale);
+  const lgrd = ctx.createRadialGradient(0,0,5,0,0,60);
+  lgrd.addColorStop(0,'#e91e63');
+  lgrd.addColorStop(0.5,'#c2185b');
+  lgrd.addColorStop(1,'#880e4f');
+  ctx.fillStyle = lgrd;
+  ctx.globalAlpha = 0.8;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 45*lScale, 70*lScale, -0.1, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Right lung
+  ctx.save();
+  ctx.translate(65, -30);
+  ctx.scale(lScale, lScale);
+  const rgrd = ctx.createRadialGradient(0,0,5,0,0,60);
+  rgrd.addColorStop(0,'#e91e63');
+  rgrd.addColorStop(0.5,'#c2185b');
+  rgrd.addColorStop(1,'#880e4f');
+  ctx.fillStyle = rgrd;
+  ctx.globalAlpha = 0.8;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 45*lScale, 70*lScale, 0.1, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+  ctx.globalAlpha = 1;
+
+  // Trachea / Bronchi
+  ctx.strokeStyle = '#f48fb1';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(0, -120);
+  ctx.lineTo(0, -60);
+  ctx.moveTo(0, -60);
+  ctx.quadraticCurveTo(-20, -50, -50, -30);
+  ctx.moveTo(0, -60);
+  ctx.quadraticCurveTo(20, -50, 50, -30);
+  ctx.stroke();
+
+  // HEART (center)
+  ctx.shadowColor = '#f44336';
+  ctx.shadowBlur = 10 + Math.sin(ambientTime*4)*5;
+  const heartBeat = 1 + Math.sin(ambientTime*4)*0.08;
+  ctx.save();
+  ctx.translate(0, -15);
+  ctx.scale(heartBeat, heartBeat);
+  ctx.fillStyle = '#e53935';
+  ctx.beginPath();
+  ctx.moveTo(0, 8);
+  ctx.bezierCurveTo(-15, -5, -25, -20, 0, -30);
+  ctx.bezierCurveTo(25, -20, 15, -5, 0, 8);
+  ctx.fill();
+  ctx.restore();
+  ctx.shadowBlur = 0;
+
+  // DIAPHRAGM
+  ctx.strokeStyle = '#ff8a65';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([6,4]);
+  const diaY = 60 + breathAmt * 20;
+  ctx.beginPath();
+  ctx.moveTo(-110, diaY);
+  ctx.quadraticCurveTo(0, diaY + 15 - breathAmt*25, 110, diaY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Blood vessels
+  ctx.strokeStyle = 'rgba(229,57,53,0.4)';
+  ctx.lineWidth = 3;
+  // To brain
+  ctx.beginPath();
+  ctx.moveTo(0, -40);
+  ctx.quadraticCurveTo(5, -100, 0, -145);
+  ctx.stroke();
+  // To muscles (down left and right)
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-40, 60, -80, 130);
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(40, 60, 80, 130);
+  ctx.stroke();
+
+  // MUSCLES (lower)
+  const muscGlow = state.muscleO2 >= 75 ? 0.4 : state.muscleO2 >= 50 ? 0.2 : 0.1;
+  ctx.shadowColor = organColors.muscles;
+  ctx.shadowBlur = 15 * muscGlow;
+  ctx.fillStyle = organColors.muscles;
+  ctx.globalAlpha = 0.7;
+  // Left muscle
+  ctx.beginPath();
+  ctx.ellipse(-80, 140, 30, 40, -0.2, 0, Math.PI*2);
+  ctx.fill();
+  // Right muscle
+  ctx.beginPath();
+  ctx.ellipse(80, 140, 30, 40, 0.2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
+function drawOxygenParticles(cx, cy, w, h){
+  const scale = Math.min(w/800, h/600);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= p.decay;
+    if(p.life <= 0) p.dead = true;
+    const alpha = Math.max(0, p.life);
+    ctx.shadowColor = '#42a5f5';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = `rgba(66,165,245,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+  particles = particles.filter(p => !p.dead);
+  ctx.restore();
+}
+
+function drawCO2Particles(cx, cy, w, h){
+  const scale = Math.min(w/800, h/600);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  co2Particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= p.decay;
+    if(p.life <= 0) p.dead = true;
+    const alpha = Math.max(0, p.life);
+    ctx.fillStyle = `rgba(158,158,158,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    ctx.fill();
+  });
+  co2Particles = co2Particles.filter(p => !p.dead);
+  ctx.restore();
+}
+
+function drawAlveoli(cx, cy, w, h){
+  const scale = Math.min(w/800, h/600);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  alveoliBubbles.forEach(b => {
+    b.life -= b.decay;
+    if(b.life <= 0) b.dead = true;
+    const alpha = Math.max(0, b.life) * 0.6;
+    ctx.strokeStyle = `rgba(244,143,177,${alpha})`;
+    ctx.lineWidth = 1.5;
+    const r = b.baseR * (1 + (1-b.life)*0.5);
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, r, 0, Math.PI*2);
+    ctx.stroke();
+    // Glow
+    ctx.fillStyle = `rgba(66,165,245,${alpha*0.3})`;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, r*0.5, 0, Math.PI*2);
+    ctx.fill();
+  });
+  alveoliBubbles = alveoliBubbles.filter(b => !b.dead);
+  ctx.restore();
+}
+
+function drawLabels(cx, cy, w, h){
+  const scale = Math.min(w/800, h/600);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  ctx.font = 'bold 12px Segoe UI';
+  ctx.textAlign = 'center';
+
+  // Brain label
+  ctx.fillStyle = '#90caf9';
+  ctx.fillText('Brain', 0, -240);
+
+  // Lung labels
+  ctx.fillStyle = '#f48fb1';
+  ctx.fillText('Lungs', -65, 50);
+  ctx.fillText('Lungs', 65, 50);
+
+  // Heart label
+  ctx.fillStyle = '#ef9a9a';
+  ctx.fillText('Heart', 30, -30);
+
+  // Diaphragm label
+  ctx.fillStyle = '#ff8a65';
+  ctx.fillText('Diaphragm', 0, 90);
+
+  // Muscle labels
+  ctx.fillStyle = '#a5d6a7';
+  ctx.fillText('Muscles', -80, 190);
+  ctx.fillText('Muscles', 80, 190);
+
+  // Alveoli label (when breathing)
+  if(isBreathing){
+    ctx.fillStyle = '#f8bbd0';
+    ctx.fillText('Alveoli', -65, -10);
+  }
+
+  ctx.restore();
+}
+
+// ========== ANIMATION HELPERS ==========
+function spawnO2Particles(count, target){
+  for(let i=0; i<count; i++){
+    const startX = (Math.random()-0.5)*30 + (Math.random()>0.5?-55:55);
+    const startY = -30 + (Math.random()-0.5)*40;
+    let endX, endY;
+    if(target==='brain'){
+      endX = (Math.random()-0.5)*20;
+      endY = -190 + (Math.random()-0.5)*20;
+    } else {
+      endX = (Math.random()>0.5?-80:80) + (Math.random()-0.5)*15;
+      endY = 130 + (Math.random()-0.5)*20;
+    }
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const steps = 80 + Math.random()*40;
+    particles.push({
+      x: startX, y: startY,
+      vx: dx/steps, vy: dy/steps,
+      size: 3 + Math.random()*2,
+      life: 1, decay: 1/steps,
+      dead: false
+    });
+  }
+}
+
+function spawnCO2Particles(count){
+  for(let i=0; i<count; i++){
+    const startX = (Math.random()-0.5)*60;
+    const startY = -30 + (Math.random()-0.5)*30;
+    const endX = (Math.random()-0.5)*20;
+    const endY = -140;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const steps = 60 + Math.random()*30;
+    co2Particles.push({
+      x: startX, y: startY,
+      vx: dx/steps, vy: dy/steps,
+      size: 2.5 + Math.random()*1.5,
+      life: 1, decay: 1/steps,
+      dead: false
+    });
+  }
+}
+
+function spawnAlveoliBubbles(){
+  for(let i=0; i<12; i++){
+    const side = Math.random()>0.5 ? -1 : 1;
+    alveoliBubbles.push({
+      x: side * (40 + Math.random()*25),
+      y: -30 + (Math.random()-0.5)*50,
+      baseR: 4 + Math.random()*6,
+      life: 1, decay: 0.008 + Math.random()*0.005,
+      dead: false
+    });
+  }
+}
+
+function animateBreathing(depth){
+  isBreathing = true;
+  lungPhase = 0;
+  const maxPhase = Math.PI;
+  const speed = depth === 'deep' ? 0.04 : depth === 'shallow' ? 0.08 : 0.06;
+  function step(){
+    lungPhase += speed;
+    if(lungPhase < maxPhase){
+      requestAnimationFrame(step);
+    } else {
+      isBreathing = false;
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+// ========== GAME LOGIC ==========
+function calcOutcome(){
+  let brainO2 = 85;
+  let muscleO2 = 80;
+  let co2 = 30;
+
+  const d = state.current.depth;
+  const r = state.current.rate;
+  const a = state.current.activity;
+  const q = state.current.air;
+
+  // Depth effects
+  if(d==='deep'){brainO2+=8;muscleO2+=8;co2-=10;}
+  else if(d==='shallow'){brainO2-=15;muscleO2-=12;co2+=15;}
+
+  // Rate effects
+  if(r==='fast'){brainO2+=5;muscleO2+=5;co2-=8;}
+  else if(r==='slow'){brainO2-=8;muscleO2-=8;co2+=10;}
+
+  // Activity effects
+  if(a==='running'){brainO2-=12;muscleO2-=18;co2+=20;}
+  else if(a==='walking'){brainO2-=5;muscleO2-=8;co2+=8;}
+
+  // Air quality effects
+  if(q==='polluted'){brainO2-=12;muscleO2-=10;co2+=12;}
+  else if(q==='moderate'){brainO2-=5;muscleO2-=4;co2+=5;}
+
+  // Add some randomness
+  brainO2 += Math.round((Math.random()-0.5)*6);
+  muscleO2 += Math.round((Math.random()-0.5)*6);
+  co2 += Math.round((Math.random()-0.5)*4);
+
+  return {
+    brainO2: Math.max(15, Math.min(99, brainO2)),
+    muscleO2: Math.max(15, Math.min(99, muscleO2)),
+    co2: Math.max(5, Math.min(99, co2))
+  };
+}
+
+function selectVar(btn){
+  if(state.animating || state.completed && state.extraComplete) return;
+
+  const varGroup = btn.dataset.var;
+  const val = btn.dataset.val;
+  const baseVal = state.baseline[varGroup === 'depth' ? 'depth' : varGroup === 'rate' ? 'rate' : varGroup === 'activity' ? 'activity' : 'air'];
+
+  // If this round is random event (Surprise Sprint), activity is locked to running
+  if(state.isRandomEvent && varGroup === 'activity') return;
+
+  // If power-up round, depth is locked to deep
+  if(state.powerUpActive && varGroup === 'depth') return;
+
+  // One-variable enforcement: if user picks a new group, reset old selection
+  const groupMap = {depth:'depth',rate:'rate',activity:'activity',air:'air'};
+  const clickedGroup = groupMap[varGroup];
+
+  // Reset to baseline first
+  state.current = {...state.baseline};
+  state.changedVar = null;
+
+  // Apply selection
+  state.current[clickedGroup] = val;
+
+  // Check if this is actually a change from baseline
+  if(val !== state.baseline[clickedGroup]){
+    state.changedVar = clickedGroup;
+    const labels = {depth:'Breathing Depth',rate:'Breathing Rate',activity:'Activity Level',air:'Air Quality'};
+    const capVal = val.charAt(0).toUpperCase()+val.slice(1);
+    state.changedDetail = `${labels[clickedGroup]}: ${capVal}`;
+  }
+
+  // Update button states - lock other groups
+  updateVarButtons(clickedGroup, val);
+
+  // Enable breathe if variable changed
+  const bb = document.getElementById('breatheBtn');
+  if(state.changedVar){
+    bb.disabled = false;
+    bb.classList.add('ready');
+    bb.textContent = 'BREATHE';
+  } else {
+    bb.disabled = true;
+    bb.classList.remove('ready');
+  }
+}
+
+function updateVarButtons(activeGroup, activeVal){
+  const groups = ['depth','rate','activity','air'];
+  const containerMap = {depth:'depthBtns',rate:'rateBtns',activity:'actBtns',air:'airBtns'};
+
+  groups.forEach(g => {
+    const container = document.getElementById(containerMap[g]);
+    const btns = container.querySelectorAll('.var-btn');
+    btns.forEach(b => {
+      b.classList.remove('selected','locked');
+      if(g === activeGroup){
+        if(b.dataset.val === activeVal) b.classList.add('selected');
+      } else {
+        // Lock other groups to baseline
+        if(b.dataset.val === state.baseline[g]) b.classList.add('selected');
+        b.classList.add('locked');
+      }
+    });
+  });
+
+  // Handle special round locks
+  if(state.isRandomEvent){
+    const actBtns = document.getElementById('actBtns').querySelectorAll('.var-btn');
+    actBtns.forEach(b => {
+      b.classList.remove('selected','locked');
+      if(b.dataset.val === 'running') b.classList.add('selected');
+      else b.classList.add('locked');
+    });
+  }
+  if(state.powerUpActive){
+    const depBtns = document.getElementById('depthBtns').querySelectorAll('.var-btn');
+    depBtns.forEach(b => {
+      b.classList.remove('selected','locked');
+      if(b.dataset.val === 'deep') b.classList.add('selected');
+      else b.classList.add('locked');
+    });
+  }
+}
+
+function runRound(){
+  if(state.animating || !state.changedVar) return;
+  state.animating = true;
+
+  const bb = document.getElementById('breatheBtn');
+  bb.disabled = true;
+  bb.classList.remove('ready');
+  bb.textContent = 'BREATHING...';
+
+  // Apply special round overrides
+  if(state.isRandomEvent){
+    state.current.activity = 'running';
+  }
+  if(state.powerUpActive){
+    state.current.depth = 'deep';
+    if(!state.changedVar || state.changedVar==='depth'){
+      state.changedVar = 'depth';
+      state.changedDetail = 'Breathing Depth: Deep';
+    }
+  }
+
+  // Calculate outcome
+  const outcome = calcOutcome();
+
+  // Animate breathing
+  animateBreathing(state.current.depth);
+  spawnAlveoliBubbles();
+
+  // Delayed particle flow and result update
+  setTimeout(()=>{
+    try {
+      const o2Count = outcome.brainO2 > 70 ? 20 : outcome.brainO2 > 50 ? 12 : 6;
+      spawnO2Particles(Math.floor(o2Count/2), 'brain');
+      spawnO2Particles(Math.floor(o2Count/2), 'muscles');
+      spawnCO2Particles(Math.floor(outcome.co2 / 8));
+    } catch(e){}
+  }, 500);
+
+  setTimeout(()=>{
+    try {
+      // Update state
+      state.brainO2 = outcome.brainO2;
+      state.muscleO2 = outcome.muscleO2;
+      state.co2 = outcome.co2;
+
+      // Update organ colors
+      targetOrganColors.brain = getColor(state.brainO2);
+      targetOrganColors.muscles = getColor(state.muscleO2);
+      organColors.brain = targetOrganColors.brain;
+      organColors.muscles = targetOrganColors.muscles;
+
+      // Update meters
+      updateMeters();
+
+      // Determine success
+      const success = state.brainO2 >= 70 && state.co2 <= 80;
+      state.totalRounds++;
+      if(success){
+        state.successes++;
+        state.streak++;
+        state.score += 100 + state.streak * 25;
+      } else {
+        state.streak = 0;
+        state.score += 25;
+      }
+
+      // Check power-up unlock
+      if(state.successes >= powerUpUnlockAt && !state.powerUpUsed){
+        state.powerUpReady = true;
+        document.getElementById('powerUpBanner').style.display = 'block';
+      }
+
+      // Show feedback
+      showFeedback(success);
+
+      // Record data
+      recordData(outcome);
+
+      // Update HUD
+      updateHUD();
+
+      // Advance round
+      state.round++;
+      if(state.round > 8){
+        state.extraComplete = true;
+        document.getElementById('extraMsg').style.display = 'block';
+        document.getElementById('breatheBtn').textContent = 'COMPLETE!';
+        state.completed = true;
+        document.getElementById('badgeArea').innerHTML = '<span class="badge badge-master">Oxygen Master</span>';
+      } else if(state.round > 5 && !state.completed){
+        state.completed = true;
+        document.getElementById('reqMsg').style.display = 'block';
+      }
+
+      if(!state.extraComplete){
+        setupRound();
+      }
+
+      state.animating = false;
+    } catch(e){
+      state.animating = false;
+    }
+  }, 1800);
+}
+
+function setupRound(){
+  // Reset to baseline
+  state.baseline = {depth:'medium',rate:'normal',activity:'resting',air:'clean'};
+  state.current = {...state.baseline};
+  state.changedVar = null;
+  state.changedDetail = '';
+  state.isRandomEvent = false;
+  state.powerUpActive = false;
+
+  document.getElementById('roundNum').textContent = state.round;
+  document.getElementById('challengeText').textContent = challenges[state.round-1] || 'Keep going!';
+  document.getElementById('randomBanner').style.display = 'none';
+  document.getElementById('powerUpBanner').style.display = 'none';
+
+  // Check for random event (round 4)
+  if(state.round === randomEventRound){
+    state.isRandomEvent = true;
+    state.current.activity = 'running';
+    state.baseline.activity = 'running'; // Override for this round
+    document.getElementById('randomBanner').style.display = 'block';
+    document.getElementById('challengeText').textContent = 'Running! Pick depth or rate';
+  }
+
+  // Check for power-up (activate after unlock, on round after unlock)
+  if(state.powerUpReady && !state.powerUpUsed && state.round > powerUpUnlockAt + 1){
+    state.powerUpActive = true;
+    state.powerUpUsed = true;
+    state.current.depth = 'deep';
+    state.changedVar = 'depth';
+    state.changedDetail = 'Breathing Depth: Deep';
+    document.getElementById('powerUpBanner').style.display = 'block';
+    document.getElementById('challengeText').textContent = 'Deep Breath Boost!';
+  }
+
+  // Reset all buttons
+  resetButtons();
+
+  const bb = document.getElementById('breatheBtn');
+  bb.disabled = true;
+  bb.classList.remove('ready');
+  bb.textContent = 'BREATHE';
+
+  // If power-up is active, auto-enable breathe
+  if(state.powerUpActive){
+    bb.disabled = false;
+    bb.classList.add('ready');
+    updateVarButtons('depth','deep');
+  }
+}
+
+function resetButtons(){
+  const groups = {depth:'depthBtns',rate:'rateBtns',activity:'actBtns',air:'airBtns'};
+  const defaults = {depth:'medium',rate:'normal',activity:'resting',air:'clean'};
+
+  Object.entries(groups).forEach(([g,id])=>{
+    const btns = document.getElementById(id).querySelectorAll('.var-btn');
+    btns.forEach(b => {
+      b.classList.remove('selected','locked');
+      const def = state.isRandomEvent && g==='activity' ? 'running' : defaults[g];
+      if(b.dataset.val === def) b.classList.add('selected');
+      if(state.isRandomEvent && g==='activity' && b.dataset.val!=='running') b.classList.add('locked');
+    });
+  });
+}
+
+function updateMeters(){
+  const brainBar = document.getElementById('brainO2Bar');
+  const muscBar = document.getElementById('muscleO2Bar');
+  const co2Bar = document.getElementById('co2Bar');
+
+  brainBar.style.width = state.brainO2 + '%';
+  brainBar.style.background = `linear-gradient(90deg,${getColor(state.brainO2)},${getColor(state.brainO2)}cc)`;
+  document.getElementById('brainO2Val').textContent = state.brainO2 + '%';
+
+  muscBar.style.width = state.muscleO2 + '%';
+  muscBar.style.background = `linear-gradient(90deg,${getColor(state.muscleO2)},${getColor(state.muscleO2)}cc)`;
+  document.getElementById('muscleO2Val').textContent = state.muscleO2 + '%';
+
+  co2Bar.style.width = state.co2 + '%';
+  const co2Color = state.co2 <= 50 ? '#9e9e9e' : state.co2 <= 70 ? '#ff9800' : '#f44336';
+  co2Bar.style.background = `linear-gradient(90deg,${co2Color},${co2Color}cc)`;
+  document.getElementById('co2Val').textContent = state.co2 + '%';
+}
+
+function updateHUD(){
+  document.getElementById('scoreVal').textContent = state.score;
+  document.getElementById('streakVal').textContent = state.streak;
+  const needed = Math.min(state.totalRounds, 5);
+  document.getElementById('completedVal').textContent = `${state.totalRounds}/5`;
+  const acc = state.totalRounds > 0 ? Math.round(state.successes/state.totalRounds*100) : 0;
+  document.getElementById('accuracyVal').textContent = acc + '%';
+  const prog = Math.min(100, (state.totalRounds/5)*100);
+  document.getElementById('progressFill').style.width = prog + '%';
+
+  if(state.streak >= 3){
+    document.getElementById('badgeArea').innerHTML = '<span class="badge badge-streak">🔥 ' + state.streak + ' Streak!</span>';
+  }
+}
+
+function showFeedback(success){
+  const fb = document.getElementById('feedbackBox');
+  if(success){
+    fb.className = 'feedback-box feedback-good';
+    fb.textContent = 'Organs in safe zone!';
+  } else if(state.brainO2 < 50){
+    fb.className = 'feedback-box feedback-bad';
+    fb.textContent = 'Brain needs more O₂!';
+  } else if(state.co2 > 80){
+    fb.className = 'feedback-box feedback-bad';
+    fb.textContent = 'CO₂ too high!';
+  } else {
+    fb.className = 'feedback-box feedback-warn';
+    fb.textContent = 'Warning zone — adjust!';
+  }
+}
+
+function recordData(outcome){
+  const row = {
+    round: state.round,
+    changed: state.changedDetail || 'None',
+    brainO2: outcome.brainO2,
+    muscleO2: outcome.muscleO2,
+    co2: outcome.co2
+  };
+  state.roundData.push(row);
+
+  const tbody = document.getElementById('tableBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${row.round}</td><td style="font-size:9px;">${row.changed}</td><td>${row.brainO2}%</td><td>${row.muscleO2}%</td><td>${row.co2}%</td>`;
+  tbody.appendChild(tr);
+
+  // Scroll to bottom
+  const wrap = document.querySelector('.data-table-wrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function copyTable(){
+  try {
+    let text = 'Round\tVariable Changed\tBrain O₂ Level (%)\tMuscle O₂ Level (%)\tCO₂ Buildup (%)\n';
+    state.roundData.forEach(r => {
+      text += `${r.round}\t${r.changed}\t${r.brainO2}%\t${r.muscleO2}%\t${r.co2}%\n`;
+    });
+    navigator.clipboard.writeText(text).then(()=>{
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = '📋 Copy Table'; }, 2000);
+    }).catch(()=>{
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(()=>{ btn.textContent = '📋 Copy Table'; }, 2000);
+    });
+  } catch(e){
+    alert('Copy failed — select and copy from the table manually.');
+  }
+}
+
+function resetSim(){
+  state = {
+    round:1,score:0,streak:0,successes:0,totalRounds:0,
+    completed:false,extraComplete:false,
+    brainO2:85,muscleO2:80,co2:30,
+    baseline:{depth:'medium',rate:'normal',activity:'resting',air:'clean'},
+    current:{depth:'medium',rate:'normal',activity:'resting',air:'clean'},
+    changedVar:null,changedDetail:'',animating:false,
+    powerUpReady:false,powerUpUsed:false,isRandomEvent:false,
+    roundData:[]
+  };
+  state.powerUpActive = false;
+  document.getElementById('tableBody').innerHTML = '';
+  document.getElementById('reqMsg').style.display = 'none';
+  document.getElementById('extraMsg').style.display = 'none';
+  document.getElementById('badgeArea').innerHTML = '';
+  document.getElementById('feedbackBox').className = 'feedback-box';
+  document.getElementById('feedbackBox').textContent = 'Choose a variable and click BREATHE';
+  targetOrganColors = {brain:'#4caf50',muscles:'#4caf50'};
+  organColors = {brain:'#4caf50',muscles:'#4caf50'};
+  particles = [];
+  co2Particles = [];
+  alveoliBubbles = [];
+  updateMeters();
+  updateHUD();
+  setupRound();
+}
+
+function newRun(){
+  resetSim();
+}
+
+// ========== INIT ==========
+window.addEventListener('load', ()=>{
+  try {
+    initCanvas();
+    setupRound();
+    updateMeters();
+    updateHUD();
+  } catch(e){
+    console.error('Init error:', e);
+  }
+});
+</script>
+</body>
+</html>

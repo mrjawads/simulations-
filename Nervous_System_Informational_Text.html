@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulation Brain Extremes</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes glow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.3)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes shockwave{0%{transform:scale(0.5);opacity:1}100%{transform:scale(2.5);opacity:0}}
+@keyframes needleSwing{0%{transform:rotate(var(--from))}100%{transform:rotate(var(--to))}}
+@keyframes particleFloat{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-60px) scale(0.3);opacity:0}}
+@keyframes ripple{0%{box-shadow:0 0 0 0 rgba(76,175,80,0.4)}100%{box-shadow:0 0 0 20px rgba(76,175,80,0)}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes waveFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:#e0e0e0;min-height:100vh;overflow:hidden}
+
+.app{display:flex;flex-direction:column;height:100vh}
+
+.title-bar{background:linear-gradient(135deg,#1a237e,#4a148c,#880e4f);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(0,0,0,0.5);position:relative;overflow:hidden}
+.title-bar::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.05),transparent);animation:waveFlow 4s ease infinite;background-size:200% 100%}
+.title-bar h1{font-size:20px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.4);z-index:1;letter-spacing:0.5px}
+.title-bar .badge{background:linear-gradient(135deg,#ff6f00,#f44336);padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;z-index:1;box-shadow:0 2px 8px rgba(244,67,54,0.4)}
+
+.main{display:flex;flex:1;overflow:hidden}
+
+/* LEFT SIDEBAR */
+.left-sidebar{width:280px;min-width:280px;background:linear-gradient(180deg,#1a1a2e,#16213e);border-right:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;overflow-y:auto}
+.left-sidebar::-webkit-scrollbar{width:4px}
+.left-sidebar::-webkit-scrollbar-thumb{background:#4a4a6a;border-radius:4px}
+
+.sidebar-header{padding:14px 16px 8px;font-size:15px;font-weight:700;color:#bb86fc;display:flex;align-items:center;gap:8px}
+.sidebar-header .count{background:rgba(187,134,252,0.2);padding:2px 10px;border-radius:12px;font-size:12px;color:#bb86fc}
+
+.scenario-list{padding:4px 10px;flex:1}
+.scenario-card{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:12px;cursor:pointer;transition:all 0.3s;border:2px solid transparent;position:relative;background:rgba(255,255,255,0.03)}
+.scenario-card:hover{background:rgba(187,134,252,0.1);border-color:rgba(187,134,252,0.3)}
+.scenario-card.active{background:linear-gradient(135deg,rgba(187,134,252,0.2),rgba(103,58,183,0.2));border-color:#bb86fc;box-shadow:0 0 15px rgba(187,134,252,0.2)}
+.scenario-card.completed{opacity:0.7}
+.scenario-card.completed::after{content:'✓';position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#4caf50;font-weight:900;font-size:16px}
+.scenario-card .emoji{font-size:26px;min-width:36px;text-align:center}
+.scenario-card .name{font-size:13px;font-weight:600;color:#e0e0e0;line-height:1.3}
+
+.divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent);margin:10px 16px}
+
+.reading-level{padding:8px 16px}
+.reading-level h3{font-size:13px;font-weight:700;color:#80cbc4;margin-bottom:8px}
+.level-tabs{display:flex;gap:4px;background:rgba(0,0,0,0.3);border-radius:10px;padding:3px}
+.level-tab{flex:1;text-align:center;padding:7px 0;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;transition:all 0.3s;color:#888}
+.level-tab.active{background:linear-gradient(135deg,#00bcd4,#009688);color:#fff;box-shadow:0 2px 8px rgba(0,188,212,0.3)}
+.level-tab:hover:not(.active){color:#ccc;background:rgba(255,255,255,0.05)}
+
+.keywords-section{padding:8px 16px 12px}
+.keywords-section h3{font-size:13px;font-weight:700;color:#ffab40;margin-bottom:8px}
+.keyword-tag{display:inline-block;background:rgba(255,171,64,0.12);color:#ffab40;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;margin:2px 3px;border:1px solid rgba(255,171,64,0.2)}
+
+.sidebar-buttons{padding:10px 16px;display:flex;gap:8px}
+.btn-reset{flex:1;padding:10px;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;transition:all 0.3s}
+.btn-red{background:linear-gradient(135deg,#f44336,#c62828);color:#fff;box-shadow:0 2px 8px rgba(244,67,54,0.3)}
+.btn-blue{background:linear-gradient(135deg,#2196f3,#1565c0);color:#fff;box-shadow:0 2px 8px rgba(33,150,243,0.3)}
+.btn-reset:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+
+/* CENTER PANEL */
+.center-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+.step-tabs{display:flex;padding:10px 20px 0;gap:6px}
+.step-tab{flex:1;text-align:center;padding:10px 8px;border-radius:12px 12px 0 0;font-size:13px;font-weight:700;color:#555;background:rgba(255,255,255,0.03);transition:all 0.4s;cursor:default;position:relative}
+.step-tab.active{color:#fff;background:linear-gradient(135deg,#7c4dff,#536dfe);box-shadow:0 0 20px rgba(124,77,255,0.3)}
+.step-tab.done{color:#4caf50;background:rgba(76,175,80,0.1)}
+.step-tab .step-num{display:inline-block;width:22px;height:22px;line-height:22px;border-radius:50%;background:rgba(255,255,255,0.1);font-size:11px;margin-right:4px}
+.step-tab.active .step-num{background:rgba(255,255,255,0.25)}
+
+.center-content{flex:1;display:flex;align-items:center;justify-content:center;padding:16px 24px;overflow:hidden}
+
+.content-card{background:linear-gradient(135deg,rgba(30,30,60,0.9),rgba(20,20,50,0.95));border-radius:20px;padding:28px 32px;max-width:700px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.06);animation:fadeIn 0.4s ease;position:relative;overflow:hidden}
+.content-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7c4dff,#536dfe,#448aff)}
+
+.predict-card .predict-q{font-size:18px;font-weight:700;color:#e0e0e0;margin-bottom:20px;line-height:1.5;text-align:center}
+.predict-options{display:flex;flex-direction:column;gap:10px}
+.predict-btn{padding:14px 20px;border:2px solid rgba(124,77,255,0.3);border-radius:14px;background:rgba(124,77,255,0.08);color:#e0e0e0;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.3s;text-align:left}
+.predict-btn:hover{border-color:#7c4dff;background:rgba(124,77,255,0.2);transform:translateX(4px)}
+.predict-btn.selected{border-color:#7c4dff;background:linear-gradient(135deg,rgba(124,77,255,0.3),rgba(83,109,254,0.3));box-shadow:0 0 15px rgba(124,77,255,0.2)}
+
+.read-card{max-height:100%;display:flex;flex-direction:column}
+.passage-text{font-size:16px;line-height:1.8;color:#d0d0d0;padding:4px 0;overflow-y:auto;max-height:320px}
+.passage-text .keyword{color:#ffab40;font-weight:700;text-shadow:0 0 8px rgba(255,171,64,0.3)}
+.passage-text .sentence{transition:background 0.3s}
+.passage-text .sentence.reading{background:rgba(255,235,59,0.15);border-radius:4px;padding:0 2px}
+
+.watch-area{width:100%;display:flex;flex-direction:column;align-items:center;gap:16px}
+
+/* BRAIN GAUGE */
+.gauge-container{position:relative;width:320px;height:200px}
+.gauge-bg{width:320px;height:160px;position:relative;overflow:hidden}
+.gauge-arc{width:320px;height:320px;border-radius:50%;border:28px solid #333;border-bottom-color:transparent;border-left-color:transparent;transform:rotate(225deg);position:absolute;top:0}
+.gauge-zone-red-left{position:absolute;width:320px;height:320px;border-radius:50%;border:28px solid transparent;border-top-color:#ef5350;clip-path:polygon(0 0,30% 0,50% 50%,0 30%);top:0}
+.gauge-zone-green{position:absolute;width:320px;height:320px;border-radius:50%;border:28px solid transparent;border-top-color:#4caf50;clip-path:polygon(30% 0,70% 0,50% 50%);top:0}
+.gauge-zone-red-right{position:absolute;width:320px;height:320px;border-radius:50%;border:28px solid transparent;border-top-color:#ff9800;clip-path:polygon(70% 0,100% 0,100% 30%,50% 50%);top:0}
+
+.gauge-svg{width:100%;height:100%}
+.needle{transform-origin:160px 160px;transition:transform 1.5s cubic-bezier(0.34,1.56,0.64,1)}
+.gauge-labels{display:flex;justify-content:space-between;padding:0 20px;margin-top:-10px}
+.gauge-labels span{font-size:10px;font-weight:700;color:#999;text-transform:uppercase}
+.gauge-center-label{text-align:center;font-size:14px;font-weight:800;margin-top:4px;transition:color 0.5s}
+
+/* BRAIN DIAGRAM */
+.brain-diagram{position:relative;width:320px;height:200px;margin-top:8px}
+.brain-outline{width:100%;height:100%;position:relative}
+.brain-region{position:absolute;border-radius:50%;transition:all 0.8s;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:9px;font-weight:700;text-align:center;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.8)}
+.brain-region.active{animation:glow 1.5s ease infinite}
+.brain-label{position:absolute;font-size:10px;font-weight:700;color:#aaa;white-space:nowrap;pointer-events:none;transition:all 0.5s}
+.brain-label.active{color:#fff;text-shadow:0 0 8px currentColor}
+
+.brain-particle{position:absolute;border-radius:50%;pointer-events:none;animation:particleFloat 2s ease forwards}
+
+.record-card{text-align:center}
+.record-card .check-icon{font-size:64px;margin-bottom:12px;animation:bounce 1s ease infinite}
+.record-card h3{font-size:20px;color:#4caf50;margin-bottom:8px}
+.record-card p{color:#999;font-size:14px}
+
+.action-bar{padding:12px 24px 16px;display:flex;justify-content:center;gap:12px;align-items:center}
+.action-btn{padding:14px 36px;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.3s;text-transform:uppercase;letter-spacing:1px}
+.action-btn.primary{background:linear-gradient(135deg,#7c4dff,#536dfe);color:#fff;box-shadow:0 4px 15px rgba(124,77,255,0.4)}
+.action-btn.primary:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(124,77,255,0.5)}
+.action-btn.read-aloud{background:linear-gradient(135deg,#ff9800,#f57c00);color:#fff;box-shadow:0 4px 15px rgba(255,152,0,0.4);padding:14px 24px}
+.action-btn.read-aloud:hover{transform:translateY(-3px)}
+.action-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none !important}
+
+.start-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px}
+.start-screen .big-brain{font-size:80px;margin-bottom:16px;animation:pulse 2s ease infinite}
+.start-screen h2{font-size:24px;color:#bb86fc;margin-bottom:12px}
+.start-screen p{color:#999;font-size:15px;max-width:400px;line-height:1.6}
+
+/* RIGHT SIDEBAR */
+.right-sidebar{width:280px;min-width:280px;background:linear-gradient(180deg,#1a1a2e,#16213e);border-left:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;overflow-y:auto}
+.right-sidebar::-webkit-scrollbar{width:4px}
+.right-sidebar::-webkit-scrollbar-thumb{background:#4a4a6a;border-radius:4px}
+
+.progress-header{padding:14px 16px 8px;font-size:15px;font-weight:700;color:#4fc3f7}
+
+.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:4px 16px}
+.hud-stat{background:rgba(255,255,255,0.04);border-radius:12px;padding:10px;text-align:center;border:1px solid rgba(255,255,255,0.06)}
+.hud-stat .stat-val{font-size:22px;font-weight:900;background:linear-gradient(135deg,#7c4dff,#448aff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hud-stat .stat-label{font-size:10px;color:#888;font-weight:600;text-transform:uppercase;margin-top:2px}
+
+.progress-bar-wrap{padding:8px 16px}
+.progress-bar-outer{height:12px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden;position:relative}
+.progress-bar-inner{height:100%;background:linear-gradient(90deg,#7c4dff,#4caf50);border-radius:8px;transition:width 0.8s ease;position:relative}
+.progress-bar-inner::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);animation:waveFlow 2s ease infinite;background-size:200% 100%}
+.progress-msg{text-align:center;font-size:12px;font-weight:700;color:#bb86fc;padding:4px 0 8px}
+
+.data-header{padding:8px 16px 4px;font-size:15px;font-weight:700;color:#ffab40}
+
+.data-table-wrap{padding:0 10px 10px;flex:1;overflow-y:auto}
+.data-table{width:100%;border-collapse:collapse;font-size:10px}
+.data-table th{background:linear-gradient(135deg,#4a148c,#311b92);color:#fff;padding:6px 4px;text-align:left;font-weight:700;position:sticky;top:0;z-index:2}
+.data-table td{padding:5px 4px;border-bottom:1px solid rgba(255,255,255,0.05);color:#bbb;vertical-align:top}
+.data-table tr:nth-child(even){background:rgba(255,255,255,0.02)}
+.data-table tr.new-row{animation:fadeIn 0.5s ease}
+.data-table td.ok-yes{color:#4caf50;font-weight:700}
+.data-table td.ok-no{color:#f44336;font-weight:700}
+.data-table td.ok-partly{color:#ff9800;font-weight:700}
+
+/* COMPLETION */
+.completion-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:1000;animation:fadeIn 0.5s}
+.completion-card{background:linear-gradient(135deg,#1a1a2e,#2a1a4e);border-radius:24px;padding:40px;text-align:center;max-width:420px;border:2px solid #7c4dff;box-shadow:0 0 60px rgba(124,77,255,0.3)}
+.completion-card .trophy{font-size:72px;margin-bottom:16px;animation:bounce 1s ease infinite}
+.completion-card h2{font-size:24px;color:#bb86fc;margin-bottom:8px}
+.completion-card p{color:#999;font-size:14px;margin-bottom:20px}
+.completion-card .btn-continue{padding:12px 32px;background:linear-gradient(135deg,#7c4dff,#536dfe);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.3s}
+.completion-card .btn-continue:hover{transform:translateY(-2px);box-shadow:0 4px 15px rgba(124,77,255,0.4)}
+
+.extra-credit-banner{background:linear-gradient(135deg,#ff6f00,#f44336);color:#fff;text-align:center;padding:8px;font-weight:800;font-size:13px;border-radius:8px;margin:8px 16px;animation:pulse 2s ease infinite}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="title-bar">
+<h1>🧠 Mr. Jawad's Simulation: Brain Extremes</h1>
+<div class="badge">INFORMATIONAL READING</div>
+</div>
+<div class="main">
+<!-- LEFT SIDEBAR -->
+<div class="left-sidebar">
+<div class="sidebar-header">Pick Any 5 You Like <span class="count" id="pickCount">5 left</span></div>
+<div class="scenario-list" id="scenarioList"></div>
+<div class="divider"></div>
+<div class="reading-level">
+<h3>📖 Reading Level</h3>
+<div class="level-tabs">
+<div class="level-tab active" data-level="low" onclick="setLevel('low')">Low</div>
+<div class="level-tab" data-level="med" onclick="setLevel('med')">Med</div>
+<div class="level-tab" data-level="high" onclick="setLevel('high')">High</div>
+</div>
+</div>
+<div class="divider"></div>
+<div class="keywords-section">
+<h3>🔑 Key Words</h3>
+<div id="keywordsArea">
+<span class="keyword-tag">neuroplasticity</span>
+<span class="keyword-tag">consolidation</span>
+<span class="keyword-tag">circadian rhythm</span>
+<span class="keyword-tag">melatonin</span>
+<span class="keyword-tag">adenosine</span>
+<span class="keyword-tag">cortisol</span>
+<span class="keyword-tag">amygdala</span>
+</div>
+</div>
+<div class="divider"></div>
+<div class="sidebar-buttons">
+<button class="btn-reset btn-red" onclick="resetSim()">Reset</button>
+<button class="btn-reset btn-blue" onclick="newRun()">New Run</button>
+</div>
+</div>
+
+<!-- CENTER PANEL -->
+<div class="center-panel">
+<div class="step-tabs" id="stepTabs">
+<div class="step-tab" data-step="predict"><span class="step-num">1</span>PREDICT</div>
+<div class="step-tab" data-step="read"><span class="step-num">2</span>READ</div>
+<div class="step-tab" data-step="watch"><span class="step-num">3</span>WATCH</div>
+<div class="step-tab" data-step="record"><span class="step-num">4</span>RECORD</div>
+</div>
+<div class="center-content" id="centerContent">
+<div class="start-screen">
+<div class="big-brain">🧠</div>
+<h2>Brain Extremes</h2>
+<p>Your brain does things in extreme situations that will blow your mind — and most people get them wrong. Pick a scenario to begin!</p>
+</div>
+</div>
+<div class="action-bar" id="actionBar"></div>
+</div>
+
+<!-- RIGHT SIDEBAR -->
+<div class="right-sidebar">
+<div class="progress-header">📊 Progress</div>
+<div class="hud-grid">
+<div class="hud-stat"><div class="stat-val" id="scoreVal">0</div><div class="stat-label">Score</div></div>
+<div class="hud-stat"><div class="stat-val" id="streakVal">0</div><div class="stat-label">Streak</div></div>
+<div class="hud-stat"><div class="stat-val" id="completedVal">0</div><div class="stat-label">Done</div></div>
+<div class="hud-stat"><div class="stat-val" id="accuracyVal">-%</div><div class="stat-label">Accuracy</div></div>
+</div>
+<div class="progress-bar-wrap">
+<div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar" style="width:0%"></div></div>
+</div>
+<div class="progress-msg" id="progressMsg">Pick a scenario to start!</div>
+<div id="extraCreditArea"></div>
+<div class="divider"></div>
+<div class="data-header" style="display:flex;align-items:center;justify-content:space-between">📋 Data Table <button id="copyBtn" onclick="copyTable()" style="background:linear-gradient(135deg,#7c4dff,#536dfe);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.3s">📋 Copy Table</button></div>
+<div class="data-table-wrap">
+<table class="data-table">
+<thead><tr><th>Scenario</th><th>What Changed?</th><th>System Response</th><th>OK?</th></tr></thead>
+<tbody id="dataBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+// ── SCENARIO DATA ──
+const scenarios = [
+{id:1,name:"Oversleeping Trap",emoji:"🛏️",
+whatChanged:"Slept 12 hrs after a week of 5-hr nights",
+sysResponse:"Brain still foggy — missed consolidation on short nights",
+okStatus:"Partly",
+gaugeTarget:-25, gaugeColor:"#ff9800",
+brainRegions:["memory","circadian"],
+predQ:"What happens when you sleep 12 hours after only sleeping 5 hours all week?",
+predOptions:["Your brain fully recovers and feels great","Your brain is STILL foggy because one sleep can't undo a week of damage","You get a headache but your memory is fine"],
+correctPred:1,
+readings:{
+low:"You only slept 5 hours a night for a whole week. On Saturday, you crash for 12 hours straight. But the next day, your brain is still foggy and slow. Your brain missed <kw>consolidation</kw> every night, and one long sleep cannot undo a full week of damage.",
+med:"You pulled five nights of only 5 hours of sleep, and your brain is running on fumes. On Saturday, you sleep for 12 hours, thinking that will fix everything. But the next morning, your focus is still weak and your memory is fuzzy. That is because <kw>consolidation</kw> — when your brain locks in memories — was skipped every one of those short nights. One long sleep helps your body rest, but it cannot redo five nights of missed memory work. Your <kw>circadian rhythm</kw> also gets thrown off by the sudden schedule change, making the next few days harder.",
+high:"Imagine you only slept 5 hours every night for a full school week. By Friday, your brain is running on empty — focus is shot, memory is weak, mood is low. On Saturday, you crash for 12 straight hours, sure that one big sleep will fix everything. But scientists discovered something surprising: your brain still cannot perform well the next day. <kw>Consolidation</kw> — the process where your brain locks in new memories — was skipped every single night that week. One long sleep helps your body recover some energy, but it cannot redo all the memory-building your brain missed over five nights. Your <kw>circadian rhythm</kw> also gets confused by the sudden change in sleep schedule, which can make focus even worse for a few days. It actually takes several nights of consistent, normal sleep for your brain to fully bounce back."
+},
+animDesc:"Gauge needle starts deep in red, creeps only slightly toward OK after long sleep — never reaches green. Memory pathways flicker dimly with sleep debt label.",
+animSteps:[
+{label:"Sleep Debt",desc:"5 nights missed",region:"memory",color:"#f44336",needle:-60},
+{label:"12hr Sleep",desc:"Trying to recover",region:"memory",color:"#ff9800",needle:-35},
+{label:"Still Foggy",desc:"Needs more nights",region:"circadian",color:"#ff9800",needle:-25}
+]},
+
+{id:2,name:"Bilingual Brain Boost",emoji:"🗣️",
+whatChanged:"Speaks two languages every day",
+sysResponse:"Attention regions physically thicker — neuroplasticity builds brain",
+okStatus:"Yes",
+gaugeTarget:15, gaugeColor:"#4caf50",
+brainRegions:["attention","taskswitch"],
+predQ:"What happens to the brain of someone who speaks two languages every day?",
+predOptions:["Their brain gets confused switching between languages","The attention parts of their brain actually grow THICKER","They get worse at focusing because of too much switching"],
+correctPred:1,
+readings:{
+low:"Some teens speak two languages every day — one at home, another at school. Scientists scanned their brains and found something wild. The parts of the brain used for focus and switching tasks were physically thicker. Speaking two languages literally builds a bigger brain through <kw>neuroplasticity</kw>.",
+med:"Many teens speak two languages every day — maybe Spanish at home and English at school, or Mandarin with family and English with friends. Scientists put these teens in brain scanners and found something surprising. The areas of the brain responsible for paying attention and switching between tasks had denser gray matter — meaning more brain cells packed in tighter. This happens because switching languages forces the brain to constantly filter, choose, and switch, which builds stronger connections. This is <kw>neuroplasticity</kw> in action — the brain physically changing based on what you practice. The best part: this brain boost keeps helping even when you are not speaking either language.",
+high:"Millions of teens around the world speak two languages every day — one at home and another at school or with friends. When scientists scanned their brains, they found something that shocked the research world. The areas of the brain responsible for focus, attention, and switching between tasks had physically denser gray matter — more brain cells packed into tighter space. This happens because every time a bilingual person talks, their brain is secretly doing extra work: filtering out one language, choosing the right words in the other, and switching back and forth all day. That constant workout builds stronger neural connections through <kw>neuroplasticity</kw> — the brain's ability to physically change based on experience. Even more surprising, this brain boost does not just help with languages — it also improves focus, problem-solving, and multitasking on completely unrelated tasks. The effect is strongest during the teen years, when <kw>neuroplasticity</kw> is at its peak. Speaking two languages is not just a communication skill — it is a full brain upgrade."
+},
+animSteps:[
+{label:"Language Switch",desc:"Constant filtering",region:"attention",color:"#2196f3",needle:0},
+{label:"Gray Matter Grows",desc:"Thicker regions",region:"taskswitch",color:"#4caf50",needle:10},
+{label:"Brain Boost",desc:"Neuroplasticity!",region:"attention",color:"#4caf50",needle:15}
+]},
+
+{id:3,name:"Music Brain Growth",emoji:"🎸",
+whatChanged:"Practices instrument for years",
+sysResponse:"Motor cortex grows larger for playing hand — neuroplasticity",
+okStatus:"Yes",
+gaugeTarget:12, gaugeColor:"#4caf50",
+brainRegions:["motor","connections"],
+predQ:"What happens to a teen musician's brain after years of practice?",
+predOptions:["Their brain stays the same — only muscles change","The motor cortex controlling their hand PHYSICALLY GROWS bigger","They develop perfect pitch automatically"],
+correctPred:1,
+readings:{
+low:"Teen musicians who practice an instrument for years get a surprising reward. The part of the brain that controls their playing hand actually gets bigger. Brain scans show the motor cortex physically expanding to match whatever you practice most. This is <kw>neuroplasticity</kw> — your brain literally grows the areas you use.",
+med:"Scientists studied teen musicians who practiced their instrument almost every day for years. Brain scans revealed something amazing — the part of the motor cortex that controls their playing hand was measurably larger than in non-musicians. The brain did not just get better at music; it physically grew a bigger area to handle the demand. This is <kw>neuroplasticity</kw> at work — the brain expands the map for whatever you practice the most. The effect was strongest in teens who started young, because <kw>neuroplasticity</kw> is at its peak during adolescence.",
+high:"When scientists put teen musicians inside brain scanners, they discovered something incredible. The area of the motor cortex that controls the playing hand was physically larger than the same area in teens who did not play music. This was not a small difference — the region had measurably expanded to handle the complex finger movements that instruments demand. The brain literally built a bigger control center because the demand was there, day after day. This is <kw>neuroplasticity</kw> — the brain reshaping itself based on what you repeatedly practice. The effect was strongest in teens who started playing before age 12, because adolescence is when <kw>neuroplasticity</kw> is most powerful. Here is the wildest part: if a musician stops practicing for a long time, the expanded region can shrink back — proving the brain is always under construction."
+},
+animSteps:[
+{label:"Daily Practice",desc:"Building demand",region:"motor",color:"#2196f3",needle:0},
+{label:"Motor Cortex Grows",desc:"Expanding region",region:"motor",color:"#4caf50",needle:8},
+{label:"Brain Reshaped",desc:"Neuroplasticity!",region:"connections",color:"#4caf50",needle:12}
+]},
+
+{id:4,name:"Stress Supercharge",emoji:"⚡",
+whatChanged:"Short burst of stress before big moment",
+sysResponse:"Cortisol briefly sharpens focus — too long becomes poison",
+okStatus:"Yes (if short)",
+gaugeTarget:25, gaugeColor:"#ffeb3b",
+brainRegions:["focus","prefrontal"],
+predQ:"What happens to your brain during a SHORT burst of stress?",
+predOptions:["Stress always hurts performance — your brain freezes","A quick burst of stress ACTUALLY boosts focus and speed","Stress only affects your body, not your brain"],
+correctPred:1,
+readings:{
+low:"Right before a game-winning free throw, your body floods your brain with <kw>cortisol</kw> — the stress hormone. For a few seconds, your focus actually gets sharper and your reaction time speeds up. Stress is not always bad — a short burst can help your brain perform better. The problem starts when stress sticks around for days or weeks.",
+med:"Your brain has a secret weapon for clutch moments. Right before a big play or a final exam question, your body releases a burst of <kw>cortisol</kw> — the stress hormone. That quick burst temporarily sharpens your focus, speeds up reaction time, and blocks distractions. For a few moments, your brain is actually performing above normal. But here is the catch: this only works when the stress is short — a few seconds to a few minutes. When stress becomes chronic — lasting days or weeks — <kw>cortisol</kw> starts doing the opposite, damaging memory and dragging down focus.",
+high:"Most people think stress is always bad for your brain, but scientists discovered something surprising. Right before a high-pressure moment — like a game-winning shot or the hardest question on a test — your body releases a burst of <kw>cortisol</kw>, the stress hormone. That short burst temporarily sharpens your focus, speeds up reaction time, and helps you block out distractions. For a few seconds or minutes, your brain is actually performing above its normal level. Athletes, musicians, and test-takers all benefit from this natural boost. But here is the critical detail: this only works when the stress is brief. When stress becomes chronic — lasting for days or weeks — the same <kw>cortisol</kw> that helped you now starts damaging the hippocampus, which controls memory, and weakening the prefrontal cortex, which controls decisions. Short stress is a superpower; long stress is a poison — and the difference is duration."
+},
+animSteps:[
+{label:"Cortisol Burst",desc:"Stress hits!",region:"focus",color:"#ff9800",needle:5},
+{label:"Focus Sharpens",desc:"Supercharged!",region:"prefrontal",color:"#ffeb3b",needle:25},
+{label:"Returns to OK",desc:"Short = safe",region:"focus",color:"#4caf50",needle:5}
+]},
+
+{id:5,name:"Double Hit Danger",emoji:"💥",
+whatChanged:"Second concussion before first heals",
+sysResponse:"Swelling multiplies — damage far worse than two separate hits",
+okStatus:"No",
+gaugeTarget:-55, gaugeColor:"#f44336",
+brainRegions:["whole","swelling"],
+predQ:"What happens when an athlete gets a SECOND concussion before the first one heals?",
+predOptions:["The two hits cancel each other out","The damage MULTIPLIES — much worse than two separate hits","The brain adapts and becomes tougher"],
+correctPred:1,
+readings:{
+low:"A football player gets a concussion but says he feels fine and goes back into the game. He gets hit again before his brain has healed. The second hit causes way more swelling than the first one did — the damage does not just add up, it multiplies. This is why doctors now require waiting periods before athletes can return to play.",
+med:"When an athlete gets a concussion, the brain needs time to heal — often days to weeks. But some players hide their symptoms because they want to get back on the field. If a second hit happens before the first concussion heals, something dangerous occurs. The brain swells far more than it would from either hit alone — the damage does not just add up, it multiplies. Scientists call this a cascade effect, and it can cause problems that last months or even longer. This is exactly why return-to-play rules exist: the brain is in a fragile healing state after a concussion and needs time to repair itself before it can safely take another impact.",
+high:"When an athlete gets a concussion, the brain enters a fragile state and needs time to recover — often weeks. During that time, the brain is in a fragile healing process — working to reduce swelling and repair damaged connections. If a second concussion happens before the first one heals, the results can be devastating. The brain swells far more than it would from either hit on its own — the damage does not simply add up, it multiplies. Scientists have found that younger athletes can take longer to recover, which raises the risk if they return too soon. This cascade effect can cause cognitive problems lasting months and, in rare extreme cases, permanent damage. Return-to-play protocols exist specifically because the developing teen brain needs full healing time before it is safe to risk another impact."
+},
+animSteps:[
+{label:"Hit 1",desc:"Mild concussion",region:"whole",color:"#ff9800",needle:-20},
+{label:"Hit 2 — CASCADE",desc:"Swelling multiplies!",region:"swelling",color:"#f44336",needle:-55},
+{label:"Severe Damage",desc:"Needs weeks to heal",region:"whole",color:"#f44336",needle:-55}
+]},
+
+{id:6,name:"Caffeine's Trick",emoji:"☕",
+whatChanged:"Tired teen drinks caffeine",
+sysResponse:"Caffeine hides tiredness by blocking adenosine — crash later",
+okStatus:"No",
+gaugeTarget:-10, gaugeColor:"#ff9800",
+brainRegions:["receptors","fatigue"],
+predQ:"What does caffeine ACTUALLY do to your tired brain?",
+predOptions:["It gives your brain real energy to keep going","It BLOCKS the tired signal but your body is still exhausted","It helps your brain consolidate memories faster"],
+correctPred:1,
+readings:{
+low:"When you drink an energy drink, the caffeine blocks a chemical called <kw>adenosine</kw> that tells your brain you are tired. Your brain stops feeling sleepy, so you think you have more energy. But your body is still just as exhausted — caffeine only hides the warning signal. It is like covering the gas light on your car dashboard and thinking you have more fuel.",
+med:"When you are awake, a chemical called <kw>adenosine</kw> slowly builds up in your brain, making you feel more and more tired. This is your brain's way of saying \"time to sleep soon.\" When you drink caffeine, it blocks the <kw>adenosine</kw> receptors so your brain cannot feel the tiredness signal. You suddenly feel alert and focused — like the tiredness disappeared. But here is the trick: the <kw>adenosine</kw> is still there, still building up. The second the caffeine wears off, all that hidden tiredness hits you at once, which is why caffeine crashes feel so bad.",
+high:"Every hour you are awake, a chemical called <kw>adenosine</kw> builds up in your brain, slowly increasing the pressure to sleep. By nighttime, <kw>adenosine</kw> levels are high enough that your brain starts producing <kw>melatonin</kw> — the hormone that makes you feel drowsy. This is your body's natural shutdown system, and it works well. But when you drink an energy drink or coffee, the caffeine molecule slides into <kw>adenosine</kw> receptors and blocks them. Your brain cannot detect the tiredness signal, so you feel alert — sometimes even supercharged. The problem is that <kw>adenosine</kw> does not stop building up just because caffeine is blocking the signal. It keeps piling up behind the blocked receptors like cars at a stoplight. When the caffeine wears off, all that built-up sleep pressure hits your brain at once, causing the famous caffeine crash — and your actual fatigue is worse than if you had never had caffeine at all."
+},
+animSteps:[
+{label:"Adenosine Blocked",desc:"Caffeine shields!",region:"receptors",color:"#4caf50",needle:15},
+{label:"Feels Alert",desc:"But still exhausted",region:"fatigue",color:"#ffeb3b",needle:10},
+{label:"CRASH",desc:"All tiredness hits!",region:"receptors",color:"#f44336",needle:-10}
+]},
+
+{id:7,name:"Emotional Overdrive",emoji:"😤",
+whatChanged:"Teen amygdala fires stronger than adult",
+sysResponse:"Emotions more intense — by design, not a flaw",
+okStatus:"Yes (normal)",
+gaugeTarget:30, gaugeColor:"#ff9800",
+brainRegions:["amygdala","prefrontal"],
+predQ:"Why do teens feel emotions MORE INTENSELY than adults?",
+predOptions:["They don't — teens just complain more","The amygdala fires HARDER while the prefrontal cortex is still developing","Teens have more hormones which makes them irrational"],
+correctPred:1,
+readings:{
+low:"Ever wonder why everything feels so intense when you are a teen — anger, excitement, embarrassment, joy? Scientists found that the <kw>amygdala</kw>, the brain's emotion center, is way more active in teens than in adults. This is not a flaw — it is your developing brain working exactly as designed.",
+med:"If you have ever felt like your emotions are turned up to maximum volume, there is a scientific reason. The <kw>amygdala</kw> — the brain's emotion center — is significantly more active in teenagers than in adults or even younger children. At the same time, the prefrontal cortex, which helps control impulses and calm emotions, is still under construction. This combination means teens genuinely experience emotions more intensely than adults do. Scientists say this is not a weakness — it is a normal feature of brain development that helps teens learn quickly from emotional experiences.",
+high:"If you have ever been told you are \"too emotional\" or \"overreacting,\" science has something to say about that. Brain scans show that the <kw>amygdala</kw> — the region that processes emotions like fear, anger, and excitement — fires significantly harder in teens than in adults. At the same time, the prefrontal cortex, which acts like the brain's brake pedal for impulses and emotions, is the last region to fully develop — not finishing until about age 25. This means teens are running a powerful emotion engine with brakes that are still being installed. The result is that emotions genuinely feel more intense during adolescence — this is biology, not drama. Scientists believe this heightened emotional response actually serves a purpose: it helps teens form strong social bonds, learn quickly from mistakes, and respond fast to danger. The intensity fades naturally as the prefrontal cortex finishes developing, but during the teen years, big emotions are the brain working exactly as designed."
+},
+animSteps:[
+{label:"Amygdala Fires",desc:"Emotion center ON",region:"amygdala",color:"#ff5722",needle:10},
+{label:"Max Intensity",desc:"Teen level: HIGH",region:"amygdala",color:"#ff9800",needle:30},
+{label:"By Design",desc:"Normal development",region:"prefrontal",color:"#ff9800",needle:25}
+]},
+
+{id:8,name:"Runner's Brain Boost",emoji:"🏃",
+whatChanged:"Teen starts regular aerobic exercise",
+sysResponse:"BDNF grows hippocampus — exercise builds brain through neuroplasticity",
+okStatus:"Yes",
+gaugeTarget:20, gaugeColor:"#4caf50",
+brainRegions:["hippocampus","connections"],
+predQ:"What happens to the brain when a teen starts exercising regularly?",
+predOptions:["Only muscles change — the brain stays the same","Exercise GROWS the brain's memory center through BDNF","The brain gets tired and needs more sleep"],
+correctPred:1,
+readings:{
+low:"When you run, bike, or do any exercise that gets your heart pumping, your brain releases a chemical called BDNF. BDNF acts like fertilizer for brain cells — it helps them grow and connect. The hippocampus, which is the brain's memory center, actually gets bigger with regular exercise. Running does not just build your legs — it builds your brain through <kw>neuroplasticity</kw>.",
+med:"Scientists discovered that aerobic exercise — running, biking, swimming, anything that gets your heart rate up — triggers the release of a protein called BDNF in the brain. BDNF stands for brain-derived neurotrophic factor, and it works like fertilizer for your brain cells. It helps existing neurons survive and encourages new connections to form, especially in the hippocampus — your brain's memory center. Brain scans of teens who exercise regularly show a hippocampus that is measurably larger than in teens who do not exercise. This is <kw>neuroplasticity</kw> responding to physical activity, not just mental practice. The effect is strongest during adolescence, when the brain is already primed to grow and change.",
+high:"Here is something most people do not expect: one of the best things you can do for your brain has nothing to do with studying, sleeping, or screen time — it is exercise. When you do aerobic activity like running, biking, or swimming, your brain releases a protein called BDNF — brain-derived neurotrophic factor. BDNF acts like fertilizer for brain cells, helping existing neurons survive and encouraging new connections to form. The biggest effect happens in the hippocampus, which is the brain's memory and learning center. Brain scans show that teens who exercise regularly have a measurably larger hippocampus than teens who do not. This is <kw>neuroplasticity</kw> responding to physical activity — your brain literally grows its memory center because exercise tells it to. The effect is especially powerful during adolescence, when <kw>neuroplasticity</kw> is at its peak and <kw>consolidation</kw> of new connections happens most efficiently. Running does not just build your body — it builds a bigger, stronger, more connected brain."
+},
+animSteps:[
+{label:"Exercise Starts",desc:"Heart rate up!",region:"hippocampus",color:"#2196f3",needle:0},
+{label:"BDNF Released",desc:"Brain fertilizer!",region:"hippocampus",color:"#4caf50",needle:12},
+{label:"Brain Grows",desc:"Neuroplasticity!",region:"connections",color:"#4caf50",needle:20}
+]}
+];
+
+// ── BRAIN REGION POSITIONS ──
+const brainRegionMap = {
+memory:{x:45,y:35,w:55,h:50,label:"Memory"},
+circadian:{x:55,y:70,w:45,h:40,label:"Circadian Clock"},
+attention:{x:30,y:25,w:60,h:45,label:"Attention"},
+taskswitch:{x:55,y:55,w:50,h:40,label:"Task Switch"},
+motor:{x:40,y:15,w:55,h:50,label:"Motor Cortex"},
+connections:{x:50,y:50,w:50,h:45,label:"Connections"},
+focus:{x:35,y:30,w:55,h:45,label:"Focus Center"},
+prefrontal:{x:15,y:20,w:60,h:50,label:"Prefrontal Cortex"},
+whole:{x:40,y:35,w:70,h:65,label:"Whole Brain"},
+swelling:{x:50,y:40,w:60,h:55,label:"Swelling Zone"},
+receptors:{x:50,y:55,w:50,h:40,label:"Receptors"},
+fatigue:{x:40,y:65,w:55,h:40,label:"Fatigue Signal"},
+amygdala:{x:55,y:50,w:45,h:40,label:"Amygdala"},
+hippocampus:{x:55,y:55,w:50,h:40,label:"Hippocampus"}
+};
+
+// ── STATE ──
+let state={currentScenario:null,currentStep:null,level:'low',completed:new Set(),score:0,streak:0,predictions:0,correctPreds:0,selectedPred:null,speechSynth:null,speaking:false};
+
+// ── INIT ──
+function init(){
+const list=document.getElementById('scenarioList');
+scenarios.forEach(s=>{
+const card=document.createElement('div');
+card.className='scenario-card';
+card.id='sc-'+s.id;
+card.innerHTML=`<span class="emoji">${s.emoji}</span><span class="name">${s.name}</span>`;
+card.onclick=()=>selectScenario(s.id);
+list.appendChild(card);
+});
+updateHUD();
+}
+
+function selectScenario(id){
+if(state.completed.has(id))return;
+const s=scenarios.find(x=>x.id===id);
+if(!s)return;
+state.currentScenario=s;
+state.selectedPred=null;
+document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('active'));
+document.getElementById('sc-'+id).classList.add('active');
+setStep('predict');
+}
+
+function setStep(step){
+state.currentStep=step;
+document.querySelectorAll('.step-tab').forEach(t=>{
+t.classList.remove('active','done');
+const ts=t.dataset.step;
+const order=['predict','read','watch','record'];
+if(ts===step)t.classList.add('active');
+else if(order.indexOf(ts)<order.indexOf(step))t.classList.add('done');
+});
+renderStep();
+}
+
+function renderStep(){
+const s=state.currentScenario;
+const center=document.getElementById('centerContent');
+const actionBar=document.getElementById('actionBar');
+actionBar.innerHTML='';
+if(!s){center.innerHTML='<div class="start-screen"><div class="big-brain">🧠</div><h2>Brain Extremes</h2><p>Your brain does things in extreme situations that will blow your mind — and most people get them wrong. Pick a scenario to begin!</p></div>';return;}
+
+switch(state.currentStep){
+case'predict':renderPredict(s,center,actionBar);break;
+case'read':renderRead(s,center,actionBar);break;
+case'watch':renderWatch(s,center,actionBar);break;
+case'record':renderRecord(s,center,actionBar);break;
+}
+}
+
+function renderPredict(s,center,actionBar){
+let html=`<div class="content-card predict-card" style="animation:fadeIn 0.4s ease"><h3 style="color:#bb86fc;font-size:13px;font-weight:700;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px">${s.emoji} ${s.name}</h3><div class="predict-q">${s.predQ}</div><div class="predict-options">`;
+s.predOptions.forEach((opt,i)=>{
+html+=`<div class="predict-btn" id="pred-${i}" onclick="selectPrediction(${i})">${opt}</div>`;
+});
+html+='</div></div>';
+center.innerHTML=html;
+actionBar.innerHTML=`<button class="action-btn primary" id="predictNext" disabled onclick="setStep('read')">Next → Read</button>`;
+}
+
+function selectPrediction(i){
+state.selectedPred=i;
+state.predictions++;
+if(i===state.currentScenario.correctPred)state.correctPreds++;
+document.querySelectorAll('.predict-btn').forEach((b,idx)=>{
+b.classList.toggle('selected',idx===i);
+});
+document.getElementById('predictNext').disabled=false;
+}
+
+function renderRead(s,center,actionBar){
+const text=s.readings[state.level];
+const sentences=text.split(/(?<=\.)\s+/);
+let passageHtml=sentences.map((sent,i)=>{
+let processed=sent.replace(/<kw>(.*?)<\/kw>/g,'<span class="keyword">$1</span>');
+return`<span class="sentence" id="sent-${i}">${processed} </span>`;
+}).join('');
+center.innerHTML=`<div class="content-card read-card" style="animation:fadeIn 0.4s ease"><h3 style="color:#bb86fc;font-size:13px;font-weight:700;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">${s.emoji} ${s.name}</h3><div class="passage-text">${passageHtml}</div></div>`;
+actionBar.innerHTML=`<button class="action-btn read-aloud" onclick="readAloud()">🔊 Read Aloud</button><button class="action-btn primary" onclick="setStep('watch')">Next → Watch</button>`;
+}
+
+function readAloud(){
+if(state.speaking){window.speechSynthesis.cancel();state.speaking=false;return;}
+const sentences=document.querySelectorAll('.sentence');
+if(!sentences.length)return;
+state.speaking=true;
+let idx=0;
+function speakNext(){
+if(idx>=sentences.length){state.speaking=false;sentences.forEach(s=>s.classList.remove('reading'));return;}
+sentences.forEach(s=>s.classList.remove('reading'));
+sentences[idx].classList.add('reading');
+sentences[idx].scrollIntoView({behavior:'smooth',block:'nearest'});
+const text=sentences[idx].textContent;
+const utt=new SpeechSynthesisUtterance(text);
+utt.rate=0.9;utt.pitch=1;
+utt.onend=()=>{idx++;speakNext();};
+utt.onerror=()=>{idx++;speakNext();};
+window.speechSynthesis.speak(utt);
+}
+speakNext();
+}
+
+function renderWatch(s,center,actionBar){
+center.innerHTML=`<div class="watch-area" style="animation:fadeIn 0.4s ease">
+<h3 style="color:#bb86fc;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${s.emoji} ${s.name} — Brain Response</h3>
+<div class="gauge-container" id="gaugeContainer">
+<svg class="gauge-svg" viewBox="0 0 320 180">
+<!-- Gauge background arc -->
+<path d="M 30 160 A 130 130 0 0 1 290 160" fill="none" stroke="#333" stroke-width="24" stroke-linecap="round"/>
+<!-- Red zone left -->
+<path d="M 30 160 A 130 130 0 0 1 80 45" fill="none" stroke="#ef5350" stroke-width="24" stroke-linecap="round" opacity="0.7"/>
+<!-- Yellow zone left -->
+<path d="M 80 45 A 130 130 0 0 1 120 25" fill="none" stroke="#ff9800" stroke-width="24" stroke-linecap="round" opacity="0.7"/>
+<!-- Green OK zone -->
+<path d="M 120 25 A 130 130 0 0 1 200 25" fill="none" stroke="#4caf50" stroke-width="24" stroke-linecap="round" opacity="0.8"/>
+<!-- Yellow zone right -->
+<path d="M 200 25 A 130 130 0 0 1 240 45" fill="none" stroke="#ff9800" stroke-width="24" stroke-linecap="round" opacity="0.7"/>
+<!-- Red zone right (overactivated) -->
+<path d="M 240 45 A 130 130 0 0 1 290 160" fill="none" stroke="#ef5350" stroke-width="24" stroke-linecap="round" opacity="0.7"/>
+<!-- OK label -->
+<text x="160" y="22" text-anchor="middle" fill="#4caf50" font-size="12" font-weight="800">OK</text>
+<!-- Needle -->
+<line id="gaugeNeedle" x1="160" y1="160" x2="160" y2="40" stroke="#fff" stroke-width="4" stroke-linecap="round" transform="rotate(0,160,160)"/>
+<circle cx="160" cy="160" r="10" fill="#7c4dff"/>
+<circle cx="160" cy="160" r="5" fill="#fff"/>
+</svg>
+</div>
+<div class="gauge-labels"><span style="color:#ef5350">⬇ Under</span><span style="color:#4caf50">✓ OK Zone</span><span style="color:#ff9800">⬆ Over</span></div>
+<div class="gauge-center-label" id="gaugeLabel" style="color:#888">Starting...</div>
+<div class="brain-diagram" id="brainDiagram">
+<svg viewBox="0 0 320 200" style="width:100%;height:100%">
+<!-- Brain outline -->
+<ellipse cx="160" cy="100" rx="120" ry="80" fill="none" stroke="rgba(187,134,252,0.2)" stroke-width="2"/>
+<ellipse cx="130" cy="90" rx="80" ry="65" fill="none" stroke="rgba(187,134,252,0.1)" stroke-width="1"/>
+<ellipse cx="190" cy="95" rx="75" ry="60" fill="none" stroke="rgba(187,134,252,0.1)" stroke-width="1"/>
+<!-- Folds -->
+<path d="M 80 70 Q 120 50 160 70" fill="none" stroke="rgba(187,134,252,0.15)" stroke-width="1"/>
+<path d="M 100 100 Q 150 80 200 100" fill="none" stroke="rgba(187,134,252,0.15)" stroke-width="1"/>
+<path d="M 90 120 Q 140 100 190 120" fill="none" stroke="rgba(187,134,252,0.15)" stroke-width="1"/>
+<!-- Brain stem -->
+<path d="M 150 160 Q 160 180 170 160" fill="none" stroke="rgba(187,134,252,0.2)" stroke-width="2"/>
+<!-- Region circles (will be animated) -->
+${s.brainRegions.map((r,i)=>{
+const reg=brainRegionMap[r];
+return`<circle id="brainReg${i}" cx="${reg.x/100*320}" cy="${reg.y/100*200}" r="0" fill="rgba(76,175,80,0)" stroke="none"/>
+<text id="brainLabel${i}" x="${reg.x/100*320}" y="${(reg.y/100*200)+35}" text-anchor="middle" fill="rgba(255,255,255,0)" font-size="11" font-weight="700">${reg.label}</text>`;
+}).join('')}
+<!-- Particles container -->
+<g id="particlesGroup"></g>
+</svg>
+</div>
+<div id="animStepLabel" style="font-size:14px;font-weight:700;color:#bb86fc;min-height:24px;text-align:center"></div>
+</div>`;
+
+actionBar.innerHTML=`<button class="action-btn primary" id="watchNext" disabled onclick="setStep('record')">Next → Record</button>`;
+setTimeout(()=>runAnimation(s),500);
+}
+
+function runAnimation(s){
+const needle=document.getElementById('gaugeNeedle');
+const label=document.getElementById('gaugeLabel');
+const stepLabel=document.getElementById('animStepLabel');
+const steps=s.animSteps;
+let i=0;
+
+function doStep(){
+if(i>=steps.length){
+document.getElementById('watchNext').disabled=false;
+return;
+}
+const step=steps[i];
+// Needle
+const angle=step.needle*1.35;
+needle.setAttribute('transform',`rotate(${angle},160,160)`);
+// Label
+label.textContent=`${step.label}: ${step.desc}`;
+label.style.color=step.color;
+stepLabel.innerHTML=`<span style="color:${step.color}">${step.label}</span> — ${step.desc}`;
+
+// Brain regions
+const regIdx=s.brainRegions.indexOf(step.region);
+if(regIdx>=0){
+const reg=brainRegionMap[step.region];
+const circle=document.getElementById('brainReg'+regIdx);
+const lbl=document.getElementById('brainLabel'+regIdx);
+if(circle){
+circle.setAttribute('r','25');
+circle.setAttribute('fill',step.color+'44');
+circle.setAttribute('stroke',step.color);
+circle.setAttribute('stroke-width','2');
+circle.style.transition='all 0.8s';
+}
+if(lbl){
+lbl.setAttribute('fill',step.color);
+lbl.style.transition='all 0.8s';
+}
+// Spawn particles
+spawnParticles(reg.x/100*320,reg.y/100*200,step.color);
+}
+
+i++;
+setTimeout(doStep,1800);
+}
+doStep();
+}
+
+function spawnParticles(cx,cy,color){
+const group=document.getElementById('particlesGroup');
+if(!group)return;
+for(let p=0;p<6;p++){
+const particle=document.createElementNS("http://www.w3.org/2000/svg","circle");
+const angle=Math.random()*Math.PI*2;
+const dist=20+Math.random()*30;
+const tx=cx+Math.cos(angle)*dist;
+const ty=cy+Math.sin(angle)*dist;
+particle.setAttribute('cx',cx);
+particle.setAttribute('cy',cy);
+particle.setAttribute('r',3+Math.random()*3);
+particle.setAttribute('fill',color);
+particle.setAttribute('opacity','0.8');
+group.appendChild(particle);
+// Animate
+const dur=800+Math.random()*600;
+particle.animate([
+{cx:cx+'px',cy:cy+'px',r:'4px',opacity:0.8},
+{cx:tx+'px',cy:ty+'px',r:'1px',opacity:0}
+],{duration:dur,fill:'forwards'});
+setTimeout(()=>particle.remove(),dur);
+}
+}
+
+function renderRecord(s,center,actionBar){
+// Add data row
+addDataRow(s);
+state.completed.add(s.id);
+state.score+=100+(state.level==='med'?25:state.level==='high'?50:0);
+state.streak++;
+updateHUD();
+
+// Mark card completed
+document.getElementById('sc-'+s.id).classList.add('completed');
+document.getElementById('sc-'+s.id).classList.remove('active');
+
+const done=state.completed.size;
+let msg='';
+if(done===5)msg='🎉 Required Complete! Keep going for Extra Credit!';
+else if(done===8)msg='🏆 ALL 8 COMPLETE — Extra Credit Earned!';
+else msg=`✅ Recorded! ${Math.max(0,5-done)} more to go.`;
+
+center.innerHTML=`<div class="content-card record-card" style="animation:fadeIn 0.4s ease"><div class="check-icon">${done>=8?'🏆':done>=5?'⭐':'✅'}</div><h3>${msg}</h3><p>Data saved to your table. Pick another scenario!</p></div>`;
+actionBar.innerHTML='';
+state.currentScenario=null;
+state.currentStep=null;
+
+if(done===5){
+showRequiredComplete();
+}else if(done===8){
+showAllComplete();
+}
+}
+
+function addDataRow(s){
+const tbody=document.getElementById('dataBody');
+const tr=document.createElement('tr');
+tr.className='new-row';
+const okClass=s.okStatus.startsWith('Yes')?'ok-yes':s.okStatus==='No'?'ok-no':'ok-partly';
+tr.innerHTML=`<td style="font-weight:700;color:#bb86fc">${s.emoji} ${s.name}</td><td>${s.whatChanged}</td><td>${s.sysResponse}</td><td class="${okClass}">${s.okStatus}</td>`;
+tbody.appendChild(tr);
+}
+
+function updateHUD(){
+const done=state.completed.size;
+document.getElementById('scoreVal').textContent=state.score;
+document.getElementById('streakVal').textContent=state.streak;
+document.getElementById('completedVal').textContent=done+'/8';
+document.getElementById('accuracyVal').textContent=state.predictions>0?Math.round(state.correctPreds/state.predictions*100)+'%':'-%';
+const pct=Math.min(100,done/5*100);
+document.getElementById('progressBar').style.width=pct+'%';
+const left=Math.max(0,5-done);
+if(done>=8)document.getElementById('progressMsg').textContent='🏆 ALL COMPLETE!';
+else if(done>=5)document.getElementById('progressMsg').textContent='✨ Extra credit time!';
+else document.getElementById('progressMsg').textContent=`Pick ${left} more you like!`;
+document.getElementById('pickCount').textContent=done>=5?'Extra Credit!':left+' left';
+
+if(done===5){
+document.getElementById('extraCreditArea').innerHTML='<div class="extra-credit-banner">⭐ Required Complete! Continue for Extra Credit ⭐</div>';
+}else if(done>=8){
+document.getElementById('extraCreditArea').innerHTML='<div class="extra-credit-banner" style="background:linear-gradient(135deg,#4caf50,#2e7d32)">🏆 Extra Credit Complete! 🏆</div>';
+}
+}
+
+function showRequiredComplete(){
+const overlay=document.createElement('div');
+overlay.className='completion-overlay';
+overlay.innerHTML=`<div class="completion-card"><div class="trophy">⭐</div><h2>Required Complete!</h2><p>You finished 5 scenarios! Want to keep going for extra credit?</p><button class="btn-continue" onclick="this.closest('.completion-overlay').remove()">Continue for Extra Credit →</button></div>`;
+document.body.appendChild(overlay);
+}
+
+function showAllComplete(){
+const overlay=document.createElement('div');
+overlay.className='completion-overlay';
+overlay.innerHTML=`<div class="completion-card"><div class="trophy">🏆</div><h2>Extra Credit Complete!</h2><p>You investigated all 8 brain extremes! Copy your data into the worksheet.</p><button class="btn-continue" onclick="this.closest('.completion-overlay').remove()">View Data Table</button></div>`;
+document.body.appendChild(overlay);
+}
+
+function setLevel(lvl){
+state.level=lvl;
+document.querySelectorAll('.level-tab').forEach(t=>t.classList.toggle('active',t.dataset.level===lvl));
+if(state.currentStep==='read'&&state.currentScenario)renderStep();
+}
+
+function resetSim(){
+state={currentScenario:null,currentStep:null,level:state.level,completed:new Set(),score:0,streak:0,predictions:0,correctPreds:0,selectedPred:null,speechSynth:null,speaking:false};
+window.speechSynthesis.cancel();
+document.querySelectorAll('.scenario-card').forEach(c=>{c.classList.remove('active','completed');});
+document.getElementById('dataBody').innerHTML='';
+document.getElementById('extraCreditArea').innerHTML='';
+updateHUD();
+renderStep();
+}
+
+function newRun(){
+resetSim();
+}
+
+function copyTable(){
+try{
+const rows=document.querySelectorAll('#dataBody tr');
+if(!rows.length){document.getElementById('copyBtn').textContent='No data yet!';setTimeout(()=>document.getElementById('copyBtn').textContent='📋 Copy Table',2000);return;}
+let text='Scenario\tWhat Changed?\tSystem Response\tBack Toward OK/Target?\n';
+rows.forEach(r=>{
+const cells=r.querySelectorAll('td');
+text+=Array.from(cells).map(c=>c.textContent.trim()).join('\t')+'\n';
+});
+navigator.clipboard.writeText(text).then(()=>{
+document.getElementById('copyBtn').textContent='✅ Copied!';
+document.getElementById('copyBtn').style.background='linear-gradient(135deg,#4caf50,#2e7d32)';
+setTimeout(()=>{document.getElementById('copyBtn').textContent='📋 Copy Table';document.getElementById('copyBtn').style.background='linear-gradient(135deg,#7c4dff,#536dfe)';},2000);
+});
+}catch(e){
+document.getElementById('copyBtn').textContent='Copy failed';
+setTimeout(()=>document.getElementById('copyBtn').textContent='📋 Copy Table',2000);
+}
+}
+
+init();
+</script>
+</body>
+</html>

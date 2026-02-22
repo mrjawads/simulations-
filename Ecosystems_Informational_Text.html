@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Science Department Simulation: Who Pays to Fix It?</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f1923;color:#e0e0e0;overflow:hidden;height:100vh;width:100vw;}
+:root{--accent:#00BFA5;--accent2:#7C4DFF;--warn:#FF5252;--gold:#FFD740;--blue:#448AFF;--green:#69F0AE;--red:#FF5252;--orange:#FFAB40;--sidebar-bg:#162029;--center-bg:#1a2a36;--card-bg:#1e3040;--card-hover:#243d50;--text-primary:#E0E0E0;--text-secondary:#90A4AE;--border:#2a4050;}
+.app{display:grid;grid-template-columns:280px 1fr 280px;height:100vh;gap:0;}
+.left-sidebar{background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.left-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);}
+.left-header h2{font-size:15px;font-weight:700;color:var(--accent);margin-bottom:2px;}
+.left-header p{font-size:12px;color:var(--text-secondary);}
+.scenario-list{flex:1;overflow-y:auto;padding:8px;}
+.scenario-list::-webkit-scrollbar{width:4px;}
+.scenario-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.scenario-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:all .2s;margin-bottom:4px;border:2px solid transparent;position:relative;}
+.scenario-card:hover{background:var(--card-hover);border-color:var(--border);}
+.scenario-card.active{background:var(--card-bg);border-color:var(--accent);box-shadow:0 0 12px rgba(0,191,165,.15);}
+.scenario-card.completed{opacity:.65;}
+.scenario-card .sc-check{position:absolute;right:10px;color:var(--green);font-weight:700;font-size:16px;}
+.sc-emoji{font-size:26px;flex-shrink:0;}
+.sc-name{font-size:13px;font-weight:600;line-height:1.3;}
+.sc-name small{display:block;font-size:10px;font-weight:400;color:var(--text-secondary);margin-top:1px;}
+.left-divider{height:1px;background:var(--border);margin:8px 12px;}
+.reading-level-section{padding:8px 16px;}
+.reading-level-section h3{font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.rl-tabs{display:flex;gap:4px;}
+.rl-tab{flex:1;text-align:center;padding:6px 0;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;background:var(--card-bg);color:var(--text-secondary);border:1px solid var(--border);}
+.rl-tab.active{background:var(--accent);color:#000;border-color:var(--accent);}
+.rl-tab:hover:not(.active){background:var(--card-hover);}
+.keywords-section{padding:8px 16px;flex-shrink:0;}
+.keywords-section h3{font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.kw-list{display:flex;flex-wrap:wrap;gap:4px;}
+.kw-tag{font-size:11px;padding:3px 8px;border-radius:4px;background:rgba(0,191,165,.12);color:var(--accent);font-weight:500;}
+.left-buttons{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;}
+.btn-reset,.btn-new{flex:1;padding:8px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn-reset{background:rgba(255,82,82,.15);color:var(--red);}
+.btn-reset:hover{background:rgba(255,82,82,.3);}
+.btn-new{background:rgba(68,138,255,.15);color:var(--blue);}
+.btn-new:hover{background:rgba(68,138,255,.3);}
+.center-panel{background:var(--center-bg);display:flex;flex-direction:column;overflow:hidden;}
+.step-tabs{display:flex;padding:12px 20px 0;gap:6px;}
+.step-tab{flex:1;text-align:center;padding:10px 0;border-radius:10px 10px 0 0;font-size:13px;font-weight:600;color:var(--text-secondary);background:var(--sidebar-bg);transition:all .3s;position:relative;}
+.step-tab.active{color:#fff;background:var(--card-bg);box-shadow:0 0 20px rgba(0,191,165,.2);}
+.step-tab.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:3px;background:var(--accent);border-radius:3px 3px 0 0;}
+.step-tab.done{color:var(--green);}
+.center-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 24px;overflow-y:auto;overflow-x:hidden;}
+.center-content::-webkit-scrollbar{width:4px;}
+.center-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.content-card{width:100%;max-width:680px;background:var(--card-bg);border-radius:16px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.3);border:1px solid var(--border);animation:fadeUp .35s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.content-card h3{font-size:18px;font-weight:700;margin-bottom:12px;color:#fff;}
+.content-card p{font-size:15px;line-height:1.65;color:var(--text-primary);}
+.predict-options{display:flex;gap:12px;margin-top:18px;}
+.predict-btn{flex:1;padding:16px;border-radius:12px;border:2px solid var(--border);background:var(--card-bg);color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s;text-align:center;}
+.predict-btn:hover{border-color:var(--accent);background:rgba(0,191,165,.08);transform:translateY(-2px);}
+.predict-btn.selected{border-color:var(--accent);background:rgba(0,191,165,.15);box-shadow:0 0 16px rgba(0,191,165,.2);}
+.reading-card{max-height:340px;overflow-y:auto;line-height:1.7;}
+.reading-card::-webkit-scrollbar{width:4px;}
+.reading-card::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.kw-inline{color:var(--accent);font-weight:600;}
+.center-action{padding:12px 24px;display:flex;justify-content:center;gap:12px;flex-shrink:0;}
+.action-btn{padding:12px 36px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:8px;}
+.action-btn.primary{background:linear-gradient(135deg,var(--accent),#009688);color:#000;box-shadow:0 4px 16px rgba(0,191,165,.3);}
+.action-btn.primary:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,191,165,.4);}
+.action-btn.secondary{background:var(--card-bg);color:var(--text-primary);border:1px solid var(--border);}
+.action-btn.secondary:hover{background:var(--card-hover);}
+.action-btn:disabled{opacity:.4;cursor:not-allowed;transform:none !important;}
+.read-aloud-btn{padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text-primary);cursor:pointer;font-size:13px;font-weight:500;transition:all .2s;display:flex;align-items:center;gap:6px;}
+.read-aloud-btn:hover{background:var(--card-hover);border-color:var(--accent);}
+.read-aloud-btn.speaking{border-color:var(--accent);color:var(--accent);animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+.right-sidebar{background:var(--sidebar-bg);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.right-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);}
+.right-header h2{font-size:15px;font-weight:700;color:var(--gold);}
+.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px;}
+.hud-stat{background:var(--card-bg);border-radius:10px;padding:10px;text-align:center;border:1px solid var(--border);}
+.hud-stat .hud-val{font-size:22px;font-weight:800;color:#fff;}
+.hud-stat .hud-label{font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.hud-stat.score .hud-val{color:var(--gold);}
+.hud-stat.streak .hud-val{color:var(--orange);}
+.hud-stat.completed .hud-val{color:var(--green);}
+.hud-stat.accuracy .hud-val{color:var(--blue);}
+.progress-section{padding:8px 16px;}
+.progress-bar-wrap{background:var(--card-bg);border-radius:8px;height:14px;overflow:hidden;border:1px solid var(--border);}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:8px;transition:width .5s ease;width:0%;}
+.progress-msg{font-size:11px;color:var(--text-secondary);margin-top:4px;text-align:center;}
+.data-section{flex:1;padding:8px 12px;overflow:hidden;display:flex;flex-direction:column;}
+.data-section h3{font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.data-table-wrap{flex:1;overflow-y:auto;border-radius:8px;border:1px solid var(--border);}
+.data-table-wrap::-webkit-scrollbar{width:4px;}
+.data-table-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.data-table{width:100%;border-collapse:collapse;font-size:10px;}
+.data-table th{background:var(--card-bg);color:var(--accent);font-weight:600;padding:6px 5px;text-align:left;position:sticky;top:0;z-index:1;border-bottom:2px solid var(--accent);font-size:10px;}
+.data-table td{padding:5px;border-bottom:1px solid var(--border);color:var(--text-primary);font-size:10px;line-height:1.3;}
+td.ok-yes{color:var(--green);font-weight:700;}
+td.ok-no{color:var(--red);font-weight:700;}
+td.ok-partial{color:var(--orange);font-weight:700;}
+.title-bar{background:linear-gradient(135deg,#0d2137,#162d45);padding:10px 20px;display:flex;align-items:center;border-bottom:1px solid var(--border);grid-column:1/4;}
+.title-bar h1{font-size:17px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.title-bar .subtitle{font-size:11px;color:var(--text-secondary);}
+.welcome-screen{text-align:center;max-width:500px;}
+.welcome-screen .big-emoji{font-size:64px;margin-bottom:16px;}
+.welcome-screen h2{font-size:26px;font-weight:800;color:#fff;margin-bottom:10px;}
+.welcome-screen p{font-size:15px;color:var(--text-secondary);line-height:1.6;margin-bottom:6px;}
+.welcome-highlight{background:linear-gradient(135deg,rgba(0,191,165,.12),rgba(124,77,255,.12));border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px;}
+.welcome-highlight p{font-size:13px;color:var(--accent);}
+.completion-card{text-align:center;}
+.completion-card .big-emoji{font-size:48px;margin-bottom:12px;}
+.completion-card h3{color:var(--green) !important;font-size:22px !important;}
+.ec-banner{background:linear-gradient(135deg,rgba(255,215,64,.15),rgba(255,171,64,.15));border:1px solid rgba(255,215,64,.3);border-radius:10px;padding:10px 16px;margin-top:12px;text-align:center;font-size:13px;color:var(--gold);font-weight:600;}
+
+/* ========== WATCH SECTION ========== */
+.watch-wrap{width:100%;max-width:700px;animation:fadeUp .35s ease;}
+.watch-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.watch-header .wh-emoji{font-size:28px;}
+.watch-header h3{font-size:17px;font-weight:800;color:#fff;margin:0;}
+/* Scene Stage */
+.scene-stage{position:relative;width:100%;height:210px;border-radius:16px;overflow:hidden;border:2px solid var(--border);box-shadow:0 6px 32px rgba(0,0,0,.5);}
+.scene-sky{position:absolute;top:0;left:0;right:0;bottom:35%;}
+.scene-sky.day{background:linear-gradient(180deg,#1a3a5a 0%,#2a5a7a 100%);}
+.scene-sky.dark{background:linear-gradient(180deg,#0d1a2a 0%,#1a2a3a 100%);}
+.scene-ground{position:absolute;bottom:0;left:0;right:0;height:35%;border-top:2px solid rgba(80,140,80,.5);}
+.scene-ground.grass{background:linear-gradient(180deg,#2d6a3a 0%,#1a4028 100%);}
+.scene-ground.urban{background:linear-gradient(180deg,#4a4a4a 0%,#2a2a2a 100%);border-top-color:rgba(100,100,100,.5);}
+.scene-ground.farm{background:linear-gradient(180deg,#5a7a2a 0%,#3a5a1a 100%);}
+/* Entity inside scene */
+.ent{position:absolute;text-align:center;transition:all 1.4s cubic-bezier(.4,0,.2,1);z-index:2;filter:drop-shadow(0 3px 6px rgba(0,0,0,.5));}
+.ent .ei{font-size:38px;display:block;line-height:1;}
+.ent .el{font-size:9px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);padding:1px 6px;border-radius:3px;margin-top:1px;white-space:nowrap;display:inline-block;}
+.ent.hid{opacity:0;transform:scale(.15);pointer-events:none;}
+.ent.dim{opacity:.2;filter:grayscale(1) drop-shadow(0 3px 6px rgba(0,0,0,.5));}
+.ent.pop{animation:popIn .5s cubic-bezier(.17,.67,.24,1.2) forwards;}
+.ent.hid.pop{opacity:1;transform:scale(1);}
+@keyframes popIn{0%{opacity:0;transform:scale(0);}50%{opacity:1;transform:scale(1.25);}100%{opacity:1;transform:scale(1);}}
+.ent.shake{animation:shake .5s ease 3;}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0);}25%{transform:translateX(-8px) rotate(-5deg);}75%{transform:translateX(8px) rotate(5deg);}}
+.ent.gone{opacity:0;transform:scale(.1);transition:all 1s ease;}
+.ent.slideR{transform:translateX(140px);opacity:0;transition:all 1.8s ease;}
+.ent.grow{transform:scale(1.5);transition:all 1s ease;}
+.ent.red-x::after{content:'✖';position:absolute;top:-6px;right:-8px;font-size:22px;color:#FF5252;text-shadow:0 0 10px rgba(255,82,82,.7);animation:popIn .4s ease;}
+/* Overlays */
+.scene-ov{position:absolute;top:0;left:0;right:0;bottom:0;z-index:4;pointer-events:none;opacity:0;transition:opacity .8s ease;}
+.scene-ov.vis{opacity:1;}
+.scene-ov.red{background:radial-gradient(ellipse at center,rgba(255,82,82,.2) 0%,transparent 70%);}
+.scene-ov.grn{background:radial-gradient(ellipse at center,rgba(105,240,174,.18) 0%,transparent 70%);}
+/* Result badge */
+.scene-badge{position:absolute;top:8px;right:12px;font-size:44px;z-index:5;opacity:0;transform:scale(0);transition:all .5s cubic-bezier(.17,.67,.24,1.2);}
+.scene-badge.show{opacity:1;transform:scale(1);}
+/* Narration */
+.scene-nar{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin-top:10px;min-height:50px;display:flex;align-items:center;justify-content:center;text-align:center;}
+.scene-nar p{font-size:15px;font-weight:600;line-height:1.5;color:var(--text-primary);}
+.ng{color:var(--green);}
+.nr{color:var(--red);}
+.no{color:var(--orange);}
+.na{color:var(--accent);}
+/* Meter */
+.meter-sec{margin-top:10px;}
+.meter-title{text-align:center;font-size:12px;font-weight:800;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:1.5px;}
+.meter-bar{position:relative;height:44px;background:linear-gradient(90deg,#c62828 0%,#e53935 12%,#ff7043 24%,#ffa726 36%,#66bb6a 44%,#2e7d32 50%,#66bb6a 56%,#ffa726 64%,#ff7043 76%,#e53935 88%,#c62828 100%);border-radius:22px;overflow:visible;box-shadow:inset 0 3px 12px rgba(0,0,0,.35),0 3px 16px rgba(0,0,0,.3);}
+.meter-ok{position:absolute;top:-2px;bottom:-2px;left:36%;right:36%;border:3px solid rgba(255,255,255,.5);border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);}
+.meter-ok span{font-size:11px;font-weight:800;color:rgba(255,255,255,.9);text-shadow:0 1px 4px rgba(0,0,0,.6);}
+.meter-ll{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);}
+.meter-lr{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);}
+.meter-ndl{position:absolute;top:-8px;bottom:-8px;width:7px;background:#fff;border-radius:4px;box-shadow:0 0 14px rgba(255,255,255,.8);transition:left 2.2s cubic-bezier(.25,.1,.25,1);left:50%;transform:translateX(-50%);z-index:5;}
+.meter-ndl::before{content:'';position:absolute;top:-9px;left:50%;transform:translateX(-50%);width:18px;height:18px;background:#fff;border-radius:50%;box-shadow:0 0 16px rgba(255,255,255,.6);}
+.meter-ndl.gl-g{box-shadow:0 0 14px rgba(105,240,174,.9),0 0 32px rgba(105,240,174,.4);}
+.meter-ndl.gl-g::before{box-shadow:0 0 16px rgba(105,240,174,.7);}
+.meter-ndl.gl-r{box-shadow:0 0 14px rgba(255,82,82,.9),0 0 32px rgba(255,82,82,.4);}
+.meter-ndl.gl-r::before{box-shadow:0 0 16px rgba(255,82,82,.7);}
+.meter-ndl.gl-o{box-shadow:0 0 14px rgba(255,171,64,.9),0 0 32px rgba(255,171,64,.4);}
+.meter-ndl.gl-o::before{box-shadow:0 0 16px rgba(255,171,64,.7);}
+.meter-res{text-align:center;margin-top:8px;min-height:26px;}
+.vp{display:inline-flex;align-items:center;gap:8px;padding:5px 20px;border-radius:20px;font-size:14px;font-weight:700;}
+.vp.good{background:rgba(105,240,174,.15);color:var(--green);border:1px solid rgba(105,240,174,.3);}
+.vp.bad{background:rgba(255,82,82,.15);color:var(--red);border:1px solid rgba(255,82,82,.3);}
+.vp.mid{background:rgba(255,171,64,.15);color:var(--orange);border:1px solid rgba(255,171,64,.3);}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="title-bar">
+<div>
+<h1>🏙️ Science Department Simulation: Who Pays to Fix It?</h1>
+<div class="subtitle">Investigate real Staten Island wildlife policies — evaluate what works!</div>
+</div>
+</div>
+<div class="left-sidebar">
+<div class="left-header"><h2>Pick Any You Like</h2><p id="pick-msg">Choose 5 of 8 scenarios</p></div>
+<div class="scenario-list" id="scenario-list"></div>
+<div class="left-divider"></div>
+<div class="reading-level-section"><h3>Reading Level</h3><div class="rl-tabs"><div class="rl-tab active" data-level="low" onclick="setLevel('low')">Low</div><div class="rl-tab" data-level="med" onclick="setLevel('med')">Med</div><div class="rl-tab" data-level="high" onclick="setLevel('high')">High</div></div></div>
+<div class="left-divider"></div>
+<div class="keywords-section"><h3>Key Words</h3><div class="kw-list" id="kw-list"></div></div>
+<div class="left-buttons"><button class="btn-reset" onclick="resetAll()">Reset</button><button class="btn-new" onclick="newRun()">New Run</button></div>
+</div>
+<div class="center-panel">
+<div class="step-tabs" id="step-tabs"><div class="step-tab" data-step="1">1. PREDICT</div><div class="step-tab" data-step="2">2. READ</div><div class="step-tab" data-step="3">3. WATCH</div><div class="step-tab" data-step="4">4. RECORD</div></div>
+<div class="center-content" id="center-content"></div>
+<div class="center-action" id="center-action"></div>
+</div>
+<div class="right-sidebar">
+<div class="right-header"><h2>📊 Progress</h2></div>
+<div class="hud-grid"><div class="hud-stat score"><div class="hud-val" id="hud-score">0</div><div class="hud-label">Score</div></div><div class="hud-stat streak"><div class="hud-val" id="hud-streak">0</div><div class="hud-label">Streak</div></div><div class="hud-stat completed"><div class="hud-val" id="hud-completed">0/5</div><div class="hud-label">Completed</div></div><div class="hud-stat accuracy"><div class="hud-val" id="hud-accuracy">—</div><div class="hud-label">Accuracy</div></div></div>
+<div class="progress-section"><div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill"></div></div><div class="progress-msg" id="progress-msg">Pick your first scenario!</div></div>
+<div class="data-section"><h3>Data Table</h3><div class="data-table-wrap"><table class="data-table"><thead><tr><th>Scenario</th><th>What Changed?</th><th>Response</th><th>OK?</th></tr></thead><tbody id="data-tbody"></tbody></table></div></div>
+</div>
+</div>
+<script>
+const S=[
+{id:1,name:"Deer Sterilization",emoji:"🦌",change:"City spent millions on non-lethal sterilization",response:"Deer population dropped, fawn births fell",ok:"Yes",okC:"ok-yes",mp:62,
+low:"Staten Island had over 2,000 deer and no predators to control the <kw>population</kw>. The city started a <kw>sterilization</kw> program to stop deer from having babies. This <kw>non-lethal</kw> <kw>policy</kw> cost millions of dollars. The deer <kw>population</kw> dropped, and the program was extended for five more years.",
+med:"By 2017, Staten Island's deer <kw>population</kw> had grown to over 2,000 with no natural predators. The city hired a company to perform <kw>sterilization</kw> surgery on male deer. This <kw>non-lethal</kw> <kw>policy</kw> was the first of its kind in the world. Fawn births dropped dramatically, and the <kw>population</kw> began to shrink. The program cost millions and was recently extended for another five years. Some critics say it costs too much per deer, but supporters say it is the only safe option in a city of 475,000 people.",
+high:"By 2017, Staten Island's deer <kw>population</kw> had exploded to over 2,000 animals with no natural predators to control them. Deer-car crashes surged, and Lyme disease cases rose as a <kw>cascade effect</kw> of the growing <kw>population</kw>. The city launched a <kw>sterilization</kw> <kw>policy</kw>, hiring a company to perform surgery on male deer. This <kw>non-lethal</kw> approach was the world's first male-only deer <kw>sterilization</kw> program. Fawn births dropped significantly, and the overall <kw>population</kw> began to decline. The program cost millions of dollars and was recently extended for five more years at an additional cost. Critics argue the cost per deer is far too high for taxpayers. Supporters say <kw>non-lethal</kw> <kw>containment</kw> is the only realistic option in a borough of 475,000 residents.",
+sc:{sky:"day",gnd:"grass",ents:[
+{i:"🦌",x:8,y:30,id:"d1"},{i:"🦌",x:20,y:35,id:"d2"},{i:"🦌",x:34,y:28,id:"d3"},{i:"🦌",x:48,y:34,id:"d4"},{i:"🦌",x:62,y:30,id:"d5"},{i:"🦌",x:76,y:35,id:"d6"},
+{i:"🦌",x:14,y:52,id:"d7",l:"Baby",sz:26},{i:"🦌",x:42,y:54,id:"d8",l:"Baby",sz:26},{i:"🦌",x:68,y:52,id:"d9",l:"Baby",sz:26},
+{i:"💉",x:85,y:12,id:"syr",l:"Sterilization"},{i:"💰",x:3,y:10,id:"$",l:"$$$  Millions"}
+],steps:[
+{d:400,n:"Staten Island has <span class='nr'>TOO MANY DEER</span> — over 2,000! No predators to stop them.",a:"show d1 d2 d3 d4 d5 d6 d7 d8 d9"},
+{d:2800,n:"The city starts a <span class='na'>sterilization program</span> — surgery stops deer from having babies.",a:"show syr $;flash grn"},
+{d:5200,n:"Baby deer <span class='ng'>STOP being born</span>. The deer population starts dropping! 📉",a:"gone d7 d8 d9;badge 📉"},
+{d:7600,n:"Costs millions, but population is <span class='ng'>going down</span>. Program extended 5 more years!",a:"dim d5 d6"}
+]}},
+{id:2,name:"Turkey Relocation",emoji:"🦃",change:"City moved 150+ turkeys to sanctuary upstate",response:"Sanctuary full, turkeys kept multiplying",ok:"No",okC:"ok-no",mp:28,
+low:"Wild turkeys were taking over Staten Island neighborhoods. The city caught over 150 turkeys and moved them to a sanctuary upstate. The sanctuary ran out of room, and turkeys kept multiplying on the island. This <kw>policy</kw> did not solve the <kw>population</kw> problem.",
+med:"Wild turkeys multiplied across Staten Island, blocking traffic and chasing pets. The city's <kw>policy</kw> was to relocate turkeys to a sanctuary in the Catskills. Over 150 turkeys were moved between 2014 and 2018. But the sanctuary ran out of room, and the turkey <kw>population</kw> kept growing on the island. The state wildlife agency will not release the turkeys into the wild because they may be hybrids, so no clear <kw>containment</kw> plan exists.",
+high:"By 2013, large flocks of wild turkeys were overwhelming Staten Island neighborhoods, hospitals, and parks. The city's <kw>policy</kw> was to relocate turkeys to a sanctuary in the Catskills upstate. Over 150 turkeys were moved between 2014 and 2018, but the sanctuary eventually ran out of room. The turkey <kw>population</kw> on Staten Island kept growing because the birds reproduce quickly. The state wildlife agency will not release the turkeys into the wild because they may be hybrids that could harm native <kw>populations</kw>. In 2013, about 80 turkeys were killed by the USDA, sparking massive public outcry. No clear long-term <kw>containment</kw> <kw>policy</kw> exists for the turkey <kw>population</kw> on Staten Island.",
+sc:{sky:"day",gnd:"urban",ents:[
+{i:"🦃",x:6,y:32,id:"t1"},{i:"🦃",x:18,y:36,id:"t2"},{i:"🦃",x:32,y:30,id:"t3"},{i:"🦃",x:46,y:34,id:"t4"},{i:"🦃",x:60,y:30,id:"t5"},{i:"🦃",x:74,y:36,id:"t6"},
+{i:"🏠",x:5,y:8,id:"h1"},{i:"🏥",x:38,y:6,id:"h2"},{i:"🏠",x:72,y:8,id:"h3"},
+{i:"🚛",x:86,y:30,id:"trk",l:"To Sanctuary"}
+],steps:[
+{d:400,n:"Wild turkeys are <span class='nr'>TAKING OVER</span> — blocking streets, chasing pets, invading hospitals!",a:"show t1 t2 t3 t4 t5 t6 h1 h2 h3;shake t1 t2 t3 t4 t5 t6"},
+{d:2800,n:"City catches 150+ turkeys and <span class='na'>MOVES THEM</span> to a sanctuary upstate.",a:"show trk;slideR t1 t2 t3"},
+{d:5200,n:"But the sanctuary <span class='nr'>RUNS OUT OF ROOM!</span> Turkeys keep multiplying back on the island!",a:"flash red;spawn 🦃 4"},
+{d:7600,n:"<span class='nr'>NO PLAN EXISTS.</span> The turkey population keeps growing with no solution.",a:"badge ❌;dim trk"}
+]}},
+{id:3,name:"Lanternfly Stomping",emoji:"🪲",change:"NYC told residents to kill lanternflies on sight",response:"Insect still spread to all five boroughs",ok:"No",okC:"ok-no",mp:22,
+low:"The spotted lanternfly is an invasive insect from Asia that landed on Staten Island in 2020. NYC created a <kw>policy</kw> telling all residents to kill lanternflies on sight. The insect still spread to all five boroughs. Natural predators like spiders and birds are slowly starting to eat them.",
+med:"The spotted lanternfly is an invasive insect from Asia that was first confirmed in New York on Staten Island in 2020. It feeds on over 70 plant species and produces a sticky substance that grows damaging black mold. NYC's <kw>policy</kw> tells all residents to kill lanternflies on sight. State agencies are spending millions on <kw>containment</kw> efforts. Despite these efforts, the insect spread to all five boroughs as a <kw>cascade effect</kw>. Natural predators like spiders, praying mantises, and birds are slowly building <kw>populations</kw> that may help control them.",
+high:"The spotted lanternfly is an invasive insect from Asia that was first confirmed in New York on Staten Island in August 2020. It feeds on over 70 plant species and secretes a sticky honeydew that grows damaging black mold on plants. NYC created a <kw>policy</kw> telling residents to kill lanternflies on sight through 311 reports. State agencies are spending millions on <kw>containment</kw> to stop the spread. Despite these efforts, the <kw>population</kw> exploded and spread to all five boroughs in a <kw>cascade effect</kw>. Scientists debate whether citizen stomping is effective at the <kw>ecosystem</kw> level. Natural predators like spiders, praying mantises, and birds are slowly building <kw>populations</kw> that may help. The question remains whether the <kw>ecosystem</kw> can self-correct or if the pest needs more aggressive intervention.",
+sc:{sky:"day",gnd:"grass",ents:[
+{i:"🌳",x:8,y:16,id:"tr1"},{i:"🌳",x:32,y:14,id:"tr2"},{i:"🌳",x:58,y:16,id:"tr3"},{i:"🌳",x:82,y:14,id:"tr4"},
+{i:"🪲",x:40,y:30,id:"b1"},{i:"🪲",x:48,y:34,id:"b2"},
+{i:"👟",x:42,y:50,id:"shoe",l:"STOMP!"},{i:"🕷️",x:86,y:48,id:"spi",l:"Predator",sz:28}
+],steps:[
+{d:400,n:"Spotted lanternflies arrive on Staten Island from Asia! An <span class='nr'>INVASIVE</span> species!",a:"show tr1 tr2 tr3 tr4 b1 b2"},
+{d:2600,n:"NYC tells everyone: <span class='na'>STOMP THEM ON SIGHT!</span> 👟💥",a:"show shoe;shake shoe"},
+{d:4600,n:"But the bugs <span class='nr'>SPREAD EVERYWHERE</span> — all 5 boroughs! Stomping can't keep up!",a:"spawn 🪲 8;flash red"},
+{d:7000,n:"Natural predators are <span class='no'>slowly appearing</span>, but stomping alone <span class='nr'>FAILED</span>.",a:"show spi;badge ❌"}
+]}},
+{id:4,name:"Tick Control Budget",emoji:"💰",change:"City increased tick control spending by $600K/year",response:"Ticks monitored but root cause not fixed",ok:"Partial",okC:"ok-partial",mp:40,
+low:"As the deer <kw>population</kw> grew on Staten Island, so did the number of ticks. Lyme disease cases surged as a <kw>cascade effect</kw>. The city increased spending by about $600,000 per year on tick control. But many scientists say the deer <kw>population</kw> is the real root cause.",
+med:"As the deer <kw>population</kw> grew on Staten Island, the <kw>population</kw> of deer ticks grew with it. Lyme disease cases surged as a <kw>cascade effect</kw> of too many deer. The city's <kw>policy</kw> was to increase spending by about $600,000 per year on tick surveillance and control. Monitoring expanded and public awareness campaigns were launched. But scientists pointed out that the deer <kw>population</kw> is the root cause, and tick <kw>containment</kw> alone cannot solve the problem.",
+high:"As Staten Island's deer <kw>population</kw> grew past 2,000, the <kw>population</kw> of black-legged deer ticks exploded alongside them. Lyme disease cases surged on the island as a direct <kw>cascade effect</kw> of deer overpopulation. The city responded with a <kw>policy</kw> to increase spending by about $600,000 per year on tick surveillance and control. Monitoring programs expanded across parks and neighborhoods. Public awareness campaigns were launched to help residents protect themselves. However, scientists argued that tick <kw>containment</kw> alone cannot fix the problem because the deer <kw>population</kw> is the root cause. This raised a key question: should the city spend more on tick control or focus on reducing the deer <kw>population</kw> that carries them?",
+sc:{sky:"day",gnd:"grass",ents:[
+{i:"🦌",x:10,y:26,id:"de1"},{i:"🦌",x:28,y:30,id:"de2"},{i:"🦌",x:48,y:26,id:"de3"},
+{i:"🪳",x:16,y:50,id:"tk1",l:"Tick",sz:22},{i:"🪳",x:34,y:52,id:"tk2",l:"Tick",sz:22},{i:"🪳",x:52,y:50,id:"tk3",l:"Tick",sz:22},{i:"🪳",x:68,y:52,id:"tk4",l:"Tick",sz:22},
+{i:"💰",x:78,y:10,id:"m1",l:"$600K/yr"},{i:"🔬",x:78,y:36,id:"mon",l:"Monitor"}
+],steps:[
+{d:400,n:"More deer = <span class='nr'>MORE TICKS!</span> Lyme disease is surging on Staten Island!",a:"show de1 de2 de3 tk1 tk2 tk3 tk4"},
+{d:2800,n:"City spends <span class='na'>$600,000 per year</span> on tick monitoring and control programs.",a:"show m1 mon;flash grn"},
+{d:5200,n:"Some ticks removed, but <span class='no'>MORE KEEP COMING</span> because deer are still there!",a:"gone tk1 tk2;spawn 🪳 3"},
+{d:7600,n:"<span class='no'>Treats SYMPTOMS, not ROOT CAUSE.</span> The deer create the tick problem!",a:"shake de1 de2 de3;badge ⚠️"}
+]}},
+{id:5,name:"Boxwood Blight",emoji:"🌿",change:"Invasive fungus with no cure destroys hedges",response:"No containment works, ecosystem fragile",ok:"No",okC:"ok-no",mp:12,
+low:"Boxwood blight is an invasive fungus that destroys hedges and shrubs. It was first confirmed in the United States in 2011 and spread quickly. No boxwood species is immune, and there is no cure. This shows what happens when an <kw>ecosystem</kw> has no <kw>containment</kw> plan for an invasive threat.",
+med:"Boxwood blight is an invasive fungus that has been spreading through New York landscapes since 2011. No boxwood species is fully immune to the disease, and there is currently no cure. Entire hedges have been wiped out, and nurseries cannot guarantee blight-free plants. There is no effective <kw>containment</kw> <kw>policy</kw> to stop its spread. Scientists say this is an example of how relying on one plant species creates a weak <kw>ecosystem</kw> with no backup.",
+high:"Boxwood blight is an invasive fungus that was first confirmed in the United States in 2011. It has been spreading through New York landscapes, destroying hedges and ornamental shrubs. No boxwood species is fully immune to the blight, and researchers have found no effective cure. Entire hedges have been wiped out across the region, and nurseries cannot guarantee their plants are blight-free. There is no <kw>containment</kw> <kw>policy</kw> that has proven effective against this fungus. Scientists warn that over-relying on one plant species creates a fragile <kw>ecosystem</kw> vulnerable to <kw>cascade effects</kw>. The debate continues over whether people should stop planting boxwood entirely and switch to diverse native species.",
+sc:{sky:"day",gnd:"grass",ents:[
+{i:"🌿",x:6,y:28,id:"p1"},{i:"🌿",x:20,y:30,id:"p2"},{i:"🌿",x:34,y:26,id:"p3"},{i:"🌿",x:48,y:30,id:"p4"},{i:"🌿",x:62,y:28,id:"p5"},{i:"🌿",x:76,y:30,id:"p6"},
+{i:"🦠",x:42,y:8,id:"fun",l:"Blight — NO CURE",sz:34},{i:"❌",x:82,y:8,id:"nc",l:"No Cure"}
+],steps:[
+{d:400,n:"Healthy boxwood hedges are growing across New York. Everything looks fine.",a:"show p1 p2 p3 p4 p5 p6"},
+{d:2400,n:"<span class='nr'>INVASIVE FUNGUS ARRIVES!</span> No species is immune. There is <span class='nr'>NO CURE.</span>",a:"show fun nc;flash red"},
+{d:4800,n:"The fungus <span class='nr'>DESTROYS</span> hedge after hedge. Nothing can stop it!",a:"dim p1;dim p2;dim p3;dim p4;dim p5;dim p6"},
+{d:7200,n:"<span class='nr'>TOTAL FAILURE.</span> Relying on one species made everything fragile. 💀",a:"badge 💀"}
+]}},
+{id:6,name:"Songbird Fencing",emoji:"🐦",change:"Parks built fences to protect plants from deer",response:"Plants regrew in fenced areas only",ok:"Partial",okC:"ok-partial",mp:45,
+low:"Deer ate so many plants on Staten Island that songbirds lost their habitat. Ground-nesting birds had no cover to hide from predators. Parks staff built fences to protect native plants from deer. This <kw>policy</kw> helped in small areas, but most people never noticed the damage.",
+med:"As the deer <kw>population</kw> grew on Staten Island, deer ate through native plants, shrubs, and forest ground cover. This created a <kw>cascade effect</kw> that destroyed habitat for songbirds and ground-nesting species. Without plant cover, small birds had no protection from predators. Parks staff responded with a <kw>policy</kw> of building fences around sensitive areas to block deer. The fencing helped native plants regrow in protected zones. However, most people never see the damage to birds and plants, so there is little public support for spending money on this <kw>ecosystem</kw> problem.",
+high:"As Staten Island's deer <kw>population</kw> reached extremely high levels, deer browsed through native plants, shrubs, and forest understory across the island's parks. This created a <kw>cascade effect</kw>: ground cover disappeared, songbird habitat was destroyed, and ground-nesting birds lost protection from predators. Research showed that high deer densities eliminate certain warbler, flycatcher, and phoebe <kw>populations</kw> entirely. Parks staff responded with a <kw>policy</kw> of building fences around the most sensitive areas to prevent deer browsing. Inside the fenced zones, native plants began to regrow and some bird species returned. However, fencing only protects small areas and does not address the larger deer <kw>population</kw> problem. Most residents never see the invisible damage to the <kw>ecosystem</kw> because songbirds and ground plants are not obvious. This raises a hard question: should the city spend money protecting species that the public does not even notice?",
+sc:{sky:"day",gnd:"grass",ents:[
+{i:"🦌",x:5,y:30,id:"fd1"},{i:"🦌",x:20,y:34,id:"fd2"},
+{i:"🚧",x:38,y:28,id:"fnc",l:"🔒 FENCE"},{i:"🌱",x:48,y:34,id:"fp1"},{i:"🌱",x:56,y:30,id:"fp2"},{i:"🌱",x:64,y:34,id:"fp3"},
+{i:"🐦",x:52,y:14,id:"bi1"},{i:"🐦",x:62,y:10,id:"bi2"},
+{i:"🦌",x:78,y:50,id:"fd3"},{i:"🌱",x:85,y:50,id:"fp4",sz:26}
+],steps:[
+{d:400,n:"Deer eat ALL the plants. <span class='nr'>Songbirds lose their homes!</span> No cover to hide in.",a:"show fd1 fd2 fd3 fp4;dim fp4"},
+{d:2800,n:"Parks staff <span class='na'>BUILD FENCES</span> around sensitive areas to keep deer OUT.",a:"show fnc;flash grn"},
+{d:5200,n:"Inside the fence: <span class='ng'>plants regrow!</span> <span class='ng'>Birds come back!</span> 🎉",a:"show fp1 fp2 fp3 bi1 bi2"},
+{d:7600,n:"But fences only help <span class='no'>SMALL AREAS</span>. The bigger deer problem remains outside.",a:"shake fd3;badge ⚠️"}
+]}},
+{id:7,name:"The Hunting Ban",emoji:"🚫",change:"Laws prevent all hunting, limiting options",response:"Only sterilization legal as management tool",ok:"No",okC:"ok-no",mp:18,
+low:"Staten Island has 475,000 residents, so public hunting is banned. This means the city cannot use hunting to reduce the deer <kw>population</kw>. <kw>Sterilization</kw> became the only legal <kw>non-lethal</kw> option.",
+med:"Staten Island is home to 475,000 people, making public hunting far too dangerous. Crossbow use is blocked by a rule requiring 500 feet of distance from any building. Sharpshooting was considered politically impossible. These restrictions left the city with no lethal <kw>policy</kw> options for managing the deer <kw>population</kw>. As a result, <kw>sterilization</kw> became the only legal <kw>non-lethal</kw> tool, even though some scientists argued that lethal management would be faster and cheaper.",
+high:"Staten Island is a densely populated borough of 475,000 residents, making public hunting extremely dangerous and impractical. Crossbow use is blocked by a rule requiring 500 feet of distance from any building, which eliminates most of the island. Sharpshooting by professionals was considered but deemed politically impossible due to public opposition. These legal restrictions created a situation where no lethal <kw>policy</kw> could be used for <kw>population</kw> <kw>containment</kw>. <kw>Sterilization</kw> became the only legal <kw>non-lethal</kw> management option available to the city. Some wildlife scientists argued that lethal methods would achieve faster results at lower cost, but the political reality made this impossible. This scenario raises a key question: should science or public opinion decide how to manage an <kw>ecosystem</kw> crisis?",
+sc:{sky:"dark",gnd:"urban",ents:[
+{i:"🏘️",x:5,y:8,id:"hs1"},{i:"🏘️",x:25,y:6,id:"hs2"},{i:"🏘️",x:48,y:8,id:"hs3"},{i:"🏘️",x:70,y:6,id:"hs4"},
+{i:"🦌",x:15,y:34,id:"hd1"},{i:"🦌",x:38,y:38,id:"hd2"},{i:"🦌",x:62,y:34,id:"hd3"},
+{i:"🚫",x:44,y:12,id:"ban",l:"NO HUNTING"},{i:"🔒",x:82,y:34,id:"lock",l:"Options Locked"}
+],steps:[
+{d:400,n:"Staten Island has <span class='na'>475,000 residents</span>. Way too many people for hunting!",a:"show hs1 hs2 hs3 hs4"},
+{d:2600,n:"<span class='nr'>HUNTING IS BANNED.</span> Crossbows blocked. Sharpshooting impossible.",a:"show ban lock;flash red"},
+{d:5000,n:"Deer keep growing with <span class='nr'>NO WAY TO REDUCE</span> the population quickly!",a:"show hd1 hd2 hd3;shake hd1 hd2 hd3"},
+{d:7400,n:"<span class='nr'>Policy options are LOCKED.</span> Only sterilization is legal — slow & expensive.",a:"badge 🔒"}
+]}},
+{id:8,name:"Lanternfly vs. Farms",emoji:"🍇",change:"Lanternfly spread to NY grape regions upstate",response:"Ongoing battle, containment uncertain",ok:"Partial",okC:"ok-partial",mp:35,
+low:"The spotted lanternfly spread from Staten Island to New York's grape-growing regions upstate. This invasive insect threatens the state's grape industry. State agencies and researchers launched education and control programs. The debate is about how much money to spend fighting one insect.",
+med:"The spotted lanternfly spread from Staten Island across the state, reaching New York's grape-growing Finger Lakes region. This invasive insect threatens the state's grape industry, with researchers projecting growing losses each year. State agencies, university researchers, and growers launched education and <kw>containment</kw> programs. The <kw>policy</kw> debate centers on how much the state should spend to fight a single invasive <kw>population</kw>. Some argue that urban heat islands help lanternflies survive longer, making climate part of the <kw>ecosystem</kw> problem.",
+high:"After arriving on Staten Island in 2020, the spotted lanternfly spread rapidly across New York, reaching the grape-growing Finger Lakes region by 2024. This invasive insect feeds on grapevines and dozens of other plant species, threatening a major agricultural industry. Researchers projected that losses could grow from millions of dollars in the first year to many more in following years if left unchecked. State agencies, university researchers, and grape growers launched coordinated <kw>containment</kw> and education programs. The <kw>policy</kw> debate centers on how much the state should invest in fighting a single invasive <kw>population</kw>. Unlike deer or turkeys, the lanternfly is a true invasive species with no natural predators in the <kw>ecosystem</kw>. Some scientists note that urban heat islands help lanternflies survive longer, connecting climate change to the invasion. This raises a complex question: can <kw>containment</kw> alone stop an invasive species, or does the <kw>ecosystem</kw> need to build its own defenses over time?",
+sc:{sky:"day",gnd:"farm",ents:[
+{i:"🍇",x:6,y:24,id:"g1"},{i:"🍇",x:20,y:28,id:"g2"},{i:"🍇",x:34,y:24,id:"g3"},{i:"🍇",x:48,y:28,id:"g4"},{i:"🍇",x:62,y:24,id:"g5"},
+{i:"🪲",x:6,y:48,id:"lb1",sz:26},{i:"🪲",x:18,y:44,id:"lb2",sz:26},
+{i:"🔬",x:80,y:12,id:"res",l:"Research"},{i:"💰",x:80,y:38,id:"fc",l:"Millions $$$"}
+],steps:[
+{d:400,n:"New York's Finger Lakes grape farms are <span class='ng'>THRIVING</span>. 🍇 A major industry!",a:"show g1 g2 g3 g4 g5"},
+{d:2600,n:"Spotted lanternflies <span class='nr'>SPREAD FROM STATEN ISLAND</span> to the grape farms! 🪲➡️🍇",a:"show lb1 lb2;spawn 🪲 5;flash red"},
+{d:5000,n:"Researchers fight back with <span class='na'>containment programs</span>. But losses grow every year!",a:"show res fc;dim g2;dim g4"},
+{d:7400,n:"<span class='no'>ONGOING BATTLE.</span> Can containment alone stop an invasive species?",a:"badge ⚠️"}
+]}}
+];
+
+const KW=["policy","sterilization","non-lethal","containment","cascade effect","population","ecosystem"];
+let st={as:null,step:0,lv:'low',pred:null,done:[],score:0,streak:0,cp:0,tp:0,rows:[],spk:false};
+let tmrs=[];
+
+function $(id){return document.getElementById(id);}
+function init(){renderList();renderKW();showWelcome();updHUD();}
+
+function renderList(){const el=$('scenario-list');el.innerHTML='';S.forEach(s=>{const d=document.createElement('div');d.className='scenario-card'+(st.done.includes(s.id)?' completed':'')+(st.as&&st.as.id===s.id?' active':'');d.innerHTML=`<span class="sc-emoji">${s.emoji}</span><div class="sc-name">${s.name}${st.done.includes(s.id)?'<small>Completed</small>':''}</div>${st.done.includes(s.id)?'<span class="sc-check">✓</span>':''}`;d.onclick=()=>selSc(s);el.appendChild(d);});}
+
+function renderKW(){$('kw-list').innerHTML=KW.map(k=>`<span class="kw-tag">${k}</span>`).join('');}
+
+function selSc(s){if(st.done.includes(s.id))return;if(st.as&&st.step>0&&st.step<4)return;clrT();st.as=s;st.step=1;st.pred=null;renderList();updTabs();showPredict();}
+function setLevel(l){st.lv=l;document.querySelectorAll('.rl-tab').forEach(t=>t.classList.toggle('active',t.dataset.level===l));}
+function updTabs(){document.querySelectorAll('.step-tab').forEach(t=>{const n=+t.dataset.step;t.classList.remove('active','done');if(n===st.step)t.classList.add('active');else if(n<st.step)t.classList.add('done');});}
+function clrT(){tmrs.forEach(t=>clearTimeout(t));tmrs=[];}
+function at(fn,d){const t=setTimeout(fn,d);tmrs.push(t);return t;}
+
+function showWelcome(){$('center-content').innerHTML=`<div class="welcome-screen"><div class="big-emoji">🏙️</div><h2>Who Pays to Fix It?</h2><p>Staten Island is spending millions to fix its wildlife crisis — but are the solutions actually working?</p><p style="color:var(--accent);font-weight:600;">Evaluate 8 real policies and determine which ones move the ecosystem back toward balance.</p><div class="welcome-highlight"><p>👈 Pick any scenario from the left to begin!</p></div></div>`;$('center-action').innerHTML='';st.step=0;updTabs();}
+
+function showPredict(){const s=st.as;$('center-content').innerHTML=`<div class="content-card"><h3>${s.emoji} ${s.name}</h3><p style="font-size:16px;">${s.change}</p><p style="margin-top:16px;font-weight:700;font-size:16px;color:var(--gold);">Will this policy move the ecosystem toward or away from balance?</p><div class="predict-options"><div class="predict-btn" onclick="pred('toward')" id="pt">✅ Toward Balance</div><div class="predict-btn" onclick="pred('away')" id="pa">❌ Away from Balance</div></div></div>`;$('center-action').innerHTML='';}
+function pred(c){st.pred=c;document.querySelectorAll('.predict-btn').forEach(b=>b.classList.remove('selected'));$(c==='toward'?'pt':'pa').classList.add('selected');$('center-action').innerHTML=`<button class="action-btn primary" onclick="goRead()">Continue to Read →</button>`;}
+function goRead(){st.step=2;updTabs();showRead();}
+function showRead(){const s=st.as;const t=s[st.lv].replace(/<kw>(.*?)<\/kw>/g,'<span class="kw-inline">$1</span>');$('center-content').innerHTML=`<div class="content-card"><h3>${s.emoji} ${s.name}</h3><div class="reading-card"><p>${t}</p></div></div>`;$('center-action').innerHTML=`<button class="action-btn secondary read-aloud-btn" onclick="rdAloud()" id="rab">🔊 Read Aloud</button><button class="action-btn primary" onclick="goWatch()">Watch What Happens →</button>`;}
+function rdAloud(){if(!('speechSynthesis' in window))return;if(st.spk){speechSynthesis.cancel();st.spk=false;$('rab').classList.remove('speaking');return;}const raw=st.as[st.lv].replace(/<kw>(.*?)<\/kw>/g,'$1');const u=new SpeechSynthesisUtterance(raw);u.rate=.9;u.onend=()=>{st.spk=false;const b=$('rab');if(b)b.classList.remove('speaking');};st.spk=true;$('rab').classList.add('speaking');speechSynthesis.speak(u);}
+function goWatch(){speechSynthesis.cancel();st.spk=false;st.step=3;updTabs();showWatch();}
+
+// ======= WATCH ENGINE =======
+function showWatch(){
+ clrT();
+ const s=st.as,sc=s.sc;
+ const glC=s.ok==='Yes'?'gl-g':s.ok==='No'?'gl-r':'gl-o';
+ const vC=s.ok==='Yes'?'good':s.ok==='No'?'bad':'mid';
+ const vT=s.ok==='Yes'?'✅ Moved Toward Balance':s.ok==='No'?'❌ Did Not Restore Balance':'⚠️ Partial Effect Only';
+
+ let eH='';sc.ents.forEach(e=>{
+  const sz=e.sz||38;
+  eH+=`<div class="ent hid" id="${e.id}" style="left:${e.x}%;top:${e.y}%;"><span class="ei" style="font-size:${sz}px;">${e.i}</span>${e.l?`<span class="el">${e.l}</span>`:''}</div>`;
+ });
+
+ $('center-content').innerHTML=`<div class="watch-wrap">
+  <div class="watch-header"><span class="wh-emoji">${s.emoji}</span><h3>${s.name}</h3></div>
+  <div class="scene-stage" id="stage">
+   <div class="scene-sky ${sc.sky}"></div>
+   <div class="scene-ground ${sc.gnd}"></div>
+   ${eH}
+   <div class="scene-ov red" id="ov-red"></div>
+   <div class="scene-ov grn" id="ov-grn"></div>
+   <div class="scene-badge" id="sc-badge"></div>
+  </div>
+  <div class="scene-nar" id="sc-nar"><p>Watch what happens...</p></div>
+  <div class="meter-sec"><div class="meter-title">Solution Effectiveness Meter</div>
+   <div class="meter-bar"><div class="meter-ll">FAILING</div><div class="meter-ok"><span>BALANCED</span></div><div class="meter-lr">OVER</div><div class="meter-ndl" id="ndl" style="left:50%"></div></div>
+   <div class="meter-res" id="m-res"></div>
+  </div>
+ </div>`;
+
+ $('center-action').innerHTML=`<button class="action-btn primary" onclick="goRecord()" id="rec-btn" disabled>Record Data →</button>`;
+
+ // Run steps
+ sc.steps.forEach(step=>{
+  at(()=>{
+   $('sc-nar').innerHTML=`<p>${step.n}</p>`;
+   runActs(step.a);
+  },step.d);
+ });
+
+ // Move meter
+ const ld=sc.steps[sc.steps.length-1].d;
+ at(()=>{const n=$('ndl');n.style.left=s.mp+'%';n.classList.add(glC);},ld+1200);
+ at(()=>{$('m-res').innerHTML=`<span class="vp ${vC}">${vT}</span>`;$('rec-btn').disabled=false;},ld+2800);
+}
+
+function runActs(str){
+ str.split(';').forEach(cmd=>{
+  cmd=cmd.trim();if(!cmd)return;
+  const parts=cmd.split(' ');const act=parts[0];const args=parts.slice(1);
+  switch(act){
+   case 'show':args.forEach((id,i)=>at(()=>{const e=$(id);if(e){e.classList.remove('hid');e.classList.add('pop');}},i*120));break;
+   case 'shake':args.forEach(id=>{const e=$(id);if(e)e.classList.add('shake');});break;
+   case 'gone':args.forEach((id,i)=>at(()=>{const e=$(id);if(e)e.classList.add('gone');},i*200));break;
+   case 'dim':args.forEach((id,i)=>at(()=>{const e=$(id);if(e)e.classList.add('dim');},i*250));break;
+   case 'slideR':args.forEach((id,i)=>at(()=>{const e=$(id);if(e)e.classList.add('slideR');},i*150));break;
+   case 'grow':args.forEach(id=>{const e=$(id);if(e)e.classList.add('grow');});break;
+   case 'flash':if(args[0]==='red'){const o=$('ov-red');if(o){o.classList.add('vis');at(()=>o.classList.remove('vis'),1200);}}else if(args[0]==='grn'){const o=$('ov-grn');if(o){o.classList.add('vis');at(()=>o.classList.remove('vis'),1200);}}break;
+   case 'badge':{const b=$('sc-badge');if(b){b.textContent=args[0];b.classList.add('show');}}break;
+   case 'spawn':{const icon=args[0];const cnt=parseInt(args[1])||3;const stg=$('stage');if(!stg)break;for(let i=0;i<cnt;i++){at(()=>{const d=document.createElement('div');d.className='ent hid';d.innerHTML=`<span class="ei" style="font-size:24px;">${icon}</span>`;d.style.left=Math.random()*75+5+'%';d.style.top=Math.random()*40+20+'%';d.style.zIndex='3';stg.appendChild(d);at(()=>{d.classList.remove('hid');d.classList.add('pop');},50);},i*180);}}break;
+  }
+ });
+}
+
+// ======= RECORD =======
+function goRecord(){
+ clrT();st.step=4;updTabs();
+ const s=st.as;
+ const ok=(st.pred==='toward'&&s.ok==='Yes')||(st.pred==='away'&&s.ok==='No')||(st.pred==='toward'&&s.ok==='Partial');
+ st.tp++;if(ok){st.cp++;st.streak++;st.score+=100+(st.streak>1?(st.streak-1)*25:0);}else{st.streak=0;st.score+=25;}
+ st.done.push(s.id);st.rows.push({name:s.name,change:s.change,response:s.response,ok:s.ok,okC:s.okC});
+ updHUD();renderList();addRow();showRec(ok);
+}
+function showRec(ok){
+ const s=st.as,dn=st.done.length;let m='';
+ if(dn<5)m=`<p style="margin-top:12px;color:var(--text-secondary);">Pick ${5-dn} more!</p>`;
+ else if(dn===5)m=`<div class="ec-banner">🎉 Required 5 Complete! Continue for Extra Credit!</div>`;
+ else if(dn<8)m=`<div class="ec-banner">⭐ Extra Credit! ${8-dn} more for full completion!</div>`;
+ else m=`<div class="ec-banner">🏆 ALL 8 COMPLETE! Extra Credit Earned!</div>`;
+ $('center-content').innerHTML=`<div class="content-card completion-card"><div class="big-emoji">${ok?'🎯':'📝'}</div><h3>${ok?'Great Prediction!':'Data Recorded!'}</h3><p>${ok?'Your prediction matched the outcome!':'Your prediction didn\'t match, but that\'s science — you learn from every result!'}</p><p style="margin-top:8px;font-size:14px;color:var(--text-secondary);">Data for <strong>${s.name}</strong> added to your table.</p>${m}</div>`;
+ $('center-action').innerHTML=dn<8?`<button class="action-btn primary" onclick="nxt()">Pick Next Scenario →</button>`:`<button class="action-btn primary" onclick="final()">View Final Summary 🏆</button>`;
+}
+function nxt(){st.as=null;st.step=0;updTabs();showWelcome();renderList();}
+function final(){$('center-content').innerHTML=`<div class="content-card completion-card"><div class="big-emoji">🏆</div><h3>Investigation Complete!</h3><p>You evaluated all 8 Staten Island wildlife policies.</p><p style="margin-top:8px;">Score: <strong style="color:var(--gold);">${st.score}</strong> | Accuracy: <strong style="color:var(--blue);">${Math.round(st.cp/st.tp*100)}%</strong></p><p style="margin-top:12px;font-size:14px;color:var(--text-secondary);">Now copy your data table into your worksheet!</p></div>`;$('center-action').innerHTML='';}
+function addRow(){const tb=$('data-tbody'),r=st.rows[st.rows.length-1];const tr=document.createElement('tr');tr.innerHTML=`<td>${r.name}</td><td>${r.change}</td><td>${r.response}</td><td class="${r.okC}">${r.ok}</td>`;tb.appendChild(tr);}
+function updHUD(){
+ $('hud-score').textContent=st.score;$('hud-streak').textContent=st.streak;
+ const dn=st.done.length;$('hud-completed').textContent=`${dn}/5`;
+ $('hud-accuracy').textContent=st.tp>0?Math.round(st.cp/st.tp*100)+'%':'—';
+ $('progress-fill').style.width=Math.min(dn/5*100,100)+'%';
+ let m='Pick your first scenario!';if(dn>0&&dn<5)m=`Pick ${5-dn} more!`;else if(dn===5)m='Required done! Extra credit?';else if(dn>5&&dn<8)m=`Extra credit: ${dn}/8`;else if(dn>=8)m='All 8 complete! 🏆';
+ $('progress-msg').textContent=m;
+}
+function resetAll(){clrT();st={as:null,step:0,lv:st.lv,pred:null,done:[],score:0,streak:0,cp:0,tp:0,rows:[],spk:false};$('data-tbody').innerHTML='';renderList();updHUD();showWelcome();}
+function newRun(){resetAll();}
+init();
+</script>
+</body>
+</html>

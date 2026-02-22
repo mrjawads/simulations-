@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science Department Simulation: Respiratory Problems</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh; color: #fff; overflow: hidden;
+        }
+        .container { display: flex; height: 100vh; }
+        .left-sidebar {
+            width: 260px; min-width: 260px;
+            background: linear-gradient(180deg, #1e3a5f 0%, #0d1b2a 100%);
+            padding: 12px; display: flex; flex-direction: column;
+            border-right: 2px solid #2d4a6f; overflow-y: auto;
+        }
+        .sidebar-header {
+            text-align: center; padding: 10px;
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            border-radius: 10px; margin-bottom: 10px;
+        }
+        .sidebar-header h3 { font-size: 13px; }
+        .scenario-count { font-size: 10px; opacity: 0.9; margin-top: 2px; }
+        .scenarios-list { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+        .scenario-card {
+            display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+            background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 5px;
+            cursor: pointer; transition: all 0.3s ease; border: 2px solid transparent; position: relative;
+        }
+        .scenario-card:hover { background: rgba(255,255,255,0.1); }
+        .scenario-card.selected {
+            background: linear-gradient(135deg, rgba(233, 30, 99, 0.3) 0%, rgba(156, 39, 176, 0.3) 100%);
+            border-color: #E91E63;
+        }
+        .scenario-card.completed { opacity: 0.6; }
+        .scenario-card.completed::after { content: '✓'; position: absolute; right: 8px; color: #4CAF50; font-weight: bold; }
+        .scenario-emoji { font-size: 20px; }
+        .scenario-name { font-size: 11px; font-weight: 500; line-height: 1.2; }
+        .divider { height: 1px; background: linear-gradient(90deg, transparent, #4a6fa5, transparent); margin: 10px 0; }
+        .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #8ab4f8; margin-bottom: 6px; font-weight: 600; }
+        .reading-levels { display: flex; gap: 4px; margin-bottom: 10px; }
+        .level-btn {
+            flex: 1; padding: 6px 4px; border: none; border-radius: 6px; cursor: pointer;
+            font-size: 10px; font-weight: 600; background: rgba(255,255,255,0.1); color: #fff;
+        }
+        .level-btn.active { background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%); }
+        .key-words { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px; margin-bottom: 10px; }
+        .key-word { display: inline-block; padding: 3px 8px; background: linear-gradient(135deg, #9C27B0 0%, #6A1B9A 100%); border-radius: 12px; font-size: 10px; margin: 2px; }
+        .sidebar-buttons { display: flex; gap: 6px; }
+        .btn-reset, .btn-new-run { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 600; color: #fff; }
+        .btn-reset { background: linear-gradient(135deg, #f44336 0%, #c62828 100%); }
+        .btn-new-run { background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%); }
+        .center-panel { flex: 1; display: flex; flex-direction: column; padding: 12px 15px; overflow: hidden; }
+        .title-bar {
+            text-align: center; padding: 10px 15px;
+            background: linear-gradient(135deg, #E91E63 0%, #9C27B0 100%);
+            border-radius: 12px; margin-bottom: 12px;
+        }
+        .title-bar h1 { font-size: 18px; }
+        .mission-text { font-size: 11px; opacity: 0.9; margin-top: 3px; }
+        .step-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+        .step-tab {
+            flex: 1; padding: 10px 8px; background: rgba(255,255,255,0.05); border-radius: 8px;
+            text-align: center; font-size: 12px; font-weight: 600; border: 2px solid transparent; opacity: 0.5;
+        }
+        .step-tab.active {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.3) 0%, rgba(46, 125, 50, 0.3) 100%);
+            border-color: #4CAF50; opacity: 1; box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+        }
+        .step-tab.completed { background: rgba(76, 175, 80, 0.2); opacity: 0.7; }
+        .step-number { font-size: 10px; opacity: 0.8; }
+        .main-content { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .content-card {
+            width: 100%; max-width: 850px; background: rgba(255,255,255,0.08); border-radius: 16px;
+            padding: 20px; display: none; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .content-card.visible { display: block; }
+        .welcome-content { text-align: center; }
+        .welcome-icon { font-size: 70px; margin-bottom: 15px; animation: breathe 3s ease-in-out infinite; }
+        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        .welcome-title { font-size: 26px; font-weight: 700; margin-bottom: 12px; background: linear-gradient(135deg, #E91E63, #9C27B0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .welcome-subtitle { font-size: 15px; opacity: 0.9; line-height: 1.5; margin-bottom: 15px; }
+        .welcome-instruction { font-size: 13px; color: #8ab4f8; }
+        .predict-header { display: flex; align-items: center; gap: 12px; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .predict-emoji { font-size: 45px; }
+        .predict-scenario-name { font-size: 20px; font-weight: 700; color: #E91E63; }
+        .predict-premise { font-size: 14px; opacity: 0.9; line-height: 1.4; margin-top: 4px; }
+        .predict-question { background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.2) 100%); border-left: 4px solid #FFC107; padding: 15px; border-radius: 0 12px 12px 0; margin: 15px 0; }
+        .predict-question h3 { font-size: 15px; color: #FFC107; margin-bottom: 8px; }
+        .predict-options { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+        .predict-option { padding: 12px 16px; background: rgba(255,255,255,0.05); border: 2px solid transparent; border-radius: 10px; cursor: pointer; font-size: 13px; }
+        .predict-option:hover { background: rgba(255,255,255,0.1); }
+        .predict-option.selected { background: linear-gradient(135deg, rgba(76, 175, 80, 0.3) 0%, rgba(46, 125, 50, 0.3) 100%); border-color: #4CAF50; }
+        .read-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .read-title { font-size: 16px; font-weight: 700; color: #2196F3; }
+        .read-aloud-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: linear-gradient(135deg, #9C27B0 0%, #6A1B9A 100%); border: none; border-radius: 20px; color: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
+        .reading-text { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px; font-size: 14px; line-height: 1.7; max-height: 220px; overflow-y: auto; }
+        .reading-text .highlight { color: #E91E63; font-weight: 600; }
+        .trigger-result-box { margin-top: 12px; padding: 12px; background: linear-gradient(135deg, rgba(233, 30, 99, 0.2) 0%, rgba(156, 39, 176, 0.2) 100%); border-radius: 10px; text-align: center; font-size: 13px; font-weight: 600; }
+        .trigger-arrow { color: #E91E63; margin: 0 6px; }
+        #card-watch { max-width: 900px; }
+        .watch-container { display: flex; align-items: center; justify-content: center; gap: 20px; padding: 10px; }
+        .visual-display {
+            position: relative; width: 380px; height: 420px;
+            background: radial-gradient(ellipse at center, #1a237e 0%, #0d1b2a 70%);
+            border-radius: 20px; overflow: hidden;
+            border: 3px solid rgba(63, 81, 181, 0.5);
+            box-shadow: 0 0 50px rgba(33, 150, 243, 0.2), inset 0 0 100px rgba(0, 0, 0, 0.5);
+        }
+        .grid-bg {
+            position: absolute; width: 100%; height: 100%;
+            background-image: linear-gradient(rgba(33, 150, 243, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(33, 150, 243, 0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+        .ambient-particles { position: absolute; width: 100%; height: 100%; }
+        .ambient-particle {
+            position: absolute; border-radius: 50%; opacity: 0.4;
+            animation: float 8s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0) scale(1); }
+            33% { transform: translateY(-15px) translateX(10px) scale(1.1); }
+            66% { transform: translateY(-5px) translateX(-8px) scale(0.9); }
+        }
+        .body-container {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 280px; height: 380px;
+        }
+        .head {
+            position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 70px; height: 80px;
+            background: linear-gradient(180deg, #7986CB 0%, #5C6BC0 100%);
+            border-radius: 50% 50% 45% 45%;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+        }
+        .face { position: absolute; top: 30px; left: 50%; transform: translateX(-50%); width: 50px; }
+        .eyes { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .eye {
+            width: 10px; height: 10px; background: #fff; border-radius: 50%;
+            position: relative; animation: blink 4s ease-in-out infinite;
+        }
+        .eye::after { content: ''; position: absolute; top: 3px; left: 3px; width: 4px; height: 4px; background: #1a237e; border-radius: 50%; }
+        @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+        .mouth {
+            width: 20px; height: 8px; background: transparent;
+            border: 2px solid rgba(255,255,255,0.5); border-top: none;
+            border-radius: 0 0 20px 20px; margin: 0 auto;
+            transition: all 0.5s ease;
+        }
+        .mouth.struggling { height: 15px; border-radius: 50%; border: 2px solid #EF5350; animation: gasp 0.5s ease-in-out infinite; }
+        @keyframes gasp { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        .torso {
+            position: absolute; top: 75px; left: 50%; transform: translateX(-50%);
+            width: 160px; height: 220px;
+            background: linear-gradient(180deg, rgba(92, 107, 192, 0.3) 0%, rgba(63, 81, 181, 0.2) 100%);
+            border-radius: 80px 80px 60px 60px;
+            border: 2px solid rgba(121, 134, 203, 0.4);
+        }
+        .respiratory-system {
+            position: absolute; top: 90px; left: 50%; transform: translateX(-50%);
+            width: 140px; height: 200px;
+        }
+        .trachea {
+            position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 28px; height: 60px;
+            background: linear-gradient(90deg, #42A5F5 0%, #64B5F6 30%, #90CAF9 50%, #64B5F6 70%, #42A5F5 100%);
+            border-radius: 14px;
+            box-shadow: inset -4px 0 15px rgba(0,0,0,0.3), 0 0 20px rgba(66, 165, 245, 0.4);
+            transition: all 0.8s ease;
+            overflow: hidden;
+        }
+        .trachea::before {
+            content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 14px; height: 100%;
+            background: linear-gradient(180deg, rgba(144, 202, 249, 0.8) 0%, rgba(100, 181, 246, 0.6) 50%, rgba(144, 202, 249, 0.8) 100%);
+            border-radius: 7px;
+            animation: airFlow 1.5s ease-in-out infinite;
+        }
+        @keyframes airFlow {
+            0%, 100% { opacity: 0.6; transform: translateX(-50%) scaleY(1); }
+            50% { opacity: 1; transform: translateX(-50%) scaleY(1.05); }
+        }
+        .trachea.constricted {
+            width: 12px;
+            background: linear-gradient(90deg, #EF5350 0%, #F44336 50%, #EF5350 100%);
+            box-shadow: 0 0 30px rgba(244, 67, 54, 0.6);
+        }
+        .trachea.constricted::before { width: 4px; animation: none; opacity: 0.3; }
+        .trachea.narrow {
+            width: 20px;
+            background: linear-gradient(90deg, #FFB74D 0%, #FFA726 50%, #FFB74D 100%);
+            box-shadow: 0 0 25px rgba(255, 152, 0, 0.5);
+        }
+        .trachea.narrow::before { width: 8px; }
+        .bronchi { position: absolute; top: 55px; left: 50%; transform: translateX(-50%); width: 100px; height: 35px; }
+        .bronchus {
+            position: absolute; width: 45px; height: 20px;
+            background: linear-gradient(180deg, #42A5F5 0%, #1E88E5 100%);
+            border-radius: 0 0 25px 25px; transition: all 0.8s ease;
+            box-shadow: 0 5px 15px rgba(30, 136, 229, 0.4);
+        }
+        .bronchus.left { left: 0; transform: rotate(-40deg); transform-origin: top right; }
+        .bronchus.right { right: 0; transform: rotate(40deg); transform-origin: top left; }
+        .bronchus.constricted { height: 10px; background: linear-gradient(180deg, #EF5350 0%, #E53935 100%); }
+        .bronchus.narrow { height: 15px; background: linear-gradient(180deg, #FFB74D 0%, #FF9800 100%); }
+        .lungs {
+            position: absolute; top: 75px; left: 50%; transform: translateX(-50%);
+            width: 140px; height: 120px; display: flex; justify-content: space-between;
+        }
+        .lung { width: 60px; height: 110px; position: relative; transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        .lung-shape {
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, #81C784 0%, #66BB6A 20%, #4CAF50 50%, #43A047 80%, #388E3C 100%);
+            border-radius: 30px 30px 40px 40px;
+            position: relative; overflow: hidden;
+            box-shadow: inset -8px -8px 25px rgba(0,0,0,0.3), inset 8px 8px 25px rgba(255,255,255,0.15), 0 15px 40px rgba(76, 175, 80, 0.5);
+            transition: all 0.8s ease;
+            animation: lungBreathe 3s ease-in-out infinite;
+        }
+        .lung.left .lung-shape { border-radius: 20px 40px 45px 30px; }
+        .lung.right .lung-shape { border-radius: 40px 20px 30px 45px; animation-delay: 0.1s; }
+        @keyframes lungBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .lung-shape::before {
+            content: ''; position: absolute; top: 8%; left: 15%; width: 50%; height: 35%;
+            background: radial-gradient(ellipse, rgba(255,255,255,0.35) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .alveoli { position: absolute; width: 100%; height: 100%; }
+        .alveolus {
+            position: absolute; border-radius: 50%;
+            background: radial-gradient(circle, rgba(200, 230, 201, 1) 0%, rgba(165, 214, 167, 0.6) 60%, transparent 100%);
+            animation: alveolus 2s ease-in-out infinite;
+            box-shadow: 0 0 8px rgba(165, 214, 167, 0.6);
+        }
+        @keyframes alveolus { 0%, 100% { transform: scale(0.8); opacity: 0.7; } 50% { transform: scale(1.2); opacity: 1; } }
+        .lung.warning { transform: scale(0.88); }
+        .lung.warning .lung-shape {
+            background: linear-gradient(135deg, #FFD54F 0%, #FFCA28 20%, #FFC107 50%, #FFB300 80%, #FFA000 100%);
+            box-shadow: inset -8px -8px 25px rgba(0,0,0,0.3), 0 15px 40px rgba(255, 152, 0, 0.6);
+            animation: lungWarning 1.5s ease-in-out infinite;
+        }
+        @keyframes lungWarning { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.95); } }
+        .lung.danger { transform: scale(0.75); }
+        .lung.danger .lung-shape {
+            background: linear-gradient(135deg, #EF5350 0%, #F44336 20%, #E53935 50%, #D32F2F 80%, #C62828 100%);
+            box-shadow: inset -8px -8px 25px rgba(0,0,0,0.4), 0 15px 40px rgba(244, 67, 54, 0.7);
+            animation: lungDanger 0.4s ease-in-out infinite alternate;
+        }
+        @keyframes lungDanger { from { transform: scale(1); } to { transform: scale(0.92); } }
+        .lung.warning .alveolus, .lung.danger .alveolus { background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.3) 60%, transparent 100%); }
+        .trigger-particles { position: absolute; width: 100%; height: 100%; pointer-events: none; }
+        .trigger-particle {
+            position: absolute; border-radius: 50%; opacity: 0;
+            box-shadow: 0 0 10px currentColor;
+            animation: enterBody 4s ease-in-out forwards;
+        }
+        @keyframes enterBody {
+            0% { opacity: 0; transform: translateY(-50px) scale(0.3); }
+            15% { opacity: 1; transform: translateY(60px) scale(1); }
+            50% { opacity: 0.9; transform: translateY(180px) scale(0.8); }
+            100% { opacity: 0; transform: translateY(350px) scale(0.2); }
+        }
+        .status-display {
+            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
+            padding: 10px 25px; border-radius: 25px;
+            font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.4); transition: all 0.5s ease;
+        }
+        .status-display.ok { background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); }
+        .status-display.warning { background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%); color: #000; animation: warningPulse 1s ease-in-out infinite; }
+        .status-display.danger { background: linear-gradient(135deg, #f44336 0%, #c62828 100%); animation: dangerPulse 0.5s ease-in-out infinite; }
+        @keyframes warningPulse { 0%, 100% { box-shadow: 0 5px 25px rgba(255, 152, 0, 0.5); } 50% { box-shadow: 0 5px 40px rgba(255, 152, 0, 0.8); } }
+        @keyframes dangerPulse { 0%, 100% { box-shadow: 0 5px 25px rgba(244, 67, 54, 0.5); transform: translateX(-50%) scale(1); } 50% { box-shadow: 0 5px 40px rgba(244, 67, 54, 0.9); transform: translateX(-50%) scale(1.05); } }
+        .meter-panel {
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            background: rgba(0,0,0,0.4); border-radius: 16px; padding: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .meter-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #8ab4f8; }
+        .meter-gauge {
+            position: relative; width: 60px; height: 200px;
+            background: rgba(0,0,0,0.5); border-radius: 30px;
+            border: 3px solid rgba(255,255,255,0.2); overflow: hidden;
+        }
+        .meter-zones { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; }
+        .meter-zone { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 700; opacity: 0.6; }
+        .meter-zone.dz { background: linear-gradient(180deg, rgba(198, 40, 40, 0.4) 0%, rgba(244, 67, 54, 0.3) 100%); }
+        .meter-zone.wz { background: linear-gradient(180deg, rgba(255, 152, 0, 0.3) 0%, rgba(255, 193, 7, 0.3) 100%); }
+        .meter-zone.oz { background: linear-gradient(180deg, rgba(76, 175, 80, 0.3) 0%, rgba(56, 142, 60, 0.4) 100%); }
+        .meter-fill {
+            position: absolute; bottom: 0; left: 3px; right: 3px;
+            background: linear-gradient(180deg, #81C784 0%, #4CAF50 50%, #2E7D32 100%);
+            border-radius: 24px; transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .meter-fill.warning { background: linear-gradient(180deg, #FFD54F 0%, #FFC107 50%, #FF9800 100%); }
+        .meter-fill.danger { background: linear-gradient(180deg, #EF5350 0%, #F44336 50%, #C62828 100%); }
+        .meter-value { font-size: 28px; font-weight: 800; }
+        .meter-label { font-size: 9px; text-transform: uppercase; opacity: 0.7; }
+        .meter-badge { padding: 6px 16px; border-radius: 15px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .meter-badge.ok { background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); }
+        .meter-badge.warning { background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%); color: #000; }
+        .meter-badge.danger { background: linear-gradient(135deg, #f44336 0%, #c62828 100%); }
+        .trigger-panel { background: rgba(0,0,0,0.4); border-radius: 12px; padding: 12px; width: 140px; border: 1px solid rgba(255,255,255,0.1); }
+        .trigger-panel-title { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #8ab4f8; margin-bottom: 10px; text-align: center; }
+        .trigger-chain { display: flex; flex-direction: column; gap: 5px; }
+        .trigger-item { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 9px; }
+        .trigger-icon { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; }
+        .trigger-icon.bad { background: linear-gradient(135deg, #f44336 0%, #c62828 100%); }
+        .trigger-icon.effect { background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); }
+        .trigger-icon.result { background: linear-gradient(135deg, #9C27B0 0%, #6A1B9A 100%); }
+        .trigger-arrow-down { text-align: center; color: #E91E63; font-size: 12px; }
+        .record-success { text-align: center; }
+        .record-icon { font-size: 70px; margin-bottom: 15px; }
+        .record-title { font-size: 22px; font-weight: 700; color: #4CAF50; margin-bottom: 12px; }
+        .record-summary { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px; text-align: left; font-size: 13px; line-height: 1.5; }
+        .record-row { display: flex; margin-bottom: 8px; }
+        .record-label { width: 160px; font-weight: 600; color: #8ab4f8; flex-shrink: 0; }
+        .action-area { margin-top: 15px; text-align: center; }
+        .action-btn {
+            padding: 12px 35px; font-size: 15px; font-weight: 700; border: none; border-radius: 25px;
+            cursor: pointer; background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); color: #fff;
+            box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+        }
+        .action-btn:hover { transform: translateY(-2px); }
+        .action-btn:disabled { background: rgba(255,255,255,0.2); box-shadow: none; cursor: not-allowed; }
+        .right-sidebar {
+            width: 380px; min-width: 380px;
+            background: linear-gradient(180deg, #1e3a5f 0%, #0d1b2a 100%);
+            padding: 12px; display: flex; flex-direction: column;
+            border-left: 2px solid #2d4a6f;
+        }
+        .progress-header { text-align: center; padding: 8px; background: linear-gradient(135deg, #9C27B0 0%, #6A1B9A 100%); border-radius: 10px; margin-bottom: 10px; font-size: 13px; font-weight: 600; }
+        .hud-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+        .hud-item { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px; text-align: center; }
+        .hud-value { font-size: 20px; font-weight: 700; color: #4CAF50; }
+        .hud-label { font-size: 8px; text-transform: uppercase; opacity: 0.8; }
+        .progress-bar-container { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+        .progress-bar-label { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 6px; }
+        .progress-bar { height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #4CAF50 0%, #8BC34A 100%); transition: width 0.5s ease; }
+        .progress-message { text-align: center; font-size: 10px; margin-top: 8px; padding: 6px; background: rgba(76, 175, 80, 0.2); border-radius: 6px; color: #8BC34A; }
+        .data-header { text-align: center; padding: 8px; background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%); border-radius: 10px; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+        .data-table-container { flex: 1; overflow: auto; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 9px; }
+        .data-table thead { position: sticky; top: 0; z-index: 1; }
+        .data-table th {
+            background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%);
+            color: #fff; padding: 8px 4px; text-align: left; font-weight: 600; font-size: 8px; border: 1px solid #1976D2;
+        }
+        .data-table td {
+            padding: 6px 4px; border: 1px solid rgba(255,255,255,0.15);
+            vertical-align: top; line-height: 1.3; min-height: 40px; background: rgba(255,255,255,0.02);
+        }
+        .data-table tr:nth-child(even) td { background: rgba(255,255,255,0.05); }
+        .data-table tr.filled td { background: rgba(76, 175, 80, 0.15); animation: fillRow 0.5s ease; }
+        @keyframes fillRow { from { background: rgba(76, 175, 80, 0.5); } }
+        .data-table .row-num { width: 25px; text-align: center; font-weight: 700; color: #8ab4f8; background: rgba(33, 150, 243, 0.2) !important; }
+        .data-table .empty-cell { color: rgba(255,255,255,0.2); font-style: italic; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.visible { display: flex; }
+        .modal-content { background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%); border-radius: 20px; padding: 35px; text-align: center; max-width: 450px; border: 2px solid #4CAF50; }
+        .modal-icon { font-size: 70px; margin-bottom: 15px; }
+        .modal-title { font-size: 24px; font-weight: 700; margin-bottom: 12px; color: #4CAF50; }
+        .modal-message { font-size: 14px; line-height: 1.5; margin-bottom: 20px; opacity: 0.9; }
+        .modal-btn { padding: 12px 30px; font-size: 14px; font-weight: 600; border: none; border-radius: 20px; cursor: pointer; margin: 4px; }
+        .modal-btn.primary { background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); color: #fff; }
+        .modal-btn.secondary { background: rgba(255,255,255,0.1); color: #fff; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-sidebar">
+            <div class="sidebar-header"><h3>📖 Pick Any Story You Like</h3><div class="scenario-count">Complete 5 of 8 stories</div></div>
+            <div class="scenarios-list" id="scenariosList"></div>
+            <div class="divider"></div>
+            <div class="section-label">Reading Level</div>
+            <div class="reading-levels">
+                <button class="level-btn" data-level="low">Low</button>
+                <button class="level-btn active" data-level="medium">Med</button>
+                <button class="level-btn" data-level="high">High</button>
+            </div>
+            <div class="divider"></div>
+            <div class="section-label">Key Words</div>
+            <div class="key-words">
+                <span class="key-word">Asthma</span><span class="key-word">Trigger</span><span class="key-word">Inhaler</span><span class="key-word">Chronic</span>
+            </div>
+            <div class="sidebar-buttons">
+                <button class="btn-reset" onclick="resetSimulation()">Reset</button>
+                <button class="btn-new-run" onclick="newRun()">New Run</button>
+            </div>
+        </div>
+        <div class="center-panel">
+            <div class="title-bar"><h1>🫁 Science Department Simulation: Respiratory Problems</h1><div class="mission-text">Investigate real cases where breathing became a crisis</div></div>
+            <div class="step-tabs">
+                <div class="step-tab" id="tab-predict"><div class="step-number">1.</div>PREDICT</div>
+                <div class="step-tab" id="tab-read"><div class="step-number">2.</div>READ</div>
+                <div class="step-tab" id="tab-watch"><div class="step-number">3.</div>WATCH</div>
+                <div class="step-tab" id="tab-record"><div class="step-number">4.</div>RECORD</div>
+            </div>
+            <div class="main-content">
+                <div class="content-card visible" id="card-welcome">
+                    <div class="welcome-content">
+                        <div class="welcome-icon">🫁</div>
+                        <div class="welcome-title">Why Can't Some Kids Breathe?</div>
+                        <div class="welcome-subtitle">One in fifteen kids struggles to breathe — and for many, every school day is a battle.<br><br>Read real stories and discover what triggers made breathing dangerous.</div>
+                        <div class="welcome-instruction">👈 Select any story from the left to begin</div>
+                    </div>
+                </div>
+                <div class="content-card" id="card-predict">
+                    <div class="predict-header"><div class="predict-emoji" id="predictEmoji">🏚️</div><div><div class="predict-scenario-name" id="predictName"></div><div class="predict-premise" id="predictPremise"></div></div></div>
+                    <div class="predict-question"><h3>🤔 What Do You Predict?</h3><p>What will happen to this person's breathing?</p></div>
+                    <div class="predict-options">
+                        <div class="predict-option" data-prediction="better" onclick="selectPrediction(this)">✨ Breathing will get better</div>
+                        <div class="predict-option" data-prediction="same" onclick="selectPrediction(this)">😐 Breathing will stay the same</div>
+                        <div class="predict-option" data-prediction="worse" onclick="selectPrediction(this)">⚠️ Breathing will get worse</div>
+                    </div>
+                    <div class="action-area"><button class="action-btn" id="btnPredict" disabled onclick="goToRead()">Make Prediction →</button></div>
+                </div>
+                <div class="content-card" id="card-read">
+                    <div class="read-header"><div class="read-title">📖 Read the Real Story</div><button class="read-aloud-btn" onclick="toggleReadAloud()"><span id="speakerIcon">🔊</span> Read Aloud</button></div>
+                    <div class="reading-text" id="readingText"></div>
+                    <div class="trigger-result-box"><span id="triggerText">Trigger</span><span class="trigger-arrow">→</span><span id="airwaysText">Airways</span><span class="trigger-arrow">→</span><span id="resultText">Result</span></div>
+                    <div class="action-area"><button class="action-btn" onclick="goToWatch()">Watch the Body Respond →</button></div>
+                </div>
+                <div class="content-card" id="card-watch">
+                    <div class="watch-container">
+                        <div class="trigger-panel">
+                            <div class="trigger-panel-title">What's Happening</div>
+                            <div class="trigger-chain">
+                                <div class="trigger-item"><div class="trigger-icon bad">⚠️</div><span id="watchTrigger">Trigger</span></div>
+                                <div class="trigger-arrow-down">↓</div>
+                                <div class="trigger-item"><div class="trigger-icon effect">🫁</div><span id="watchAirways">Airways</span></div>
+                                <div class="trigger-arrow-down">↓</div>
+                                <div class="trigger-item"><div class="trigger-icon result">💔</div><span id="watchResult">Result</span></div>
+                            </div>
+                        </div>
+                        <div class="visual-display">
+                            <div class="grid-bg"></div>
+                            <div class="ambient-particles" id="ambientParticles"></div>
+                            <div class="trigger-particles" id="triggerParticles"></div>
+                            <div class="body-container">
+                                <div class="head"><div class="face"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth" id="mouth"></div></div></div>
+                                <div class="torso"></div>
+                                <div class="respiratory-system">
+                                    <div class="trachea" id="trachea"></div>
+                                    <div class="bronchi"><div class="bronchus left" id="bronchusLeft"></div><div class="bronchus right" id="bronchusRight"></div></div>
+                                    <div class="lungs">
+                                        <div class="lung left" id="lungLeft"><div class="lung-shape"><div class="alveoli">
+                                            <div class="alveolus" style="width:7px;height:7px;top:18%;left:20%"></div>
+                                            <div class="alveolus" style="width:9px;height:9px;top:35%;left:45%;animation-delay:0.3s"></div>
+                                            <div class="alveolus" style="width:6px;height:6px;top:55%;left:25%;animation-delay:0.6s"></div>
+                                            <div class="alveolus" style="width:8px;height:8px;top:70%;left:50%;animation-delay:0.9s"></div>
+                                        </div></div></div>
+                                        <div class="lung right" id="lungRight"><div class="lung-shape"><div class="alveoli">
+                                            <div class="alveolus" style="width:8px;height:8px;top:20%;left:35%;animation-delay:0.15s"></div>
+                                            <div class="alveolus" style="width:7px;height:7px;top:40%;left:55%;animation-delay:0.45s"></div>
+                                            <div class="alveolus" style="width:9px;height:9px;top:58%;left:30%;animation-delay:0.75s"></div>
+                                            <div class="alveolus" style="width:6px;height:6px;top:75%;left:48%;animation-delay:0.25s"></div>
+                                        </div></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="status-display ok" id="statusDisplay">BREATHING NORMAL</div>
+                        </div>
+                        <div class="meter-panel">
+                            <div class="meter-title">Lung Function</div>
+                            <div class="meter-gauge"><div class="meter-zones"><div class="meter-zone dz">DANGER</div><div class="meter-zone wz">WARNING</div><div class="meter-zone oz">OK</div></div><div class="meter-fill" id="meterFill" style="height:75%"></div></div>
+                            <div class="meter-value" id="meterValue">75%</div>
+                            <div class="meter-label">Breathing Ease</div>
+                            <div class="meter-badge ok" id="meterBadge">NORMAL</div>
+                        </div>
+                    </div>
+                    <div class="action-area"><button class="action-btn" onclick="goToRecord()">Record Data →</button></div>
+                </div>
+                <div class="content-card" id="card-record">
+                    <div class="record-success">
+                        <div class="record-icon">✅</div>
+                        <div class="record-title">Data Recorded!</div>
+                        <div class="record-summary">
+                            <div class="record-row"><span class="record-label">Scenario:</span><span id="recordScenario"></span></div>
+                            <div class="record-row"><span class="record-label">What Happened?:</span><span id="recordHappened"></span></div>
+                            <div class="record-row"><span class="record-label">Airways Response:</span><span id="recordAirways"></span></div>
+                            <div class="record-row"><span class="record-label">Connection:</span><span id="recordConnection"></span></div>
+                        </div>
+                    </div>
+                    <div class="action-area"><button class="action-btn" onclick="selectNextScenario()">← Pick Another Story</button></div>
+                </div>
+            </div>
+        </div>
+        <div class="right-sidebar">
+            <div class="progress-header">📊 Progress</div>
+            <div class="hud-grid">
+                <div class="hud-item"><div class="hud-value" id="hudScore">0</div><div class="hud-label">Score</div></div>
+                <div class="hud-item"><div class="hud-value" id="hudStreak">0</div><div class="hud-label">Streak</div></div>
+                <div class="hud-item"><div class="hud-value" id="hudCompleted">0/5</div><div class="hud-label">Completed</div></div>
+                <div class="hud-item"><div class="hud-value" id="hudAccuracy">--</div><div class="hud-label">Accuracy</div></div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-label"><span>Required: 5</span><span id="progressCount">0/5</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                <div class="progress-message" id="progressMessage">Pick 5 stories you like!</div>
+            </div>
+            <div class="data-header">📋 Data Table (Copy to Worksheet)</div>
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead><tr><th class="row-num">#</th><th>Scenario</th><th>What Happened?</th><th>Airways Response</th><th>Connection to Respiratory Problems?</th></tr></thead>
+                    <tbody id="dataTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal-content">
+            <div class="modal-icon" id="modalIcon">🎉</div>
+            <div class="modal-title" id="modalTitle">Required Complete!</div>
+            <div class="modal-message" id="modalMessage">Great work!</div>
+            <button class="modal-btn primary" onclick="closeModal()">Continue</button>
+            <button class="modal-btn secondary" onclick="closeModal()">Done</button>
+        </div>
+    </div>
+    <script>
+        const scenarios = [
+            { id: 1, name: "South Bronx Family", emoji: "🏚️", premise: "A family moved into an apartment filled with cockroaches and mold. Their 8-year-old started having weekly asthma attacks.", readings: { low: "A family moved into an apartment in the South Bronx. The building had cockroaches and mold. Their son started having <span class='highlight'>asthma</span> attacks every week. The <span class='highlight'>triggers</span> were making his <span class='highlight'>airways</span> swell shut.", medium: "A family in the South Bronx moved into an apartment that looked fine at first. But cockroaches and mold were hiding in the walls. Their 8-year-old started having <span class='highlight'>asthma</span> attacks every week. The <span class='highlight'>triggers</span> caused <span class='highlight'>inflammation</span> in his <span class='highlight'>airways</span>. He missed school almost every week.", high: "A family moved into an apartment that seemed safe. But cockroaches and mold were hiding in the walls, releasing particles into the air. Their 8-year-old had never had breathing problems before. Within months, he started having <span class='highlight'>asthma</span> attacks every week. The <span class='highlight'>triggers</span> caused severe <span class='highlight'>inflammation</span> in his <span class='highlight'>airways</span>, making them swell shut. His <span class='highlight'>chronic</span> problems only improved after they moved out." }, triggerChain: { trigger: "Mold/pests", airways: "Swelling", result: "Weekly attacks" }, data: { happened: "Mold and cockroaches in apartment", airways: "Airways swelled shut weekly", connection: "Environment triggers caused chronic inflammation" }, meterEnd: 15, particleColor: "#8B4513" },
+            { id: 2, name: "Vaping Collapse", emoji: "🫁", premise: "A 13-year-old started vaping THC cartridges and ended up on a ventilator with damaged lungs.", readings: { low: "A 13-year-old started vaping THC cartridges from a friend. His lungs filled with fluid. He was put on a ventilator. Doctors said vaping severely injured his <span class='highlight'>airways</span>.", medium: "A 13-year-old thought vaping was no big deal. He used THC cartridges from a friend. Within weeks, his lungs filled with fluid. Doctors put him on a ventilator and diagnosed EVALI — a serious lung injury. The chemicals caused severe <span class='highlight'>inflammation</span> in his <span class='highlight'>airways</span>.", high: "A 13-year-old started vaping because friends said it was safe. He used THC cartridges containing vitamin E acetate. Within weeks, his lungs filled with fluid. One day he collapsed and was rushed to the ER. Doctors put him on a ventilator. The <span class='highlight'>inflammation</span> was so severe that doctors weren't sure he would survive." }, triggerChain: { trigger: "Vaping chemicals", airways: "Fluid buildup", result: "Ventilator needed" }, data: { happened: "Vaped THC cartridges", airways: "Lungs filled with fluid", connection: "Vaping chemicals caused severe lung injury" }, meterEnd: 10, particleColor: "#9E9E9E" },
+            { id: 3, name: "Highway School", emoji: "🚗", premise: "A new highway was built 200 feet from an elementary school. Kids started having more asthma attacks.", readings: { low: "A highway was built 200 feet from a school. Kids started having more <span class='highlight'>asthma</span> attacks. Car exhaust was a <span class='highlight'>trigger</span> that made <span class='highlight'>airways</span> swell. Test scores dropped too.", medium: "A highway was built just 200 feet from an elementary school. Within a year, kids had more <span class='highlight'>asthma</span> attacks. The car exhaust was a constant <span class='highlight'>trigger</span>. The pollution caused <span class='highlight'>inflammation</span> in their <span class='highlight'>airways</span> that wouldn't go away. Test scores dropped.", high: "City planners built a highway 200 feet from a school in a low-income neighborhood. Within a year, kids had significantly more <span class='highlight'>asthma</span> attacks. The constant car exhaust was a <span class='highlight'>trigger</span> for <span class='highlight'>inflammation</span>. Studies show children near highways have higher rates of <span class='highlight'>chronic</span> breathing problems." }, triggerChain: { trigger: "Car exhaust", airways: "Constant swelling", result: "More attacks" }, data: { happened: "Highway built near school", airways: "Constant inflammation from pollution", connection: "Environment became a health hazard" }, meterEnd: 35, particleColor: "#424242" },
+            { id: 4, name: "Wildfire Summer", emoji: "🔥", premise: "Wildfires sent smoke across California for three weeks. ER visits for breathing problems tripled.", readings: { low: "Wildfires sent smoke across California for three weeks. ER visits for breathing tripled. Smoke was a major <span class='highlight'>trigger</span> for <span class='highlight'>asthma</span>. Even healthy people had trouble breathing.", medium: "Wildfires sent thick smoke across California for three weeks. ER visits for breathing problems tripled. The smoke particles got deep into lungs. For people with <span class='highlight'>asthma</span>, smoke was a dangerous <span class='highlight'>trigger</span> causing immediate <span class='highlight'>inflammation</span>.", high: "Massive wildfires sent smoke across California for three weeks. Air quality was rated hazardous. ER visits tripled. The smoke contained tiny particles called particulate matter that got deep into lungs. For people with <span class='highlight'>asthma</span>, it caused severe <span class='highlight'>inflammation</span> in their <span class='highlight'>airways</span>." }, triggerChain: { trigger: "Smoke particles", airways: "Constricting", result: "ER visits tripled" }, data: { happened: "Wildfire smoke for 3 weeks", airways: "Airways severely constricted", connection: "Smoke caused mass breathing crisis" }, meterEnd: 20, particleColor: "#FF5722" },
+            { id: 5, name: "Missing Inhaler", emoji: "💊", premise: "A student had an asthma attack but the nurse couldn't legally give her medicine without paperwork.", readings: { low: "A student had an <span class='highlight'>asthma</span> attack at school. She had no medication form on file. The nurse couldn't give her the <span class='highlight'>inhaler</span>. An ambulance had to be called.", medium: "A student suddenly couldn't breathe — an <span class='highlight'>asthma</span> attack hit without warning. She ran to the nurse, but there was a problem. The school had no medication form, so the nurse couldn't give her an <span class='highlight'>inhaler</span>. An ambulance had to be called.", high: "A student felt her chest tighten — an <span class='highlight'>asthma</span> attack coming on fast. She ran to the nurse, gasping for air. But the school had no medication form on file. Without paperwork, the nurse couldn't give her an <span class='highlight'>inhaler</span>, even though one was sitting right there. Her <span class='highlight'>airways</span> were swelling shut while adults debated rules." }, triggerChain: { trigger: "Unknown trigger", airways: "Closing fast", result: "Ambulance called" }, data: { happened: "No medication form on file", airways: "Airways closing, no help available", connection: "Policy blocked treatment during crisis" }, meterEnd: 15, particleColor: "#E91E63" },
+            { id: 6, name: "Factory Town", emoji: "🏭", premise: "A coal plant operated near a neighborhood for 40 years. Children had 30% lower lung function.", readings: { low: "A coal plant operated near a neighborhood for 40 years. Children had 30% lower lung function. The pollution caused <span class='highlight'>chronic</span> damage to their <span class='highlight'>airways</span>.", medium: "A coal plant operated near a neighborhood for 40 years, releasing pollution every day. Studies found children had 30% lower lung function than kids in clean-air towns. The constant <span class='highlight'>triggers</span> caused <span class='highlight'>chronic</span> damage to their <span class='highlight'>airways</span> that wouldn't heal.", high: "For 40 years, a coal plant operated less than a mile from homes and schools. Every day, it released particulate matter into the air. Studies showed children had 30% lower lung function than kids in clean-air towns. The constant <span class='highlight'>triggers</span> caused <span class='highlight'>chronic</span> damage — damage lasting their entire lives." }, triggerChain: { trigger: "Coal pollution", airways: "Permanent damage", result: "30% lower function" }, data: { happened: "Coal plant for 40 years", airways: "Chronic damage, 30% reduced function", connection: "Generation of kids permanently harmed" }, meterEnd: 40, particleColor: "#37474F" },
+            { id: 7, name: "Athlete's Secret", emoji: "🏃", premise: "A track star secretly vaped for two years. Her running times got slower and she developed a chronic cough.", readings: { low: "A track star secretly vaped for two years. Her running times got slower. She developed a <span class='highlight'>chronic</span> cough. Her coach confronted her, and she quit.", medium: "A track star was one of the fastest runners. But she secretly vaped for two years. Her times got slower and she developed a <span class='highlight'>chronic</span> cough. Vaping caused <span class='highlight'>inflammation</span> in her <span class='highlight'>airways</span>. Her coach confronted her. She quit.", high: "A track star had always been fast. But she secretly vaped for two years. Her times got slower. She developed a <span class='highlight'>chronic</span> cough and felt winded during practice. Vaping caused <span class='highlight'>inflammation</span> in her <span class='highlight'>airways</span> that kept getting worse. Her coach noticed and confronted her. She quit — but lost two years of progress." }, triggerChain: { trigger: "Secret vaping", airways: "Reduced capacity", result: "Slower times" }, data: { happened: "Secret vaping for 2 years", airways: "Inflammation reduced capacity", connection: "Quit vaping, lungs slowly recovered" }, meterEnd: 50, particleColor: "#9E9E9E" },
+            { id: 8, name: "Housing Project", emoji: "🏢", premise: "A housing project had mice, mold, and no ventilation. 40% of kids had asthma — four times the national rate.", readings: { low: "A housing project had mice, mold, and no ventilation. 40% of kids had <span class='highlight'>asthma</span>. That's four times the national rate. <span class='highlight'>Triggers</span> were everywhere.", medium: "A housing project was falling apart — mice in walls, mold in corners, no ventilation. 40% of kids had <span class='highlight'>asthma</span>, four times the national rate. <span class='highlight'>Triggers</span> were everywhere: mouse allergens, mold spores, dust. Kids needed <span class='highlight'>inhalers</span> just to sleep.", high: "A housing project had been neglected for years — mice in walls, mold everywhere, broken ventilation. The air was filled with <span class='highlight'>triggers</span>. Studies found 40% of kids had <span class='highlight'>asthma</span> — four times the national rate. Mouse allergens, mold spores, and dust caused constant <span class='highlight'>inflammation</span> in children's <span class='highlight'>airways</span>." }, triggerChain: { trigger: "Mice/mold/dust", airways: "Constant irritation", result: "4x asthma rate" }, data: { happened: "Neglected housing with triggers everywhere", airways: "40% of kids had asthma", connection: "Zip code determined health outcomes" }, meterEnd: 30, particleColor: "#795548" }
+        ];
+        let currentScenario = null, currentStep = 'welcome', readingLevel = 'medium';
+        let completedScenarios = [], predictions = {}, score = 0, streak = 0, correctPredictions = 0, totalPredictions = 0;
+        let isSpeaking = false, speechSynth = window.speechSynthesis;
+        function init() { renderScenarios(); setupReadingLevels(); createAmbientParticles(); initDataTable(); }
+        function initDataTable() {
+            const tbody = document.getElementById('dataTableBody'); tbody.innerHTML = '';
+            for (let i = 1; i <= 8; i++) {
+                const row = document.createElement('tr'); row.id = 'dataRow' + i;
+                row.innerHTML = '<td class="row-num">' + i + '</td><td class="empty-cell" id="cell' + i + '_scenario">—</td><td class="empty-cell" id="cell' + i + '_happened">—</td><td class="empty-cell" id="cell' + i + '_airways">—</td><td class="empty-cell" id="cell' + i + '_connection">—</td>';
+                tbody.appendChild(row);
+            }
+        }
+        function createAmbientParticles() {
+            const container = document.getElementById('ambientParticles');
+            for (let i = 0; i < 6; i++) {
+                const p = document.createElement('div'); p.className = 'ambient-particle';
+                p.style.cssText = 'left:' + (15+Math.random()*70) + '%;top:' + (15+Math.random()*70) + '%;width:' + (5+Math.random()*8) + 'px;height:' + (5+Math.random()*8) + 'px;background:rgba(100,181,246,0.4);animation-delay:' + Math.random()*5 + 's;';
+                container.appendChild(p);
+            }
+        }
+        function renderScenarios() { document.getElementById('scenariosList').innerHTML = scenarios.map(function(s) { return '<div class="scenario-card ' + (completedScenarios.includes(s.id)?'completed':'') + '" data-id="' + s.id + '" onclick="selectScenario(' + s.id + ')"><span class="scenario-emoji">' + s.emoji + '</span><span class="scenario-name">' + s.name + '</span></div>'; }).join(''); }
+        function setupReadingLevels() { document.querySelectorAll('.level-btn').forEach(function(btn) { btn.addEventListener('click', function() { document.querySelectorAll('.level-btn').forEach(function(b) { b.classList.remove('active'); }); btn.classList.add('active'); readingLevel = btn.dataset.level; if (currentStep === 'read' && currentScenario) updateReadingText(); }); }); }
+        function selectScenario(id) { currentScenario = scenarios.find(function(s) { return s.id === id; }); document.querySelectorAll('.scenario-card').forEach(function(c) { c.classList.toggle('selected', parseInt(c.dataset.id) === id); }); goToPredict(); }
+        function showCard(cardId) { document.querySelectorAll('.content-card').forEach(function(c) { c.classList.remove('visible'); }); document.getElementById('card-' + cardId).classList.add('visible'); }
+        function updateTabs(activeStep) { ['predict', 'read', 'watch', 'record'].forEach(function(step, i) { var tab = document.getElementById('tab-' + step); tab.classList.remove('active', 'completed'); if (step === activeStep) tab.classList.add('active'); else if (['predict', 'read', 'watch', 'record'].indexOf(activeStep) > i) tab.classList.add('completed'); }); }
+        function goToPredict() { currentStep = 'predict'; updateTabs('predict'); document.getElementById('predictEmoji').textContent = currentScenario.emoji; document.getElementById('predictName').textContent = currentScenario.name; document.getElementById('predictPremise').textContent = currentScenario.premise; document.querySelectorAll('.predict-option').forEach(function(o) { o.classList.remove('selected'); }); document.getElementById('btnPredict').disabled = true; showCard('predict'); }
+        function selectPrediction(el) { document.querySelectorAll('.predict-option').forEach(function(o) { o.classList.remove('selected'); }); el.classList.add('selected'); predictions[currentScenario.id] = el.dataset.prediction; document.getElementById('btnPredict').disabled = false; }
+        function goToRead() { currentStep = 'read'; updateTabs('read'); updateReadingText(); showCard('read'); }
+        function updateReadingText() { document.getElementById('readingText').innerHTML = currentScenario.readings[readingLevel]; document.getElementById('triggerText').textContent = currentScenario.triggerChain.trigger; document.getElementById('airwaysText').textContent = currentScenario.triggerChain.airways; document.getElementById('resultText').textContent = currentScenario.triggerChain.result; }
+        function toggleReadAloud() { if (isSpeaking) { speechSynth.cancel(); isSpeaking = false; document.getElementById('speakerIcon').textContent = '🔊'; } else { var u = new SpeechSynthesisUtterance(document.getElementById('readingText').textContent); u.rate = 0.9; u.onend = function() { isSpeaking = false; document.getElementById('speakerIcon').textContent = '🔊'; }; speechSynth.speak(u); isSpeaking = true; document.getElementById('speakerIcon').textContent = '⏸️'; } }
+        function goToWatch() { currentStep = 'watch'; updateTabs('watch'); document.getElementById('watchTrigger').textContent = currentScenario.triggerChain.trigger; document.getElementById('watchAirways').textContent = currentScenario.triggerChain.airways; document.getElementById('watchResult').textContent = currentScenario.triggerChain.result; showCard('watch'); animateBody(); }
+        function animateBody() {
+            var endValue = currentScenario.meterEnd;
+            var trachea = document.getElementById('trachea');
+            var bL = document.getElementById('bronchusLeft'), bR = document.getElementById('bronchusRight');
+            var lL = document.getElementById('lungLeft'), lR = document.getElementById('lungRight');
+            var meterFill = document.getElementById('meterFill');
+            var meterValue = document.getElementById('meterValue');
+            var meterBadge = document.getElementById('meterBadge');
+            var statusDisplay = document.getElementById('statusDisplay');
+            var mouth = document.getElementById('mouth');
+            trachea.className = 'trachea'; bL.className = 'bronchus left'; bR.className = 'bronchus right';
+            lL.className = 'lung left'; lR.className = 'lung right';
+            meterFill.style.height = '75%'; meterFill.className = 'meter-fill';
+            meterValue.textContent = '75%'; meterBadge.textContent = 'NORMAL'; meterBadge.className = 'meter-badge ok';
+            statusDisplay.textContent = 'BREATHING NORMAL'; statusDisplay.className = 'status-display ok';
+            mouth.className = 'mouth';
+            createTriggerParticles(currentScenario.particleColor);
+            setTimeout(function() {
+                meterFill.style.height = endValue + '%'; meterValue.textContent = endValue + '%';
+                if (endValue <= 25) { trachea.classList.add('constricted'); bL.classList.add('constricted'); bR.classList.add('constricted'); lL.classList.add('danger'); lR.classList.add('danger'); meterFill.classList.add('danger'); meterBadge.textContent = 'DANGER'; meterBadge.className = 'meter-badge danger'; statusDisplay.textContent = 'BREATHING CRISIS'; statusDisplay.className = 'status-display danger'; mouth.classList.add('struggling'); }
+                else if (endValue <= 50) { trachea.classList.add('narrow'); bL.classList.add('narrow'); bR.classList.add('narrow'); lL.classList.add('warning'); lR.classList.add('warning'); meterFill.classList.add('warning'); meterBadge.textContent = 'WARNING'; meterBadge.className = 'meter-badge warning'; statusDisplay.textContent = 'STRUGGLING TO BREATHE'; statusDisplay.className = 'status-display warning'; }
+            }, 800);
+        }
+        function createTriggerParticles(color) { var container = document.getElementById('triggerParticles'); container.innerHTML = ''; for (var i = 0; i < 15; i++) { var p = document.createElement('div'); p.className = 'trigger-particle'; p.style.cssText = 'left:' + (35+Math.random()*30) + '%;width:' + (4+Math.random()*10) + 'px;height:' + (4+Math.random()*10) + 'px;background:' + color + ';color:' + color + ';animation-delay:' + Math.random()*2.5 + 's;'; container.appendChild(p); } }
+        function goToRecord() {
+            currentStep = 'record'; updateTabs('record');
+            document.getElementById('recordScenario').textContent = currentScenario.name;
+            document.getElementById('recordHappened').textContent = currentScenario.data.happened;
+            document.getElementById('recordAirways').textContent = currentScenario.data.airways;
+            document.getElementById('recordConnection').textContent = currentScenario.data.connection;
+            if (!completedScenarios.includes(currentScenario.id)) {
+                completedScenarios.push(currentScenario.id); totalPredictions++;
+                if (predictions[currentScenario.id] === 'worse') { correctPredictions++; streak++; score += 100 + streak * 10; } else { streak = 0; score += 50; }
+                updateHUD(); fillDataRow(); renderScenarios();
+                if (completedScenarios.length === 5) showCompletionModal('required');
+                else if (completedScenarios.length === 8) showCompletionModal('extra');
+            }
+            showCard('record');
+        }
+        function fillDataRow() {
+            var rowNum = completedScenarios.length;
+            var row = document.getElementById('dataRow' + rowNum); row.classList.add('filled');
+            document.getElementById('cell' + rowNum + '_scenario').textContent = currentScenario.name;
+            document.getElementById('cell' + rowNum + '_scenario').classList.remove('empty-cell');
+            document.getElementById('cell' + rowNum + '_happened').textContent = currentScenario.data.happened;
+            document.getElementById('cell' + rowNum + '_happened').classList.remove('empty-cell');
+            document.getElementById('cell' + rowNum + '_airways').textContent = currentScenario.data.airways;
+            document.getElementById('cell' + rowNum + '_airways').classList.remove('empty-cell');
+            document.getElementById('cell' + rowNum + '_connection').textContent = currentScenario.data.connection;
+            document.getElementById('cell' + rowNum + '_connection').classList.remove('empty-cell');
+        }
+        function updateHUD() {
+            document.getElementById('hudScore').textContent = score;
+            document.getElementById('hudStreak').textContent = streak;
+            document.getElementById('hudCompleted').textContent = completedScenarios.length + '/5';
+            document.getElementById('hudAccuracy').textContent = totalPredictions > 0 ? Math.round(correctPredictions / totalPredictions * 100) + '%' : '--';
+            var progress = Math.min(completedScenarios.length / 5 * 100, 100);
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressCount').textContent = Math.min(completedScenarios.length, 5) + '/5';
+            document.getElementById('progressMessage').textContent = completedScenarios.length < 5 ? 'Pick ' + (5 - completedScenarios.length) + ' more!' : completedScenarios.length < 8 ? '✨ Done! ' + (8 - completedScenarios.length) + ' for extra credit!' : '🎉 Extra Credit Complete!';
+        }
+        function selectNextScenario() { document.querySelectorAll('.scenario-card').forEach(function(c) { c.classList.remove('selected'); }); showCard('welcome'); }
+        function showCompletionModal(type) { document.getElementById('modalIcon').textContent = type === 'required' ? '🎉' : '🏆'; document.getElementById('modalTitle').textContent = type === 'required' ? 'Required Complete!' : 'Extra Credit Complete!'; document.getElementById('modalMessage').innerHTML = type === 'required' ? 'Great work! You completed 5 stories.<br>Continue for extra credit!' : 'Amazing! All 8 complete!<br>Copy your data table to your worksheet.'; document.getElementById('completionModal').classList.add('visible'); }
+        function closeModal() { document.getElementById('completionModal').classList.remove('visible'); }
+        function resetSimulation() { completedScenarios = []; predictions = {}; score = 0; streak = 0; correctPredictions = 0; totalPredictions = 0; currentScenario = null; updateHUD(); renderScenarios(); initDataTable(); showCard('welcome'); }
+        function newRun() { resetSimulation(); }
+        init();
+    </script>
+</body>
+</html>
