@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad Simulation: Cell Division</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0e1a;color:#fff;overflow:hidden;height:100vh;width:100vw;}
+
+/* ===== TOP BAR ===== */
+.top-bar{background:linear-gradient(90deg,#1565C0,#7B1FA2,#C62828);padding:7px 16px;text-align:center;font-size:17px;font-weight:800;letter-spacing:1.5px;text-shadow:0 2px 8px rgba(0,0,0,0.5);position:relative;z-index:50;}
+
+/* ===== LAYOUT ===== */
+.main{display:flex;height:calc(100vh - 38px);}
+.left-panel{width:275px;min-width:275px;background:linear-gradient(180deg,#0d1527,#111b33);padding:10px;display:flex;flex-direction:column;gap:7px;overflow-y:auto;border-right:1px solid rgba(100,160,255,0.12);}
+.center-panel{flex:1;display:flex;flex-direction:column;padding:8px;gap:6px;position:relative;}
+.right-panel{width:255px;min-width:255px;background:linear-gradient(180deg,#0d1527,#111b33);padding:10px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;border-left:1px solid rgba(100,160,255,0.12);}
+
+/* ===== GUIDED STEP INDICATOR ===== */
+.step-guide{background:linear-gradient(135deg,#1565C0,#0D47A1);border-radius:12px;padding:10px 14px;text-align:center;border:2px solid #42A5F5;box-shadow:0 0 20px rgba(33,150,243,0.3);animation:guidePulse 2s ease-in-out infinite;position:relative;}
+.step-guide .step-num{font-size:11px;color:#90CAF5;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+.step-guide .step-text{font-size:15px;font-weight:800;color:#FFF;margin-top:2px;line-height:1.3;}
+.step-guide .step-arrow{font-size:22px;margin-top:2px;animation:bounce 1s ease-in-out infinite;}
+@keyframes guidePulse{0%,100%{box-shadow:0 0 20px rgba(33,150,243,0.3);}50%{box-shadow:0 0 35px rgba(33,150,243,0.6);}}
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(4px);}}
+
+/* ===== ROUND BADGE ===== */
+.round-badge{text-align:center;font-size:20px;font-weight:800;color:#FFF;background:linear-gradient(135deg,#1565C0,#7B1FA2);border-radius:12px;padding:6px 12px;box-shadow:0 4px 15px rgba(21,101,192,0.4);}
+
+/* ===== CONTROLS ===== */
+.ctrl-group{background:rgba(255,255,255,0.04);border-radius:12px;padding:10px;border:2px solid rgba(255,255,255,0.06);transition:all 0.4s;}
+.ctrl-group.glow-hint{border-color:#42A5F5;box-shadow:0 0 20px rgba(66,165,245,0.35);animation:hintGlow 1.5s ease-in-out infinite;}
+@keyframes hintGlow{0%,100%{box-shadow:0 0 15px rgba(66,165,245,0.25);}50%{box-shadow:0 0 30px rgba(66,165,245,0.5);}}
+.ctrl-label{font-size:13px;font-weight:700;color:#E0E0E0;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.ctrl-label .icon{font-size:20px;}
+.slider-wrap{display:flex;align-items:center;gap:5px;}
+.slider-btn{flex:1;padding:9px 4px;border:2px solid rgba(255,255,255,0.12);border-radius:10px;background:rgba(255,255,255,0.04);color:#90A4AE;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.25s;text-align:center;}
+.slider-btn:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.25);}
+.slider-btn.active{color:#FFF;border-width:3px;transform:scale(1.04);}
+.slider-btn.active.low{background:linear-gradient(135deg,#2E7D32,#1B5E20);border-color:#66BB6A;box-shadow:0 0 14px rgba(76,175,80,0.45);}
+.slider-btn.active.med{background:linear-gradient(135deg,#EF6C00,#E65100);border-color:#FFA726;box-shadow:0 0 14px rgba(255,152,0,0.45);}
+.slider-btn.active.high{background:linear-gradient(135deg,#C62828,#B71C1C);border-color:#EF5350;box-shadow:0 0 14px rgba(244,67,54,0.45);}
+.toggle-wrap{display:flex;gap:5px;}
+.toggle-btn{flex:1;padding:9px 4px;border:2px solid rgba(255,255,255,0.12);border-radius:10px;background:rgba(255,255,255,0.04);color:#90A4AE;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.25s;text-align:center;}
+.toggle-btn:hover{background:rgba(255,255,255,0.1);}
+.toggle-btn.active{color:#FFF;border-width:3px;transform:scale(1.04);}
+.toggle-btn.active.on{background:linear-gradient(135deg,#2E7D32,#1B5E20);border-color:#66BB6A;box-shadow:0 0 14px rgba(76,175,80,0.45);}
+.toggle-btn.active.dmg{background:linear-gradient(135deg,#EF6C00,#E65100);border-color:#FFA726;box-shadow:0 0 14px rgba(255,152,0,0.45);}
+.toggle-btn.active.off{background:linear-gradient(135deg,#C62828,#B71C1C);border-color:#EF5350;box-shadow:0 0 14px rgba(244,67,54,0.45);}
+.ctrl-group.locked{opacity:0.35;pointer-events:none;position:relative;}
+.ctrl-group.locked::after{content:'🔒 LOCKED';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.85);color:#EF5350;font-size:12px;font-weight:800;padding:5px 14px;border-radius:8px;letter-spacing:2px;z-index:5;}
+
+/* ===== DIVIDE BUTTON ===== */
+.divide-btn{padding:14px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#00C853,#00E676,#69F0AE);color:#0a3d1a;box-shadow:0 4px 20px rgba(0,200,83,0.35);transition:all 0.3s;letter-spacing:1px;text-transform:uppercase;position:relative;overflow:hidden;}
+.divide-btn::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,transparent,rgba(255,255,255,0.15),transparent);transform:rotate(45deg);transition:0.5s;}
+.divide-btn:hover::after{left:100%;}
+.divide-btn:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(0,200,83,0.5);}
+.divide-btn:disabled{background:linear-gradient(135deg,#37474F,#455A64);color:#78909C;box-shadow:none;cursor:not-allowed;transform:none;}
+.divide-btn.glow-hint{animation:divideGlow 1.2s ease-in-out infinite;}
+@keyframes divideGlow{0%,100%{box-shadow:0 4px 20px rgba(0,200,83,0.35);}50%{box-shadow:0 4px 40px rgba(0,200,83,0.7),0 0 60px rgba(0,200,83,0.3);}}
+
+.btn-row{display:flex;gap:6px;justify-content:center;}
+.reset-btn,.newrun-btn{padding:8px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;flex:1;transition:all 0.2s;}
+.reset-btn{background:linear-gradient(135deg,#C62828,#E53935);color:#FFF;}
+.newrun-btn{background:linear-gradient(135deg,#1565C0,#1E88E5);color:#FFF;}
+
+/* ===== ARENA ===== */
+.arena{flex:1;border-radius:16px;border:2px solid rgba(100,160,255,0.12);position:relative;overflow:hidden;min-height:0;background:#060d18;}
+.arena canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+#bgCanvas{z-index:1;}
+#cellCanvas{z-index:2;}
+#fxCanvas{z-index:3;}
+.arena-hud{position:absolute;z-index:10;pointer-events:none;}
+#woundIndicator{top:8px;right:12px;background:rgba(0,0,0,0.65);padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;color:#FFB74D;border:1px solid rgba(255,152,0,0.3);}
+#arenaHealthy{bottom:8px;left:12px;background:rgba(0,0,0,0.65);padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;color:#69F0AE;border:1px solid rgba(76,175,80,0.3);}
+#arenaDamaged{bottom:8px;right:12px;background:rgba(0,0,0,0.65);padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;color:#FF8A80;border:1px solid rgba(244,67,54,0.3);display:none;}
+#arenaCenter{top:50%;left:50%;transform:translate(-50%,-50%);font-size:26px;font-weight:800;text-shadow:0 3px 15px rgba(0,0,0,0.8);opacity:0;transition:opacity 0.5s;}
+
+/* ===== STATUS BAR ===== */
+.status-bar{padding:8px 14px;border-radius:10px;text-align:center;font-size:13px;font-weight:700;min-height:34px;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.4s;}
+.status-bar.normal{background:rgba(33,150,243,0.12);color:#82B1FF;border:1px solid rgba(33,150,243,0.2);}
+.status-bar.warning{background:rgba(255,152,0,0.15);color:#FFB74D;border:1px solid rgba(255,152,0,0.25);animation:warnPulse 1.5s infinite;}
+.status-bar.critical{background:rgba(244,67,54,0.15);color:#FF8A80;border:1px solid rgba(244,67,54,0.3);animation:warnPulse 0.8s infinite;}
+.status-bar.success{background:rgba(76,175,80,0.15);color:#69F0AE;border:1px solid rgba(76,175,80,0.25);}
+@keyframes warnPulse{0%,100%{opacity:1;}50%{opacity:0.65;}}
+
+/* ===== HUD CARDS ===== */
+.panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#64B5F6;text-align:center;margin-bottom:2px;}
+.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.hud-card{background:rgba(255,255,255,0.05);border-radius:10px;padding:7px 4px;text-align:center;border:1px solid rgba(255,255,255,0.06);transition:all 0.4s;}
+.hud-card .val{font-size:24px;font-weight:800;line-height:1;transition:all 0.3s;}
+.hud-card .lbl{font-size:9px;color:#78909C;text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+.hud-card.green .val{color:#69F0AE;text-shadow:0 0 10px rgba(105,240,174,0.3);}
+.hud-card.red .val{color:#FF8A80;text-shadow:0 0 10px rgba(255,138,128,0.3);}
+.hud-card.blue .val{color:#82B1FF;text-shadow:0 0 10px rgba(130,177,255,0.3);}
+.hud-card.amber .val{color:#FFD54F;text-shadow:0 0 10px rgba(255,213,79,0.3);}
+.hud-card.pop{animation:hudPop 0.4s ease;}
+@keyframes hudPop{0%{transform:scale(1);}40%{transform:scale(1.15);}100%{transform:scale(1);}}
+
+/* ===== BARS ===== */
+.bar-section{margin-top:2px;}
+.bar-label{font-size:9px;color:#78909C;margin-bottom:2px;display:flex;justify-content:space-between;}
+.bar-wrap{background:rgba(0,0,0,0.35);border-radius:8px;height:16px;overflow:hidden;position:relative;}
+.bar-fill{height:100%;border-radius:8px;transition:width 0.8s ease,background 0.6s ease;position:relative;}
+.bar-fill::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,0.15),transparent);border-radius:8px;}
+.bar-text{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,0.6);}
+
+/* ===== DATA TABLE ===== */
+.data-section{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;margin-top:2px;}
+.data-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.copy-btn{padding:4px 10px;border:none;border-radius:7px;background:linear-gradient(135deg,#1565C0,#1E88E5);color:#FFF;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.copy-btn:hover{background:linear-gradient(135deg,#1E88E5,#42A5F5);}
+.data-table-wrap{flex:1;overflow-y:auto;border-radius:8px;border:1px solid rgba(255,255,255,0.08);}
+table{width:100%;border-collapse:collapse;font-size:10px;}
+th{background:linear-gradient(135deg,#1565C0,#7B1FA2);color:#FFF;padding:5px 3px;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;position:sticky;top:0;z-index:2;}
+td{padding:4px 3px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.04);color:#B0BEC5;font-size:11px;}
+tr:nth-child(even){background:rgba(255,255,255,0.02);}
+tr.new-row{animation:rowSlide 0.5s ease;}
+@keyframes rowSlide{from{background:rgba(33,150,243,0.2);transform:translateX(-10px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+/* ===== FEEDBACK OVERLAYS ===== */
+.feedback-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:15;pointer-events:none;border-radius:16px;}
+.feedback-overlay.critical{background:rgba(244,67,54,0.1);animation:critPulse 1s infinite;}
+@keyframes critPulse{0%,100%{opacity:0.08;}50%{opacity:0.2;}}
+.feedback-overlay.win{background:rgba(255,215,0,0.08);animation:winGlow 2s infinite;}
+@keyframes winGlow{0%,100%{opacity:0.05;}50%{opacity:0.15;}}
+
+/* ===== FLOATING BANNERS ===== */
+.float-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:16px 36px;border-radius:18px;font-size:22px;font-weight:800;z-index:200;box-shadow:0 10px 50px rgba(0,0,0,0.5);animation:bannerPop 0.5s ease;pointer-events:none;text-align:center;}
+@keyframes bannerPop{0%{transform:translate(-50%,-50%) scale(0) rotate(-5deg);opacity:0;}60%{transform:translate(-50%,-50%) scale(1.1) rotate(1deg);}100%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1;}}
+.float-banner.gold{background:linear-gradient(135deg,#FFD600,#FF6F00);color:#3E2723;}
+.float-banner.danger{background:linear-gradient(135deg,#E040FB,#7C4DFF);color:#FFF;}
+.float-banner.heal{background:linear-gradient(135deg,#00E5FF,#00B0FF);color:#FFF;}
+.float-banner.fail{background:linear-gradient(135deg,#F44336,#C62828);color:#FFF;}
+
+/* ===== BOTTOM MESSAGES ===== */
+.ec-msg{text-align:center;font-size:12px;font-weight:700;color:#FFD54F;padding:6px;background:rgba(255,213,79,0.08);border-radius:8px;border:1px solid rgba(255,213,79,0.15);}
+.complete-msg{text-align:center;font-size:14px;font-weight:800;padding:10px;border-radius:12px;background:linear-gradient(135deg,rgba(0,200,83,0.15),rgba(0,230,118,0.08));color:#69F0AE;border:2px solid rgba(105,240,174,0.25);}
+
+/* ===== CAUSE-EFFECT POPUP ===== */
+.cause-effect{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);z-index:20;background:rgba(0,0,0,0.88);border:2px solid rgba(100,160,255,0.3);border-radius:14px;padding:12px 20px;pointer-events:none;white-space:nowrap;animation:ceFade 3.5s ease forwards;max-width:90%;}
+.cause-effect .ce-line{font-size:14px;font-weight:700;text-align:center;line-height:1.5;}
+.cause-effect .ce-cause{color:#82B1FF;}
+.cause-effect .ce-arrow{color:#FFD54F;font-size:18px;}
+.cause-effect .ce-effect{color:#FF8A80;}
+.cause-effect .ce-good{color:#69F0AE;}
+@keyframes ceFade{0%{opacity:0;transform:translateX(-50%) translateY(10px);}10%{opacity:1;transform:translateX(-50%) translateY(0);}85%{opacity:1;}100%{opacity:0;}}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="top-bar">🔬 Mr. Jawad Simulation: Cell Division 🔬</div>
+<div class="main">
+
+<!-- LEFT PANEL -->
+<div class="left-panel">
+<div class="round-badge" id="roundBadge">Round 1 / 8</div>
+
+<!-- GUIDED STEP INDICATOR -->
+<div class="step-guide" id="stepGuide">
+  <div class="step-num">STEP 1 OF 3</div>
+  <div class="step-text" id="stepText">Pick ONE variable to change</div>
+  <div class="step-arrow" id="stepArrow">👇</div>
+</div>
+
+<div class="ctrl-group glow-hint" id="growthGroup">
+  <div class="ctrl-label"><span class="icon">📈</span> Growth Signal</div>
+  <div class="slider-wrap">
+    <button class="slider-btn low" data-val="Low" onclick="setVar('growth','Low',this)">Low</button>
+    <button class="slider-btn med active med" data-val="Medium" onclick="setVar('growth','Medium',this)">Med</button>
+    <button class="slider-btn high" data-val="High" onclick="setVar('growth','High',this)">High</button>
+  </div>
+</div>
+
+<div class="ctrl-group glow-hint" id="checkpointGroup">
+  <div class="ctrl-label"><span class="icon">✅</span> Checkpoint</div>
+  <div class="toggle-wrap">
+    <button class="toggle-btn on active on" data-val="ON" onclick="setVar('checkpoint','ON',this)">ON</button>
+    <button class="toggle-btn dmg" data-val="DAMAGED" onclick="setVar('checkpoint','DAMAGED',this)">DMG</button>
+    <button class="toggle-btn off" data-val="OFF" onclick="setVar('checkpoint','OFF',this)">OFF</button>
+  </div>
+</div>
+
+<div class="ctrl-group glow-hint" id="repairGroup">
+  <div class="ctrl-label"><span class="icon">🔧</span> Repair Crew</div>
+  <div class="slider-wrap">
+    <button class="slider-btn low" data-val="Low" onclick="setVar('repair','Low',this)">Low</button>
+    <button class="slider-btn med active med" data-val="Medium" onclick="setVar('repair','Medium',this)">Med</button>
+    <button class="slider-btn high" data-val="High" onclick="setVar('repair','High',this)">High</button>
+  </div>
+</div>
+
+<button class="divide-btn" id="divideBtn" onclick="runRound()" disabled>⚡ DIVIDE ⚡</button>
+
+<div class="btn-row">
+  <button class="reset-btn" onclick="resetGame()">Reset</button>
+  <button class="newrun-btn" onclick="newRun()">New Run</button>
+</div>
+</div>
+
+<!-- CENTER: ARENA -->
+<div class="center-panel">
+  <div class="arena" id="arena">
+    <canvas id="bgCanvas"></canvas>
+    <canvas id="cellCanvas"></canvas>
+    <canvas id="fxCanvas"></canvas>
+    <div class="arena-hud" id="woundIndicator">Wound Open</div>
+    <div class="arena-hud" id="arenaHealthy">Healthy: 20</div>
+    <div class="arena-hud" id="arenaDamaged">Tumor: 0</div>
+    <div class="arena-hud" id="arenaCenter"></div>
+  </div>
+  <div class="status-bar normal" id="statusBar">Pick ONE variable to change, then press DIVIDE</div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+  <div class="panel-title">Tissue Status</div>
+  <div class="hud-grid">
+    <div class="hud-card green" id="hcCard"><div class="val" id="healthyCount">20</div><div class="lbl">Healthy</div></div>
+    <div class="hud-card red" id="dcCard"><div class="val" id="damagedCount">0</div><div class="lbl">Damaged</div></div>
+    <div class="hud-card blue" id="scCard"><div class="val" id="scoreVal">0</div><div class="lbl">Score</div></div>
+    <div class="hud-card amber" id="skCard"><div class="val" id="streakVal">0</div><div class="lbl">Clean Streak</div></div>
+  </div>
+
+  <div class="bar-section">
+    <div class="bar-label"><span>Tissue Health</span><span id="healthPctText">100%</span></div>
+    <div class="bar-wrap"><div class="bar-fill" id="healthBar" style="width:100%;background:linear-gradient(90deg,#69F0AE,#00C853);"></div></div>
+    <div class="bar-label" style="margin-top:5px;"><span>Wound</span><span id="woundPctText">Open</span></div>
+    <div class="bar-wrap"><div class="bar-fill" id="woundBar" style="width:60%;background:linear-gradient(90deg,#FFB74D,#F57F17);"></div></div>
+  </div>
+
+  <div class="data-section">
+    <div class="data-header">
+      <div class="panel-title">Data Table</div>
+      <button class="copy-btn" id="copyBtn" onclick="copyTable()">📋 Copy</button>
+    </div>
+    <div class="data-table-wrap">
+      <table id="dataTable">
+        <thead><tr><th>Rnd</th><th>Growth</th><th>Chkpt</th><th>Repair</th><th>Dmg</th></tr></thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="ecArea"></div>
+</div>
+</div>
+</div>
+
+<script>
+// ===== STATE =====
+const S = {
+  round:1, maxR:8, reqR:5,
+  growth:'Medium', checkpoint:'ON', repair:'Medium',
+  healthy:20, damaged:0, score:0, streak:0,
+  woundSize:6, changedVar:null, roundsPlayed:0,
+  gameOver:false, superRepair:false, superRepairUsed:false,
+  mutationUsed:false, mutationRound:0,
+  critRounds:0, isCritical:false, zeroStreak:0,
+  data:[], animating:false,
+  step:'pick', // pick -> divide -> watch
+  prevG:'Medium', prevC:'ON', prevR:'Medium'
+};
+S.mutationRound = 2 + Math.floor(Math.random()*7);
+
+// ===== CELLS (canvas-based) =====
+let cells = [];
+let particles = [];
+let cellId = 0;
+let bgCanvas, cellCanvas, fxCanvas, bgCtx, cellCtx, fxCtx;
+let arenaW=0, arenaH=0, woundVisualW=0;
+let animFrame;
+
+function initCanvas(){
+  try{
+    const a=document.getElementById('arena');
+    arenaW=a.clientWidth; arenaH=a.clientHeight;
+    ['bgCanvas','cellCanvas','fxCanvas'].forEach(id=>{
+      const c=document.getElementById(id);
+      c.width=arenaW; c.height=arenaH;
+    });
+    bgCanvas=document.getElementById('bgCanvas');
+    cellCanvas=document.getElementById('cellCanvas');
+    fxCanvas=document.getElementById('fxCanvas');
+    bgCtx=bgCanvas.getContext('2d');
+    cellCtx=cellCanvas.getContext('2d');
+    fxCtx=fxCanvas.getContext('2d');
+  }catch(e){console.error('Canvas init:',e);}
+}
+
+function spawnCell(type,x,y){
+  const usableW = arenaW - woundVisualW - 10;
+  if(x===undefined) x = 8 + Math.random()*(usableW-16);
+  if(y===undefined) y = 8 + Math.random()*(arenaH-16);
+  const c = {
+    id:cellId++, x, y, type,
+    r: type==='healthy' ? 10+Math.random()*5 : 12+Math.random()*6,
+    phase: Math.random()*Math.PI*2,
+    divideAnim:0, errorAnim:0, removeAnim:0, removing:false
+  };
+  cells.push(c);
+  return c;
+}
+
+function initCells(){
+  cells=[];
+  woundVisualW = arenaW * (S.woundSize/10)*0.35;
+  for(let i=0;i<20;i++) spawnCell('healthy');
+}
+
+// ===== DRAW LOOP =====
+function drawBG(){
+  const ctx=bgCtx;
+  ctx.clearRect(0,0,arenaW,arenaH);
+  
+  // Tissue background gradient
+  const grd=ctx.createRadialGradient(arenaW*0.35,arenaH*0.5,50,arenaW*0.4,arenaH*0.5,arenaW*0.7);
+  grd.addColorStop(0,'#0f1e35');
+  grd.addColorStop(1,'#060d18');
+  ctx.fillStyle=grd;
+  ctx.fillRect(0,0,arenaW,arenaH);
+  
+  // Grid lines (tissue structure)
+  ctx.strokeStyle='rgba(100,160,255,0.04)';
+  ctx.lineWidth=1;
+  for(let x=0;x<arenaW;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,arenaH);ctx.stroke();}
+  for(let y=0;y<arenaH;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(arenaW,y);ctx.stroke();}
+  
+  // Wound zone
+  woundVisualW = arenaW * (S.woundSize/10)*0.35;
+  if(S.woundSize>0){
+    const wx = arenaW - woundVisualW;
+    const wGrd = ctx.createLinearGradient(wx,0,arenaW,0);
+    wGrd.addColorStop(0,'rgba(0,0,0,0)');
+    wGrd.addColorStop(0.3,'rgba(50,20,0,0.4)');
+    wGrd.addColorStop(1,'rgba(80,30,0,0.6)');
+    ctx.fillStyle=wGrd;
+    ctx.fillRect(wx,0,woundVisualW,arenaH);
+    
+    // Wound border dashes
+    ctx.strokeStyle='rgba(255,152,0,0.4)';
+    ctx.lineWidth=2;
+    ctx.setLineDash([8,6]);
+    ctx.beginPath();ctx.moveTo(wx,0);ctx.lineTo(wx,arenaH);ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // "WOUND" text
+    ctx.save();
+    ctx.translate(arenaW-12, arenaH/2);
+    ctx.rotate(Math.PI/2);
+    ctx.fillStyle='rgba(255,152,0,0.35)';
+    ctx.font='bold 14px Segoe UI';
+    ctx.textAlign='center';
+    ctx.fillText('WOUND',0,0);
+    ctx.restore();
+  }
+}
+
+function drawCells(time){
+  const ctx=cellCtx;
+  ctx.clearRect(0,0,arenaW,arenaH);
+  
+  // Draw tumor glow behind damaged cells
+  const dmgCells = cells.filter(c=>c.type==='damaged'&&!c.removing);
+  if(dmgCells.length>2){
+    const ax = dmgCells.reduce((s,c)=>s+c.x,0)/dmgCells.length;
+    const ay = dmgCells.reduce((s,c)=>s+c.y,0)/dmgCells.length;
+    const glowR = 30 + dmgCells.length*8;
+    const grd=ctx.createRadialGradient(ax,ay,0,ax,ay,glowR);
+    grd.addColorStop(0,'rgba(244,67,54,0.2)');
+    grd.addColorStop(0.5,'rgba(244,67,54,0.08)');
+    grd.addColorStop(1,'rgba(244,67,54,0)');
+    ctx.fillStyle=grd;
+    ctx.beginPath();ctx.arc(ax,ay,glowR,0,Math.PI*2);ctx.fill();
+  }
+  
+  cells.forEach(c=>{
+    const t = time/1000;
+    let r = c.r;
+    let alpha = 1;
+    
+    // Divide animation
+    if(c.divideAnim>0){
+      c.divideAnim -= 0.02;
+      const p = 1-c.divideAnim;
+      r *= 1 + Math.sin(p*Math.PI)*0.4;
+    }
+    
+    // Error flash
+    if(c.errorAnim>0){
+      c.errorAnim -= 0.025;
+    }
+    
+    // Remove animation
+    if(c.removing){
+      c.removeAnim += 0.03;
+      alpha = Math.max(0, 1-c.removeAnim);
+      r *= 1-c.removeAnim*0.5;
+      if(c.removeAnim >= 1){
+        cells = cells.filter(cc=>cc.id!==c.id);
+        return;
+      }
+    }
+    
+    // Ambient pulse
+    const pulse = Math.sin(t*2 + c.phase)*0.08;
+    r *= (1+pulse);
+    
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    
+    if(c.type==='healthy'){
+      // Green healthy cell with organelle detail
+      const grd = ctx.createRadialGradient(c.x-r*0.3, c.y-r*0.3, r*0.1, c.x, c.y, r);
+      grd.addColorStop(0, '#A5D6A7');
+      grd.addColorStop(0.4, '#66BB6A');
+      grd.addColorStop(0.8, '#2E7D32');
+      grd.addColorStop(1, '#1B5E20');
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(c.x,c.y,r,0,Math.PI*2); ctx.fill();
+      
+      // Cell membrane
+      ctx.strokeStyle = 'rgba(165,214,167,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(c.x,c.y,r,0,Math.PI*2); ctx.stroke();
+      
+      // Nucleus
+      const nGrd = ctx.createRadialGradient(c.x,c.y,0,c.x,c.y,r*0.35);
+      nGrd.addColorStop(0,'rgba(255,255,255,0.3)');
+      nGrd.addColorStop(1,'rgba(27,94,32,0.5)');
+      ctx.fillStyle=nGrd;
+      ctx.beginPath();ctx.arc(c.x,c.y,r*0.35,0,Math.PI*2);ctx.fill();
+      
+      // Glow
+      ctx.shadowColor='rgba(105,240,174,0.3)';
+      ctx.shadowBlur=8;
+      ctx.strokeStyle='rgba(105,240,174,0.15)';
+      ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc(c.x,c.y,r+2,0,Math.PI*2);ctx.stroke();
+      ctx.shadowBlur=0;
+      
+    } else {
+      // Red damaged cell — irregular, glowing, chaotic
+      const grd = ctx.createRadialGradient(c.x-r*0.2, c.y-r*0.2, r*0.1, c.x, c.y, r);
+      grd.addColorStop(0, '#FFCDD2');
+      grd.addColorStop(0.3, '#EF5350');
+      grd.addColorStop(0.7, '#C62828');
+      grd.addColorStop(1, '#B71C1C');
+      ctx.fillStyle = grd;
+      
+      // Irregular shape
+      ctx.beginPath();
+      for(let i=0;i<8;i++){
+        const angle = (i/8)*Math.PI*2;
+        const wobble = r*(0.85 + Math.sin(t*3+c.phase+i*1.2)*0.2);
+        const px = c.x + Math.cos(angle)*wobble;
+        const py = c.y + Math.sin(angle)*wobble;
+        if(i===0)ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      }
+      ctx.closePath(); ctx.fill();
+      
+      // Error flash overlay
+      if(c.errorAnim>0){
+        ctx.fillStyle=`rgba(255,255,0,${c.errorAnim*0.6})`;
+        ctx.beginPath();ctx.arc(c.x,c.y,r*1.3,0,Math.PI*2);ctx.fill();
+      }
+      
+      // Danger glow
+      ctx.shadowColor='rgba(244,67,54,0.5)';
+      ctx.shadowBlur=15;
+      ctx.strokeStyle='rgba(244,67,54,0.3)';
+      ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(c.x,c.y,r+3,0,Math.PI*2);ctx.stroke();
+      ctx.shadowBlur=0;
+      
+      // Broken nucleus
+      ctx.fillStyle='rgba(0,0,0,0.3)';
+      ctx.beginPath();ctx.arc(c.x+r*0.1,c.y,r*0.25,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(c.x-r*0.15,c.y+r*0.1,r*0.15,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+function drawFX(time){
+  const ctx=fxCtx;
+  ctx.clearRect(0,0,arenaW,arenaH);
+  
+  particles = particles.filter(p=>{
+    p.life -= 0.02;
+    if(p.life<=0) return false;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.1; // gravity
+    
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    return true;
+  });
+  
+  // Critical overlay
+  if(S.isCritical){
+    ctx.fillStyle = `rgba(244,67,54,${0.05 + Math.sin(time/300)*0.05})`;
+    ctx.fillRect(0,0,arenaW,arenaH);
+    
+    // Warning border
+    ctx.strokeStyle=`rgba(244,67,54,${0.3+Math.sin(time/200)*0.2})`;
+    ctx.lineWidth=4;
+    ctx.strokeRect(2,2,arenaW-4,arenaH-4);
+  }
+  
+  // Win glow
+  if(S.gameOver && S.woundSize<=0 && S.damaged<5){
+    ctx.fillStyle=`rgba(255,215,0,${0.03+Math.sin(time/500)*0.03})`;
+    ctx.fillRect(0,0,arenaW,arenaH);
+  }
+}
+
+function emitParticles(x,y,color,count,spread){
+  for(let i=0;i<count;i++){
+    particles.push({
+      x, y, color,
+      vx: (Math.random()-0.5)*spread,
+      vy: (Math.random()-0.5)*spread - 1,
+      size: 3+Math.random()*4,
+      life: 0.7+Math.random()*0.3
+    });
+  }
+}
+
+function animate(time){
+  try{
+    drawBG();
+    drawCells(time);
+    drawFX(time);
+  }catch(e){}
+  animFrame = requestAnimationFrame(animate);
+}
+
+// ===== GUIDED STEP SYSTEM =====
+function setStep(step){
+  S.step = step;
+  const guide = document.getElementById('stepGuide');
+  const text = document.getElementById('stepText');
+  const arrow = document.getElementById('stepArrow');
+  const divBtn = document.getElementById('divideBtn');
+  
+  // Remove all glow hints
+  ['growthGroup','checkpointGroup','repairGroup'].forEach(id=>{
+    document.getElementById(id).classList.remove('glow-hint');
+  });
+  divBtn.classList.remove('glow-hint');
+  
+  if(step==='pick'){
+    guide.querySelector('.step-num').textContent = 'STEP 1 OF 3';
+    text.textContent = 'Pick ONE variable to change';
+    arrow.textContent = '👇';
+    divBtn.disabled = true;
+    // Glow all controls
+    ['growthGroup','checkpointGroup','repairGroup'].forEach(id=>{
+      document.getElementById(id).classList.add('glow-hint');
+    });
+  } else if(step==='divide'){
+    guide.querySelector('.step-num').textContent = 'STEP 2 OF 3';
+    text.textContent = 'Press DIVIDE!';
+    arrow.textContent = '⚡';
+    divBtn.disabled = false;
+    divBtn.classList.add('glow-hint');
+  } else if(step==='watch'){
+    guide.querySelector('.step-num').textContent = 'STEP 3 OF 3';
+    text.textContent = 'Watch + Record your data';
+    arrow.textContent = '👀';
+    divBtn.disabled = true;
+  } else if(step==='done'){
+    guide.querySelector('.step-num').textContent = 'COMPLETE';
+    text.textContent = 'Copy your data table!';
+    arrow.textContent = '📋';
+    divBtn.disabled = true;
+  }
+}
+
+// ===== VARIABLE CONTROL =====
+function setVar(varName, val, btnEl){
+  if(S.animating || S.gameOver) return;
+  
+  // Block triple-worst
+  let tG=S.growth, tC=S.checkpoint, tR=S.repair;
+  if(varName==='growth') tG=val;
+  if(varName==='checkpoint') tC=val;
+  if(varName==='repair') tR=val;
+  if(tG==='High' && tC==='OFF' && tR==='Low'){
+    showBanner('⚠️ Too dangerous!','fail');
+    return;
+  }
+  
+  if(varName==='growth') S.growth=val;
+  else if(varName==='checkpoint') S.checkpoint=val;
+  else S.repair=val;
+  
+  // Rounds 1-3: solo test
+  if(S.round<=3){
+    if(varName==='growth'){
+      S.checkpoint='ON'; S.repair='Medium';
+      updateToggleUI('ON'); updateSliderUI('repair','Medium');
+      lockGroups('growth');
+    } else if(varName==='checkpoint'){
+      S.growth='Medium'; S.repair='Medium';
+      updateSliderUI('growth','Medium'); updateSliderUI('repair','Medium');
+      lockGroups('checkpoint');
+    } else {
+      S.growth='Medium'; S.checkpoint='ON';
+      updateSliderUI('growth','Medium'); updateToggleUI('ON');
+      lockGroups('repair');
+    }
+  } else {
+    // Rounds 4+: lock other two after picking one
+    lockGroups(varName);
+  }
+  
+  // Update button UI
+  if(varName==='checkpoint') updateToggleUI(val);
+  else updateSliderUI(varName, val);
+  
+  S.changedVar = varName;
+  
+  // Advance to step 2
+  setStep('divide');
+}
+
+function lockGroups(activeVar){
+  ['growthGroup','checkpointGroup','repairGroup'].forEach(id=>{
+    const vn = id.replace('Group','');
+    if(vn !== activeVar){
+      document.getElementById(id).classList.add('locked');
+    } else {
+      document.getElementById(id).classList.remove('locked');
+    }
+  });
+}
+
+function unlockGroups(){
+  ['growthGroup','checkpointGroup','repairGroup'].forEach(id=>{
+    document.getElementById(id).classList.remove('locked');
+  });
+}
+
+function updateSliderUI(varName, val){
+  const group = varName==='growth'?'growthGroup':'repairGroup';
+  document.querySelectorAll('#'+group+' .slider-btn').forEach(b=>{
+    b.classList.remove('active','low','med','high');
+    if(b.dataset.val===val){
+      b.classList.add('active');
+      if(val==='Low')b.classList.add('low');
+      else if(val==='Medium')b.classList.add('med');
+      else b.classList.add('high');
+    }
+  });
+}
+
+function updateToggleUI(val){
+  document.querySelectorAll('#checkpointGroup .toggle-btn').forEach(b=>{
+    b.classList.remove('active','on','dmg','off');
+    if(b.dataset.val===val){
+      b.classList.add('active');
+      if(val==='ON')b.classList.add('on');
+      else if(val==='DAMAGED')b.classList.add('dmg');
+      else b.classList.add('off');
+    }
+  });
+}
+
+// ===== RUN ROUND =====
+function runRound(){
+  if(S.animating || S.gameOver || S.round > S.maxR) return;
+  S.animating = true;
+  setStep('watch');
+  
+  try{
+    // Calculate
+    let growthRate = S.growth==='Low'?2 : S.growth==='Medium'?4 : 7;
+    let errorChance = S.checkpoint==='ON'?0.05 : S.checkpoint==='DAMAGED'?0.35 : 0.65;
+    let repairRate = S.repair==='Low'?0 : S.repair==='Medium'?1 : 3;
+    
+    // Super repair
+    if(S.superRepair && !S.superRepairUsed){
+      repairRate += 1;
+      S.superRepairUsed = true;
+      showBanner('⚡ Super Repair!','heal');
+    }
+    
+    let newH=0, newD=0;
+    for(let i=0;i<growthRate;i++){
+      if(Math.random()<errorChance) newD++;
+      else newH++;
+    }
+    
+    // Mutation surge
+    if(!S.mutationUsed && S.round===S.mutationRound){
+      S.mutationUsed=true;
+      newD++;
+      setTimeout(()=>showBanner('⚡ MUTATION SURGE!','danger'),400);
+    }
+    
+    let totalD = S.damaged + newD;
+    let repaired = Math.min(repairRate, totalD);
+    totalD -= repaired;
+    let totalH = Math.min(S.healthy + newH, 50);
+    
+    // Wound heal
+    let woundHeal=0;
+    if(S.growth!=='Low' && totalH > 15 && totalD < totalH*0.3){
+      woundHeal = S.growth==='High' ? 2 : 1;
+    }
+    S.woundSize = Math.max(0, S.woundSize - woundHeal);
+    
+    S.healthy = totalH;
+    S.damaged = totalD;
+    
+    // Score
+    let rScore=0;
+    if(totalD===0){rScore+=20; S.zeroStreak++;}
+    else S.zeroStreak=0;
+    if(woundHeal>0) rScore+=10;
+    rScore -= totalD*2;
+    rScore = Math.max(rScore,0);
+    S.score += rScore;
+    
+    // Streak
+    if(totalD<=2) S.streak++; else S.streak=0;
+    
+    // Super repair unlock
+    if(S.zeroStreak>=3 && !S.superRepair){
+      S.superRepair=true; S.superRepairUsed=false;
+      showBanner('🛡️ Super Repair Unlocked!','heal');
+    }
+    
+    // Critical
+    if(S.damaged > S.healthy){
+      if(!S.isCritical){S.isCritical=true;S.critRounds=0;}
+      S.critRounds++;
+    } else {S.isCritical=false;S.critRounds=0;}
+    
+    // === ANIMATE CELLS ===
+    const usableW = arenaW - woundVisualW - 20;
+    
+    // Spawn new healthy
+    for(let i=0;i<newH;i++){
+      const c = spawnCell('healthy', 8+Math.random()*usableW, 8+Math.random()*(arenaH-16));
+      c.divideAnim = 1;
+      emitParticles(c.x, c.y, '#69F0AE', 3, 3);
+    }
+    
+    // Spawn new damaged (clustered)
+    if(newD>0){
+      const cx = usableW*0.5 + Math.random()*usableW*0.4;
+      const cy = arenaH*0.3 + Math.random()*arenaH*0.4;
+      for(let i=0;i<newD;i++){
+        const c = spawnCell('damaged', cx+(Math.random()-0.5)*50, cy+(Math.random()-0.5)*50);
+        c.divideAnim = 1;
+        c.errorAnim = 1;
+        emitParticles(c.x, c.y, '#FF5252', 6, 5);
+        emitParticles(c.x, c.y, '#FFFF00', 4, 4);
+      }
+    }
+    
+    // Remove repaired
+    let dmgList = cells.filter(c=>c.type==='damaged'&&!c.removing);
+    for(let i=0;i<repaired && dmgList.length>0;i++){
+      const idx = Math.floor(Math.random()*dmgList.length);
+      dmgList[idx].removing = true;
+      emitParticles(dmgList[idx].x, dmgList[idx].y, '#69F0AE', 5, 4);
+      dmgList.splice(idx,1);
+    }
+    
+    // Cap visible healthy
+    let hList = cells.filter(c=>c.type==='healthy'&&!c.removing);
+    while(hList.length > 40){
+      hList[0].removing=true;
+      hList.shift();
+    }
+    
+    // Record
+    S.data.push({round:S.round, growth:S.growth, checkpoint:S.checkpoint, repair:S.repair, damaged:S.damaged});
+    addDataRow(S.round, S.growth, S.checkpoint, S.repair, S.damaged);
+    
+    // Cause-Effect popup
+    showCauseEffect();
+    
+    // Update HUD
+    updateHUD();
+    updateArenaLabels();
+    updateStatusBar();
+    
+    // Check end
+    let ended=false;
+    if(S.critRounds>=2){
+      S.gameOver=true; ended=true;
+      showBanner('💀 Tumors took over!','fail');
+      document.getElementById('statusBar').className='status-bar critical';
+      document.getElementById('statusBar').textContent='Tissue failed. Tumors took over. Press Reset.';
+    }
+    if(S.woundSize<=0 && S.damaged<5 && S.round>=S.reqR && !ended){
+      S.gameOver=true; ended=true;
+      showBanner('🏆 TISSUE HEALED!','gold');
+      document.getElementById('statusBar').className='status-bar success';
+      document.getElementById('statusBar').textContent='🏆 TISSUE HEALED! Amazing work!';
+    }
+    
+    // EC messages
+    if(S.round===S.reqR && !ended){
+      document.getElementById('ecArea').innerHTML='<div class="ec-msg">✅ 5 Required Done! Keep going for Extra Credit!</div>';
+    }
+    if(S.round===S.maxR && !ended){
+      S.gameOver=true;
+      document.getElementById('ecArea').innerHTML='<div class="complete-msg">🌟 Extra Credit Complete! 🌟</div>';
+    }
+    
+    S.round++;
+    if(S.round<=S.maxR && !S.gameOver){
+      document.getElementById('roundBadge').textContent='Round '+S.round+' / '+S.maxR;
+    }
+    
+    // After animation delay, unlock for next round
+    setTimeout(()=>{
+      S.animating=false;
+      unlockGroups();
+      if(!S.gameOver) setStep('pick');
+      else setStep('done');
+    }, 1500);
+    
+  }catch(e){
+    console.error('Round error:',e);
+    S.animating=false;
+    unlockGroups();
+    setStep('pick');
+  }
+}
+
+// ===== CAUSE-EFFECT POPUP =====
+function showCauseEffect(){
+  try{
+    // Remove old
+    document.querySelectorAll('.cause-effect').forEach(e=>e.remove());
+    
+    const el = document.createElement('div');
+    el.className='cause-effect';
+    
+    let cause='', effect='', isGood=false;
+    if(S.changedVar==='growth'){
+      cause = S.growth+' Growth';
+      if(S.growth==='High') effect = 'More cells, more errors';
+      else if(S.growth==='Low') effect = 'Fewer cells, fewer errors';
+      else effect = 'Balanced growth';
+      isGood = S.growth!=='High';
+    } else if(S.changedVar==='checkpoint'){
+      cause = 'Checkpoint '+S.checkpoint;
+      if(S.checkpoint==='OFF') effect = 'Errors not caught!';
+      else if(S.checkpoint==='DAMAGED') effect = 'Some errors slip through';
+      else{ effect = 'Errors caught before split'; isGood=true; }
+    } else {
+      cause = S.repair+' Repair';
+      if(S.repair==='Low') effect = 'Damaged cells pile up';
+      else if(S.repair==='High'){ effect = 'Damaged cells removed fast'; isGood=true; }
+      else effect = 'Some repairs happen';
+    }
+    
+    el.innerHTML=`<div class="ce-line"><span class="ce-cause">${cause}</span> <span class="ce-arrow">➜</span> <span class="${isGood?'ce-good':'ce-effect'}">${effect}</span></div>`;
+    document.getElementById('arena').appendChild(el);
+    setTimeout(()=>el.remove(), 3500);
+  }catch(e){}
+}
+
+// ===== HUD =====
+function updateHUD(){
+  animateVal('healthyCount', S.healthy);
+  animateVal('damagedCount', S.damaged);
+  animateVal('scoreVal', S.score);
+  animateVal('streakVal', S.streak);
+  
+  const total = S.healthy + S.damaged;
+  const pct = total>0 ? Math.round(S.healthy/total*100) : 100;
+  document.getElementById('healthBar').style.width = pct+'%';
+  document.getElementById('healthPctText').textContent = pct+'%';
+  if(pct>70) document.getElementById('healthBar').style.background='linear-gradient(90deg,#69F0AE,#00C853)';
+  else if(pct>40) document.getElementById('healthBar').style.background='linear-gradient(90deg,#FFD54F,#FF9800)';
+  else document.getElementById('healthBar').style.background='linear-gradient(90deg,#FF8A80,#F44336)';
+  
+  const wPct = (S.woundSize/10)*100;
+  document.getElementById('woundBar').style.width = wPct+'%';
+  document.getElementById('woundPctText').textContent = S.woundSize<=0 ? 'Closed!' : 'Open';
+  
+  // Pop animation on cards
+  ['hcCard','dcCard','scCard','skCard'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+  });
+}
+
+function animateVal(id, target){
+  document.getElementById(id).textContent = target;
+}
+
+function updateArenaLabels(){
+  document.getElementById('arenaHealthy').textContent = 'Healthy: '+S.healthy;
+  document.getElementById('arenaDamaged').textContent = 'Tumor: '+S.damaged;
+  document.getElementById('arenaDamaged').style.display = S.damaged>0?'block':'none';
+  document.getElementById('woundIndicator').textContent = S.woundSize<=0?'Wound Closed!':'Wound Open';
+  document.getElementById('woundIndicator').style.color = S.woundSize<=0?'#69F0AE':'#FFB74D';
+}
+
+function updateStatusBar(){
+  const bar=document.getElementById('statusBar');
+  if(S.isCritical){
+    bar.className='status-bar critical';
+    bar.textContent='⚠️ CRITICAL! Damaged > Healthy! Fix it in '+(2-S.critRounds)+' round(s)!';
+  } else if(S.damaged>3){
+    bar.className='status-bar warning';
+    bar.textContent='⚠️ Damaged cells rising — check your controls';
+  } else if(S.woundSize<=0){
+    bar.className='status-bar success';
+    bar.textContent='✅ Wound closed! Keep damaged cells low.';
+  } else {
+    bar.className='status-bar normal';
+    bar.textContent='Pick ONE variable to change, then press DIVIDE';
+  }
+}
+
+function addDataRow(round, growth, checkpoint, repair, damaged){
+  const tbody=document.getElementById('dataBody');
+  const tr=document.createElement('tr');
+  tr.className='new-row';
+  const dColor = damaged>5?'#FF8A80':damaged>0?'#FFD54F':'#69F0AE';
+  tr.innerHTML=`<td style="font-weight:700;">${round}</td><td>${growth}</td><td>${checkpoint}</td><td>${repair}</td><td style="color:${dColor};font-weight:800;font-size:13px;">${damaged}</td>`;
+  tbody.appendChild(tr);
+  // Scroll to bottom
+  const wrap = tbody.closest('.data-table-wrap');
+  if(wrap) wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ===== BANNERS =====
+function showBanner(text, type){
+  try{
+    const b=document.createElement('div');
+    b.className='float-banner '+type;
+    b.textContent=text;
+    document.body.appendChild(b);
+    setTimeout(()=>b.remove(), 2200);
+  }catch(e){}
+}
+
+// ===== COPY TABLE =====
+function copyTable(){
+  try{
+    let text='Growth Signal\tCheckpoint System\tRepair Crew\tDamaged Cells\n';
+    S.data.forEach(r=>{text+=`${r.growth}\t${r.checkpoint}\t${r.repair}\t${r.damaged}\n`;});
+    navigator.clipboard.writeText(text).then(()=>{
+      const btn=document.getElementById('copyBtn');
+      btn.textContent='✅ Copied!';
+      setTimeout(()=>btn.textContent='📋 Copy',2000);
+    }).catch(()=>{
+      const btn=document.getElementById('copyBtn');
+      btn.textContent='⚠️ Try again';
+      setTimeout(()=>btn.textContent='📋 Copy',2000);
+    });
+  }catch(e){}
+}
+
+// ===== RESET =====
+function resetGame(){
+  S.round=1;S.growth='Medium';S.checkpoint='ON';S.repair='Medium';
+  S.healthy=20;S.damaged=0;S.score=0;S.streak=0;
+  S.woundSize=6;S.changedVar=null;S.roundsPlayed=0;
+  S.gameOver=false;S.superRepair=false;S.superRepairUsed=false;
+  S.mutationUsed=false;S.mutationRound=2+Math.floor(Math.random()*7);
+  S.critRounds=0;S.isCritical=false;S.zeroStreak=0;
+  S.data=[];S.animating=false;
+  
+  document.getElementById('dataBody').innerHTML='';
+  document.getElementById('roundBadge').textContent='Round 1 / 8';
+  document.getElementById('ecArea').innerHTML='';
+  
+  updateSliderUI('growth','Medium');
+  updateToggleUI('ON');
+  updateSliderUI('repair','Medium');
+  unlockGroups();
+  updateHUD();
+  updateArenaLabels();
+  updateStatusBar();
+  
+  cells=[];particles=[];
+  initCells();
+  setStep('pick');
+}
+
+function newRun(){ resetGame(); }
+
+// ===== INIT =====
+window.addEventListener('load',()=>{
+  try{
+    initCanvas();
+    initCells();
+    updateHUD();
+    updateArenaLabels();
+    setStep('pick');
+    animate(0);
+  }catch(e){console.error('Init:',e);}
+});
+
+window.addEventListener('resize',()=>{
+  try{
+    initCanvas();
+    // Reposition existing cells to fit
+    const usableW = arenaW - woundVisualW - 20;
+    cells.forEach(c=>{
+      if(c.x > usableW) c.x = Math.random()*usableW;
+      if(c.y > arenaH-16) c.y = Math.random()*(arenaH-16);
+    });
+  }catch(e){}
+});
+</script>
+</body>
+</html>
