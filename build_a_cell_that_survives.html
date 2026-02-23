@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulation — Build a Cell That Survives</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;}
+:root{
+  --bg:#060b18;--panel:rgba(8,14,32,0.92);--border:rgba(40,60,110,0.5);
+  --orange:#ff8c2e;--green:#3ddc84;--blue:#4fc3f7;--red:#ff5252;
+  --gold:#ffd740;--purple:#b388ff;--white:#e8eeff;
+  --font-title:'Bungee',cursive;--font-body:'Nunito',sans-serif;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--white);font-family:var(--font-body);}
+
+/* ========== SPLASH ========== */
+#splash{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;}
+.splash-cell{width:140px;height:140px;position:relative;}
+.splash-cell canvas{width:100%;height:100%;}
+#splash h1{font-family:var(--font-title);font-size:clamp(1.4rem,4.5vw,2.4rem);text-align:center;line-height:1.15;}
+#splash h1 .t1{display:block;color:var(--orange);text-shadow:0 0 25px rgba(255,140,46,0.5);}
+#splash h1 .t2{display:block;color:var(--green);text-shadow:0 0 25px rgba(61,220,132,0.5);}
+#splash .sub{color:#5a6d99;font-weight:800;font-size:clamp(0.8rem,2vw,1rem);text-align:center;}
+#splash .brand{font-family:var(--font-title);font-size:clamp(0.75rem,2.2vw,1rem);color:var(--gold);letter-spacing:0.08em;margin-bottom:6px;text-shadow:0 0 15px rgba(255,215,64,0.3);}
+.start-btn{font-family:var(--font-title);font-size:clamp(1rem,3vw,1.3rem);padding:14px 40px;border:none;border-radius:50px;cursor:pointer;background:linear-gradient(135deg,var(--orange),#e65100);color:#fff;box-shadow:0 0 30px rgba(255,140,46,0.35);transition:transform .15s;margin-top:8px;}
+.start-btn:active{transform:scale(0.95);}
+.hide{display:none!important;}
+
+/* ========== GAME WRAPPER ========== */
+#game{display:none;flex-direction:column;height:100dvh;width:100vw;position:relative;}
+#game.active{display:flex;}
+
+/* ========== TOP HUD ========== */
+#hud{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;min-height:42px;z-index:20;}
+.hud-badge{font-family:var(--font-title);font-size:clamp(0.6rem,1.7vw,0.78rem);padding:3px 9px;border-radius:16px;white-space:nowrap;}
+.hud-brand{font-family:var(--font-title);font-size:clamp(0.48rem,1.3vw,0.58rem);color:var(--gold);opacity:0.6;white-space:nowrap;}
+#roundBadge{background:rgba(255,215,64,0.12);color:var(--gold);border:1.5px solid rgba(255,215,64,0.3);}
+#typeBadge{border:1.5px solid;}
+#typeBadge.animal{background:rgba(79,195,247,0.1);border-color:rgba(79,195,247,0.35);color:var(--blue);}
+#typeBadge.plant{background:rgba(61,220,132,0.1);border-color:rgba(61,220,132,0.35);color:var(--green);}
+.hud-meter{flex:1;display:flex;align-items:center;gap:4px;min-width:0;}
+.meter-icon{font-size:clamp(0.7rem,1.8vw,0.9rem);flex-shrink:0;}
+.meter-track{flex:1;height:14px;background:rgba(20,30,60,0.9);border-radius:8px;overflow:hidden;border:1px solid rgba(40,60,110,0.4);}
+.meter-bar{height:100%;border-radius:8px;transition:width .35s ease,background .3s;}
+.energy-bar{background:linear-gradient(90deg,#e65100,var(--orange));}
+.structure-bar{background:linear-gradient(90deg,#0277bd,var(--blue));}
+#scoreBadge{font-family:var(--font-title);font-size:clamp(0.6rem,1.7vw,0.78rem);color:var(--gold);}
+#progressTrack{height:4px;background:rgba(20,30,60,0.8);flex-shrink:0;}
+#progressBar{height:100%;background:linear-gradient(90deg,var(--orange),var(--gold));transition:width .5s;width:0%;}
+
+/* ========== ARENA ========== */
+#arena{flex:1;position:relative;overflow:hidden;min-height:0;}
+#arenaCanvas{width:100%;height:100%;display:block;}
+
+/* Step instruction overlay */
+#stepBanner{
+  position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:30;
+  font-family:var(--font-title);font-size:clamp(0.62rem,1.8vw,0.82rem);
+  padding:5px 16px;border-radius:20px;text-align:center;white-space:nowrap;
+  background:rgba(8,14,32,0.88);border:1.5px solid var(--gold);color:var(--gold);
+  box-shadow:0 0 20px rgba(255,215,64,0.15);
+  transition:opacity .3s;
+}
+#mutationBanner{
+  position:absolute;top:38px;left:50%;transform:translateX(-50%);z-index:30;
+  font-family:var(--font-title);font-size:clamp(0.58rem,1.6vw,0.72rem);
+  padding:4px 14px;border-radius:16px;display:none;
+  background:rgba(179,136,255,0.85);color:#fff;
+  animation:pulse .5s ease-in-out infinite alternate;
+}
+@keyframes pulse{from{opacity:1;}to{opacity:.65;}}
+#powerBanner{
+  position:absolute;top:38px;left:50%;transform:translateX(-50%);z-index:30;
+  font-family:var(--font-title);font-size:clamp(0.58rem,1.6vw,0.72rem);
+  padding:4px 14px;border-radius:16px;display:none;
+  background:rgba(255,215,64,0.85);color:#1a1a2e;
+}
+
+/* Result overlay */
+#resultOverlay{
+  position:absolute;inset:0;z-index:40;display:none;
+  flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(6,11,24,0.75);backdrop-filter:blur(4px);
+}
+#resultOverlay.show{display:flex;animation:fadeUp .4s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+.result-stamp{font-family:var(--font-title);font-size:clamp(2rem,7vw,3.5rem);animation:stampIn .4s ease;}
+@keyframes stampIn{0%{transform:scale(2.5);opacity:0;}60%{transform:scale(.9);}100%{transform:scale(1);opacity:1;}}
+.result-label{font-family:var(--font-title);font-size:clamp(1rem,3.5vw,1.6rem);margin-top:2px;}
+.result-label.win{color:var(--green);text-shadow:0 0 20px rgba(61,220,132,0.5);}
+.result-label.lose{color:var(--red);text-shadow:0 0 20px rgba(255,82,82,0.5);}
+.result-time{color:#6a7da8;font-weight:800;font-size:clamp(0.7rem,2vw,0.85rem);margin-top:4px;}
+.result-tip{color:#8899bb;font-weight:700;font-size:clamp(0.6rem,1.6vw,0.72rem);margin-top:8px;max-width:280px;text-align:center;line-height:1.4;}
+
+/* ========== BOTTOM CONTROLS ========== */
+#controls{
+  flex-shrink:0;background:var(--panel);border-top:1px solid var(--border);
+  padding:8px 8px 12px;display:flex;flex-direction:column;gap:7px;
+  max-height:44vh;overflow-y:auto;z-index:20;
+}
+.ctrl-section{display:none;}
+.ctrl-section.active{display:block;}
+.ctrl-section-label{font-family:var(--font-title);font-size:clamp(0.5rem,1.4vw,0.6rem);color:#4a5a80;letter-spacing:.08em;margin-bottom:4px;}
+.slot-counter{
+  text-align:center;font-family:var(--font-title);font-size:clamp(0.7rem,2vw,0.85rem);
+  color:var(--gold);margin-bottom:5px;padding:3px 0;
+  background:rgba(255,215,64,0.06);border-radius:8px;
+}
+.slot-counter.full{color:var(--red);background:rgba(255,82,82,0.08);}
+.slot-counter.locked-slots{color:#4a5a80;background:rgba(30,42,69,0.5);}
+.goal-box{
+  text-align:center;font-family:var(--font-body);font-weight:800;
+  font-size:clamp(0.7rem,2vw,0.88rem);color:var(--white);
+  padding:8px 12px;border-radius:10px;line-height:1.35;
+  background:linear-gradient(135deg,rgba(255,140,46,0.1),rgba(61,220,132,0.08));
+  border:1.5px solid rgba(255,215,64,0.2);
+}
+
+/* Organelle grid */
+.org-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+.org-card{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:8px 2px 6px;border-radius:12px;border:2.5px solid transparent;
+  background:rgba(15,22,45,0.9);cursor:pointer;transition:all .2s;position:relative;
+}
+.org-card:active:not(.locked):not(.disabled){transform:scale(.94);}
+.org-card.on{border-color:var(--gold);background:rgba(255,215,64,0.08);}
+.org-card.locked{opacity:.3;cursor:default;}
+.org-card.disabled{opacity:.35;cursor:default;filter:grayscale(0.5);}
+.org-card.disabled .org-label{color:#333a55;}
+.org-card.locked::after{content:'🔒';position:absolute;top:2px;right:4px;font-size:.5rem;}
+.org-card canvas{width:36px;height:36px;}
+.org-card .org-label{font-size:clamp(0.48rem,1.25vw,0.58rem);font-weight:800;color:#6a7da8;text-align:center;line-height:1.15;}
+.org-card.on .org-label{color:var(--gold);}
+.org-card .org-desc{font-size:clamp(0.42rem,1.1vw,0.5rem);font-weight:800;color:#3d4f75;text-align:center;line-height:1.1;}
+.org-card.on .org-desc{color:rgba(255,215,64,0.6);}
+
+/* Environment grid */
+.env-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+.env-card{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:8px 2px 6px;border-radius:12px;border:2.5px solid transparent;
+  background:rgba(15,22,45,0.9);cursor:pointer;transition:all .2s;position:relative;
+}
+.env-card:active:not(.locked){transform:scale(.94);}
+.env-card.on{border-color:var(--gold);background:rgba(255,215,64,0.08);}
+.env-card.locked{opacity:.3;cursor:default;}
+.env-card canvas{width:36px;height:36px;}
+.env-card .env-label{font-size:clamp(0.48rem,1.25vw,0.58rem);font-weight:800;color:#6a7da8;text-align:center;}
+.env-card.on .env-label{color:var(--gold);}
+
+/* Cell type picker */
+.type-row{display:flex;gap:6px;justify-content:center;}
+.type-btn{
+  font-family:var(--font-title);font-size:clamp(0.6rem,1.7vw,0.75rem);
+  padding:7px 16px;border-radius:20px;border:2.5px solid transparent;
+  background:rgba(15,22,45,0.9);cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;gap:5px;color:#6a7da8;
+}
+.type-btn:active{transform:scale(.94);}
+.type-btn.animal-on{border-color:var(--blue);color:var(--blue);background:rgba(79,195,247,0.08);}
+.type-btn.plant-on{border-color:var(--green);color:var(--green);background:rgba(61,220,132,0.08);}
+
+/* Action button */
+.action-row{display:flex;gap:6px;justify-content:center;}
+.act-btn{
+  font-family:var(--font-title);font-size:clamp(0.75rem,2.2vw,0.95rem);
+  padding:10px 28px;border:none;border-radius:30px;cursor:pointer;
+  color:#fff;transition:transform .15s;box-shadow:0 4px 18px rgba(0,0,0,0.3);
+}
+.act-btn:active{transform:scale(.94);}
+.act-btn:disabled{opacity:.3;cursor:default;transform:none;}
+.btn-confirm{background:linear-gradient(135deg,var(--orange),#e65100);}
+.btn-next{background:linear-gradient(135deg,var(--green),#00c853);}
+.btn-finish{background:linear-gradient(135deg,var(--gold),#ffab00);color:#1a1a2e;}
+.btn-record{background:linear-gradient(135deg,#5c6bc0,#3949ab);}
+
+/* Data table toggle */
+#dataSection{display:none;background:rgba(10,16,35,0.95);border-radius:10px;border:1px solid var(--border);padding:6px;margin-top:2px;}
+#dataSection.show{display:block;}
+.data-toggle{font-family:var(--font-title);font-size:clamp(0.52rem,1.4vw,0.62rem);padding:4px 12px;border:1.5px solid var(--border);border-radius:8px;background:transparent;color:#5a6d99;cursor:pointer;align-self:center;}
+table.dtable{width:100%;border-collapse:collapse;font-size:clamp(0.48rem,1.2vw,0.58rem);font-weight:700;}
+.dtable th{text-align:left;padding:3px 5px;color:var(--gold);border-bottom:1px solid var(--border);background:rgba(255,215,64,0.06);}
+.dtable td{padding:3px 5px;color:#5a6d99;border-bottom:1px solid rgba(20,30,60,0.5);}
+.dtable tr.current td{color:var(--white);background:rgba(255,215,64,0.04);}
+
+/* ========== FINAL SCREEN ========== */
+#final{position:fixed;inset:0;z-index:9999;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:8px;}
+#final.show{display:flex;animation:fadeUp .5s ease;}
+#final .big-icon{font-size:clamp(3rem,10vw,5rem);}
+#final h1{font-family:var(--font-title);font-size:clamp(1.3rem,4vw,2rem);text-align:center;}
+#final .rank-line{font-family:var(--font-title);font-size:clamp(0.8rem,2.2vw,1rem);color:#6a7da8;}
+#final .stats-block{font-weight:800;color:#5a6d99;font-size:clamp(0.7rem,1.8vw,0.85rem);text-align:center;line-height:1.8;}
+
+/* Confetti */
+.confetti{position:fixed;z-index:10000;pointer-events:none;animation:cfall var(--d) linear forwards;}
+@keyframes cfall{0%{transform:translateY(-10px) rotate(0);}100%{transform:translateY(100vh) rotate(720deg);opacity:0;}}
+</style>
+</head>
+<body>
+
+<!-- ===== SPLASH ===== -->
+<div id="splash">
+  <p class="brand">Mr. Jawad's Simulation</p>
+  <div class="splash-cell"><canvas id="splashCell" width="140" height="140"></canvas></div>
+  <h1><span class="t1">BUILD A CELL</span><span class="t2">THAT SURVIVES</span></h1>
+  <p class="sub">Engineer the toughest cell on the planet.</p>
+  <button class="start-btn" id="startBtn">▶ START MISSION</button>
+</div>
+
+<!-- ===== GAME ===== -->
+<div id="game">
+  <!-- HUD -->
+  <div id="hud">
+    <span class="hud-brand">Mr. Jawad</span>
+    <span class="hud-badge" id="roundBadge">R1</span>
+    <div class="hud-meter"><span class="meter-icon" style="color:var(--orange)">⚡</span><div class="meter-track"><div class="meter-bar energy-bar" id="eBar" style="width:50%"></div></div></div>
+    <div class="hud-meter"><span class="meter-icon" style="color:var(--blue)">🛡</span><div class="meter-track"><div class="meter-bar structure-bar" id="sBar" style="width:80%"></div></div></div>
+    <span class="hud-badge" id="typeBadge">ANIMAL</span>
+    <span id="scoreBadge">🏆 0</span>
+  </div>
+  <div id="progressTrack"><div id="progressBar"></div></div>
+
+  <!-- ARENA -->
+  <div id="arena">
+    <canvas id="arenaCanvas"></canvas>
+    <div id="stepBanner"></div>
+    <div id="mutationBanner">⚠ MUTATION ⚠</div>
+    <div id="powerBanner">⚡ +2s BOOST ⚡</div>
+    <div id="resultOverlay">
+      <div class="result-stamp" id="resultStamp"></div>
+      <div class="result-label" id="resultLabel"></div>
+      <div class="result-time" id="resultTime"></div>
+      <div class="result-tip" id="resultTip"></div>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div id="controls">
+    <!-- GOAL context box -->
+    <div class="ctrl-section" id="secGoal">
+      <div class="goal-box" id="goalBox">Your animal cell must survive the Sunny Field. Pick 2 parts to keep it alive!</div>
+    </div>
+
+    <!-- STEP: Pick cell type (rounds 7-8 only) -->
+    <div class="ctrl-section" id="secType">
+      <div class="ctrl-section-label">PICK CELL TYPE</div>
+      <div class="type-row">
+        <div class="type-btn" id="btnAnimal" onclick="pickType('animal')"><canvas width="24" height="24" class="type-icon-cv" data-type="animal"></canvas> ANIMAL</div>
+        <div class="type-btn" id="btnPlant" onclick="pickType('plant')"><canvas width="24" height="24" class="type-icon-cv" data-type="plant"></canvas> PLANT</div>
+      </div>
+    </div>
+
+    <!-- STEP: Add organelles -->
+    <div class="ctrl-section" id="secOrgs">
+      <div class="ctrl-section-label" id="orgLabel">PICK 2 ORGANELLES</div>
+      <div class="slot-counter" id="slotCounter"><span id="slotUsed">0</span> / <span id="slotMax">2</span></div>
+      <div class="org-grid" id="orgGrid"></div>
+    </div>
+
+    <!-- STEP: Pick environment (rounds 7-8 only) -->
+    <div class="ctrl-section" id="secEnv">
+      <div class="ctrl-section-label">PICK ENVIRONMENT</div>
+      <div class="env-grid" id="envGrid"></div>
+    </div>
+
+    <!-- STEP: Confirm -->
+    <div class="ctrl-section" id="secConfirm">
+      <div class="action-row"><button class="act-btn btn-confirm" id="btnConfirm" onclick="doConfirm()">✅ CONFIRM BUILD</button></div>
+    </div>
+
+    <!-- STEP: After result -->
+    <div class="ctrl-section" id="secAfter">
+      <div class="action-row">
+        <button class="act-btn btn-record" id="btnRecord" onclick="doRecord()">📝 RECORD DATA</button>
+      </div>
+    </div>
+
+    <!-- STEP: Next round / finish -->
+    <div class="ctrl-section" id="secNext">
+      <div class="action-row">
+        <button class="act-btn btn-next" id="btnNext" onclick="doNext()">▶ NEXT ROUND</button>
+        <button class="act-btn btn-finish hide" id="btnFinish" onclick="doFinish()">🏆 RESULTS</button>
+      </div>
+    </div>
+
+    <!-- Data toggle + table -->
+    <button class="data-toggle" id="dataToggle" onclick="toggleData()">📊 VIEW DATA TABLE</button>
+    <div id="dataSection">
+      <table class="dtable"><thead><tr><th>R</th><th>Organelles</th><th>Type</th><th>Env</th><th>Result</th></tr></thead><tbody id="dBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FINAL ===== -->
+<div id="final">
+  <div class="big-icon" id="fIcon"></div>
+  <h1 id="fTitle"></h1>
+  <div class="rank-line" id="fRank"></div>
+  <div class="stats-block" id="fStats"></div>
+  <button class="start-btn" onclick="restart()">🔄 PLAY AGAIN</button>
+  <p style="font-family:var(--font-title);font-size:clamp(0.5rem,1.3vw,0.6rem);color:rgba(255,215,64,0.35);margin-top:16px;letter-spacing:0.1em;">Mr. Jawad's Simulation</p>
+</div>
+
+<script>
+// ===================== SETUP =====================
+const $ = id => document.getElementById(id);
+const C = $('arenaCanvas');
+const ctx = C.getContext('2d');
+let W, H, cx, cy, cellR;
+let raf;
+
+function resize() {
+  const a = $('arena');
+  W = C.width = a.clientWidth * devicePixelRatio;
+  H = C.height = a.clientHeight * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  cx = a.clientWidth / 2;
+  cy = a.clientHeight / 2 - 10;
+  cellR = Math.min(a.clientWidth, a.clientHeight) * 0.28;
+}
+window.addEventListener('resize', () => { resize(); });
+
+// ===================== STATE =====================
+const G = {
+  round: 1, phase: 'build', cellType: 'animal',
+  orgs: { mito:false, chloro:false, wall:false, vac:false },
+  env: 'sunny', score: 0, streak: 0, hasPower: false,
+  data: [], bestBuild: {mito:false,chloro:false,wall:false,vac:false}, bestScore:-1,
+  energy:50, structure:80, simTime:0, simMax:10,
+  mutation:null, mutTime:0, maxSlots:2,
+  particles: [], step:'build',
+};
+
+const ENVS = ['sunny','cave','water','desert'];
+const ENV_NAMES = {sunny:'Sunny Field',cave:'Dark Cave',water:'Underwater',desert:'Dry Desert'};
+const ENV_COLORS = {
+  sunny:['#fff9c4','#ffee58','#f9a825','#e65100'],
+  cave:['#1a0533','#311b92','#1a0533','#0a0011'],
+  water:['#4fc3f7','#0288d1','#01579b','#002f4a'],
+  desert:['#ffe0b2','#ff9800','#e65100','#bf360c']
+};
+const ENV_SEQ46 = ['cave','water','desert'];
+const ORG_INFO = {
+  mito:{name:'Mitochondria',desc:'Makes ENERGY',color:'#ff8c2e',glow:'rgba(255,140,46,0.4)'},
+  chloro:{name:'Chloroplast',desc:'Makes food from SUN',color:'#3ddc84',glow:'rgba(61,220,132,0.4)'},
+  wall:{name:'Cell Wall',desc:'Protects SHAPE',color:'#c9a96e',glow:'rgba(201,169,110,0.4)'},
+  vac:{name:'Vacuole',desc:'Stores WATER',color:'#4fc3f7',glow:'rgba(79,195,247,0.4)'},
+};
+
+// ===================== DRAW FUNCTIONS =====================
+
+function drawOrganelle(c, type, size, glow) {
+  const x = c.getContext('2d');
+  const s = size || c.width;
+  const m = s/2;
+  x.clearRect(0,0,s,s);
+
+  if (type === 'mito') {
+    // Bean shape with inner cristae
+    x.save();
+    x.translate(m, m);
+    x.beginPath();
+    x.ellipse(0, 0, m*0.75, m*0.45, -0.3, 0, Math.PI*2);
+    if (glow) { x.shadowColor='rgba(255,140,46,0.6)'; x.shadowBlur=10; }
+    x.fillStyle='#ff8c2e';x.fill();
+    x.shadowBlur=0;
+    x.strokeStyle='#e65100';x.lineWidth=1.5;x.stroke();
+    // Inner folds
+    x.beginPath();x.moveTo(-m*0.3,-m*0.1);x.quadraticCurveTo(0,-m*0.3,m*0.3,-m*0.05);
+    x.strokeStyle='rgba(230,81,0,0.5)';x.lineWidth=1;x.stroke();
+    x.beginPath();x.moveTo(-m*0.2,m*0.15);x.quadraticCurveTo(m*0.05,m*0.3,m*0.35,m*0.1);
+    x.stroke();
+    x.restore();
+  } else if (type === 'chloro') {
+    // Oval disc with thylakoid stacks
+    x.save();x.translate(m,m);
+    x.beginPath();x.ellipse(0,0,m*0.78,m*0.48,0.2,0,Math.PI*2);
+    if(glow){x.shadowColor='rgba(61,220,132,0.6)';x.shadowBlur=10;}
+    x.fillStyle='#2e7d32';x.fill();x.shadowBlur=0;
+    x.strokeStyle='#1b5e20';x.lineWidth=1.5;x.stroke();
+    // Grana stacks
+    for(let i=-2;i<=2;i++){
+      x.fillStyle='rgba(61,220,132,0.6)';
+      x.fillRect(i*m*0.25-m*0.08, -m*0.15, m*0.16, m*0.3);
+      x.strokeStyle='rgba(27,94,32,0.4)';x.strokeRect(i*m*0.25-m*0.08,-m*0.15,m*0.16,m*0.3);
+    }
+    x.restore();
+  } else if (type === 'wall') {
+    // Brick pattern
+    x.save();x.translate(m,m);
+    const bw=m*0.35,bh=m*0.22;
+    if(glow){x.shadowColor='rgba(201,169,110,0.6)';x.shadowBlur=8;}
+    x.fillStyle='#a1887f';x.fillRect(-m*0.65,-m*0.55,m*1.3,m*1.1);x.shadowBlur=0;
+    x.strokeStyle='#6d4c41';x.lineWidth=1.2;
+    for(let r=0;r<4;r++){
+      const yy=-m*0.5+r*bh*1.2;
+      const off=r%2?bw*0.5:0;
+      for(let c=-2;c<4;c++){
+        const xx=-m*0.65+off+c*bw*1.05;
+        x.strokeRect(xx,yy,bw,bh);
+      }
+    }
+    x.restore();
+  } else if (type === 'vac') {
+    // Water bubble
+    x.save();x.translate(m,m);
+    x.beginPath();x.arc(0,0,m*0.6,0,Math.PI*2);
+    if(glow){x.shadowColor='rgba(79,195,247,0.6)';x.shadowBlur=10;}
+    const vg=x.createRadialGradient(-m*0.15,-m*0.15,m*0.05,0,0,m*0.6);
+    vg.addColorStop(0,'rgba(179,229,252,0.8)');vg.addColorStop(0.5,'rgba(79,195,247,0.5)');vg.addColorStop(1,'rgba(2,136,209,0.3)');
+    x.fillStyle=vg;x.fill();x.shadowBlur=0;
+    x.strokeStyle='rgba(2,136,209,0.6)';x.lineWidth=1.5;x.stroke();
+    // Highlight
+    x.beginPath();x.ellipse(-m*0.2,-m*0.2,m*0.15,m*0.08,-0.5,0,Math.PI*2);
+    x.fillStyle='rgba(255,255,255,0.4)';x.fill();
+    x.restore();
+  } else if (type === 'nucleus') {
+    // Large purple sphere
+    x.save();x.translate(m,m);
+    x.beginPath();x.arc(0,0,m*0.5,0,Math.PI*2);
+    const ng=x.createRadialGradient(-m*0.1,-m*0.1,m*0.05,0,0,m*0.5);
+    ng.addColorStop(0,'#9575cd');ng.addColorStop(1,'#4527a0');
+    x.fillStyle=ng;x.fill();
+    x.strokeStyle='#311b92';x.lineWidth=1.5;x.stroke();
+    // Nucleolus
+    x.beginPath();x.arc(m*0.05,m*0.05,m*0.15,0,Math.PI*2);
+    x.fillStyle='rgba(49,27,146,0.6)';x.fill();
+    x.restore();
+  }
+}
+
+// ===================== ARENA RENDERER =====================
+let animT = 0;
+
+function drawArena() {
+  const aw = C.width/devicePixelRatio;
+  const ah = C.height/devicePixelRatio;
+  ctx.clearRect(0,0,aw,ah);
+  animT += 0.016;
+
+  // Background gradient
+  const cols = ENV_COLORS[G.env];
+  const bg = ctx.createRadialGradient(cx, ah*0.3, 0, cx, ah*0.5, Math.max(aw,ah));
+  bg.addColorStop(0, cols[0]); bg.addColorStop(0.35, cols[1]);
+  bg.addColorStop(0.7, cols[2]); bg.addColorStop(1, cols[3]);
+  ctx.fillStyle = bg; ctx.fillRect(0,0,aw,ah);
+
+  // Environment effects
+  drawEnvEffects(aw, ah);
+
+  // Cell
+  drawCell(aw, ah);
+
+  // Particles
+  drawParticles(aw, ah);
+
+  raf = requestAnimationFrame(drawArena);
+}
+
+function drawEnvEffects(w, h) {
+  if (G.env === 'sunny') {
+    // Sun rays
+    ctx.save();
+    for(let i=0;i<8;i++){
+      ctx.globalAlpha = 0.06 + Math.sin(animT*0.5+i)*0.03;
+      ctx.fillStyle='#fff9c4';
+      ctx.beginPath();
+      const a = (i/8)*Math.PI*2 + animT*0.1;
+      ctx.moveTo(w*0.5, h*0.15);
+      ctx.lineTo(w*0.5+Math.cos(a)*w, h*0.15+Math.sin(a)*h);
+      ctx.lineTo(w*0.5+Math.cos(a+0.08)*w, h*0.15+Math.sin(a+0.08)*h);
+      ctx.fill();
+    }
+    ctx.restore();
+    // Sun disc
+    ctx.save();
+    ctx.globalAlpha=0.3;
+    const sg=ctx.createRadialGradient(w*0.5,h*0.12,5,w*0.5,h*0.12,60);
+    sg.addColorStop(0,'#fff9c4');sg.addColorStop(1,'transparent');
+    ctx.fillStyle=sg;ctx.fillRect(0,0,w,h);
+    ctx.restore();
+  } else if (G.env === 'cave') {
+    // Stalactites
+    ctx.fillStyle='#4a148c';
+    for(let i=0;i<10;i++){
+      const sx=i*w/10+w/20;
+      const sh=15+Math.sin(i*2.3)*20;
+      ctx.beginPath();ctx.moveTo(sx-8,0);ctx.lineTo(sx,sh);ctx.lineTo(sx+8,0);ctx.fill();
+    }
+    // Stalagmites
+    ctx.fillStyle='#311b92';
+    for(let i=0;i<8;i++){
+      const sx=i*w/8+w/16+10;
+      const sh=10+Math.sin(i*1.7)*12;
+      ctx.beginPath();ctx.moveTo(sx-6,h);ctx.lineTo(sx,h-sh);ctx.lineTo(sx+6,h);ctx.fill();
+    }
+    // Dim glow
+    ctx.save();ctx.globalAlpha=0.15;
+    const cg=ctx.createRadialGradient(cx,cy,0,cx,cy,cellR*2);
+    cg.addColorStop(0,'#7c4dff');cg.addColorStop(1,'transparent');
+    ctx.fillStyle=cg;ctx.fillRect(0,0,w,h);ctx.restore();
+  } else if (G.env === 'water') {
+    // Bubbles
+    ctx.save();
+    for(let i=0;i<12;i++){
+      const bx=(i*w/12+20+Math.sin(animT*0.5+i)*10)%w;
+      const by=(h+20-((animT*30+i*80)%( h+40)));
+      const br=3+Math.sin(i)*3;
+      ctx.beginPath();ctx.arc(bx,by,br,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;ctx.stroke();
+    }
+    // Water caustics
+    ctx.globalAlpha=0.04;ctx.fillStyle='#b3e5fc';
+    for(let i=0;i<6;i++){
+      const rx=cx+Math.sin(animT*0.3+i*1.5)*w*0.3;
+      const ry=cy+Math.cos(animT*0.4+i*2)*h*0.25;
+      ctx.beginPath();ctx.ellipse(rx,ry,40+Math.sin(animT+i)*15,20+Math.cos(animT+i)*8,animT*0.2+i,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+  } else if (G.env === 'desert') {
+    // Sand dunes
+    ctx.save();ctx.fillStyle='rgba(255,152,0,0.15)';
+    ctx.beginPath();ctx.moveTo(0,h*0.7);
+    for(let x=0;x<=w;x+=20){ctx.lineTo(x,h*0.7+Math.sin(x*0.01+animT*0.3)*15);}
+    ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.fill();
+    // Heat shimmer
+    ctx.globalAlpha=0.06;ctx.fillStyle='#fff9c4';
+    for(let i=0;i<4;i++){
+      const sy=h*0.3+i*h*0.12+Math.sin(animT*2+i)*5;
+      ctx.fillRect(0,sy,w,3);
+    }
+    ctx.restore();
+  }
+}
+
+function drawCell(w, h) {
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  const isPlant = G.cellType === 'plant';
+  const r = cellR;
+
+  // Cell wall glow if active
+  if (G.orgs.wall && !(G.mutation==='wall' && G.mutTime<3)) {
+    ctx.save();
+    ctx.shadowColor='rgba(201,169,110,0.4)';ctx.shadowBlur=20;
+    ctx.strokeStyle='#a1887f';ctx.lineWidth=isPlant?10:7;
+    if(isPlant){ctx.strokeRect(-r*1.05,-r*1.05,r*2.1,r*2.1);}
+    else{ctx.beginPath();ctx.arc(0,0,r+5,0,Math.PI*2);ctx.stroke();}
+    ctx.restore();
+  }
+
+  // Cell membrane
+  ctx.beginPath();
+  if(isPlant){
+    // Rectangular with rounded corners
+    const rr=12;
+    ctx.moveTo(-r+rr,-r);ctx.lineTo(r-rr,-r);ctx.arcTo(r,-r,r,-r+rr,rr);
+    ctx.lineTo(r,r-rr);ctx.arcTo(r,r,r-rr,r,rr);
+    ctx.lineTo(-r+rr,r);ctx.arcTo(-r,r,-r,r-rr,rr);
+    ctx.lineTo(-r,-r+rr);ctx.arcTo(-r,-r,-r+rr,-r,rr);
+    ctx.closePath();
+    ctx.fillStyle='rgba(20,35,60,0.85)';ctx.fill();
+    ctx.strokeStyle=G.orgs.wall?'#8d6e63':'#3ddc84';
+    ctx.lineWidth=isPlant&&G.orgs.wall?6:3;
+    ctx.shadowColor=isPlant?'rgba(61,220,132,0.3)':'transparent';ctx.shadowBlur=10;
+    ctx.stroke();ctx.shadowBlur=0;
+  } else {
+    ctx.arc(0,0,r,0,Math.PI*2);
+    ctx.fillStyle='rgba(20,35,60,0.85)';ctx.fill();
+    ctx.strokeStyle=G.orgs.wall?'#8d6e63':'#4fc3f7';
+    ctx.lineWidth=G.orgs.wall?6:3;
+    ctx.shadowColor='rgba(79,195,247,0.3)';ctx.shadowBlur=10;
+    ctx.stroke();ctx.shadowBlur=0;
+  }
+
+  // Clip to cell
+  ctx.save();
+  ctx.beginPath();
+  if(isPlant){
+    const rr=12;
+    ctx.moveTo(-r+rr,-r);ctx.lineTo(r-rr,-r);ctx.arcTo(r,-r,r,-r+rr,rr);
+    ctx.lineTo(r,r-rr);ctx.arcTo(r,r,r-rr,r,rr);
+    ctx.lineTo(-r+rr,r);ctx.arcTo(-r,r,-r,r-rr,rr);
+    ctx.lineTo(-r,-r+rr);ctx.arcTo(-r,-r,-r+rr,-r,rr);
+    ctx.closePath();
+  } else {
+    ctx.arc(0,0,r,0,Math.PI*2);
+  }
+  ctx.clip();
+
+  // Cytoplasm ambient particles
+  ctx.globalAlpha=0.08;
+  for(let i=0;i<15;i++){
+    const px=Math.sin(animT*0.3+i*1.2)*r*0.7;
+    const py=Math.cos(animT*0.25+i*1.5)*r*0.7;
+    ctx.beginPath();ctx.arc(px,py,2,0,Math.PI*2);
+    ctx.fillStyle='#e8eeff';ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // Nucleus (always present, center)
+  drawNucleusInCell(0, r*0.05, r*0.32);
+
+  // Mitochondria
+  if(G.orgs.mito && !(G.mutation==='mito' && G.mutTime<3)){
+    drawMitoInCell(-r*0.45, -r*0.35, r*0.22);
+    drawMitoInCell(r*0.35, r*0.4, r*0.18);
+    // Energy particles
+    if(G.phase==='testing'){
+      ctx.globalAlpha=0.6+Math.sin(animT*4)*0.3;
+      for(let i=0;i<4;i++){
+        const a=animT*2+i*Math.PI/2;
+        const px=-r*0.45+Math.cos(a)*r*0.35;
+        const py=-r*0.35+Math.sin(a)*r*0.35;
+        ctx.beginPath();ctx.arc(px,py,2.5,0,Math.PI*2);
+        ctx.fillStyle='#ff8c2e';ctx.fill();
+      }
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // Chloroplast
+  if(G.orgs.chloro && !(G.mutation==='chloro' && G.mutTime<3)){
+    drawChloroInCell(r*0.4, -r*0.4, r*0.22);
+    if(G.env==='sunny' && G.phase==='testing'){
+      ctx.globalAlpha=0.5+Math.sin(animT*5)*0.3;
+      for(let i=0;i<5;i++){
+        const a=animT*3+i*Math.PI*2/5;
+        const px=r*0.4+Math.cos(a)*r*0.3;
+        const py=-r*0.4+Math.sin(a)*r*0.3;
+        ctx.beginPath();ctx.arc(px,py,2,0,Math.PI*2);
+        ctx.fillStyle='#69f0ae';ctx.fill();
+      }
+      ctx.globalAlpha=1;
+    }
+    // Dim in cave
+    if(G.env==='cave' && G.phase==='testing'){
+      ctx.globalAlpha=0.4;
+      ctx.fillStyle='rgba(0,0,0,0.4)';
+      ctx.beginPath();ctx.ellipse(r*0.4,-r*0.4,r*0.24,r*0.16,0.2,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // Vacuole
+  if(G.orgs.vac && !(G.mutation==='vac' && G.mutTime<3)){
+    const vs = G.env==='desert'&&G.phase==='testing'? r*(0.2+Math.sin(animT)*0.02) : r*0.28;
+    drawVacInCell(-r*0.3, r*0.35, vs);
+  }
+
+  ctx.restore(); // unclip
+
+  // Labels (outside cell, minimal)
+  ctx.font=`800 ${Math.max(9,r*0.1)}px 'Nunito',sans-serif`;
+  ctx.textAlign='center';
+  ctx.fillStyle='rgba(100,120,170,0.6)';
+  ctx.fillText('MEMBRANE', 0, r+16);
+
+  // Water stress: cell wobble/swell
+  if(G.env==='water'&&!G.orgs.wall&&G.phase==='testing'&&G.structure<50){
+    // Drawn in the scaling already handled in sim
+  }
+
+  ctx.restore();
+}
+
+function drawNucleusInCell(x, y, size) {
+  ctx.save();ctx.translate(x,y);
+  ctx.beginPath();ctx.arc(0,0,size,0,Math.PI*2);
+  const ng=ctx.createRadialGradient(-size*0.2,-size*0.2,size*0.05,0,0,size);
+  ng.addColorStop(0,'#b39ddb');ng.addColorStop(1,'#4527a0');
+  ctx.fillStyle=ng;ctx.fill();
+  ctx.strokeStyle='#311b92';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.beginPath();ctx.arc(size*0.1,size*0.1,size*0.3,0,Math.PI*2);
+  ctx.fillStyle='rgba(49,27,146,0.5)';ctx.fill();
+  // Label
+  ctx.font=`800 ${Math.max(7,size*0.38)}px 'Nunito',sans-serif`;
+  ctx.fillStyle='rgba(255,255,255,0.7)';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('Nucleus',0,size+Math.max(9,size*0.45));
+  ctx.restore();
+}
+
+function drawMitoInCell(x, y, size) {
+  ctx.save();ctx.translate(x,y);
+  ctx.beginPath();ctx.ellipse(0,0,size,size*0.6,-0.3,0,Math.PI*2);
+  ctx.shadowColor='rgba(255,140,46,0.4)';ctx.shadowBlur=8;
+  ctx.fillStyle='#ff8c2e';ctx.fill();ctx.shadowBlur=0;
+  ctx.strokeStyle='#e65100';ctx.lineWidth=1.2;ctx.stroke();
+  // Cristae
+  ctx.beginPath();ctx.moveTo(-size*0.5,0);ctx.quadraticCurveTo(0,-size*0.35,size*0.5,0);
+  ctx.strokeStyle='rgba(230,81,0,0.5)';ctx.lineWidth=0.8;ctx.stroke();
+  ctx.restore();
+}
+
+function drawChloroInCell(x, y, size) {
+  ctx.save();ctx.translate(x,y);
+  ctx.beginPath();ctx.ellipse(0,0,size,size*0.6,0.2,0,Math.PI*2);
+  ctx.shadowColor='rgba(61,220,132,0.4)';ctx.shadowBlur=8;
+  ctx.fillStyle='#2e7d32';ctx.fill();ctx.shadowBlur=0;
+  ctx.strokeStyle='#1b5e20';ctx.lineWidth=1.2;ctx.stroke();
+  for(let i=-1;i<=1;i++){
+    ctx.fillStyle='rgba(76,175,80,0.5)';
+    ctx.fillRect(i*size*0.3-size*0.08,-size*0.2,size*0.16,size*0.4);
+  }
+  ctx.restore();
+}
+
+function drawVacInCell(x, y, size) {
+  ctx.save();ctx.translate(x,y);
+  ctx.beginPath();ctx.arc(0,0,size,0,Math.PI*2);
+  ctx.shadowColor='rgba(79,195,247,0.5)';ctx.shadowBlur=10;
+  const vg=ctx.createRadialGradient(-size*0.25,-size*0.25,size*0.05,0,0,size);
+  vg.addColorStop(0,'rgba(179,229,252,0.7)');vg.addColorStop(0.5,'rgba(79,195,247,0.4)');vg.addColorStop(1,'rgba(2,136,209,0.2)');
+  ctx.fillStyle=vg;ctx.fill();ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(2,136,209,0.5)';ctx.lineWidth=1.2;ctx.stroke();
+  ctx.beginPath();ctx.ellipse(-size*0.3,-size*0.3,size*0.2,size*0.1,-0.5,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.35)';ctx.fill();
+  ctx.restore();
+}
+
+function drawParticles(w,h) {
+  for(let i=G.particles.length-1;i>=0;i--){
+    const p=G.particles[i];
+    p.life-=0.016;
+    if(p.life<=0){G.particles.splice(i,1);continue;}
+    p.x+=p.vx;p.y+=p.vy;
+    ctx.globalAlpha=Math.min(1,p.life/p.maxLife)*0.7;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=p.color;ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+function spawnBurst(x,y,color,count){
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2;
+    const sp=1+Math.random()*3;
+    G.particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:1.5+Math.random()*2.5,color,life:1+Math.random(),maxLife:2});
+  }
+}
+
+// ===================== BUILD ORG/ENV CARDS =====================
+function buildOrgCards(){
+  const g=$('orgGrid');g.innerHTML='';
+  ['mito','chloro','wall','vac'].forEach(k=>{
+    const d=document.createElement('div');
+    d.className='org-card';d.id='oc_'+k;
+    d.setAttribute('data-org',k);
+    const cv=document.createElement('canvas');cv.width=72;cv.height=72;
+    drawOrganelle(cv,k,72,false);
+    const lb=document.createElement('div');lb.className='org-label';lb.textContent=ORG_INFO[k].name;
+    const desc=document.createElement('div');desc.className='org-desc';desc.textContent=ORG_INFO[k].desc;
+    d.appendChild(cv);d.appendChild(lb);d.appendChild(desc);
+    d.onclick=()=>toggleOrg(k);
+    g.appendChild(d);
+  });
+}
+function buildEnvCards(){
+  const g=$('envGrid');g.innerHTML='';
+  ENVS.forEach(e=>{
+    const d=document.createElement('div');d.className='env-card';d.id='ec_'+e;
+    const cv=document.createElement('canvas');cv.width=72;cv.height=72;
+    drawEnvThumb(cv,e);
+    const lb=document.createElement('div');lb.className='env-label';lb.textContent=ENV_NAMES[e];
+    d.appendChild(cv);d.appendChild(lb);
+    d.onclick=()=>pickEnv(e);
+    g.appendChild(d);
+  });
+}
+function drawEnvThumb(c,env){
+  const x=c.getContext('2d');const s=72;
+  const cols=ENV_COLORS[env];
+  const g=x.createRadialGradient(s/2,s/3,0,s/2,s/2,s);
+  g.addColorStop(0,cols[0]);g.addColorStop(0.4,cols[1]);g.addColorStop(0.8,cols[2]);g.addColorStop(1,cols[3]);
+  x.fillStyle=g;x.beginPath();x.arc(s/2,s/2,s/2-2,0,Math.PI*2);x.fill();
+  x.strokeStyle='rgba(255,255,255,0.15)';x.lineWidth=1.5;x.stroke();
+  // Icon
+  x.font='24px sans-serif';x.textAlign='center';x.textBaseline='middle';
+  const icons={sunny:'☀️',cave:'🦇',water:'🌊',desert:'🏜️'};
+  x.fillText(icons[env],s/2,s/2);
+}
+
+// ===================== UI STEP MANAGEMENT =====================
+function showSections(...ids){
+  document.querySelectorAll('.ctrl-section').forEach(s=>s.classList.remove('active'));
+  ids.forEach(id=>$(id).classList.add('active'));
+}
+
+function setBanner(txt){ $('stepBanner').textContent=txt; $('stepBanner').style.opacity='1'; }
+function hideBanner(){ $('stepBanner').style.opacity='0'; }
+
+function updateHUD(){
+  $('roundBadge').textContent='R'+G.round;
+  const tb=$('typeBadge');
+  const locked=G.round<=6;
+  if(G.cellType==='animal'){tb.className='hud-badge animal';tb.textContent='🧑 ANIMAL'+(locked?' 🔒':'');}
+  else{tb.className='hud-badge plant';tb.textContent='🌱 PLANT'+(locked?' 🔒':'');}
+  $('scoreBadge').textContent='🏆 '+G.score;
+  $('progressBar').style.width=((G.round-1)/G.maxRounds*100)+'%';
+  $('eBar').style.width=G.energy+'%';
+  $('sBar').style.width=G.structure+'%';
+  updateMeterColor();
+}
+
+function updateMeterColor(){
+  $('eBar').style.background=G.energy>40?'linear-gradient(90deg,#e65100,#ff8c2e)':G.energy>20?'linear-gradient(90deg,#ff9800,#ffc107)':'linear-gradient(90deg,#d32f2f,#ff5252)';
+  $('sBar').style.background=G.structure>40?'linear-gradient(90deg,#0277bd,#4fc3f7)':G.structure>20?'linear-gradient(90deg,#f57c00,#ffc107)':'linear-gradient(90deg,#d32f2f,#ff5252)';
+}
+
+function updateOrgCards(){
+  ['mito','chloro','wall','vac'].forEach(k=>{
+    const c=$('oc_'+k);if(!c)return;
+    c.classList.toggle('on',G.orgs[k]);
+    // Redraw with glow if on
+    const cv=c.querySelector('canvas');
+    drawOrganelle(cv,k,72,G.orgs[k]);
+  });
+}
+function updateEnvCards(){
+  ENVS.forEach(e=>{
+    const c=$('ec_'+e);if(!c)return;
+    c.classList.toggle('on',G.env===e);
+  });
+}
+function updateTypeButtons(){
+  $('btnAnimal').className='type-btn'+(G.cellType==='animal'?' animal-on':'');
+  $('btnPlant').className='type-btn'+(G.cellType==='plant'?' plant-on':'');
+}
+
+// ===================== GAME FLOW =====================
+const maxRounds = 8;
+G.maxRounds = maxRounds;
+
+function startGame(){
+  $('splash').classList.add('hide');
+  $('game').classList.add('active');
+  buildOrgCards(); buildEnvCards();
+  resize();
+  drawArena();
+  setupRound();
+}
+
+function setupRound(){
+  G.phase='build'; G.energy=50; G.structure=80;
+  G.mutation=null; G.mutTime=0;
+  G.hasPower=G.streak>=3;
+  G.particles=[];
+  $('resultOverlay').classList.remove('show');
+  $('mutationBanner').style.display='none';
+  $('powerBanner').style.display=G.hasPower?'block':'none';
+
+  if(G.round<=3){
+    // PHASE 1: Animal, Sunny locked. Pick 2 organelles.
+    G.cellType='animal'; G.env='sunny';
+    G.orgs={mito:false,chloro:false,wall:false,vac:false};
+    G.maxSlots=2;
+    setBanner('ROUND '+G.round+' OF 8');
+    $('goalBox').textContent='Your animal cell must survive the Sunny Field! Pick 2 parts to keep it alive.';
+    $('orgLabel').textContent='PICK 2 ORGANELLES';
+    showSections('secGoal','secOrgs','secConfirm');
+    unlockOrgCards(); lockEnvCards();
+  } else if(G.round<=6){
+    // PHASE 2: Plant locked. Best build locked. Env auto-set.
+    G.cellType='plant';
+    G.env=ENV_SEQ46[G.round-4];
+    G.orgs={...G.bestBuild};
+    G.maxSlots=0;
+    setBanner('ROUND '+G.round+' OF 8');
+    $('goalBox').textContent='Now your build is a PLANT cell! Can it survive the '+ENV_NAMES[G.env]+'?';
+    $('orgLabel').textContent='YOUR BUILD (LOCKED)';
+    showSections('secGoal','secOrgs','secConfirm');
+    lockOrgCards();
+  } else {
+    // PHASE 3: All unlocked. Pick 3 organelles.
+    G.orgs={mito:false,chloro:false,wall:false,vac:false};
+    G.maxSlots=3;
+    setBanner('ROUND '+G.round+' OF 8');
+    $('goalBox').textContent='Everything is unlocked! Pick your cell type, 3 organelles, and the environment.';
+    $('orgLabel').textContent='PICK UP TO 3 ORGANELLES';
+    showSections('secGoal','secType','secOrgs','secEnv','secConfirm');
+    unlockOrgCards();
+  }
+
+  updateHUD(); updateOrgCards(); updateEnvCards(); updateTypeButtons(); updateSlotCounter();
+}
+
+function setupRoundGoalText(){
+  if(G.round<=3) $('goalBox').textContent='Your animal cell must survive the Sunny Field! Pick 2 parts to keep it alive.';
+  else if(G.round<=6) $('goalBox').textContent='Now your build is a PLANT cell! Can it survive the '+ENV_NAMES[G.env]+'?';
+  else $('goalBox').textContent='Everything is unlocked! Pick your cell type, 3 organelles, and the environment.';
+}
+
+function toggleOrg(k){
+  if(G.phase!=='build')return;
+  const c=$('oc_'+k);if(c.classList.contains('locked'))return;
+  const count=Object.values(G.orgs).filter(Boolean).length;
+  // If turning ON and at limit, block it
+  if(!G.orgs[k] && count>=G.maxSlots) return;
+  G.orgs[k]=!G.orgs[k];
+  updateOrgCards();
+  updateSlotCounter();
+  if(G.orgs[k]) spawnBurst(cx, cy, ORG_INFO[k].color, 12);
+}
+function updateSlotCounter(){
+  const count=Object.values(G.orgs).filter(Boolean).length;
+  const sc=$('slotCounter');
+  // Hide during locked phases
+  if(G.round>=4 && G.round<=6){
+    sc.style.display='none'; return;
+  }
+  sc.style.display='';
+  $('slotUsed').textContent=count;
+  $('slotMax').textContent=G.maxSlots;
+  sc.classList.toggle('full', count>=G.maxSlots);
+  sc.classList.remove('locked-slots');
+  // Disable unselected cards when at limit
+  ['mito','chloro','wall','vac'].forEach(k=>{
+    const card=$('oc_'+k);if(!card||card.classList.contains('locked'))return;
+    if(count>=G.maxSlots && !G.orgs[k]){
+      card.classList.add('disabled');
+    } else {
+      card.classList.remove('disabled');
+    }
+  });
+}
+function pickEnv(e){
+  if(G.phase!=='build')return;
+  const c=$('ec_'+e);if(c.classList.contains('locked'))return;
+  G.env=e; updateEnvCards();
+}
+function pickType(t){
+  if(G.phase!=='build')return;
+  G.cellType=t; updateTypeButtons(); updateHUD();
+}
+function lockOrgCards(){['mito','chloro','wall','vac'].forEach(k=>{const c=$('oc_'+k);if(c)c.classList.add('locked');});}
+function unlockOrgCards(){['mito','chloro','wall','vac'].forEach(k=>{const c=$('oc_'+k);if(c){c.classList.remove('locked');c.classList.remove('disabled');}});}
+function lockEnvCards(){ENVS.forEach(e=>{const c=$('ec_'+e);if(c)c.classList.add('locked');});}
+
+// ===================== CONFIRM & SIMULATE =====================
+function doConfirm(){
+  if(G.phase!=='build')return;
+  // Must pick at least 1 organelle in build rounds
+  const count=Object.values(G.orgs).filter(Boolean).length;
+  if(G.round<=3 || G.round>=7){
+    if(count===0){
+      $('goalBox').textContent='⚠️ You need to pick at least 1 organelle first!';
+      $('goalBox').style.borderColor='rgba(255,82,82,0.5)';
+      setTimeout(()=>{$('goalBox').style.borderColor='';setupRoundGoalText();},2000);
+      return;
+    }
+  }
+  G.phase='testing';
+  setBanner('👀 WATCH YOUR CELL...');
+  showSections(); // hide all controls during test
+  spawnBurst(cx,cy,'rgba(255,255,255,0.5)',8);
+  G.simTime=0; G.simMax=G.hasPower?12:10;
+  $('powerBanner').style.display='none';
+
+  // Mutation
+  if(Math.random()<0.25 && G.round>2){
+    const active=Object.keys(G.orgs).filter(k=>G.orgs[k]);
+    if(active.length){G.mutation=active[Math.floor(Math.random()*active.length)];G.mutTime=0;$('mutationBanner').style.display='block';}
+  }
+
+  runSim();
+}
+
+let simInterval;
+function runSim(){
+  simInterval=setInterval(()=>{
+    G.simTime+=0.5; G.mutTime+=0.5;
+    if(G.mutTime>=3)$('mutationBanner').style.display='none';
+
+    // Rates
+    let eRate=-6, sRate=-1;
+    const muted=k=>G.mutation===k&&G.mutTime<3;
+    if(G.orgs.mito&&!muted('mito'))eRate+=8;
+    if(G.orgs.chloro&&!muted('chloro')){
+      if(G.env==='sunny')eRate+=6;else if(G.env==='water')eRate+=2;else if(G.env==='desert')eRate+=3;
+    }
+    if(G.orgs.wall&&!muted('wall')){sRate+=3;if(G.env==='water')sRate+=5;}
+    if(G.orgs.vac&&!muted('vac')){if(G.env==='desert'){eRate+=2;sRate+=3;}else{eRate+=1;sRate+=1;}}
+    if(G.env==='water'&&!G.orgs.wall)sRate-=8;
+    if(G.env==='desert'){eRate-=2;sRate-=2;}
+    if(G.env==='cave')eRate-=1;
+
+    G.energy=Math.max(0,Math.min(100,G.energy+eRate*0.5));
+    G.structure=Math.max(0,Math.min(100,G.structure+sRate*0.5));
+    updateHUD();
+
+    // Step banner: descriptive, no countdown pressure
+    if(G.simTime<2) setBanner('👀 WATCH YOUR CELL...');
+    else if(G.energy>40&&G.structure>40) setBanner('⚡ YOUR CELL IS WORKING...');
+    else if(G.energy>20||G.structure>20) setBanner('😰 YOUR CELL IS STRUGGLING...');
+    else setBanner('🚨 YOUR CELL IS IN TROUBLE...');
+
+    if(G.energy<=0||G.structure<=0){clearInterval(simInterval);showResult(false,G.simTime);return;}
+    if(G.simTime>=G.simMax){clearInterval(simInterval);showResult(true,G.simTime);return;}
+  },500);
+}
+
+function showResult(survived, time){
+  G.phase='result';
+  if(survived){G.score++;G.streak++;}else{G.streak=0;}
+
+  // Burst
+  if(!survived) spawnBurst(cx,cy,'#ff5252',30);
+  else spawnBurst(cx,cy,'#3ddc84',25);
+
+  // Overlay
+  $('resultStamp').textContent=survived?'✅':'❌';
+  $('resultLabel').textContent=survived?'SURVIVED':'FAILED';
+  $('resultLabel').className='result-label '+(survived?'win':'lose');
+  $('resultTime').textContent=survived?'Lasted the full test!':'Stopped at '+time.toFixed(1)+'s';
+
+  // Tip
+  let tip='';
+  if(!survived){
+    if(G.energy<=0&&!G.orgs.mito&&!G.orgs.chloro) tip='No energy source! Mitochondria or chloroplasts make energy.';
+    else if(G.energy<=0&&!G.orgs.mito) tip='Chloroplasts need sunlight. Mitochondria make energy from food anywhere!';
+    else if(G.energy<=0&&G.env==='cave') tip='It is dark in the cave! Chloroplasts cannot work without sunlight.';
+    else if(G.structure<=0&&G.env==='water'&&!G.orgs.wall) tip='The cell swelled and burst! A cell wall holds the cell together in water.';
+    else if(G.structure<=0&&G.env==='desert'&&!G.orgs.vac) tip='The desert dried it out! The vacuole stores water for survival.';
+    else if(G.structure<=0&&G.env==='desert') tip='The desert is harsh! Both vacuole and cell wall help with structure.';
+    else tip='Try picking different organelles next time!';
+  } else {
+    if(G.round<=3) tip='Nice! Remember which organelles you picked for this success.';
+    else if(G.round<=6) tip='See how your animal build works differently as a plant cell!';
+    else tip='Great engineering! You found a winning combination.';
+  }
+  $('resultTip').textContent=tip;
+  $('resultOverlay').classList.add('show');
+
+  // Record data
+  const orgNames=[];
+  if(G.orgs.mito)orgNames.push('Mito');if(G.orgs.chloro)orgNames.push('Chloro');
+  if(G.orgs.wall)orgNames.push('Wall');if(G.orgs.vac)orgNames.push('Vac');
+  G.data.push({
+    round:G.round, orgs:orgNames.join('+') || 'None',
+    type:G.cellType==='animal'?'🧑 Animal':'🌱 Plant',
+    env:ENV_NAMES[G.env],
+    result:survived?'✅ '+Math.round(time)+'s':'❌ '+time.toFixed(1)+'s',
+    survived
+  });
+  // Best build tracking (rounds 1-3)
+  if(G.round<=3){
+    const bs=survived?(time+Object.values(G.orgs).filter(Boolean).length):0;
+    if(bs>G.bestScore){G.bestScore=bs;G.bestBuild={...G.orgs};}
+    // Fallback: if no round survived yet, use latest attempt
+    if(G.bestScore<=0) G.bestBuild={...G.orgs};
+  }
+
+  updateDataTable();
+  updateHUD();
+  setBanner(survived?'🎉 YOUR CELL SURVIVED!':'💥 YOUR CELL FAILED');
+
+  // Show after-result controls
+  showSections('secAfter');
+}
+
+function doRecord(){
+  // Toggle data table visible and show next
+  $('dataSection').classList.add('show');
+  showSections('secNext');
+  $('btnFinish').classList.toggle('hide', G.round < 5);
+  $('btnNext').classList.toggle('hide', G.round >= maxRounds);
+  if(G.round>=maxRounds){$('btnFinish').classList.remove('hide');$('btnNext').classList.add('hide');}
+  setBanner('📝 RECORD YOUR DATA, THEN TAP NEXT');
+}
+
+function doNext(){
+  G.round++;
+  $('resultOverlay').classList.remove('show');
+  $('dataSection').classList.remove('show');
+  setupRound();
+}
+
+function doFinish(){
+  cancelAnimationFrame(raf); clearInterval(simInterval);
+  $('game').classList.remove('active');
+
+  const survived=G.data.filter(d=>d.survived).length;
+  const total=G.data.length;
+  let icon,title,rank;
+  if(survived>=8){icon='🏅';title='MASTER ENGINEER';rank='Every environment conquered!';}
+  else if(survived>=5){icon='🔬';title='CELL ENGINEER';rank='Your cell is tough!';}
+  else if(survived>=3){icon='🧪';title='LAB ASSISTANT';rank='Keep experimenting!';}
+  else{icon='🔍';title='TRAINEE';rank='Every failure teaches something.';}
+
+  $('fIcon').textContent=icon;
+  $('fTitle').textContent=title;
+  $('fTitle').style.color=survived>=5?'var(--gold)':'var(--blue)';
+  $('fRank').textContent=rank;
+  $('fStats').innerHTML=`Rounds: ${total} / ${maxRounds}<br>Survived: ${survived}<br>Score: ${G.score}`;
+  $('final').classList.add('show');
+  if(survived>=5) spawnConfetti();
+}
+
+function restart(){
+  $('final').classList.remove('show');
+  G.round=1;G.score=0;G.streak=0;G.data=[];G.bestScore=-1;
+  G.bestBuild={mito:false,chloro:false,wall:false,vac:false};
+  $('dataSection').classList.remove('show');
+  $('game').classList.add('active');
+  resize(); drawArena(); setupRound();
+  updateDataTable();
+}
+
+// ===================== DATA TABLE =====================
+function updateDataTable(){
+  const b=$('dBody');b.innerHTML='';
+  for(let i=1;i<=maxRounds;i++){
+    const d=G.data[i-1];
+    const tr=document.createElement('tr');
+    if(i===G.round)tr.className='current';
+    tr.innerHTML=d
+      ?`<td>${d.round}</td><td>${d.orgs}</td><td>${d.type}</td><td>${d.env}</td><td>${d.result}</td>`
+      :`<td style="color:#1e2a45">${i}</td><td></td><td></td><td></td><td></td>`;
+    b.appendChild(tr);
+  }
+}
+function toggleData(){
+  $('dataSection').classList.toggle('show');
+  $('dataToggle').textContent=$('dataSection').classList.contains('show')?'📊 HIDE DATA TABLE':'📊 VIEW DATA TABLE';
+}
+
+// ===================== CONFETTI =====================
+function spawnConfetti(){
+  const cols=['#ff8c2e','#3ddc84','#4fc3f7','#ffd740','#b388ff','#ff5252'];
+  for(let i=0;i<50;i++){
+    setTimeout(()=>{
+      const c=document.createElement('div');c.className='confetti';
+      c.style.cssText=`left:${Math.random()*100}vw;top:-10px;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;background:${cols[i%cols.length]};border-radius:${Math.random()>.5?'50%':'2px'};--d:${2+Math.random()*2}s;animation-duration:var(--d);`;
+      document.body.appendChild(c);setTimeout(()=>c.remove(),4500);
+    },i*70);
+  }
+}
+
+// ===================== SPLASH CELL ANIMATION =====================
+function drawSplashCell(){
+  const c=$('splashCell');const x=c.getContext('2d');
+  let t=0;
+  function frame(){
+    t+=0.02;x.clearRect(0,0,140,140);
+    x.save();x.translate(70,70);
+    // Glow
+    x.beginPath();x.arc(0,0,52,0,Math.PI*2);
+    x.shadowColor='rgba(79,195,247,0.4)';x.shadowBlur=20;
+    x.fillStyle='rgba(20,35,60,0.85)';x.fill();x.shadowBlur=0;
+    x.strokeStyle='#4fc3f7';x.lineWidth=2;x.stroke();
+    // Nucleus
+    x.beginPath();x.arc(0,2,16,0,Math.PI*2);
+    const ng=x.createRadialGradient(-3,-3,1,0,0,16);
+    ng.addColorStop(0,'#b39ddb');ng.addColorStop(1,'#4527a0');
+    x.fillStyle=ng;x.fill();
+    // Mito
+    x.beginPath();x.ellipse(-22,-18,10,6,-0.3,0,Math.PI*2);
+    x.fillStyle='#ff8c2e';x.shadowColor='rgba(255,140,46,0.5)';x.shadowBlur=6;x.fill();x.shadowBlur=0;
+    // Chloro
+    x.beginPath();x.ellipse(22,-16,10,6,0.2,0,Math.PI*2);
+    x.fillStyle='#2e7d32';x.shadowColor='rgba(61,220,132,0.5)';x.shadowBlur=6;x.fill();x.shadowBlur=0;
+    // Orbiting particle
+    const px=Math.cos(t*2)*38,py=Math.sin(t*2)*38;
+    x.beginPath();x.arc(px,py,3,0,Math.PI*2);
+    x.fillStyle='rgba(255,255,255,0.6)';x.fill();
+    x.restore();
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+drawSplashCell();
+
+// ===================== INIT =====================
+$('startBtn').onclick=startGame;
+</script>
+</body>
+</html>

@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Division Control</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f172a;--panel:#1e293b;--border:#334155;
+  --green:#22c55e;--green-bg:rgba(34,197,94,.12);
+  --red:#ef4444;--red-bg:rgba(239,68,68,.12);
+  --yellow:#eab308;--yellow-bg:rgba(234,179,8,.1);
+  --blue:#3b82f6;--blue-bg:rgba(59,130,246,.1);
+  --purple:#a855f7;
+  --wound:#1e1b4b;
+  --text:#f1f5f9;--dim:#94a3b8;--dark:#0f172a;
+}
+body{background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;height:100vh;overflow:hidden;-webkit-user-select:none;user-select:none}
+
+/* SPLASH */
+#splash{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.8rem;padding:1.5rem;text-align:center}
+.splash-icon{font-size:3.2rem}
+#splash h1{font-size:clamp(1.5rem,5vw,2.4rem);font-weight:900;color:var(--green)}
+#splash .sub{font-size:clamp(.85rem,2.5vw,1.05rem);color:var(--dim);max-width:28rem;line-height:1.7}
+#splash .sub b{color:var(--green)}
+.legend{display:flex;gap:1rem;margin:.4rem 0;flex-wrap:wrap;justify-content:center}
+.legend-item{display:flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:700}
+.legend-dot{width:22px;height:22px;border-radius:6px}
+.legend-dot.lg{background:var(--green)}.legend-dot.lr{background:var(--red)}.legend-dot.lw{background:var(--wound);border:1px dashed #4338ca55}
+.how{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:.7rem 1rem;max-width:26rem;text-align:left;margin:.2rem 0}
+.how-title{font-size:.7rem;font-weight:900;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:.3rem}
+.how-step{font-size:.8rem;font-weight:700;color:var(--dim);line-height:1.6;padding-left:.2rem}
+.how-step span{color:var(--text)}
+.go-btn{margin-top:.3rem;padding:.9rem 3.2rem;font-family:'Nunito',sans-serif;font-size:1.1rem;font-weight:900;background:var(--green);color:#fff;border:none;border-radius:14px;cursor:pointer;box-shadow:0 4px 20px rgba(34,197,94,.3);transition:transform .12s}
+.go-btn:hover{transform:scale(1.04)}
+.brand-tag{font-size:.55rem;color:var(--dim);letter-spacing:2px;font-weight:700;margin-top:.4rem}
+
+/* GAME */
+#game{display:none;height:100vh;flex-direction:column}
+#game.on{display:flex}
+.top{display:flex;align-items:center;justify-content:space-between;padding:.3rem .75rem;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+.top .brand{font-size:.5rem;color:var(--dim);letter-spacing:2px;font-weight:800}
+.round-tag{font-size:.75rem;font-weight:900;color:var(--blue);background:var(--blue-bg);padding:.2rem .65rem;border-radius:8px}
+
+/* SCOREBOARD */
+.score{display:flex;gap:.35rem;padding:.35rem .5rem;flex-shrink:0}
+.score-box{flex:1;text-align:center;padding:.3rem .25rem;border-radius:10px;min-width:55px}
+.score-box.sb-h{background:var(--green-bg);border:1px solid rgba(34,197,94,.2)}
+.score-box.sb-d{background:var(--red-bg);border:1px solid rgba(239,68,68,.2)}
+.score-box.sb-w{background:var(--blue-bg);border:1px solid rgba(59,130,246,.2)}
+.score-box .slab{font-size:.45rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:.05rem}
+.sb-h .slab{color:var(--green)}.sb-d .slab{color:var(--red)}.sb-w .slab{color:var(--blue)}
+.score-box .snum{font-size:1.35rem;font-weight:900;line-height:1}
+.sb-h .snum{color:var(--green)}.sb-d .snum{color:var(--red)}.sb-w .snum{color:var(--blue)}
+.hbar-wrap{flex:2;min-width:90px;display:flex;flex-direction:column;justify-content:center;padding:.3rem .45rem;background:var(--panel);border-radius:10px;border:1px solid var(--border)}
+.hbar-label{font-size:.45rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:.15rem}
+.hbar-track{height:14px;background:#0f172a;border-radius:7px;overflow:hidden}
+.hbar-fill{height:100%;border-radius:7px;transition:width .5s,background .3s}
+.hbar-fill.good{background:var(--green)}.hbar-fill.mid{background:var(--yellow)}.hbar-fill.bad{background:var(--red);animation:hpulse .5s infinite alternate}
+@keyframes hpulse{from{opacity:.6}to{opacity:1}}
+
+/* ARENA */
+.arena-area{flex:1;display:flex;align-items:center;justify-content:center;padding:.3rem;min-height:0;position:relative;overflow:hidden}
+.grid{display:grid;gap:3px}
+.gc{border-radius:6px;transition:background .4s,box-shadow .4s,transform .3s}
+.gc.healthy{background:var(--green);box-shadow:0 0 6px rgba(34,197,94,.25)}
+.gc.damaged{background:var(--red);box-shadow:0 0 10px rgba(239,68,68,.35);border-radius:8px;animation:dpulse 1s infinite alternate}
+.gc.wound{background:var(--wound);border:1.5px dashed rgba(99,102,241,.2)}
+@keyframes dpulse{from{transform:scale(1);opacity:.8}to{transform:scale(1.05);opacity:1}}
+.gc.pop{animation:popIn .4s ease}
+@keyframes popIn{0%{transform:scale(.5);opacity:.3}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+.gc.err{animation:errFlash .5s ease}
+@keyframes errFlash{0%{background:var(--yellow);box-shadow:0 0 18px rgba(234,179,8,.5)}100%{background:var(--red)}}
+.wound-tag{position:absolute;right:2px;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;font-size:.55rem;font-weight:900;color:rgba(99,102,241,.2);letter-spacing:4px;pointer-events:none;z-index:2}
+
+/* COACHING AREA */
+.coach-area{flex-shrink:0;padding:0 .5rem}
+.prompt{text-align:center;padding:.3rem .5rem;font-weight:800;font-size:.78rem;min-height:1.6rem;transition:all .3s}
+.prompt.ok{background:var(--green-bg);color:var(--green)}
+.prompt.warn{background:var(--yellow-bg);color:var(--yellow)}
+.prompt.bad{background:var(--red-bg);color:var(--red);animation:pflash .5s infinite alternate}
+.prompt.info{background:rgba(168,85,247,.1);color:var(--purple)}
+.prompt.guide{background:var(--blue-bg);color:var(--blue)}
+@keyframes pflash{from{opacity:.6}to{opacity:1}}
+.whathappened{margin:.25rem 0;padding:.4rem .6rem;background:var(--panel);border:1px solid var(--border);border-radius:8px;font-size:.72rem;line-height:1.55;color:var(--dim);display:none;text-align:left}
+.whathappened.show{display:block}
+.whathappened .wh-title{font-size:.5rem;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:var(--blue);margin-bottom:.2rem}
+.whathappened b{color:var(--text)}
+.wh-good{color:var(--green)}.wh-bad{color:var(--red)}
+
+/* CONTROLS */
+.ctrls{flex-shrink:0;background:var(--panel);border-top:1px solid var(--border);padding:.45rem}
+.ctrls-inner{display:flex;gap:.4rem;flex-wrap:wrap;max-width:820px;margin:0 auto;align-items:stretch}
+.cbox{flex:1 1 135px;background:var(--dark);border:2px solid var(--border);border-radius:10px;padding:.4rem .5rem;transition:border-color .2s,box-shadow .2s}
+.cbox.picked{border-color:var(--blue);box-shadow:0 0 14px var(--blue-bg)}
+.cbox.locked{opacity:.3;pointer-events:none}
+.cbox.nudge{border-color:var(--yellow);box-shadow:0 0 16px var(--yellow-bg);animation:nudgePulse 1.2s infinite alternate}
+@keyframes nudgePulse{from{box-shadow:0 0 8px var(--yellow-bg)}to{box-shadow:0 0 20px rgba(234,179,8,.25)}}
+.cbox-title{font-size:.55rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:.15rem;display:flex;align-items:center;gap:.3rem}
+.cbox-title .ico{font-size:.85rem}
+.cbox-lock{margin-left:auto;font-size:.6rem}
+.cbox-desc{font-size:.5rem;font-weight:700;color:var(--dim);margin-bottom:.3rem;font-style:italic;opacity:.7}
+.opts{display:flex;gap:4px}
+.ob{flex:1;padding:.38rem .1rem;font-family:'Nunito',sans-serif;font-size:.68rem;font-weight:800;background:transparent;border:2px solid var(--border);border-radius:7px;color:var(--dim);cursor:pointer;transition:all .15s;text-align:center}
+.ob:hover:not(.sel){border-color:#64748b}
+.ob.sel{color:#fff}
+.ob.sel.og{border-color:var(--green);background:rgba(34,197,94,.2)}
+.ob.sel.oy{border-color:var(--yellow);background:rgba(234,179,8,.15)}
+.ob.sel.or{border-color:var(--red);background:rgba(239,68,68,.18)}
+.go-col{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem}
+.div-btn{padding:.55rem 1.4rem;font-family:'Nunito',sans-serif;font-size:.85rem;font-weight:900;background:var(--green);color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 3px 14px rgba(34,197,94,.3);transition:all .12s}
+.div-btn:hover:not(:disabled){transform:scale(1.04)}
+.div-btn:disabled{opacity:.25;cursor:not-allowed}
+.go-hint{font-size:.48rem;font-weight:700;color:var(--dim);text-align:center;max-width:90px}
+
+/* DATA TABLE */
+.dtray{flex-shrink:0;max-height:100px;overflow-y:auto;background:var(--panel);border-top:1px solid var(--border);padding:.2rem .4rem}
+.dtray table{width:100%;border-collapse:collapse}
+.dtray th{font-size:.42rem;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);padding:.18rem .2rem;text-align:center;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel)}
+.dtray td{padding:.18rem .2rem;text-align:center;font-size:.6rem;font-weight:700;border-bottom:1px solid rgba(51,65,85,.3)}
+.dtray tr.glow td{animation:rowglow .5s ease}
+@keyframes rowglow{0%{background:rgba(59,130,246,.12)}100%{background:transparent}}
+
+/* OVERLAYS */
+.ov{position:fixed;inset:0;z-index:900;display:none;align-items:center;justify-content:center}
+.ov.on{display:flex}
+.ov-shade{position:absolute;inset:0;background:rgba(0,0,0,.7)}
+.ov-box{position:relative;z-index:1;text-align:center;padding:1.6rem 2rem;border-radius:18px;max-width:380px;width:90%}
+.ov-box.win{background:#052e16;border:2px solid var(--green);box-shadow:0 0 50px rgba(34,197,94,.15)}
+.ov-box.lose{background:#1c0606;border:2px solid var(--red);box-shadow:0 0 50px rgba(239,68,68,.15)}
+.ov-box h2{font-size:1.3rem;font-weight:900;margin-bottom:.4rem}
+.ov-box p{color:var(--dim);line-height:1.6;font-size:.82rem}
+.ov-btn{margin-top:1rem;padding:.55rem 1.5rem;font-family:'Nunito',sans-serif;font-size:.82rem;font-weight:900;border:none;border-radius:8px;cursor:pointer;color:#fff}
+.ov-box.win .ov-btn{background:var(--green)}
+.ov-box.lose .ov-btn{background:var(--red)}
+.sr-badge{display:none;position:fixed;top:2.8rem;right:.5rem;z-index:50;font-size:.5rem;font-weight:900;padding:.2rem .5rem;border-radius:6px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;box-shadow:0 2px 10px rgba(245,158,11,.25)}
+.sr-badge.on{display:block}
+
+@media(max-width:500px){
+  .score{gap:.2rem;padding:.25rem .35rem}
+  .score-box .snum{font-size:1.1rem}
+  .ctrls{padding:.3rem}
+  .ctrls-inner{gap:.3rem}
+  .div-btn{padding:.45rem 1rem;font-size:.75rem}
+  .dtray{max-height:75px}
+  .whathappened{font-size:.65rem}
+}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-icon">&#x1F52C;</div>
+  <h1>DIVISION CONTROL</h1>
+  <p class="sub">Your body makes <b>3.8 million new cells every second</b>.<br>What stops them from growing out of control?</p>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot lg"></div> Healthy</div>
+    <div class="legend-item"><div class="legend-dot lr"></div> Damaged</div>
+    <div class="legend-item"><div class="legend-dot lw"></div> Wound</div>
+  </div>
+  <div class="how">
+    <div class="how-title">How To Play</div>
+    <div class="how-step">1. <span>Pick ONE control to change</span> each round.</div>
+    <div class="how-step">2. <span>Press DIVIDE</span> and watch the cells.</div>
+    <div class="how-step">3. <span>Write down your data</span> on your worksheet.</div>
+    <div class="how-step">4. <span>Goal:</span> Close the wound. Keep damaged cells below 5.</div>
+  </div>
+  <button class="go-btn" id="startBtn">&#9654; START</button>
+  <span class="brand-tag">MR. JAWAD'S SIMS</span>
+</div>
+
+<div class="sr-badge" id="srBadge">&#9889; SUPER REPAIR</div>
+
+<!-- GAME -->
+<div id="game">
+  <div class="top">
+    <span class="brand">MR. JAWAD'S SIMS</span>
+    <span class="round-tag" id="rTag">ROUND 0 / 8</span>
+  </div>
+  <div class="score">
+    <div class="hbar-wrap">
+      <div class="hbar-label">Tissue Health</div>
+      <div class="hbar-track"><div class="hbar-fill good" id="hbar" style="width:100%"></div></div>
+    </div>
+    <div class="score-box sb-h"><div class="slab">Healthy</div><div class="snum" id="sH">60</div></div>
+    <div class="score-box sb-d"><div class="slab">Damaged</div><div class="snum" id="sD">0</div></div>
+    <div class="score-box sb-w"><div class="slab">Wound</div><div class="snum" id="sW">16</div></div>
+  </div>
+  <div class="arena-area" id="arenaArea">
+    <div class="grid" id="grid"></div>
+    <div class="wound-tag" id="woundTag">W O U N D</div>
+  </div>
+  <div class="coach-area">
+    <div class="prompt guide" id="prompt">Pick 1 variable to change, then press DIVIDE.</div>
+    <div class="whathappened" id="wh"><div class="wh-title">What Happened This Round</div><div id="whBody"></div></div>
+  </div>
+  <div class="ctrls">
+    <div class="ctrls-inner">
+      <div class="cbox" id="bxG">
+        <div class="cbox-title"><span class="ico">&#x1F9EC;</span> Growth Signal <span class="cbox-lock" id="lkG"></span></div>
+        <div class="cbox-desc">How fast cells divide</div>
+        <div class="opts">
+          <button class="ob sel og" data-v="growth" data-o="low">Low</button>
+          <button class="ob" data-v="growth" data-o="medium">Med</button>
+          <button class="ob" data-v="growth" data-o="high">High</button>
+        </div>
+      </div>
+      <div class="cbox" id="bxC">
+        <div class="cbox-title"><span class="ico">&#x2705;</span> Checkpoint <span class="cbox-lock" id="lkC"></span></div>
+        <div class="cbox-desc">Catches copying errors</div>
+        <div class="opts">
+          <button class="ob sel og" data-v="checkpoint" data-o="on">On</button>
+          <button class="ob" data-v="checkpoint" data-o="damaged">Damaged</button>
+          <button class="ob" data-v="checkpoint" data-o="off">Off</button>
+        </div>
+      </div>
+      <div class="cbox" id="bxR">
+        <div class="cbox-title"><span class="ico">&#x1F527;</span> Repair Crew <span class="cbox-lock" id="lkR"></span></div>
+        <div class="cbox-desc">Removes damaged cells</div>
+        <div class="opts">
+          <button class="ob sel og" data-v="repair" data-o="high">High</button>
+          <button class="ob" data-v="repair" data-o="medium">Med</button>
+          <button class="ob" data-v="repair" data-o="low">Low</button>
+        </div>
+      </div>
+      <div class="go-col">
+        <button class="div-btn" id="divBtn">&#9889; DIVIDE</button>
+        <span class="go-hint" id="goHint">Change 1 variable</span>
+      </div>
+    </div>
+  </div>
+  <div class="dtray" id="dtray">
+    <table><thead><tr><th>Round</th><th>Growth Signal</th><th>Checkpoint</th><th>Repair Crew</th><th>Damaged Cells</th></tr></thead>
+    <tbody id="dtBody"></tbody></table>
+  </div>
+</div>
+
+<!-- OVERLAYS -->
+<div class="ov" id="ovW"><div class="ov-shade"></div><div class="ov-box win"><h2>&#x1F3C6; TISSUE HEALED!</h2><p id="wP"></p><button class="ov-btn" id="resetWin">&#9654; PLAY AGAIN</button></div></div>
+<div class="ov" id="ovL"><div class="ov-shade"></div><div class="ov-box lose"><h2>&#x1F480; TISSUE FAILED</h2><p id="lP"></p><button class="ov-btn" id="resetLose">&#9654; TRY AGAIN</button></div></div>
+
+<script>
+(function(){
+"use strict";
+
+var COLS=10, ROWS=8, WCOLS=2, MAX_R=8, TOTAL=COLS*ROWS;
+
+// Guided coaching for rounds 1-3
+var GUIDE = [
+  null,
+  {v:'growth',  nudge:'bxG', msg:'Round 1: Try changing GROWTH SIGNAL to HIGH. See what happens when cells divide fast.'},
+  {v:'checkpoint', nudge:'bxC', msg:'Round 2: Try changing CHECKPOINT to OFF. See what happens without error checking.'},
+  {v:'repair',  nudge:'bxR', msg:'Round 3: Try changing REPAIR CREW to LOW. See what happens when damaged cells pile up.'}
+];
+
+var S = null;
+var gridBuilt = false;
+
+function el(id){ return document.getElementById(id); }
+
+function freshState(){
+  var cells = [];
+  for(var r=0; r<ROWS; r++){
+    for(var c=0; c<COLS; c++){
+      cells.push(c >= COLS - WCOLS ? 'wound' : 'healthy');
+    }
+  }
+  return {
+    round:0,
+    growth:'low', checkpoint:'on', repair:'high',
+    pG:'low', pC:'on', pR:'high',
+    changed:null,
+    cells:cells,
+    critical:false, critLeft:0,
+    streak:0, superRepair:false,
+    surgeUsed:false, surgeRound: 2 + Math.floor(Math.random()*6),
+    over:false
+  };
+}
+
+function cnt(type){
+  if(!S || !S.cells) return 0;
+  var n=0;
+  for(var i=0; i<S.cells.length; i++){ if(S.cells[i]===type) n++; }
+  return n;
+}
+
+// ---- GRID ----
+function buildGrid(){
+  if(!S) return;
+  var area = el('arenaArea');
+  if(!area) return;
+  var gw = area.clientWidth - 12;
+  var gh = area.clientHeight - 12;
+  if(gw < 20 || gh < 20) return; // not laid out yet
+
+  var csW = Math.floor(gw / COLS) - 3;
+  var csH = Math.floor(gh / ROWS) - 3;
+  var cs = Math.min(csW, csH, 50);
+  if(cs < 8) cs = 8; // safety floor
+
+  var grid = el('grid');
+  if(!grid) return;
+  grid.style.gridTemplateColumns = 'repeat(' + COLS + ',' + cs + 'px)';
+  grid.style.gridTemplateRows = 'repeat(' + ROWS + ',' + cs + 'px)';
+  grid.innerHTML = '';
+
+  for(var i=0; i<TOTAL; i++){
+    var d = document.createElement('div');
+    d.className = 'gc ' + S.cells[i];
+    d.id = 'c' + i;
+    grid.appendChild(d);
+  }
+
+  var wt = el('woundTag');
+  if(wt) wt.style.display = cnt('wound') > 0 ? 'block' : 'none';
+  gridBuilt = true;
+}
+
+function setCell(i, type, anim){
+  if(!S || i < 0 || i >= TOTAL) return;
+  S.cells[i] = type;
+  var cell = el('c' + i);
+  if(cell) cell.className = 'gc ' + type + (anim ? ' ' + anim : '');
+}
+
+// ---- HUD ----
+function updateHUD(){
+  if(!S) return;
+  var h = cnt('healthy'), d = cnt('damaged'), w = cnt('wound');
+  var sH = el('sH'), sD = el('sD'), sW = el('sW');
+  if(sH) sH.textContent = h;
+  if(sD) sD.textContent = d;
+  if(sW) sW.textContent = w;
+
+  var rt = el('rTag');
+  if(rt) rt.textContent = 'ROUND ' + S.round + ' / ' + MAX_R;
+
+  var tot = h + d;
+  var pct = tot > 0 ? (h / tot) * 100 : 100;
+  var bar = el('hbar');
+  if(bar){
+    bar.style.width = pct + '%';
+    bar.className = 'hbar-fill' + (pct < 35 ? ' bad' : pct < 55 ? ' mid' : ' good');
+  }
+
+  var wt = el('woundTag');
+  if(wt) wt.style.display = w > 0 ? 'block' : 'none';
+
+  var sr = el('srBadge');
+  if(sr) sr.className = 'sr-badge' + (S.superRepair ? ' on' : '');
+}
+
+function setPrompt(msg, type){
+  var p = el('prompt');
+  if(p){ p.textContent = msg; p.className = 'prompt ' + type; }
+}
+
+function showWH(html){
+  var b = el('whBody');
+  var w = el('wh');
+  if(b) b.innerHTML = html;
+  if(w) w.classList.add('show');
+}
+
+function hideWH(){
+  var w = el('wh');
+  if(w) w.classList.remove('show');
+}
+
+function cap(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+// ---- CONTROLS ----
+function doPick(btn){
+  if(!S || S.over) return;
+  var vn = btn.getAttribute('data-v');
+  var val = btn.getAttribute('data-o');
+  if(!vn || !val) return;
+
+  var t = { growth:S.growth, checkpoint:S.checkpoint, repair:S.repair };
+  t[vn] = val;
+
+  // Count diffs from previous round
+  var diffs = [];
+  if(t.growth !== S.pG) diffs.push('growth');
+  if(t.checkpoint !== S.pC) diffs.push('checkpoint');
+  if(t.repair !== S.pR) diffs.push('repair');
+
+  if(diffs.length > 1){
+    setPrompt('Only change 1 variable per round!', 'warn');
+    return;
+  }
+
+  // Safety rule 4
+  if(t.growth === 'high' && t.checkpoint === 'off' && t.repair === 'low'){
+    setPrompt('Too dangerous! Lower growth or raise a safeguard.', 'bad');
+    return;
+  }
+
+  S.growth = t.growth;
+  S.checkpoint = t.checkpoint;
+  S.repair = t.repair;
+  S.changed = diffs.length === 1 ? diffs[0] : null;
+  hideWH();
+  refreshCtrls();
+}
+
+function refreshCtrls(){
+  if(!S) return;
+  var cur = { growth:S.growth, checkpoint:S.checkpoint, repair:S.repair };
+
+  // Update option buttons
+  var btns = document.querySelectorAll('.ob');
+  for(var i=0; i<btns.length; i++){
+    var b = btns[i];
+    var v = b.getAttribute('data-v');
+    var o = b.getAttribute('data-o');
+    var isOn = cur[v] === o;
+    b.classList.remove('sel','og','oy','or');
+    if(isOn){
+      b.classList.add('sel');
+      if(v === 'growth') b.classList.add(o === 'low' ? 'og' : o === 'medium' ? 'oy' : 'or');
+      else if(v === 'checkpoint') b.classList.add(o === 'on' ? 'og' : o === 'damaged' ? 'oy' : 'or');
+      else b.classList.add(o === 'high' ? 'og' : o === 'medium' ? 'oy' : 'or');
+    }
+  }
+
+  // Lock/unlock boxes
+  var vars = ['growth','checkpoint','repair'];
+  var boxIds = ['bxG','bxC','bxR'];
+  var lockIds = ['lkG','lkC','lkR'];
+  for(var j=0; j<3; j++){
+    var v = vars[j];
+    var box = el(boxIds[j]);
+    var lock = el(lockIds[j]);
+    if(!box || !lock) continue;
+
+    var iChanged = cur[v] !== S['p' + v.charAt(0).toUpperCase()];
+    // fix: match pG/pC/pR keys
+    if(v === 'growth') iChanged = cur.growth !== S.pG;
+    else if(v === 'checkpoint') iChanged = cur.checkpoint !== S.pC;
+    else iChanged = cur.repair !== S.pR;
+
+    var otherChanged = S.changed && S.changed !== v;
+
+    if(otherChanged){ box.classList.add('locked'); } else { box.classList.remove('locked'); }
+    if(iChanged){ box.classList.add('picked'); } else { box.classList.remove('picked'); }
+    box.classList.remove('nudge');
+    lock.textContent = otherChanged ? '\uD83D\uDD12' : '';
+  }
+
+  // Guided nudge for rounds 1-3
+  var nextR = S.round + 1;
+  if(nextR >= 1 && nextR <= 3 && !S.changed && GUIDE[nextR]){
+    var nudgeBox = el(GUIDE[nextR].nudge);
+    if(nudgeBox) nudgeBox.classList.add('nudge');
+  }
+
+  var hint = el('goHint');
+  if(hint){
+    if(S.changed){ hint.textContent = 'Ready!'; hint.style.color = 'var(--green)'; }
+    else { hint.textContent = 'Change 1 variable'; hint.style.color = ''; }
+  }
+}
+
+// ---- SIMULATION ENGINE ----
+function runRound(){
+  if(!S || S.over) return;
+
+  if(!S.changed && S.round > 0){
+    setPrompt('Change 1 variable before pressing DIVIDE!', 'warn');
+    return;
+  }
+
+  S.round++;
+  var db = el('divBtn');
+  if(db) db.disabled = true;
+  hideWH();
+
+  var g = S.growth, cp = S.checkpoint, rp = S.repair;
+
+  var growthRate = g === 'low' ? 2 : g === 'medium' ? 4 : 7;
+  var errChance = cp === 'on' ? 0.05 : cp === 'damaged' ? 0.35 : 0.7;
+  var repairRate = rp === 'high' ? 3 : rp === 'medium' ? 1 : 0;
+
+  var beforeW = cnt('wound');
+
+  // Gather wound targets sorted leftmost first
+  var wounds = [];
+  for(var i=0; i<TOTAL; i++){ if(S.cells[i] === 'wound') wounds.push(i); }
+  wounds.sort(function(a,b){ return (a % COLS) - (b % COLS); });
+  var targets = wounds.slice();
+
+  var divCount = Math.min(growthRate, targets.length + 2);
+  var anims = [];
+  var errorsThisRound = 0;
+  var fillsThisRound = 0;
+
+  for(var d=0; d<divCount; d++){
+    var isErr = Math.random() < errChance;
+    if(targets.length > 0){
+      var idx = targets.shift();
+      anims.push({ idx:idx, type: isErr ? 'damaged' : 'healthy', anim: isErr ? 'err' : 'pop', delay: d * 90 });
+      if(isErr) errorsThisRound++;
+      fillsThisRound++;
+    } else if(isErr){
+      var hIdxs = [];
+      for(var k=0; k<TOTAL; k++){ if(S.cells[k] === 'healthy') hIdxs.push(k); }
+      if(hIdxs.length > 0){
+        var victim = hIdxs[Math.floor(Math.random() * hIdxs.length)];
+        anims.push({ idx:victim, type:'damaged', anim:'err', delay: d * 90 });
+        errorsThisRound++;
+      }
+    }
+  }
+
+  // Play staggered animations
+  for(var a=0; a<anims.length; a++){
+    (function(anim){
+      setTimeout(function(){ setCell(anim.idx, anim.type, anim.anim); }, anim.delay);
+    })(anims[a]);
+  }
+
+  var totalAnimTime = anims.length * 90 + 350;
+
+  setTimeout(function(){
+    // Super repair
+    var superFixed = false;
+    if(S.superRepair){
+      for(var sr=0; sr<TOTAL; sr++){
+        if(S.cells[sr] === 'damaged'){ setCell(sr, 'healthy', 'pop'); superFixed = true; break; }
+      }
+    }
+
+    // Normal repair
+    var repaired = 0;
+    for(var r=0; r<repairRate; r++){
+      var dIdxs = [];
+      for(var ri=0; ri<TOTAL; ri++){ if(S.cells[ri] === 'damaged') dIdxs.push(ri); }
+      if(dIdxs.length > 0){
+        var fix = dIdxs[Math.floor(Math.random() * dIdxs.length)];
+        setCell(fix, 'healthy', 'pop');
+        repaired++;
+      }
+    }
+
+    // Mutation surge
+    var surgeHit = false;
+    if(!S.surgeUsed && S.round === S.surgeRound){
+      S.surgeUsed = true;
+      var hForSurge = [];
+      for(var si=0; si<TOTAL; si++){ if(S.cells[si] === 'healthy') hForSurge.push(si); }
+      if(hForSurge.length > 0){
+        var m = hForSurge[Math.floor(Math.random() * hForSurge.length)];
+        setCell(m, 'damaged', 'err');
+        surgeHit = true;
+      }
+    }
+
+    var h = cnt('healthy'), dam = cnt('damaged'), w = cnt('wound');
+    updateHUD();
+
+    // Build "What Happened" explanation
+    var varNames = { growth:'Growth Signal', checkpoint:'Checkpoint', repair:'Repair Crew' };
+    var changedLabel = S.changed ? varNames[S.changed] : 'nothing (baseline)';
+    var changedVal = S.changed ? { growth:g, checkpoint:cp, repair:rp }[S.changed] : '';
+
+    var wh = '<b>You changed:</b> ' + changedLabel;
+    if(changedVal) wh += ' to <b>' + cap(changedVal).replace('On','ON').replace('Off','OFF') + '</b>';
+    wh += '<br>';
+
+    if(errorsThisRound === 0){
+      wh += '<span class="wh-good">Cells divided with 0 errors.</span>';
+    } else {
+      wh += '<span class="wh-bad">' + errorsThisRound + ' cell' + (errorsThisRound>1?'s':'') + ' got copying errors and turned damaged.</span>';
+    }
+    if(repaired > 0){
+      wh += '<br><span class="wh-good">Repair crew fixed ' + repaired + ' damaged cell' + (repaired>1?'s':'') + '.</span>';
+    }
+    if(rp === 'low' && repaired === 0 && dam > 0){
+      wh += '<br><span class="wh-bad">Repair Crew is LOW so no damaged cells were removed.</span>';
+    }
+    var filled = beforeW - w;
+    if(filled > 0){
+      wh += '<br><span class="wh-good">Wound closing: ' + filled + ' wound cell' + (filled>1?'s':'') + ' filled in.</span>';
+    }
+    if(surgeHit){
+      wh += '<br><span class="wh-bad">MUTATION SURGE: 1 healthy cell randomly mutated into damaged!</span>';
+    }
+    if(superFixed){
+      wh += '<br><span class="wh-good">SUPER REPAIR auto-fixed 1 damaged cell!</span>';
+    }
+    var dColor = dam > 5 ? 'var(--red)' : dam > 0 ? 'var(--yellow)' : 'var(--green)';
+    wh += '<br><b>Result:</b> ' + h + ' healthy, <b style="color:' + dColor + '">' + dam + ' damaged</b>, ' + w + ' wound left.';
+
+    showWH(wh);
+
+    // Super repair tracking
+    if(dam === 0){
+      S.streak++;
+      if(S.streak >= 3 && !S.superRepair){
+        S.superRepair = true;
+        setPrompt('SUPER REPAIR unlocked! Auto-fixes 1 damaged cell each round!', 'info');
+        updateHUD();
+      }
+    } else { S.streak = 0; }
+
+    // Data row
+    var gL = cap(g);
+    var cL = cp === 'on' ? 'ON' : cp === 'damaged' ? 'DAMAGED' : 'OFF';
+    var rL = cap(rp);
+    var tbody = el('dtBody');
+    if(tbody){
+      var tr = document.createElement('tr');
+      tr.className = 'glow';
+      tr.innerHTML = '<td>' + S.round + '</td><td>' + gL + '</td><td>' + cL + '</td><td>' + rL + '</td><td style="color:' + dColor + '">' + dam + '</td>';
+      tbody.appendChild(tr);
+    }
+    var dtray = el('dtray');
+    if(dtray) dtray.scrollTop = dtray.scrollHeight;
+
+    // Critical check
+    if(dam > h){
+      if(!S.critical){
+        S.critical = true; S.critLeft = 2;
+        setPrompt('CRITICAL! Damaged outnumber healthy! 2 rounds to fix it!', 'bad');
+      } else {
+        S.critLeft--;
+        if(S.critLeft <= 0){
+          S.over = true;
+          var lp = el('lP');
+          if(lp) lp.textContent = 'Damaged cells took over. Try keeping checkpoints on or repair high.';
+          var ovl = el('ovL');
+          if(ovl) ovl.classList.add('on');
+          return;
+        }
+        setPrompt('CRITICAL! 1 round left to recover!', 'bad');
+      }
+    } else {
+      if(S.critical){
+        S.critical = false;
+        setPrompt('Recovered from critical!', 'ok');
+      }
+    }
+
+    // Win check
+    if(w === 0 && dam < 5){
+      S.over = true;
+      var wp = el('wP');
+      if(wp) wp.textContent = 'Healed in ' + S.round + ' round' + (S.round>1?'s':'') + ' with ' + dam + ' damaged cell' + (dam!==1?'s':'') + '!';
+      var ovw = el('ovW');
+      if(ovw) ovw.classList.add('on');
+      return;
+    }
+
+    // Rounds exhausted
+    if(S.round >= MAX_R){
+      S.over = true;
+      var msg = w > 0 ? 'Wound still open after 8 rounds. ' + w + ' wound cells left.' : 'Wound closed but ' + dam + ' damaged cells remain. Need below 5 to win.';
+      var lp2 = el('lP');
+      if(lp2) lp2.textContent = msg;
+      var ovl2 = el('ovL');
+      if(ovl2) ovl2.classList.add('on');
+      return;
+    }
+
+    // Coaching prompt for next round
+    if(!S.critical){
+      var nextR = S.round + 1;
+      if(nextR <= 3 && GUIDE[nextR]){
+        setPrompt(GUIDE[nextR].msg, 'guide');
+      } else if(nextR === 4){
+        setPrompt('Free play! Settings carry over now. Change 1 variable per round.', 'ok');
+      } else {
+        if(dam === 0) setPrompt('Tissue healthy! Pick 1 variable to change.', 'ok');
+        else if(dam < 5) setPrompt(dam + ' damaged. Pick 1 variable to change.', 'ok');
+        else setPrompt(dam + ' damaged cells! Try boosting repair or checkpoints.', 'warn');
+      }
+    }
+
+    // Prep next round
+    S.pG = S.growth; S.pC = S.checkpoint; S.pR = S.repair;
+    S.changed = null;
+
+    setTimeout(function(){
+      var db2 = el('divBtn');
+      if(db2) db2.disabled = false;
+      refreshCtrls();
+    }, 250);
+
+  }, totalAnimTime);
+}
+
+// ---- LIFECYCLE ----
+function begin(){
+  var sp = el('splash');
+  if(sp) sp.style.display = 'none';
+  var gm = el('game');
+  if(gm) gm.classList.add('on');
+
+  S = freshState();
+
+  // Delay grid build to let layout settle
+  setTimeout(function(){
+    buildGrid();
+    updateHUD();
+    refreshCtrls();
+    setPrompt(GUIDE[1].msg, 'guide');
+    var db = el('divBtn');
+    if(db) db.disabled = false;
+  }, 50);
+}
+
+function doReset(){
+  var ovw = el('ovW'); if(ovw) ovw.classList.remove('on');
+  var ovl = el('ovL'); if(ovl) ovl.classList.remove('on');
+  var tbody = el('dtBody'); if(tbody) tbody.innerHTML = '';
+  var sr = el('srBadge'); if(sr) sr.className = 'sr-badge';
+  hideWH();
+
+  // Reset buttons
+  var btns = document.querySelectorAll('.ob');
+  for(var i=0; i<btns.length; i++) btns[i].classList.remove('sel','og','oy','or');
+  var defs = [
+    ['[data-v="growth"][data-o="low"]','og'],
+    ['[data-v="checkpoint"][data-o="on"]','og'],
+    ['[data-v="repair"][data-o="high"]','og']
+  ];
+  for(var d=0; d<defs.length; d++){
+    var b = document.querySelector(defs[d][0]);
+    if(b) b.classList.add('sel', defs[d][1]);
+  }
+
+  S = freshState();
+  setTimeout(function(){
+    buildGrid();
+    updateHUD();
+    refreshCtrls();
+    setPrompt(GUIDE[1].msg, 'guide');
+    var db = el('divBtn');
+    if(db) db.disabled = false;
+  }, 50);
+}
+
+// ---- EVENT LISTENERS (no inline onclick) ----
+document.addEventListener('DOMContentLoaded', function(){
+  var startBtn = el('startBtn');
+  if(startBtn) startBtn.addEventListener('click', begin);
+
+  var divBtn = el('divBtn');
+  if(divBtn) divBtn.addEventListener('click', runRound);
+
+  var rw = el('resetWin');
+  if(rw) rw.addEventListener('click', doReset);
+
+  var rl = el('resetLose');
+  if(rl) rl.addEventListener('click', doReset);
+
+  // Option buttons via delegation
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.ob');
+    if(btn) doPick(btn);
+  });
+
+  // Debounced resize
+  var resizeTimer;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){
+      var gm = el('game');
+      if(gm && gm.classList.contains('on') && S) buildGrid();
+    }, 150);
+  });
+});
+
+})();
+</script>
+</body>
+</html>

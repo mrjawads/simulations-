@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cell Science: Expect the Unexpected</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#0a0e1a;--panel:#111827;--panel-border:#1e293b;
+--accent:#00e5a0;--accent-dim:#00e5a044;--accent-glow:0 0 20px #00e5a055;
+--red:#ff4d6a;--orange:#ff9f43;--yellow:#ffd32a;--green:#00e5a0;--blue:#4dabf7;
+--text:#e2e8f0;--text-dim:#94a3b8;--text-bright:#ffffff;
+--low-color:#ff4d6a;--ok-color:#00e5a0;--high-color:#ff9f43;
+--radius:12px;--radius-sm:8px;
+}
+html{font-size:16px}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* SPLASH SCREEN */
+#splash{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;transition:opacity .6s}
+#splash.hidden{opacity:0;pointer-events:none}
+#splash h1{font-family:'Orbitron',sans-serif;font-size:clamp(1.4rem,4vw,2.4rem);color:var(--accent);text-align:center;text-shadow:var(--accent-glow);letter-spacing:2px}
+#splash p{color:var(--text-dim);font-size:1rem;max-width:500px;text-align:center;line-height:1.6}
+#splash .sub{font-size:.85rem;color:var(--text-dim);margin-top:-8px}
+.start-btn{font-family:'Orbitron',sans-serif;background:var(--accent);color:var(--bg);border:none;padding:16px 48px;font-size:1.1rem;font-weight:700;border-radius:50px;cursor:pointer;letter-spacing:1px;transition:transform .2s,box-shadow .2s;box-shadow:var(--accent-glow)}
+.start-btn:hover{transform:scale(1.05);box-shadow:0 0 30px #00e5a088}
+
+/* LAYOUT */
+#app{display:none;height:100vh;grid-template-columns:260px 1fr;grid-template-rows:auto 1fr}
+#app.active{display:grid}
+
+/* TOP BAR */
+#topbar{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--panel-border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#topbar h1{font-family:'Orbitron',sans-serif;font-size:clamp(.8rem,2vw,1rem);color:var(--accent);letter-spacing:1px}
+.progress-wrap{display:flex;align-items:center;gap:10px}
+.progress-bar{width:180px;height:10px;background:#1e293b;border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--blue));border-radius:99px;transition:width .5s}
+.progress-label{font-size:.8rem;color:var(--text-dim);font-weight:700}
+
+/* SIDEBAR */
+#sidebar{background:var(--panel);border-right:1px solid var(--panel-border);overflow-y:auto;padding:12px}
+#sidebar h2{font-family:'Orbitron',sans-serif;font-size:.7rem;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;padding:0 4px}
+.scenario-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:background .2s,border-color .2s;border:2px solid transparent;margin-bottom:6px;position:relative}
+.scenario-card:hover{background:#1e293b}
+.scenario-card.active{border-color:var(--accent);background:#0f1d2d}
+.scenario-card.completed{border-color:#334155}
+.scenario-card.completed::after{content:'✓';position:absolute;top:6px;right:8px;color:var(--accent);font-weight:900;font-size:.75rem}
+.sc-emoji{font-size:1.6rem;flex-shrink:0;width:36px;text-align:center}
+.sc-info{display:flex;flex-direction:column}
+.sc-title{font-size:.82rem;font-weight:700;color:var(--text);line-height:1.2}
+.sc-status{font-size:.65rem;color:var(--text-dim);margin-top:2px}
+
+/* MAIN AREA */
+#main{overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;position:relative}
+
+/* WELCOME STATE */
+#welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;flex:1;gap:16px;padding:40px}
+#welcome .icon{font-size:3rem}
+#welcome h2{font-family:'Orbitron',sans-serif;font-size:1.3rem;color:var(--accent)}
+#welcome p{color:var(--text-dim);max-width:420px;line-height:1.6}
+
+/* SCENARIO VIEW */
+#scenarioView{display:none;flex-direction:column;gap:16px;flex:1}
+#scenarioView.active{display:flex}
+
+/* READING LEVEL PICKER */
+.level-picker{display:flex;gap:8px;align-items:center}
+.level-picker label{font-size:.75rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px}
+.level-btn{padding:6px 16px;border-radius:var(--radius-sm);border:1px solid var(--panel-border);background:transparent;color:var(--text);font-family:'Nunito',sans-serif;font-weight:700;font-size:.8rem;cursor:pointer;transition:all .2s}
+.level-btn:hover{border-color:var(--accent)}
+.level-btn.active{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+
+/* STEP INDICATOR */
+.steps-bar{display:flex;gap:4px}
+.step-pill{padding:6px 14px;border-radius:99px;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;background:#1e293b;color:#475569;transition:all .3s}
+.step-pill.current{background:var(--accent);color:var(--bg)}
+.step-pill.done{background:#334155;color:var(--green)}
+
+/* ARENA + HUD */
+.arena-row{display:flex;gap:16px;flex:1;min-height:350px}
+
+/* HUD / Cell Activity Meter */
+.hud{width:80px;flex-shrink:0;background:#0d1117;border:1px solid var(--panel-border);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;padding:12px 8px;gap:8px}
+.hud-title{font-family:'Orbitron',sans-serif;font-size:.5rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;text-align:center;line-height:1.3}
+.meter-wrap{flex:1;width:40px;position:relative;background:#1a1a2e;border-radius:20px;overflow:hidden;border:2px solid #2a2a4a}
+.meter-zone{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:center;font-size:.45rem;font-weight:900;letter-spacing:1px;color:#ffffff88}
+.meter-zone.high{top:0;height:30%;background:linear-gradient(180deg,var(--orange),#ff9f4333)}
+.meter-zone.ok{top:30%;height:40%;background:linear-gradient(180deg,var(--green),#00e5a033)}
+.meter-zone.low{top:70%;height:30%;background:linear-gradient(180deg,var(--red),#ff4d6a33)}
+.meter-needle{position:absolute;left:50%;width:36px;height:4px;background:white;border-radius:4px;transform:translate(-50%,-50%);transition:top 1.5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px #fff8;z-index:2}
+.meter-label{font-size:.55rem;font-weight:800;color:var(--text-dim);text-align:center;min-height:28px;display:flex;align-items:center;justify-content:center;line-height:1.2}
+
+/* ARENA */
+.arena{flex:1;background:#0d1117;border:1px solid var(--panel-border);border-radius:var(--radius);position:relative;overflow:hidden;display:flex;flex-direction:column}
+.arena-header{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1e293b}
+.arena-emoji{font-size:1.8rem}
+.arena-title-block h3{font-family:'Orbitron',sans-serif;font-size:.9rem;color:var(--text-bright)}
+.arena-title-block p{font-size:.75rem;color:var(--text-dim);margin-top:2px}
+.arena-body{flex:1;display:flex;flex-direction:column;position:relative}
+
+/* CELL VISUAL */
+.cell-visual{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:200px}
+.cell-svg{width:100%;max-width:500px;height:auto}
+
+/* PREDICT PANEL */
+.predict-panel,.read-panel,.watch-panel,.record-panel{padding:16px;display:none;flex-direction:column;gap:12px}
+.predict-panel.active,.read-panel.active,.watch-panel.active,.record-panel.active{display:flex}
+.predict-panel h4,.read-panel h4,.watch-panel h4,.record-panel h4{font-family:'Orbitron',sans-serif;font-size:.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px}
+.predict-option{display:flex;align-items:center;gap:10px;padding:12px 16px;border:2px solid #1e293b;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;font-size:.85rem;line-height:1.4}
+.predict-option:hover{border-color:var(--accent);background:#0f1d2d}
+.predict-option.selected{border-color:var(--accent);background:#00e5a015}
+.predict-option.locked{cursor:default;opacity:.7}
+.predict-option .opt-letter{font-family:'Orbitron',sans-serif;font-weight:900;color:var(--accent);font-size:.9rem;width:24px}
+
+/* READ PANEL */
+.read-content{line-height:1.8;font-size:.92rem;color:var(--text);max-height:220px;overflow-y:auto;padding-right:8px}
+.read-content::-webkit-scrollbar{width:4px}
+.read-content::-webkit-scrollbar-thumb{background:var(--accent);border-radius:4px}
+.kw{color:var(--yellow);font-weight:700}
+.read-aloud-btn{align-self:flex-start;display:flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:transparent;color:var(--text-dim);font-size:.78rem;font-weight:700;cursor:pointer;transition:all .2s}
+.read-aloud-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* KEYWORDS SIDEBAR */
+.keywords-bar{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0}
+.kw-tag{padding:4px 10px;background:#1e293b;border-radius:99px;font-size:.68rem;font-weight:700;color:var(--yellow)}
+
+/* WATCH PANEL */
+.watch-text{font-size:.82rem;color:var(--text-dim);line-height:1.6;font-style:italic}
+
+/* RECORD PANEL */
+.record-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.record-field label{display:block;font-size:.7rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.record-field textarea{width:100%;background:#1a1a2e;border:1px solid #2a2a4a;border-radius:var(--radius-sm);color:var(--text);padding:8px 10px;font-family:'Nunito',sans-serif;font-size:.82rem;resize:none;height:56px;transition:border-color .2s}
+.record-field textarea:focus{outline:none;border-color:var(--accent)}
+.record-field.full{grid-column:1/-1}
+
+/* BUTTONS */
+.btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.btn{padding:10px 24px;border-radius:var(--radius-sm);border:none;font-family:'Nunito',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer;transition:all .2s;letter-spacing:.5px}
+.btn-primary{background:var(--accent);color:var(--bg)}
+.btn-primary:hover{box-shadow:var(--accent-glow);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}
+.btn-secondary{background:#1e293b;color:var(--text)}
+.btn-secondary:hover{background:#334155}
+
+/* DATA TABLE SECTION (collapsible strip) */
+#dataSection{background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);position:relative;flex-shrink:0}
+.data-toggle{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;cursor:pointer;user-select:none;transition:background .2s;border-radius:var(--radius)}
+.data-toggle:hover{background:#1e293b44}
+.data-toggle-left{display:flex;align-items:center;gap:10px}
+.data-toggle-left h2{font-family:'Orbitron',sans-serif;font-size:.75rem;color:var(--accent);letter-spacing:1px}
+.data-chevron{color:var(--accent);font-size:.65rem;transition:transform .3s;display:inline-block}
+#dataSection:not(.collapsed) .data-chevron{transform:rotate(90deg)}
+.data-badge{background:#1e293b;color:var(--text-dim);font-size:.68rem;font-weight:800;padding:2px 10px;border-radius:99px}
+.data-badge.has-data{background:var(--accent-dim);color:var(--accent)}
+.data-body-wrap{max-height:0;overflow:hidden;transition:max-height .35s ease}
+#dataSection:not(.collapsed) .data-body-wrap{max-height:400px;overflow-y:auto}
+.data-table-wrap{padding:0 16px 12px}
+.copy-btn{background:transparent;border:1px solid var(--panel-border);color:var(--text-dim);padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;font-family:'Nunito',sans-serif;font-weight:700;font-size:.72rem;transition:all .2s;white-space:nowrap}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+.copy-btn.copied{background:var(--green);color:var(--bg);border-color:var(--green)}
+.copy-toast{position:absolute;bottom:50px;right:16px;background:var(--green);color:var(--bg);padding:8px 16px;border-radius:var(--radius-sm);font-weight:700;font-size:.8rem;opacity:0;transform:translateY(8px);transition:all .3s;pointer-events:none;z-index:5}
+.copy-toast.show{opacity:1;transform:translateY(0)}
+.data-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.data-table th{font-family:'Orbitron',sans-serif;font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--accent);text-align:left;padding:10px 12px;border-bottom:2px solid var(--accent);white-space:nowrap}
+.data-table td{padding:10px 12px;border-bottom:1px solid #1e293b;color:var(--text);vertical-align:top;line-height:1.4}
+.data-table tr:last-child td{border-bottom:none}
+.data-table .empty{color:#475569;font-style:italic}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  #app.active{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+  #sidebar{max-height:140px;overflow-x:auto;display:flex;gap:8px;padding:8px;flex-direction:row;flex-wrap:nowrap}
+  #sidebar h2{display:none}
+  .scenario-card{flex-shrink:0;min-width:140px;margin-bottom:0}
+  .arena-row{flex-direction:column}
+  .hud{width:100%;flex-direction:row;height:60px;padding:8px 16px}
+  .meter-wrap{flex:1;height:30px;width:auto;border-radius:15px}
+  .meter-zone.high{top:0;left:0;width:30%;height:100%}
+  .meter-zone.ok{top:0;left:30%;width:40%;height:100%}
+  .meter-zone.low{top:0;left:70%;width:30%;height:100%}
+  .meter-needle{width:4px;height:26px;transition:left 1.5s cubic-bezier(.4,0,.2,1)}
+  .record-fields{grid-template-columns:1fr}
+}
+
+/* ANIMATIONS */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes glow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.5)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cellSplit{0%{transform:scale(1)}30%{transform:scale(1.1)}60%{transform:scale(1,0.5)}100%{transform:scale(1)}}
+.animate-in{animation:slideUp .4s ease-out}
+.glow-pulse{animation:glow 2s ease-in-out infinite}
+
+/* COMPLETION SCREEN */
+#completion{display:none;position:fixed;inset:0;z-index:950;background:#0a0e1aee;align-items:center;justify-content:center;flex-direction:column;gap:20px}
+#completion.active{display:flex}
+#completion h2{font-family:'Orbitron',sans-serif;font-size:1.6rem;color:var(--accent);text-shadow:var(--accent-glow)}
+#completion p{color:var(--text-dim);font-size:1rem}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <p class="sub" style="font-family:'Orbitron',sans-serif;font-size:.7rem;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase">Mr. Jawad's Sims</p>
+  <h1>🔬 CELL SCIENCE<br>Expect the Unexpected</h1>
+  <p>Your cells are doing wild things right now. Healing, dividing, making energy, and sometimes self-destructing. Science can explain every bit of it.</p>
+  <button class="start-btn" onclick="startApp()">BEGIN INVESTIGATION</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div id="topbar">
+    <h1>🔬 Mr. Jawad's Sims — Cell Science: Expect the Unexpected</h1>
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <span class="progress-label" id="progressLabel">0 / 5 complete</span>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <h2>Scenarios</h2>
+    <!-- filled by JS -->
+  </div>
+
+  <div id="main">
+    <div id="welcome">
+      <div class="icon">🧬</div>
+      <h2>Choose a Scenario</h2>
+      <p>Pick any scenario from the sidebar. Complete at least 5 to finish. All 8 = extra credit!</p>
+    </div>
+
+    <div id="scenarioView">
+      <!-- LEVEL PICKER + STEPS -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div class="level-picker">
+          <label>Reading Level:</label>
+          <button class="level-btn active" data-level="low" onclick="setLevel('low',this)">Low</button>
+          <button class="level-btn" data-level="med" onclick="setLevel('med',this)">Med</button>
+          <button class="level-btn" data-level="high" onclick="setLevel('high',this)">High</button>
+        </div>
+        <div class="steps-bar" id="stepsBar">
+          <div class="step-pill" data-step="predict">1 Predict</div>
+          <div class="step-pill" data-step="read">2 Read</div>
+          <div class="step-pill" data-step="watch">3 Watch</div>
+          <div class="step-pill" data-step="record">4 Record</div>
+        </div>
+      </div>
+
+      <!-- KEYWORDS -->
+      <div class="keywords-bar" id="keywordsBar"></div>
+
+      <!-- ARENA ROW -->
+      <div class="arena-row">
+        <!-- HUD -->
+        <div class="hud">
+          <div class="hud-title">Cell Activity</div>
+          <div class="meter-wrap" id="meterWrap">
+            <div class="meter-zone high">HIGH</div>
+            <div class="meter-zone ok">OK</div>
+            <div class="meter-zone low">LOW</div>
+            <div class="meter-needle" id="meterNeedle" style="top:50%"></div>
+          </div>
+          <div class="meter-label" id="meterLabel">Ready</div>
+        </div>
+
+        <!-- ARENA -->
+        <div class="arena">
+          <div class="arena-header">
+            <span class="arena-emoji" id="arenaEmoji">🧬</span>
+            <div class="arena-title-block">
+              <h3 id="arenaTitle">Select a Scenario</h3>
+              <p id="arenaSubtitle">Choose from the sidebar</p>
+            </div>
+          </div>
+          <div class="arena-body">
+            <!-- CELL VISUAL - SVG canvas -->
+            <div class="cell-visual" id="cellVisual"></div>
+
+            <!-- PREDICT -->
+            <div class="predict-panel" id="predictPanel">
+              <h4>🔮 Step 1: Predict</h4>
+              <p style="font-size:.82rem;color:var(--text-dim)" id="predictSetup"></p>
+              <div id="predictOptions"></div>
+              <div class="btn-row">
+                <button class="btn btn-primary" id="lockPredictBtn" disabled onclick="lockPrediction()">Lock Prediction</button>
+              </div>
+            </div>
+
+            <!-- READ -->
+            <div class="read-panel" id="readPanel">
+              <h4>📖 Step 2: Read</h4>
+              <div class="read-content" id="readContent"></div>
+              <button class="read-aloud-btn" onclick="readAloud()">🔊 Read Aloud</button>
+              <div class="btn-row">
+                <button class="btn btn-primary" onclick="goToWatch()">Next: Watch →</button>
+              </div>
+            </div>
+
+            <!-- WATCH -->
+            <div class="watch-panel" id="watchPanel">
+              <h4>👁️ Step 3: Watch</h4>
+              <p class="watch-text" id="watchText">Watch the Cell Activity Meter and cell diagram animate...</p>
+              <div class="btn-row">
+                <button class="btn btn-primary" id="watchNextBtn" disabled onclick="goToRecord()">Next: Record →</button>
+              </div>
+            </div>
+
+            <!-- RECORD -->
+            <div class="record-panel" id="recordPanel">
+              <h4>📝 Step 4: Record</h4>
+              <div class="record-fields">
+                <div class="record-field">
+                  <label>What Changed?</label>
+                  <textarea id="recChanged" placeholder="What disrupted the cells?"></textarea>
+                </div>
+                <div class="record-field">
+                  <label>System Response</label>
+                  <textarea id="recResponse" placeholder="How did the cells respond?"></textarea>
+                </div>
+                <div class="record-field full">
+                  <label>Back Toward OK / Target?</label>
+                  <textarea id="recBack" placeholder="Did the meter return to OK? Why or why not?"></textarea>
+                </div>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-primary" onclick="submitRecord()">Save & Complete ✓</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATA TABLE (collapsible bottom strip) -->
+    <div id="dataSection" class="collapsed">
+      <div class="data-toggle" onclick="toggleDataPanel()">
+        <div class="data-toggle-left">
+          <span class="data-chevron" id="dataChevron">▶</span>
+          <h2>📊 Investigation Data</h2>
+          <span class="data-badge" id="dataBadge">0 / 8</span>
+        </div>
+        <button class="copy-btn" id="copyDataBtn" onclick="event.stopPropagation();copyData()">📋 Copy</button>
+      </div>
+      <div class="data-body-wrap" id="dataBodyWrap">
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Scenario</th><th>What Changed?</th><th>System Response</th><th>Back Toward OK?</th></tr></thead>
+            <tbody id="dataBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="copy-toast" id="copyToast">✓ Copied to clipboard!</div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPLETION -->
+<div id="completion">
+  <h2>🎉 Investigation Complete!</h2>
+  <p id="completionMsg">You completed 5 scenarios. Nice work, investigator!</p>
+  <button class="start-btn" onclick="document.getElementById('completion').classList.remove('active')">Keep Going</button>
+</div>
+
+<script>
+// ============ SCENARIO DATA ============
+const SCENARIOS = [
+  {
+    id:1, title:"Why Sunburns Peel", emoji:"☀️",
+    setup:"UV light from the sun damages the DNA inside skin cells beyond repair.",
+    readings:{
+      low:`UV light from the sun smashes into your skin cells and wrecks their <span class="kw">DNA</span>. The damage is so bad the cells cannot fix themselves. Your body triggers <span class="kw">cell division</span> to replace them — but first, it destroys the wrecked cells. The dead cells peel off, and new ones take their place.`,
+      med:`UV light from the sun slams into your skin cells like invisible bullets. It smashes the <span class="kw">DNA</span> inside the <span class="kw">nucleus</span> — the instructions that tell the cell how to work. When the damage is too severe, the cell cannot repair itself. Your body sends a self-destruct signal, killing the damaged cells before they can cause problems. Then <span class="kw">cell division</span> kicks in — healthy cells nearby start splitting through <span class="kw">mitosis</span> to build replacements. The peeling skin you see is your body dumping the dead cells while fresh ones grow underneath.`,
+      high:`UV light from the sun slams into your skin cells and shreds their <span class="kw">DNA</span> — the master instructions stored inside the <span class="kw">nucleus</span>. Every cell needs intact <span class="kw">DNA</span> to divide correctly. When UV destroys too much of it, the cell has a choice: try to repair, or shut down. If the damage is beyond repair, your body triggers a self-destruct program — the cell dies on purpose. This is actually protection. A cell with broken <span class="kw">DNA</span> that keeps dividing could become cancer. So your body chooses controlled destruction. Then <span class="kw">cell division</span> takes over — healthy cells nearby go through <span class="kw">mitosis</span>, splitting into identical copies to patch the gap. The peeling skin is dead cells falling away while a fresh layer grows beneath.`
+    },
+    meterAnim:{start:50, disruption:15, response:35, final:50, finalLabel:"OK"},
+    cellType:"skin", organelle:"nucleus",
+    returnsToOK: true
+  },
+  {
+    id:2, title:"Plant Grows Toward Light", emoji:"🌱",
+    setup:"A plant sitting on a windowsill only gets sunlight from one direction.",
+    readings:{
+      low:`A plant on a windowsill bends toward the sun because its <span class="kw">chloroplasts</span> need light to make food. Cells on the shaded side grow longer, pushing the stem toward the light. Without sunlight, the <span class="kw">chloroplasts</span> cannot produce <span class="kw">energy</span>. The plant literally reshapes itself to feed its own cells.`,
+      med:`A plant sits on a windowsill with sunlight streaming in from one side. The <span class="kw">chloroplasts</span> inside its cells are like tiny solar panels — they capture light and turn it into food. On the shaded side, the <span class="kw">chloroplasts</span> get almost no light, so those cells produce very little <span class="kw">energy</span>. The plant responds by making the shaded cells grow longer, which pushes the whole stem toward the window. Now more <span class="kw">chloroplasts</span> face the sun and can do their job. Block all the light, and the plant slowly starves — even with plenty of water and soil.`,
+      high:`A plant sits on a windowsill getting sunlight from only one direction. Inside every leaf cell, tiny <span class="kw">chloroplasts</span> capture that light and use it to build food — a process powered by a green pigment called chlorophyll. The cells on the sunny side get plenty of light, so their <span class="kw">chloroplasts</span> run at full power. The cells on the shaded side get almost nothing. The plant detects this imbalance. It makes the shaded cells grow longer than the sunny cells, which bends the entire stem toward the light. This is not random — it is a targeted response to keep the <span class="kw">chloroplasts</span> fed. If you block all light completely, the <span class="kw">chloroplasts</span> shut down and the plant starves, even with water and healthy soil, because light is the <span class="kw">energy</span> source that drives everything.`
+    },
+    meterAnim:{start:50, disruption:78, response:55, final:50, finalLabel:"OK"},
+    cellType:"plant", organelle:"chloroplast",
+    returnsToOK: true
+  },
+  {
+    id:3, title:"Why Cuts Heal", emoji:"🩹",
+    setup:"A deep cut slices through layers of skin cells.",
+    readings:{
+      low:`A knife slices through your skin and destroys thousands of cells in an instant. Your body responds by cranking up <span class="kw">cell division</span> — skin cells around the wound start splitting fast to close the gap. The replacement cells are built for speed, not perfection. That is why a scar looks different from normal skin — the new tissue has a rougher structure.`,
+      med:`A deep cut rips through layers of skin cells, leaving a gap your body needs to close fast. The <span class="kw">nucleus</span> in each nearby cell holds the <span class="kw">DNA</span> instructions for building new skin. Your body floods the area with signals that trigger <span class="kw">cell division</span> — healthy cells start splitting through <span class="kw">mitosis</span> at high speed. The rush job works, but the replacement tissue is not identical to the original. The new cells stack in a simpler pattern, creating a scar. Deep cuts scar more because more layers need replacing, and the faster the build, the rougher the result.`,
+      high:`A deep cut destroys thousands of skin cells in a split second. Your body treats this like an emergency. Chemical signals flood the wound site, telling nearby cells to start dividing immediately. The <span class="kw">nucleus</span> in each healthy cell carries the <span class="kw">DNA</span> blueprint for skin. <span class="kw">Cell division</span> through <span class="kw">mitosis</span> kicks into overdrive — one cell splits into two identical copies, then those split again. The speed is impressive, but it comes with a tradeoff. The replacement tissue stacks in a simpler, rougher pattern than the original skin. That rougher patch is a scar — your body chose speed over perfection to close the gap before infection sets in. The deeper the cut, the more layers of <span class="kw">cell division</span> required, and the more visible the scar becomes.`
+    },
+    meterAnim:{start:50, disruption:85, response:55, final:52, finalLabel:"OK"},
+    cellType:"skin", organelle:"division",
+    returnsToOK: true
+  },
+  {
+    id:4, title:"Athletes at Altitude", emoji:"🏔️",
+    setup:"An athlete trains at high altitude where there is less oxygen in the air.",
+    readings:{
+      low:`An athlete moves to a mountain training camp where the air has less oxygen. The <span class="kw">mitochondria</span> inside muscle cells need oxygen to release <span class="kw">energy</span> from food. With less oxygen arriving, the <span class="kw">mitochondria</span> cannot keep up. The body responds by making more red blood cells to carry extra oxygen to the muscles.`,
+      med:`Olympic athletes train in the mountains on purpose. At high altitude, every breath pulls in less oxygen than at sea level. The <span class="kw">mitochondria</span> inside their muscle cells need oxygen to release <span class="kw">energy</span> from food — less oxygen means less fuel for training. The body detects the shortage and responds by producing more red blood cells. More red blood cells carry more oxygen to the <span class="kw">mitochondria</span>, restoring <span class="kw">energy</span> production. When the athletes return to sea level, those extra red blood cells give them a performance edge — their muscles get more oxygen than a competitor who trained at low altitude.`,
+      high:`Olympic teams train at high altitude for a reason that starts inside their cells. At 8,000 feet, every breath contains less oxygen than at sea level. The <span class="kw">mitochondria</span> inside muscle cells depend on oxygen to release <span class="kw">energy</span> from food — they are the power plants that keep muscles firing. With less oxygen reaching them, the <span class="kw">mitochondria</span> produce less <span class="kw">energy</span>, and performance drops. The body detects the shortage and begins producing more red blood cells to carry oxygen. More red blood cells mean more oxygen delivery to the <span class="kw">mitochondria</span>. Over weeks, the athlete's body adapts — <span class="kw">energy</span> production climbs back to normal and beyond. When they return to sea level, those extra red blood cells deliver more oxygen than their competitors' bodies can match.`
+    },
+    meterAnim:{start:50, disruption:78, response:48, final:42, finalLabel:"OK+"},
+    cellType:"muscle", organelle:"mitochondria",
+    returnsToOK: true
+  },
+  {
+    id:5, title:"Why Leaves Change Color", emoji:"🍂",
+    setup:"Temperatures drop in autumn and the tree stops sending water to its leaves.",
+    readings:{
+      low:`Green leaves are green because of <span class="kw">chloroplasts</span> packed with a green pigment called chlorophyll. In autumn, the tree stops sending water to its leaves. The <span class="kw">chloroplasts</span> break down and the green fades away. Yellow and orange pigments that were hidden underneath finally show through.`,
+      med:`All summer, the <span class="kw">chloroplasts</span> in leaf cells work nonstop — capturing sunlight and turning it into food for the tree. The green you see comes from chlorophyll, a pigment packed inside every <span class="kw">chloroplast</span>. When autumn arrives, shorter days and cooler temperatures signal the tree to shut down its leaves. The tree stops sending water, and the <span class="kw">chloroplasts</span> start breaking apart. As the green chlorophyll disappears, yellow and orange pigments that were always there — hidden under the green — finally become visible. The tree is shutting down its solar panels for winter to save <span class="kw">energy</span>.`,
+      high:`All summer long, <span class="kw">chloroplasts</span> inside leaf cells capture sunlight and convert it into food for the tree. The green color comes from chlorophyll, a light-absorbing pigment packed inside every <span class="kw">chloroplast</span>. But chlorophyll is not the only pigment in the leaf — yellow and orange pigments called carotenoids sit underneath, hidden by the dominant green. When autumn arrives, shorter days signal the tree to prepare for winter. The tree stops sending water and nutrients to the leaves. Without water, the <span class="kw">chloroplasts</span> cannot function, and the chlorophyll molecules start breaking apart. As the green disappears, the yellow and orange pigments finally show through — they were there all along. The tree is shutting down its <span class="kw">energy</span> factories on purpose, sacrificing leaves to survive the cold months ahead.`
+    },
+    meterAnim:{start:50, disruption:70, response:82, final:85, finalLabel:"SHUTDOWN"},
+    cellType:"leaf", organelle:"chloroplast",
+    returnsToOK: false
+  },
+  {
+    id:6, title:"Broken Bones Heal Stronger", emoji:"🦴",
+    setup:"A bone fractures and the body detects the break.",
+    readings:{
+      low:`A bone snaps and your body floods the break with special bone-building cells. These cells divide rapidly through <span class="kw">mitosis</span> to fill the fracture with new bone tissue. The new bone is actually denser than the original — your body overbuilds the repair. The <span class="kw">nucleus</span> in each bone cell carries the instructions for exactly what to construct.`,
+      med:`When a bone breaks, your body treats the fracture site like a construction zone. Special bone-building cells flood the area and start dividing fast through <span class="kw">mitosis</span>. The <span class="kw">nucleus</span> in each cell carries the <span class="kw">DNA</span> blueprint for bone tissue — the instructions for what to build and where. The new bone that fills the gap is actually denser and thicker than the original. Your body overbuilds on purpose, reinforcing the weak spot so it will not break there again. This is <span class="kw">cell division</span> responding to damage — and the <span class="kw">mitochondria</span> inside each bone cell supply the <span class="kw">energy</span> to power the entire rebuild.`,
+      high:`When a bone fractures, your body launches a massive repair operation at the cellular level. Chemical signals rush to the break, telling nearby bone cells to start dividing immediately. These bone-building cells go through <span class="kw">mitosis</span> — each cell copies its chromosomes and splits into two identical cells. The <span class="kw">nucleus</span> in every cell holds the <span class="kw">DNA</span> instructions for building bone tissue. The <span class="kw">mitochondria</span> power the entire process, releasing <span class="kw">energy</span> from food to fuel thousands of divisions. Over weeks, the new bone fills the fracture gap — and it is actually denser than the original. Your body deliberately overbuilds the repair site, reinforcing the weak spot so it is less likely to break there again. This is <span class="kw">cell division</span> working as an emergency construction crew — fast, precise, and designed to make you stronger than before.`
+    },
+    meterAnim:{start:50, disruption:85, response:45, final:40, finalLabel:"OK+"},
+    cellType:"bone", organelle:"division",
+    returnsToOK: true
+  },
+  {
+    id:7, title:"Lizards Regrow Tails", emoji:"🦎",
+    setup:"A lizard loses its tail to escape a predator.",
+    readings:{
+      low:`A lizard drops its tail to escape a predator. Cells near the wound start <span class="kw">cell division</span> at incredible speed, building new muscle, bone, and skin. The <span class="kw">nucleus</span> in each cell carries the instructions for what to build. Human cells can heal wounds, but they cannot regrow entire body parts — scientists study lizards to find out why.`,
+      med:`A lizard escapes a predator by snapping off its own tail — and then grows it back. Special cells near the wound immediately begin rapid <span class="kw">cell division</span>, building new muscle, bone, and skin from scratch. The <span class="kw">nucleus</span> in each cell carries the <span class="kw">DNA</span> instructions for the entire tail blueprint. Through <span class="kw">mitosis</span>, one cell becomes two, two become four, and the tail rebuilds piece by piece. Human cells can heal cuts and broken bones, but they cannot regrow a whole limb. Scientists study lizard <span class="kw">cell division</span> because the basic cell machinery — <span class="kw">nucleus</span>, <span class="kw">DNA</span>, <span class="kw">mitochondria</span> — is surprisingly similar to ours.`,
+      high:`A lizard escapes a hawk by snapping off its own tail — a survival move that seems extreme until you watch what happens next. Cells near the wound site activate immediately and begin rapid <span class="kw">cell division</span>. Through <span class="kw">mitosis</span>, each cell copies its chromosomes and splits into an identical pair. The <span class="kw">nucleus</span> in every new cell carries the complete <span class="kw">DNA</span> blueprint for muscle, bone, nerve, and skin. The <span class="kw">mitochondria</span> supply the <span class="kw">energy</span> to power thousands of cell divisions over weeks. Layer by layer, the tail rebuilds — bone in the center, muscle around it, skin on the outside. Human cells use the same basic machinery — <span class="kw">nucleus</span>, <span class="kw">DNA</span>, <span class="kw">mitochondria</span> — but cannot regrow lost limbs. Scientists are studying lizard cells to understand what signal tells them to rebuild an entire structure instead of just closing a wound.`
+    },
+    meterAnim:{start:50, disruption:15, response:35, final:50, finalLabel:"OK"},
+    cellType:"lizard", organelle:"division",
+    returnsToOK: true
+  },
+  {
+    id:8, title:"The Oldest Living Thing", emoji:"🌲",
+    setup:"A brutal 200-year drought hits a bristlecone pine tree that is already nearly 5,000 years old.",
+    readings:{
+      low:`A bristlecone pine tree in California is nearly 5,000 years old — and a brutal drought just cut off its water supply for years. The tree slows <span class="kw">cell division</span> to a crawl to save <span class="kw">energy</span>. Thick cell walls protect the cells that remain, but entire branches die and never grow back. The tree survives, but it is permanently smaller — some damage cannot be undone.`,
+      med:`A bristlecone pine in the California mountains is nearly 5,000 years old — it was alive before the pyramids existed. Now a 200-year drought is starving it of water. The tree responds by slowing <span class="kw">cell division</span> through <span class="kw">mitosis</span> to an absolute crawl — adding barely a paper-thin ring of new cells per year. Thick cell walls protect the surviving cells from drying out completely. But the outer branches cannot get enough water. Entire limbs die and never regrow — the tree survives the drought, but it loses parts of itself permanently.`,
+      high:`A bristlecone pine in California's White Mountains is nearly 5,000 years old — it was alive before the Egyptian pyramids existed. Now a brutal drought that lasts over 200 years is testing its limits. The tree responds by slowing <span class="kw">cell division</span> through <span class="kw">mitosis</span> to an absolute minimum — adding barely one paper-thin ring of new cells per year. Slow <span class="kw">mitosis</span> means the <span class="kw">nucleus</span> has time to copy <span class="kw">DNA</span> accurately, avoiding dangerous errors even under stress. Thick cell walls protect the core cells from drying out completely. But the tree cannot save everything. Outer branches starve for water, and entire limbs die permanently — the tree sacrifices parts of itself to keep the core alive. The bristlecone survives the drought, but it never fully recovers — some damage is permanent, even for the oldest living thing on Earth.`
+    },
+    meterAnim:{start:50, disruption:82, response:68, final:65, finalLabel:"Partial"},
+    cellType:"tree", organelle:"cellwall",
+    returnsToOK: false
+  }
+];
+
+const KEYWORDS = ["mitochondria","cell division","mitosis","chloroplast","DNA","nucleus","energy"];
+
+// ============ STATE ============
+let currentScenario = null;
+let currentLevel = 'low';
+let currentStep = null; // predict, read, watch, record
+let prediction = null;
+let predictionLocked = false;
+let completedScenarios = {};
+let dataRecords = {};
+let speechSynth = window.speechSynthesis;
+let completionShown5 = false;
+let completionShown8 = false;
+
+// ============ INIT ============
+function startApp(){
+  document.getElementById('splash').classList.add('hidden');
+  setTimeout(()=>{
+    document.getElementById('splash').style.display='none';
+    document.getElementById('app').classList.add('active');
+  },600);
+  buildSidebar();
+  buildDataTable();
+}
+
+function buildSidebar(){
+  const sb = document.getElementById('sidebar');
+  let h = '<h2>Scenarios</h2>';
+  SCENARIOS.forEach(s=>{
+    h+=`<div class="scenario-card" id="sc${s.id}" onclick="selectScenario(${s.id})">
+      <span class="sc-emoji">${s.emoji}</span>
+      <div class="sc-info">
+        <span class="sc-title">${s.title}</span>
+        <span class="sc-status" id="scStatus${s.id}">Not started</span>
+      </div>
+    </div>`;
+  });
+  sb.innerHTML = h;
+}
+
+function buildDataTable(){
+  const tb = document.getElementById('dataBody');
+  let h = '';
+  SCENARIOS.forEach(s=>{
+    h+=`<tr id="dataRow${s.id}">
+      <td>${s.id}</td>
+      <td>${s.emoji} ${s.title}</td>
+      <td class="empty" id="dataChanged${s.id}">—</td>
+      <td class="empty" id="dataResponse${s.id}">—</td>
+      <td class="empty" id="dataBack${s.id}">—</td>
+    </tr>`;
+  });
+  tb.innerHTML = h;
+}
+
+// ============ SCENARIO SELECTION ============
+function selectScenario(id){
+  if(currentScenario && currentStep && currentStep !== 'done' && !completedScenarios[currentScenario.id]){
+    // allow switching
+  }
+  const s = SCENARIOS.find(x=>x.id===id);
+  currentScenario = s;
+  prediction = null;
+  predictionLocked = false;
+
+  // Highlight sidebar
+  document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('sc'+id).classList.add('active');
+
+  // If already completed, show read-only
+  if(completedScenarios[id]){
+    currentStep = 'done';
+  } else {
+    currentStep = 'predict';
+  }
+
+  document.getElementById('welcome').style.display='none';
+  document.getElementById('scenarioView').classList.add('active');
+
+  renderScenario();
+}
+
+function renderScenario(){
+  const s = currentScenario;
+
+  // Arena header
+  document.getElementById('arenaEmoji').textContent = s.emoji;
+  document.getElementById('arenaTitle').textContent = s.title;
+  document.getElementById('arenaSubtitle').textContent = s.setup;
+
+  // Keywords
+  const kwBar = document.getElementById('keywordsBar');
+  kwBar.innerHTML = KEYWORDS.map(k=>`<span class="kw-tag">${k}</span>`).join('');
+
+  // Reset meter
+  setMeter(s.meterAnim.start, 'Ready');
+
+  // Draw cell
+  drawCell(s, 'idle');
+
+  // Show correct step
+  updateStepView();
+}
+
+// ============ READING LEVEL ============
+function setLevel(lv, btn){
+  currentLevel = lv;
+  document.querySelectorAll('.level-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(currentScenario && currentStep === 'read') renderReadPanel();
+}
+
+// ============ STEP MANAGEMENT ============
+function updateStepView(){
+  const steps = ['predict','read','watch','record'];
+  const pills = document.querySelectorAll('.step-pill');
+
+  pills.forEach((p,i)=>{
+    p.classList.remove('current','done');
+    if(currentStep === 'done'){
+      p.classList.add('done');
+    } else {
+      const stepIdx = steps.indexOf(currentStep);
+      if(i < stepIdx) p.classList.add('done');
+      else if(i === stepIdx) p.classList.add('current');
+    }
+  });
+
+  // Hide all panels
+  ['predictPanel','readPanel','watchPanel','recordPanel'].forEach(id=>{
+    document.getElementById(id).classList.remove('active');
+  });
+
+  if(currentStep === 'predict') renderPredictPanel();
+  else if(currentStep === 'read') renderReadPanel();
+  else if(currentStep === 'watch') renderWatchPanel();
+  else if(currentStep === 'record') renderRecordPanel();
+  else if(currentStep === 'done') renderDoneState();
+}
+
+// ============ PREDICT ============
+function renderPredictPanel(){
+  const panel = document.getElementById('predictPanel');
+  panel.classList.add('active');
+  document.getElementById('predictSetup').textContent = currentScenario.setup;
+
+  const opts = document.getElementById('predictOptions');
+  const choices = [
+    {letter:'A', text:'Cells will speed up division'},
+    {letter:'B', text:'Cells will activate an organelle'},
+    {letter:'C', text:'Cells will shut down'}
+  ];
+  opts.innerHTML = choices.map(c=>`
+    <div class="predict-option" data-choice="${c.letter}" onclick="pickPrediction('${c.letter}',this)">
+      <span class="opt-letter">${c.letter}</span>
+      <span>${c.text}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('lockPredictBtn').disabled = true;
+  drawCell(currentScenario, 'idle');
+}
+
+function pickPrediction(choice, el){
+  if(predictionLocked) return;
+  prediction = choice;
+  document.querySelectorAll('.predict-option').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('lockPredictBtn').disabled = false;
+}
+
+function lockPrediction(){
+  if(!prediction) return;
+  predictionLocked = true;
+  document.querySelectorAll('.predict-option').forEach(o=>o.classList.add('locked'));
+  currentStep = 'read';
+  updateStepView();
+}
+
+// ============ READ ============
+function renderReadPanel(){
+  const panel = document.getElementById('readPanel');
+  panel.classList.add('active');
+  const s = currentScenario;
+  const text = s.readings[currentLevel === 'med' ? 'med' : currentLevel];
+  document.getElementById('readContent').innerHTML = text;
+}
+
+function readAloud(){
+  if(speechSynth.speaking) speechSynth.cancel();
+  const text = document.getElementById('readContent').innerText;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.9;
+  speechSynth.speak(utter);
+}
+
+function goToWatch(){
+  if(speechSynth.speaking) speechSynth.cancel();
+  currentStep = 'watch';
+  updateStepView();
+}
+
+// ============ WATCH ============
+function renderWatchPanel(){
+  const panel = document.getElementById('watchPanel');
+  panel.classList.add('active');
+  document.getElementById('watchNextBtn').disabled = true;
+
+  const s = currentScenario;
+
+  // Animate the meter and cell
+  animateWatch(s);
+}
+
+function animateWatch(s){
+  const m = s.meterAnim;
+
+  // Step 1: disruption
+  setTimeout(()=>{
+    if(m.disruption > 50){
+      setMeter(m.disruption, 'Disruption!');
+    } else {
+      setMeter(m.disruption, 'Disruption!');
+    }
+    drawCell(s, 'disruption');
+  }, 400);
+
+  // Step 2: response
+  setTimeout(()=>{
+    setMeter(m.response, 'Responding...');
+    drawCell(s, 'response');
+  }, 2200);
+
+  // Step 3: final
+  setTimeout(()=>{
+    setMeter(m.final, m.finalLabel);
+    drawCell(s, 'final');
+    document.getElementById('watchNextBtn').disabled = false;
+  }, 4000);
+}
+
+function goToRecord(){
+  currentStep = 'record';
+  updateStepView();
+}
+
+// ============ RECORD ============
+function renderRecordPanel(){
+  const panel = document.getElementById('recordPanel');
+  panel.classList.add('active');
+
+  // Pre-fill if revisiting
+  const rec = dataRecords[currentScenario.id];
+  document.getElementById('recChanged').value = rec ? rec.changed : '';
+  document.getElementById('recResponse').value = rec ? rec.response : '';
+  document.getElementById('recBack').value = rec ? rec.back : '';
+}
+
+function submitRecord(){
+  const s = currentScenario;
+  const changed = document.getElementById('recChanged').value.trim();
+  const response = document.getElementById('recResponse').value.trim();
+  const back = document.getElementById('recBack').value.trim();
+
+  if(!changed && !response && !back){
+    // Allow empty but nudge
+  }
+
+  dataRecords[s.id] = {changed, response, back};
+  completedScenarios[s.id] = true;
+  currentStep = 'done';
+
+  // Update sidebar
+  document.getElementById('sc'+s.id).classList.add('completed');
+  document.getElementById('scStatus'+s.id).textContent = '✓ Completed';
+
+  // Update data table
+  const setCell = (id, val) => {
+    const el = document.getElementById(id);
+    el.textContent = val || '—';
+    el.classList.toggle('empty', !val);
+  };
+  setCell('dataChanged'+s.id, changed);
+  setCell('dataResponse'+s.id, response);
+  setCell('dataBack'+s.id, back);
+
+  // Update progress
+  updateProgress();
+  updateStepView();
+
+  // Briefly expand data panel to show the new entry
+  const ds = document.getElementById('dataSection');
+  ds.classList.remove('collapsed');
+  setTimeout(()=>{ ds.classList.add('collapsed'); }, 2000);
+}
+
+function renderDoneState(){
+  // Show a completed message in the arena
+  const s = currentScenario;
+  drawCell(s, 'final');
+  setMeter(s.meterAnim.final, s.meterAnim.finalLabel);
+
+  // Show read panel as review
+  const panel = document.getElementById('readPanel');
+  panel.classList.add('active');
+  const text = s.readings[currentLevel === 'med' ? 'med' : currentLevel];
+  document.getElementById('readContent').innerHTML = `<div style="margin-bottom:8px;color:var(--accent);font-weight:700;font-size:.75rem">✓ COMPLETED — Review Mode</div>` + text;
+}
+
+// ============ PROGRESS ============
+function updateProgress(){
+  const count = Object.keys(completedScenarios).length;
+  const pct = Math.round((count / 5) * 100);
+  document.getElementById('progressFill').style.width = Math.min(pct,100) + '%';
+  document.getElementById('progressLabel').textContent = count >= 5
+    ? (count >= 8 ? `${count} / 8 ★ EXTRA CREDIT!` : `${count} / 5 complete (${8-count} more = extra credit)`)
+    : `${count} / 5 complete`;
+
+  // Update data badge
+  const badge = document.getElementById('dataBadge');
+  badge.textContent = count + ' / 8';
+  badge.classList.toggle('has-data', count > 0);
+
+  if(count >= 5 && !completionShown5){
+    completionShown5 = true;
+    showCompletion(count);
+  }
+  if(count >= 8 && !completionShown8){
+    completionShown8 = true;
+    showCompletion(count);
+  }
+}
+
+function showCompletion(count){
+  const el = document.getElementById('completion');
+  document.getElementById('completionMsg').textContent = count >= 8
+    ? 'You completed ALL 8 scenarios! Full extra credit earned!'
+    : 'You completed 5 scenarios. Nice work, Cell Science Investigator! Complete all 8 for extra credit.';
+  el.classList.add('active');
+}
+
+// ============ DATA PANEL TOGGLE ============
+function toggleDataPanel(){
+  document.getElementById('dataSection').classList.toggle('collapsed');
+}
+
+// ============ COPY DATA TO CLIPBOARD ============
+function copyData(){
+  const headers = ['#','Scenario','What Changed?','System Response','Back Toward OK?'];
+  let rows = [headers.join('\t')];
+  SCENARIOS.forEach(s=>{
+    const rec = dataRecords[s.id];
+    rows.push([
+      s.id,
+      s.title,
+      rec ? rec.changed : '',
+      rec ? rec.response : '',
+      rec ? rec.back : ''
+    ].join('\t'));
+  });
+  const text = rows.join('\n');
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn = document.getElementById('copyDataBtn');
+    const toast = document.getElementById('copyToast');
+    btn.classList.add('copied');
+    btn.innerHTML = '✓ Copied!';
+    toast.classList.add('show');
+    setTimeout(()=>{
+      btn.classList.remove('copied');
+      btn.innerHTML = '📋 Copy';
+      toast.classList.remove('show');
+    }, 2000);
+  }).catch(()=>{
+    // Fallback: select text
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    const toast = document.getElementById('copyToast');
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'), 2000);
+  });
+}
+
+// ============ METER ============
+function setMeter(pct, label){
+  // pct: 0=top(HIGH), 50=middle(OK), 100=bottom(LOW)
+  // Convert to CSS top: 0% = top of meter, 100% = bottom
+  // We map: HIGH zone = 0-30%, OK = 30-70%, LOW = 70-100%
+  // pct 0 = extreme high (top) => CSS top ~15%
+  // pct 50 = OK center => CSS top ~50%
+  // pct 100 = extreme low (bottom) => CSS top ~85%
+  const cssTop = 10 + (pct / 100) * 80; // range 10% to 90%
+  document.getElementById('meterNeedle').style.top = cssTop + '%';
+  document.getElementById('meterLabel').textContent = label;
+
+  // Color the needle based on zone
+  const needle = document.getElementById('meterNeedle');
+  if(cssTop < 35) needle.style.background = 'var(--orange)';
+  else if(cssTop > 65) needle.style.background = 'var(--red)';
+  else needle.style.background = 'var(--green)';
+}
+
+// ============ CELL VISUALS ============
+function drawCell(scenario, state){
+  const cv = document.getElementById('cellVisual');
+  const s = scenario;
+
+  // Build an SVG-based cell diagram
+  let svg = '';
+  const w = 400, h = 280;
+
+  if(s.cellType === 'skin' || s.cellType === 'bone' || s.cellType === 'lizard'){
+    svg = drawAnimalCell(s, state, w, h);
+  } else if(s.cellType === 'plant' || s.cellType === 'leaf' || s.cellType === 'tree'){
+    svg = drawPlantCell(s, state, w, h);
+  } else if(s.cellType === 'muscle'){
+    svg = drawMuscleCell(s, state, w, h);
+  }
+
+  cv.innerHTML = `<svg class="cell-svg" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+}
+
+function drawAnimalCell(s, state, w, h){
+  const cx=w/2, cy=h/2;
+  let nucleusColor = '#4dabf7';
+  let cellColor = '#1a3a5c';
+  let cellStroke = '#4dabf7';
+  let dnaColor = '#ffd32a';
+  let divisionAnim = '';
+  let extra = '';
+  let nucleusGlow = '';
+  let cellOpacity = 1;
+
+  if(state === 'disruption'){
+    nucleusColor = '#ff4d6a';
+    cellStroke = '#ff4d6a';
+    dnaColor = '#ff4d6a';
+    nucleusGlow = `<animate attributeName="opacity" values="1;0.4;1" dur="0.8s" repeatCount="indefinite"/>`;
+    if(s.id === 1){ // sunburn: cell graying
+      cellColor = '#2a2a3a';
+      extra = `<text x="${cx}" y="${cy+70}" text-anchor="middle" fill="#ff4d6a" font-size="11" font-weight="bold" font-family="Nunito">⚠️ DNA DAMAGED</text>`;
+    }
+    if(s.id === 3){ // cut: gap
+      extra = `<rect x="${cx-5}" y="${cy-60}" width="10" height="120" fill="#ff4d6a33" rx="3"><animate attributeName="opacity" values="0.3;0.7;0.3" dur="1s" repeatCount="indefinite"/></rect>
+      <text x="${cx}" y="${cy+70}" text-anchor="middle" fill="#ff4d6a" font-size="11" font-weight="bold" font-family="Nunito">⚠️ CELLS DESTROYED</text>`;
+    }
+    if(s.id === 6){ // bone break
+      extra = `<line x1="${cx-30}" y1="${cy}" x2="${cx+30}" y2="${cy}" stroke="#ff4d6a" stroke-width="3" stroke-dasharray="8,4"><animate attributeName="opacity" values="1;0.4;1" dur="0.6s" repeatCount="indefinite"/></line>
+      <text x="${cx}" y="${cy+70}" text-anchor="middle" fill="#ff4d6a" font-size="11" font-weight="bold" font-family="Nunito">⚠️ FRACTURE DETECTED</text>`;
+    }
+    if(s.id === 7){ // tail lost
+      extra = `<text x="${cx}" y="${cy+70}" text-anchor="middle" fill="#ff4d6a" font-size="11" font-weight="bold" font-family="Nunito">⚠️ TAIL LOST</text>`;
+    }
+  }
+
+  if(state === 'response'){
+    nucleusColor = '#00e5a0';
+    cellStroke = '#00e5a0';
+    cellColor = '#0d2a1f';
+    nucleusGlow = `<animate attributeName="r" values="22;26;22" dur="1s" repeatCount="indefinite"/>`;
+    // Show division animation
+    extra = `
+      <ellipse cx="${cx-55}" cy="${cy}" rx="30" ry="40" fill="#0a3022" stroke="#00e5a066" stroke-width="1.5" opacity="0.8">
+        <animate attributeName="opacity" values="0;0.8" dur="1s" fill="freeze"/>
+      </ellipse>
+      <ellipse cx="${cx+55}" cy="${cy}" rx="30" ry="40" fill="#0a3022" stroke="#00e5a066" stroke-width="1.5" opacity="0.8">
+        <animate attributeName="opacity" values="0;0.8" dur="1s" fill="freeze"/>
+      </ellipse>
+      <text x="${cx}" y="${cy+75}" text-anchor="middle" fill="#00e5a0" font-size="11" font-weight="bold" font-family="Nunito">⚡ CELL DIVISION ACTIVE</text>
+    `;
+  }
+
+  if(state === 'final'){
+    nucleusColor = '#4dabf7';
+    cellStroke = '#00e5a0';
+    cellColor = '#0f2030';
+    if(s.id === 6){ // stronger bone
+      extra = `<text x="${cx}" y="${cy+75}" text-anchor="middle" fill="#00e5a0" font-size="11" font-weight="bold" font-family="Nunito">✓ HEALED STRONGER</text>`;
+      cellStroke = '#ffd32a';
+    } else if(s.id === 7){
+      extra = `<text x="${cx}" y="${cy+75}" text-anchor="middle" fill="#00e5a0" font-size="11" font-weight="bold" font-family="Nunito">✓ TAIL REGROWN</text>`;
+    } else {
+      extra = `<text x="${cx}" y="${cy+75}" text-anchor="middle" fill="#00e5a0" font-size="11" font-weight="bold" font-family="Nunito">✓ CELLS REPLACED</text>`;
+    }
+  }
+
+  return `
+    <defs>
+      <radialGradient id="cellGrad" cx="40%" cy="40%">
+        <stop offset="0%" stop-color="${cellColor}"/>
+        <stop offset="100%" stop-color="#0a0e1a"/>
+      </radialGradient>
+    </defs>
+    <!-- Cell membrane -->
+    <ellipse cx="${cx}" cy="${cy}" rx="100" ry="70" fill="url(#cellGrad)" stroke="${cellStroke}" stroke-width="2.5" opacity="${cellOpacity}"/>
+    <!-- Nucleus -->
+    <circle cx="${cx}" cy="${cy}" r="24" fill="${nucleusColor}22" stroke="${nucleusColor}" stroke-width="2">
+      ${nucleusGlow}
+    </circle>
+    <text x="${cx}" y="${cy-30}" text-anchor="middle" fill="${nucleusColor}" font-size="9" font-weight="bold" font-family="Orbitron">NUCLEUS</text>
+    <!-- DNA inside nucleus -->
+    <path d="M${cx-8},${cy-6} Q${cx},${cy-12} ${cx+8},${cy-6} Q${cx},${cy} ${cx-8},${cy+6} Q${cx},${cy+12} ${cx+8},${cy+6}" fill="none" stroke="${dnaColor}" stroke-width="1.5"/>
+    <text x="${cx}" y="${cy+10}" text-anchor="middle" fill="${dnaColor}" font-size="7" font-family="Nunito" font-weight="700">DNA</text>
+    <!-- Mitochondria -->
+    <ellipse cx="${cx+60}" cy="${cy-20}" rx="16" ry="8" fill="#ff9f4322" stroke="#ff9f43" stroke-width="1.2" transform="rotate(-20,${cx+60},${cy-20})"/>
+    <text x="${cx+60}" y="${cy-32}" text-anchor="middle" fill="#ff9f43" font-size="6" font-family="Nunito" font-weight="700">MITO</text>
+    <ellipse cx="${cx-55}" cy="${cy+20}" rx="14" ry="7" fill="#ff9f4322" stroke="#ff9f43" stroke-width="1.2" transform="rotate(15,${cx-55},${cy+20})"/>
+    ${extra}
+    <!-- Label -->
+    <text x="${cx}" y="${h-10}" text-anchor="middle" fill="#475569" font-size="9" font-family="Orbitron">${s.emoji} ${s.title}</text>
+  `;
+}
+
+function drawPlantCell(s, state, w, h){
+  const cx=w/2, cy=h/2;
+  let wallColor = '#2d5a27';
+  let chloroColor = '#22c55e';
+  let chloroFill = '#22c55e33';
+  let extra = '';
+
+  if(state === 'disruption'){
+    if(s.id === 5){ // leaves: chloroplasts fading
+      chloroColor = '#a3a322';
+      chloroFill = '#a3a32222';
+      extra = `<text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#ff9f43" font-size="11" font-weight="bold" font-family="Nunito">🍂 CHLOROPLASTS SHUTTING DOWN</text>`;
+    } else if(s.id === 8){ // bristlecone drought
+      wallColor = '#5a4a27';
+      extra = `<text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#ff9f43" font-size="11" font-weight="bold" font-family="Nunito">⚠️ DROUGHT — WATER LOST</text>`;
+    } else { // plant bending
+      chloroColor = '#666';
+      chloroFill = '#66666622';
+      extra = `<text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#ff9f43" font-size="11" font-weight="bold" font-family="Nunito">⚠️ LOW LIGHT — ENERGY DROPPING</text>`;
+    }
+  }
+
+  if(state === 'response'){
+    if(s.id === 5){ // leaves changing
+      chloroColor = '#e67e22';
+      chloroFill = '#e67e2233';
+      extra = `<text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#e67e22" font-size="11" font-weight="bold" font-family="Nunito">🍂 HIDDEN PIGMENTS REVEALED</text>`;
+    } else if(s.id === 8){ // tree: thick walls
+      wallColor = '#8a6a17';
+      extra = `
+        <rect x="${cx-85}" y="${cy-55}" width="170" height="110" fill="none" stroke="#ffd32a55" stroke-width="6" rx="10"><animate attributeName="stroke-opacity" values="0.2;0.6;0.2" dur="1.5s" repeatCount="indefinite"/></rect>
+        <text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#ffd32a" font-size="11" font-weight="bold" font-family="Nunito">🛡️ CELL WALLS THICKENING</text>
+      `;
+    } else { // plant bending toward light
+      chloroColor = '#22c55e';
+      chloroFill = '#22c55e33';
+      extra = `
+        <circle cx="${cx+120}" cy="${cy-60}" r="20" fill="#ffd32a33" stroke="#ffd32a" stroke-width="1"><animate attributeName="r" values="18;24;18" dur="2s" repeatCount="indefinite"/></circle>
+        <text x="${cx+120}" y="${cy-60}" text-anchor="middle" fill="#ffd32a" font-size="8" font-family="Nunito" font-weight="700">☀️</text>
+        <text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#00e5a0" font-size="11" font-weight="bold" font-family="Nunito">⚡ BENDING TOWARD LIGHT</text>
+      `;
+    }
+  }
+
+  if(state === 'final'){
+    if(s.id === 5){
+      chloroColor = '#e67e22';
+      chloroFill = '#e67e2233';
+      extra = `<text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#ff9f43" font-size="11" font-weight="bold" font-family="Nunito">⏹ SHUTDOWN COMPLETE</text>`;
+    } else if(s.id === 8){
+      wallColor = '#6a5a17';
+      extra = `<text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#ffd32a" font-size="11" font-weight="bold" font-family="Nunito">⚠ SURVIVED — PARTIAL DAMAGE</text>`;
+    } else {
+      extra = `<text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#00e5a0" font-size="11" font-weight="bold" font-family="Nunito">✓ CHLOROPLASTS FED</text>`;
+    }
+  }
+
+  return `
+    <!-- Cell wall -->
+    <rect x="${cx-90}" y="${cy-60}" width="180" height="120" fill="${wallColor}22" stroke="${wallColor}" stroke-width="3" rx="8"/>
+    <text x="${cx+75}" y="${cy-65}" text-anchor="end" fill="${wallColor}" font-size="8" font-family="Orbitron">CELL WALL</text>
+    <!-- Cell membrane inside -->
+    <rect x="${cx-80}" y="${cy-50}" width="160" height="100" fill="#0d1a0f" stroke="#2d5a2766" stroke-width="1" rx="5"/>
+    <!-- Nucleus -->
+    <circle cx="${cx}" cy="${cy}" r="20" fill="#4dabf722" stroke="#4dabf7" stroke-width="1.5"/>
+    <text x="${cx}" y="${cy+3}" text-anchor="middle" fill="#4dabf7" font-size="8" font-family="Nunito" font-weight="700">NUCLEUS</text>
+    <!-- Chloroplasts -->
+    <ellipse cx="${cx-45}" cy="${cy-25}" rx="14" ry="8" fill="${chloroFill}" stroke="${chloroColor}" stroke-width="1.5"/>
+    <ellipse cx="${cx+45}" cy="${cy-25}" rx="14" ry="8" fill="${chloroFill}" stroke="${chloroColor}" stroke-width="1.5"/>
+    <ellipse cx="${cx-40}" cy="${cy+25}" rx="14" ry="8" fill="${chloroFill}" stroke="${chloroColor}" stroke-width="1.5"/>
+    <ellipse cx="${cx+40}" cy="${cy+25}" rx="14" ry="8" fill="${chloroFill}" stroke="${chloroColor}" stroke-width="1.5"/>
+    <text x="${cx-45}" y="${cy-35}" text-anchor="middle" fill="${chloroColor}" font-size="6" font-family="Nunito" font-weight="700">CHLORO</text>
+    <!-- Vacuole -->
+    <ellipse cx="${cx+10}" cy="${cy+10}" rx="25" ry="18" fill="#4dabf711" stroke="#4dabf733" stroke-width="1" stroke-dasharray="4,3"/>
+    ${extra}
+    <text x="${cx}" y="${h-10}" text-anchor="middle" fill="#475569" font-size="9" font-family="Orbitron">${s.emoji} ${s.title}</text>
+  `;
+}
+
+function drawMuscleCell(s, state, w, h){
+  const cx=w/2, cy=h/2;
+  let mitoColor = '#ff9f43';
+  let mitoFill = '#ff9f4333';
+  let mitoGlow = '';
+  let extra = '';
+  let energyParticles = '';
+
+  if(state === 'disruption'){
+    mitoColor = '#884422';
+    mitoFill = '#88442222';
+    extra = `<text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#ff4d6a" font-size="11" font-weight="bold" font-family="Nunito">⚠️ LOW OXYGEN — ENERGY DROPPING</text>`;
+  }
+
+  if(state === 'response'){
+    mitoColor = '#ff9f43';
+    mitoFill = '#ff9f4344';
+    mitoGlow = `<animate attributeName="opacity" values="0.6;1;0.6" dur="1s" repeatCount="indefinite"/>`;
+    // Red blood cells flowing in
+    extra = `
+      <circle cx="${cx-100}" cy="${cy-30}" r="6" fill="#ff4d6a88" stroke="#ff4d6a" stroke-width="1"><animate attributeName="cx" values="${cx-100};${cx-40}" dur="2s" repeatCount="indefinite"/></circle>
+      <circle cx="${cx-120}" cy="${cy}" r="6" fill="#ff4d6a88" stroke="#ff4d6a" stroke-width="1"><animate attributeName="cx" values="${cx-120};${cx-40}" dur="2.5s" repeatCount="indefinite"/></circle>
+      <circle cx="${cx-110}" cy="${cy+25}" r="6" fill="#ff4d6a88" stroke="#ff4d6a" stroke-width="1"><animate attributeName="cx" values="${cx-110};${cx-40}" dur="1.8s" repeatCount="indefinite"/></circle>
+      <text x="${cx-100}" y="${cy+60}" text-anchor="middle" fill="#ff4d6a" font-size="8" font-family="Nunito" font-weight="700">RED BLOOD CELLS</text>
+      <text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#00e5a0" font-size="11" font-weight="bold" font-family="Nunito">⚡ MORE OXYGEN ARRIVING</text>
+    `;
+  }
+
+  if(state === 'final'){
+    mitoColor = '#ffd32a';
+    mitoFill = '#ffd32a33';
+    energyParticles = `
+      <circle cx="${cx+50}" cy="${cy-10}" r="3" fill="#ffd32a"><animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/></circle>
+      <circle cx="${cx-30}" cy="${cy+15}" r="3" fill="#ffd32a"><animate attributeName="opacity" values="0;1;0" dur="1.8s" repeatCount="indefinite"/></circle>
+    `;
+    extra = `<text x="${cx}" y="${cy+80}" text-anchor="middle" fill="#00e5a0" font-size="11" font-weight="bold" font-family="Nunito">✓ ENERGY BOOSTED — ADVANTAGE</text>`;
+  }
+
+  return `
+    <!-- Muscle cell (elongated) -->
+    <ellipse cx="${cx}" cy="${cy}" rx="120" ry="55" fill="#1a1a2e" stroke="#4dabf7" stroke-width="2"/>
+    <!-- Striations -->
+    ${[cx-80,cx-50,cx-20,cx+10,cx+40,cx+70].map(x=>`<line x1="${x}" y1="${cy-30}" x2="${x}" y2="${cy+30}" stroke="#4dabf722" stroke-width="1"/>`).join('')}
+    <!-- Mitochondria (multiple) -->
+    <ellipse cx="${cx-40}" cy="${cy-15}" rx="18" ry="9" fill="${mitoFill}" stroke="${mitoColor}" stroke-width="1.5" transform="rotate(-10,${cx-40},${cy-15})">${mitoGlow}</ellipse>
+    <ellipse cx="${cx+30}" cy="${cy+10}" rx="18" ry="9" fill="${mitoFill}" stroke="${mitoColor}" stroke-width="1.5" transform="rotate(15,${cx+30},${cy+10})">${mitoGlow}</ellipse>
+    <ellipse cx="${cx+70}" cy="${cy-8}" rx="15" ry="8" fill="${mitoFill}" stroke="${mitoColor}" stroke-width="1.5" transform="rotate(-5,${cx+70},${cy-8})">${mitoGlow}</ellipse>
+    <text x="${cx}" y="${cy-40}" text-anchor="middle" fill="${mitoColor}" font-size="9" font-family="Orbitron">MITOCHONDRIA</text>
+    <!-- Nucleus -->
+    <circle cx="${cx}" cy="${cy}" r="14" fill="#4dabf722" stroke="#4dabf7" stroke-width="1.5"/>
+    <text x="${cx}" y="${cy+3}" text-anchor="middle" fill="#4dabf7" font-size="7" font-family="Nunito" font-weight="700">NUCLEUS</text>
+    ${energyParticles}
+    ${extra}
+    <text x="${cx}" y="${h-10}" text-anchor="middle" fill="#475569" font-size="9" font-family="Orbitron">${s.emoji} ${s.title}</text>
+  `;
+}
+</script>
+</body>
+</html>
