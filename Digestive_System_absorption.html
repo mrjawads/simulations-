@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad Simulation Absorption Zone</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);color:#fff;overflow:hidden;height:100vh;user-select:none;}
+#app{display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr auto;height:100vh;gap:0;}
+
+/* TOP HUD BAR */
+#hud-bar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:linear-gradient(90deg,#0d47a1,#1565c0,#1976d2);border-bottom:3px solid #0d47a1;height:56px;z-index:10;}
+#hud-bar h1{font-size:16px;font-weight:700;letter-spacing:0.5px;text-shadow:0 2px 4px rgba(0,0,0,0.3);}
+.hud-stats{display:flex;gap:16px;align-items:center;}
+.hud-stat{display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,0.12);border-radius:10px;padding:4px 12px;min-width:70px;}
+.hud-stat-label{font-size:9px;text-transform:uppercase;opacity:0.8;letter-spacing:1px;}
+.hud-stat-value{font-size:18px;font-weight:800;}
+#meal-icon{font-size:28px;background:rgba(255,255,255,0.15);border-radius:12px;padding:4px 10px;display:flex;align-items:center;gap:6px;}
+#meal-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;}
+#active-var-display{background:rgba(255,193,7,0.25);border:2px solid #ffc107;border-radius:10px;padding:4px 14px;font-size:12px;font-weight:700;color:#fff59d;text-align:center;animation:pulse-border 1.5s ease-in-out infinite;}
+@keyframes pulse-border{0%,100%{border-color:#ffc107;}50%{border-color:#ffeb3b;box-shadow:0 0 12px rgba(255,193,7,0.4);}}
+
+/* LEFT PANEL */
+#left-panel{background:linear-gradient(180deg,#1a237e,#283593);padding:12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;border-right:3px solid #0d47a1;}
+.panel-section{background:rgba(255,255,255,0.07);border-radius:14px;padding:12px;}
+.panel-title{font-size:11px;text-transform:uppercase;letter-spacing:2px;opacity:0.7;margin-bottom:8px;text-align:center;}
+.slider-group{margin-bottom:6px;}
+.slider-label{font-size:11px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}
+.slider-value{font-weight:800;color:#4fc3f7;font-size:13px;}
+input[type=range]{-webkit-appearance:none;width:100%;height:10px;border-radius:5px;background:linear-gradient(90deg,#e53935,#ff9800,#4caf50,#00e676);outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid #1565c0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+input[type=range].locked{opacity:0.35;cursor:not-allowed;pointer-events:none;}
+.lock-badge{font-size:9px;background:#e53935;color:#fff;padding:2px 8px;border-radius:8px;font-weight:700;letter-spacing:0.5px;}
+.active-badge{font-size:9px;background:#4caf50;color:#fff;padding:2px 8px;border-radius:8px;font-weight:700;letter-spacing:0.5px;animation:glow-green 1.5s ease-in-out infinite;}
+@keyframes glow-green{0%,100%{box-shadow:0 0 4px #4caf50;}50%{box-shadow:0 0 12px #69f0ae;}}
+
+#go-btn{width:100%;padding:14px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;box-shadow:0 4px 16px rgba(76,175,80,0.4);transition:all 0.2s;letter-spacing:1px;}
+#go-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(76,175,80,0.6);}
+#go-btn:disabled{background:linear-gradient(135deg,#616161,#424242);cursor:not-allowed;box-shadow:none;transform:none;}
+#go-btn.running{background:linear-gradient(135deg,#ff9800,#e65100);animation:pulse-btn 0.8s ease-in-out infinite;}
+@keyframes pulse-btn{0%,100%{transform:scale(1);}50%{transform:scale(1.03);}}
+
+.btn-row{display:flex;gap:8px;}
+.small-btn{flex:1;padding:8px;border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:0.5px;}
+#reset-btn{background:linear-gradient(135deg,#e53935,#b71c1c);color:#fff;}
+#new-run-btn{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff;}
+
+/* GAME MECHANICS */
+#streak-display,#combo-display{text-align:center;font-size:13px;font-weight:700;}
+#level-badge{text-align:center;padding:6px;background:linear-gradient(135deg,#ff6f00,#e65100);border-radius:10px;font-size:13px;font-weight:800;letter-spacing:1px;}
+#boost-display{text-align:center;padding:6px;background:linear-gradient(135deg,#6a1b9a,#4a148c);border-radius:10px;font-size:11px;font-weight:700;display:none;}
+#boost-display.active{display:block;animation:pulse-border 1s ease-in-out infinite;}
+
+/* PROGRESS BAR */
+#progress-section{text-align:center;}
+#progress-bar-outer{width:100%;height:14px;background:rgba(255,255,255,0.1);border-radius:7px;overflow:hidden;margin-top:4px;}
+#progress-bar-inner{height:100%;border-radius:7px;transition:width 0.5s ease;background:linear-gradient(90deg,#4caf50,#00e676);}
+#progress-text{font-size:11px;margin-top:4px;opacity:0.8;}
+
+/* ENERGY METER */
+#energy-section{text-align:center;}
+#energy-meter{display:flex;gap:3px;justify-content:center;margin-top:4px;}
+.energy-seg{width:22px;height:32px;border-radius:4px;border:2px solid rgba(255,255,255,0.2);transition:all 0.4s;}
+.energy-seg.filled{border-color:#4caf50;}
+.energy-seg.low{background:#e53935;border-color:#e53935;box-shadow:0 0 8px rgba(229,57,53,0.5);}
+.energy-seg.med{background:#ff9800;border-color:#ff9800;box-shadow:0 0 8px rgba(255,152,0,0.5);}
+.energy-seg.high{background:#4caf50;border-color:#4caf50;box-shadow:0 0 8px rgba(76,175,80,0.5);}
+
+/* ARENA */
+#arena-container{position:relative;overflow:hidden;background:linear-gradient(180deg,#0a1628,#0d1f3c);display:flex;align-items:center;justify-content:center;}
+#arena{width:100%;height:100%;position:relative;}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+
+/* RESULT OVERLAY */
+#round-result{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.85);border-radius:20px;padding:24px 36px;text-align:center;display:none;z-index:20;border:3px solid #4caf50;backdrop-filter:blur(8px);}
+#round-result.show{display:block;animation:pop-in 0.4s ease;}
+@keyframes pop-in{0%{transform:translate(-50%,-50%) scale(0.5);opacity:0;}100%{transform:translate(-50%,-50%) scale(1);opacity:1;}}
+#round-result h2{font-size:28px;margin-bottom:8px;}
+#round-result p{font-size:16px;opacity:0.8;}
+
+/* RANDOM EVENT OVERLAY */
+#event-overlay{position:absolute;top:10px;right:10px;background:rgba(229,57,53,0.9);border-radius:14px;padding:10px 18px;display:none;z-index:15;font-size:13px;font-weight:700;border:2px solid #ff5252;animation:shake 0.5s ease;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-8px);}75%{transform:translateX(8px);}}
+#event-overlay.show{display:block;}
+
+/* ABSORPTION BAR OVERLAY */
+#absorb-bar-container{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:12;display:none;text-align:center;width:60%;max-width:500px;}
+#absorb-bar-container.show{display:block;animation:pop-in 0.3s ease;}
+#absorb-bar-label{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;text-shadow:0 2px 6px rgba(0,0,0,0.6);}
+#absorb-bar-outer{width:100%;height:28px;background:rgba(0,0,0,0.6);border-radius:14px;overflow:hidden;position:relative;border:2px solid rgba(255,255,255,0.2);}
+#absorb-bar-inner{height:100%;border-radius:12px;transition:width 0.3s ease;width:0%;background:linear-gradient(90deg,#e53935,#ff9800,#4caf50,#00e676);}
+#absorb-bar-pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;font-weight:800;text-shadow:0 1px 4px rgba(0,0,0,0.8);}
+
+/* SCREEN FLASH */
+#screen-flash{position:absolute;top:0;left:0;width:100%;height:100%;z-index:18;pointer-events:none;opacity:0;transition:opacity 0.15s;}
+#screen-flash.green{background:rgba(76,175,80,0.25);opacity:1;}
+#screen-flash.red{background:rgba(229,57,53,0.25);opacity:1;}
+#screen-flash.gold{background:rgba(255,215,0,0.2);opacity:1;}
+
+/* COMPLETION MESSAGES */
+#completion-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:25;text-align:center;display:none;}
+#completion-msg.show{display:block;animation:pop-in 0.6s ease;}
+#completion-msg h2{font-size:32px;text-shadow:0 0 20px rgba(255,215,0,0.5);}
+#completion-msg p{font-size:18px;margin-top:8px;opacity:0.8;}
+
+/* DATA TABLE */
+#data-section{grid-column:1/-1;background:linear-gradient(180deg,#1a237e,#0d1b3d);border-top:3px solid #0d47a1;padding:8px 16px;max-height:240px;overflow-y:auto;}
+#data-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+#data-header h3{font-size:13px;letter-spacing:1px;}
+#copy-btn{padding:6px 14px;border:none;border-radius:8px;background:linear-gradient(135deg,#7c4dff,#651fff);color:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+#copy-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(124,77,255,0.4);}
+#data-table{width:100%;border-collapse:collapse;font-size:12px;}
+#data-table th{background:rgba(255,255,255,0.12);padding:6px 8px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid rgba(255,255,255,0.2);}
+#data-table td{padding:6px 8px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.06);}
+#data-table tr.ec-row{background:rgba(255,215,0,0.08);}
+#data-table tr:nth-child(even){background:rgba(255,255,255,0.03);}
+#data-table tr.new-row{animation:row-flash 1s ease;}
+@keyframes row-flash{0%{background:rgba(76,175,80,0.3);}100%{background:transparent;}}
+
+/* TOOLTIP/MISSION */
+#mission-bar{grid-column:1/-1;background:rgba(255,255,255,0.05);text-align:center;padding:4px;font-size:11px;opacity:0.7;letter-spacing:0.5px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- MISSION BAR -->
+  <div id="mission-bar">Absorption Engineer — capture nutrients before food passes through</div>
+  
+  <!-- HUD BAR -->
+  <div id="hud-bar">
+    <h1>Mr. Jawad Simulation Absorption Zone</h1>
+    <div class="hud-stats">
+      <div id="meal-icon"><span id="meal-emoji">🍽️</span><span id="meal-label">Small</span></div>
+      <div id="active-var-display">ACTIVE: Villi</div>
+      <div class="hud-stat"><span class="hud-stat-label">Round</span><span class="hud-stat-value" id="round-display">1/8</span></div>
+      <div class="hud-stat"><span class="hud-stat-label">Score</span><span class="hud-stat-value" id="score-display">0</span></div>
+      <div class="hud-stat"><span class="hud-stat-label">Absorb%</span><span class="hud-stat-value" id="absorb-display">—</span></div>
+    </div>
+  </div>
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+    <!-- CONTROLS -->
+    <div class="panel-section">
+      <div class="panel-title">Controls</div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Villi Density <span id="villi-badge" class="active-badge">ACTIVE</span></span>
+          <span class="slider-value" id="villi-value">Many</span>
+        </div>
+        <input type="range" id="villi-slider" min="0" max="3" value="2" step="1">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Intestine Length <span id="length-badge" class="lock-badge">LOCKED</span></span>
+          <span class="slider-value" id="length-value">Medium</span>
+        </div>
+        <input type="range" id="length-slider" min="0" max="2" value="1" step="1" class="locked">
+      </div>
+    </div>
+
+    <!-- GO BUTTON -->
+    <button id="go-btn">▶ GO</button>
+
+    <!-- GAME MECHANICS -->
+    <div class="panel-section">
+      <div class="panel-title">Stats</div>
+      <div id="streak-display">🔥 Streak: <span id="streak-val">0</span></div>
+      <div id="combo-display">⚡ Combo: <span id="combo-val">x1</span></div>
+      <div id="level-badge">⭐ Rookie</div>
+      <div id="boost-display">🔬 Microvilli Boost!</div>
+    </div>
+
+    <!-- ENERGY METER -->
+    <div class="panel-section" id="energy-section">
+      <div class="panel-title">Energy</div>
+      <div id="energy-meter">
+        <div class="energy-seg"></div>
+        <div class="energy-seg"></div>
+        <div class="energy-seg"></div>
+        <div class="energy-seg"></div>
+        <div class="energy-seg"></div>
+        <div class="energy-seg"></div>
+        <div class="energy-seg"></div>
+        <div class="energy-seg"></div>
+        <div class="energy-seg"></div>
+        <div class="energy-seg"></div>
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="panel-section" id="progress-section">
+      <div class="panel-title">Progress</div>
+      <div id="progress-bar-outer"><div id="progress-bar-inner" style="width:0%"></div></div>
+      <div id="progress-text">0 / 5 required</div>
+    </div>
+
+    <!-- BUTTONS -->
+    <div class="btn-row">
+      <button class="small-btn" id="reset-btn">Reset</button>
+      <button class="small-btn" id="new-run-btn">New Run</button>
+    </div>
+  </div>
+
+  <!-- ARENA -->
+  <div id="arena-container">
+    <canvas id="arena"></canvas>
+    <div id="round-result">
+      <h2 id="result-title">—</h2>
+      <p id="result-detail">—</p>
+    </div>
+    <div id="absorb-bar-container">
+      <div id="absorb-bar-label">Absorption</div>
+      <div id="absorb-bar-outer"><div id="absorb-bar-inner"></div><span id="absorb-bar-pct">0%</span></div>
+    </div>
+    <div id="event-overlay">⚠️ Inflammation Alert!</div>
+    <div id="screen-flash"></div>
+    <div id="completion-msg">
+      <h2 id="completion-title"></h2>
+      <p id="completion-detail"></p>
+    </div>
+  </div>
+
+  <!-- DATA TABLE -->
+  <div id="data-section">
+    <div id="data-header">
+      <h3>📊 Data Table</h3>
+      <button id="copy-btn">📋 Copy Table</button>
+    </div>
+    <table id="data-table">
+      <thead>
+        <tr><th>Round #</th><th>Villi Density & Intestine Length</th><th>Absorption %</th><th>Energy Level</th></tr>
+      </thead>
+      <tbody id="data-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+try {
+// roundRect polyfill for older Chromebooks
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r) {
+    if (typeof r === 'number') r = [r,r,r,r];
+    if (!Array.isArray(r)) r = [5,5,5,5];
+    const [tl,tr,br,bl] = r;
+    this.moveTo(x+tl,y);
+    this.lineTo(x+w-tr,y);
+    this.quadraticCurveTo(x+w,y,x+w,y+tr);
+    this.lineTo(x+w,y+h-br);
+    this.quadraticCurveTo(x+w,y+h,x+w-br,y+h);
+    this.lineTo(x+bl,y+h);
+    this.quadraticCurveTo(x,y+h,x,y+h-bl);
+    this.lineTo(x,y+tl);
+    this.quadraticCurveTo(x,y,x+tl,y);
+    this.closePath();
+    return this;
+  };
+}
+
+// ===================== GAME STATE =====================
+const VILLI_LABELS = ['None','Few','Many','Packed'];
+const LENGTH_LABELS = ['Short','Medium','Long'];
+const ENERGY_LABELS = ['Very Low','Low','Medium','High','Very High'];
+
+let state = {
+  round: 1,
+  score: 0,
+  streak: 0,
+  combo: 1,
+  boostActive: false,
+  boostRoundsLeft: 0,
+  roundsCompleted: 0,
+  running: false,
+  finished: false,
+  inflammationActive: false,
+  data: []
+};
+
+// DOM refs
+const villiSlider = document.getElementById('villi-slider');
+const lengthSlider = document.getElementById('length-slider');
+const villiValue = document.getElementById('villi-value');
+const lengthValue = document.getElementById('length-value');
+const villiBadge = document.getElementById('villi-badge');
+const lengthBadge = document.getElementById('length-badge');
+const goBtn = document.getElementById('go-btn');
+const activeVarDisplay = document.getElementById('active-var-display');
+const roundDisplay = document.getElementById('round-display');
+const scoreDisplay = document.getElementById('score-display');
+const absorbDisplay = document.getElementById('absorb-display');
+const mealEmoji = document.getElementById('meal-emoji');
+const mealLabel = document.getElementById('meal-label');
+const streakVal = document.getElementById('streak-val');
+const comboVal = document.getElementById('combo-val');
+const levelBadge = document.getElementById('level-badge');
+const boostDisplay = document.getElementById('boost-display');
+const progressInner = document.getElementById('progress-bar-inner');
+const progressText = document.getElementById('progress-text');
+const dataBody = document.getElementById('data-body');
+const copyBtn = document.getElementById('copy-btn');
+const resetBtn = document.getElementById('reset-btn');
+const newRunBtn = document.getElementById('new-run-btn');
+const roundResult = document.getElementById('round-result');
+const resultTitle = document.getElementById('result-title');
+const resultDetail = document.getElementById('result-detail');
+const eventOverlay = document.getElementById('event-overlay');
+const completionMsg = document.getElementById('completion-msg');
+const completionTitle = document.getElementById('completion-title');
+const completionDetail = document.getElementById('completion-detail');
+const canvas = document.getElementById('arena');
+const ctx = canvas.getContext('2d');
+const absorbBarContainer = document.getElementById('absorb-bar-container');
+const absorbBarInner = document.getElementById('absorb-bar-inner');
+const absorbBarPct = document.getElementById('absorb-bar-pct');
+const screenFlash = document.getElementById('screen-flash');
+
+// ===================== SLIDER UPDATES =====================
+villiSlider.addEventListener('input', () => { villiValue.textContent = VILLI_LABELS[villiSlider.value]; cachedVilli = null; cachedVilliKey = ''; bloodCells = []; });
+lengthSlider.addEventListener('input', () => { lengthValue.textContent = LENGTH_LABELS[lengthSlider.value]; cachedVilli = null; cachedVilliKey = ''; bloodCells = []; });
+
+// ===================== ROUND LOGIC =====================
+function getMealSize() { return state.round <= 5 ? 'small' : 'large'; }
+
+function getActiveVariable() {
+  if (state.round <= 3) return 'villi';
+  if (state.round <= 5) return 'length';
+  return 'both';
+}
+
+function updateControls() {
+  const active = getActiveVariable();
+  const meal = getMealSize();
+  mealEmoji.textContent = meal === 'small' ? '🍽️' : '🍗';
+  mealLabel.textContent = meal === 'small' ? 'Small' : 'Large';
+  roundDisplay.textContent = state.round + '/8';
+
+  if (active === 'villi') {
+    villiSlider.classList.remove('locked');
+    lengthSlider.classList.add('locked');
+    villiBadge.className = 'active-badge'; villiBadge.textContent = 'ACTIVE';
+    lengthBadge.className = 'lock-badge'; lengthBadge.textContent = 'LOCKED';
+    activeVarDisplay.textContent = 'ACTIVE: Villi';
+    // Lock length at Medium
+    lengthSlider.value = 1; lengthValue.textContent = 'Medium';
+  } else if (active === 'length') {
+    villiSlider.classList.add('locked');
+    lengthSlider.classList.remove('locked');
+    villiBadge.className = 'lock-badge'; villiBadge.textContent = 'LOCKED';
+    lengthBadge.className = 'active-badge'; lengthBadge.textContent = 'ACTIVE';
+    activeVarDisplay.textContent = 'ACTIVE: Length';
+    // Lock villi at Many
+    villiSlider.value = 2; villiValue.textContent = 'Many';
+  } else {
+    villiSlider.classList.remove('locked');
+    lengthSlider.classList.remove('locked');
+    villiBadge.className = 'active-badge'; villiBadge.textContent = 'ACTIVE';
+    lengthBadge.className = 'active-badge'; lengthBadge.textContent = 'ACTIVE';
+    activeVarDisplay.textContent = 'BOTH ACTIVE';
+  }
+}
+
+function calcAbsorption(villiIdx, lenIdx, meal) {
+  // Base absorption by villi: None=8, Few=32, Many=62, Packed=88
+  const villiBase = [8, 32, 62, 88][villiIdx];
+  // Length modifier: Short=-12, Medium=0, Long=+8
+  const lenMod = [-12, 0, 8][lenIdx];
+  let absorption = villiBase + lenMod;
+
+  // Large meal penalty
+  if (meal === 'large') {
+    absorption = Math.round(absorption * 0.72);
+  }
+
+  // Boost bonus
+  if (state.boostActive) {
+    absorption = Math.min(99, absorption + 10);
+  }
+
+  // Inflammation penalty
+  if (state.inflammationActive) {
+    absorption = Math.max(5, Math.round(absorption * 0.5));
+  }
+
+  absorption = Math.max(5, Math.min(99, absorption));
+  return absorption;
+}
+
+function getEnergyLabel(absorption) {
+  if (absorption < 20) return 'Very Low';
+  if (absorption < 40) return 'Low';
+  if (absorption < 60) return 'Medium';
+  if (absorption < 80) return 'High';
+  return 'Very High';
+}
+
+function getEnergyLevel(absorption) {
+  return Math.round(absorption / 10);
+}
+
+function updateEnergyMeter(level) {
+  const segs = document.querySelectorAll('.energy-seg');
+  segs.forEach((seg, i) => {
+    seg.className = 'energy-seg';
+    if (i < level) {
+      seg.classList.add('filled');
+      if (level <= 3) seg.classList.add('low');
+      else if (level <= 6) seg.classList.add('med');
+      else seg.classList.add('high');
+    }
+  });
+}
+
+function updateProgress() {
+  const pct = Math.min(100, (state.roundsCompleted / 5) * 100);
+  progressInner.style.width = pct + '%';
+  if (state.roundsCompleted >= 5) {
+    progressText.textContent = state.roundsCompleted + ' / 8 total';
+    progressInner.style.background = 'linear-gradient(90deg,#ffd600,#ff6f00)';
+  } else {
+    progressText.textContent = state.roundsCompleted + ' / 5 required';
+  }
+}
+
+function updateLevel() {
+  const r = state.roundsCompleted;
+  if (r >= 8) levelBadge.textContent = '🏆 Master';
+  else if (r >= 6) levelBadge.textContent = '🌟 Expert';
+  else if (r >= 4) levelBadge.textContent = '⭐ Pro';
+  else if (r >= 2) levelBadge.textContent = '⭐ Rookie';
+  else levelBadge.textContent = '⭐ Rookie';
+}
+
+function checkRandomEvent() {
+  if (state.round <= 2) return false;
+  if (Math.random() < 0.25) {
+    state.inflammationActive = true;
+    eventOverlay.classList.add('show');
+    return true;
+  }
+  return false;
+}
+
+function checkBoost() {
+  if (state.roundsCompleted === 3 && !state.boostActive) {
+    state.boostActive = true;
+    state.boostRoundsLeft = 2;
+    boostDisplay.classList.add('active');
+    boostDisplay.textContent = '🔬 Microvilli Boost! (2 rounds)';
+  }
+  if (state.boostActive && state.boostRoundsLeft > 0) {
+    state.boostRoundsLeft--;
+    if (state.boostRoundsLeft <= 0) {
+      state.boostActive = false;
+      boostDisplay.classList.remove('active');
+    } else {
+      boostDisplay.textContent = '🔬 Microvilli Boost! (' + state.boostRoundsLeft + ' left)';
+    }
+  }
+}
+
+function addDataRow(roundNum, settings, absorption, energyLabel) {
+  const tr = document.createElement('tr');
+  if (roundNum > 5) tr.classList.add('ec-row');
+  tr.classList.add('new-row');
+  tr.innerHTML = `<td>${roundNum}</td><td>${settings}</td><td>${absorption}%</td><td>${energyLabel}</td>`;
+  dataBody.appendChild(tr);
+  state.data.push({round: roundNum, settings, absorption: absorption + '%', energy: energyLabel});
+}
+
+// ===================== CANVAS / ARENA DRAWING =====================
+let particles = [];
+let capturedParticles = [];
+let wasteParticles = [];
+let bloodCells = [];
+let sparkles = [];
+let animFrame = null;
+let arenaState = { villiIdx: 2, lenIdx: 1, animating: false, phase: 'idle' };
+let ambientTime = 0;
+// Stable villi array so they don't re-randomize every frame
+let cachedVilli = null;
+let cachedVilliKey = '';
+
+function resizeCanvas() {
+  const container = document.getElementById('arena-container');
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+  cachedVilli = null; cachedVilliKey = '';
+}
+window.addEventListener('resize', resizeCanvas);
+
+function getLayout(villiIdx, lenIdx) {
+  const w = canvas.width, h = canvas.height;
+  const tubeTop = h * 0.15;
+  const tubeBottom = h * 0.54;
+  const tubeH = tubeBottom - tubeTop;
+  const lenFractions = [0.42, 0.68, 0.92];
+  const tubeW = w * lenFractions[lenIdx];
+  const tubeLeft = (w - tubeW) / 2;
+  const tubeRight = tubeLeft + tubeW;
+  // Vessel area
+  const vesselTop = tubeBottom + 18;
+  const vesselBottom = h * 0.82;
+  return { tubeLeft, tubeRight, tubeTop, tubeBottom, tubeW, tubeH, vesselTop, vesselBottom, w, h };
+}
+
+function getVilliPositions(villiIdx, lenIdx) {
+  const key = villiIdx + '-' + lenIdx + '-' + canvas.width + '-' + canvas.height;
+  if (cachedVilli && cachedVilliKey === key) return cachedVilli;
+  const L = getLayout(villiIdx, lenIdx);
+  const villiCounts = [0, 5, 12, 24];
+  const count = villiCounts[villiIdx];
+  const villi = [];
+  if (count > 0) {
+    const spacing = L.tubeW / (count + 1);
+    for (let i = 1; i <= count; i++) {
+      const x = L.tubeLeft + spacing * i;
+      const heightMult = 0.32 + Math.random() * 0.14;
+      villi.push({
+        x, baseY: L.tubeBottom, height: L.tubeH * heightMult,
+        phase: Math.random() * Math.PI * 2,
+        widthBase: 5 + Math.random() * 3,
+        capillaryOffset: (Math.random() - 0.5) * 3
+      });
+    }
+  }
+  cachedVilli = { ...L, villi };
+  cachedVilliKey = key;
+  return cachedVilli;
+}
+
+// Seed blood cells once
+function initBloodCells(layout) {
+  bloodCells = [];
+  const { tubeLeft, tubeW, vesselTop, vesselBottom } = layout;
+  const vesselH = vesselBottom - vesselTop;
+  for (let i = 0; i < 40; i++) {
+    bloodCells.push({
+      x: tubeLeft + Math.random() * tubeW,
+      y: vesselTop + 10 + Math.random() * (vesselH - 20),
+      r: 2.5 + Math.random() * 2,
+      speed: 0.3 + Math.random() * 0.7,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+// ---- DRAW FUNCTIONS ----
+
+function drawBackground(L, t) {
+  // Deep body tissue background with subtle organic texture
+  const bg = ctx.createRadialGradient(L.w/2, L.h/2, 50, L.w/2, L.h/2, L.w * 0.7);
+  bg.addColorStop(0, '#2a0e3f');
+  bg.addColorStop(0.4, '#1e0830');
+  bg.addColorStop(1, '#0e0418');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, L.w, L.h);
+
+  // Faint connective tissue fibers
+  ctx.save();
+  ctx.globalAlpha = 0.04;
+  ctx.strokeStyle = '#9c27b0';
+  for (let i = 0; i < 15; i++) {
+    const y = (i / 15) * L.h;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    for (let x = 0; x < L.w; x += 20) {
+      ctx.lineTo(x, y + Math.sin(x * 0.01 + (t||0) * 0.0003 + i) * 12);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawMuscularis(L, t) {
+  // Outer smooth muscle layer
+  const { tubeLeft, tubeRight, tubeTop, tubeBottom, tubeW, tubeH } = L;
+  const pad = 18;
+  ctx.save();
+
+  // Outer muscle ring
+  const muscGrad = ctx.createLinearGradient(0, tubeTop - pad - 10, 0, tubeBottom + pad + 10);
+  muscGrad.addColorStop(0, '#8d4e3c');
+  muscGrad.addColorStop(0.2, '#a0604e');
+  muscGrad.addColorStop(0.5, '#b87060');
+  muscGrad.addColorStop(0.8, '#a0604e');
+  muscGrad.addColorStop(1, '#8d4e3c');
+  ctx.fillStyle = muscGrad;
+  ctx.beginPath();
+  ctx.roundRect(tubeLeft - pad, tubeTop - pad, tubeW + pad*2, tubeH + pad*2, 24);
+  ctx.fill();
+
+  // Circular muscle fiber stripes
+  ctx.globalAlpha = 0.15;
+  ctx.strokeStyle = '#5d3028';
+  ctx.lineWidth = 2;
+  for (let x = tubeLeft - pad + 8; x < tubeRight + pad; x += 14) {
+    const waveOff = Math.sin((x * 0.03) + (t||0)*0.001) * 2;
+    ctx.beginPath();
+    ctx.moveTo(x, tubeTop - pad + 4 + waveOff);
+    ctx.lineTo(x, tubeBottom + pad - 4 + waveOff);
+    ctx.stroke();
+  }
+
+  // Submucosa layer (lighter inner ring)
+  ctx.globalAlpha = 1;
+  const subGrad = ctx.createLinearGradient(0, tubeTop - 6, 0, tubeBottom + 6);
+  subGrad.addColorStop(0, '#d4917a');
+  subGrad.addColorStop(0.5, '#e8a890');
+  subGrad.addColorStop(1, '#d4917a');
+  ctx.fillStyle = subGrad;
+  ctx.beginPath();
+  ctx.roundRect(tubeLeft - 6, tubeTop - 6, tubeW + 12, tubeH + 12, 16);
+  ctx.fill();
+
+  // Peristalsis wave (contraction bands moving along the tube)
+  ctx.globalAlpha = 0.1;
+  for (let i = 0; i < 3; i++) {
+    const waveX = tubeLeft + (((t||0) * 0.04 + i * tubeW * 0.35) % (tubeW + 60)) - 30;
+    const grad = ctx.createRadialGradient(waveX, tubeTop + tubeH/2, 0, waveX, tubeTop + tubeH/2, 40);
+    grad.addColorStop(0, '#7b3f2f');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fillRect(waveX - 40, tubeTop - pad, 80, tubeH + pad*2);
+  }
+  ctx.restore();
+}
+
+function drawLumen(L, t) {
+  const { tubeLeft, tubeRight, tubeTop, tubeBottom, tubeW, tubeH } = L;
+  ctx.save();
+
+  // Main lumen (interior cavity)
+  const lumenGrad = ctx.createLinearGradient(0, tubeTop, 0, tubeBottom);
+  lumenGrad.addColorStop(0, '#fde8c0');
+  lumenGrad.addColorStop(0.3, '#fad98a');
+  lumenGrad.addColorStop(0.6, '#f5c862');
+  lumenGrad.addColorStop(1, '#f0ba4a');
+  ctx.fillStyle = lumenGrad;
+  ctx.beginPath();
+  ctx.roundRect(tubeLeft, tubeTop, tubeW, tubeH, 10);
+  ctx.fill();
+
+  // Subtle mucus sheen
+  ctx.globalAlpha = 0.06;
+  for (let x = tubeLeft; x < tubeRight; x += 6) {
+    const shimmer = Math.sin(x * 0.04 + (t||0) * 0.002) * 0.04 + 0.04;
+    ctx.globalAlpha = shimmer;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x, tubeTop + 2, 6, 4);
+  }
+
+  // Circular fold ridges (plicae circulares) along the top wall
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = '#d4a050';
+  for (let x = tubeLeft + 20; x < tubeRight - 20; x += 35) {
+    const foldH = 6 + Math.sin(x * 0.05) * 3;
+    ctx.beginPath();
+    ctx.ellipse(x, tubeTop + 4, 12, foldH, 0, 0, Math.PI);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawBloodVessels(L, t) {
+  const { tubeLeft, tubeW, tubeBottom, vesselTop, vesselBottom, w, h } = L;
+  const vesselH = vesselBottom - vesselTop;
+  ctx.save();
+
+  // Broad vascular bed background
+  const bedGrad = ctx.createLinearGradient(0, vesselTop, 0, vesselBottom);
+  bedGrad.addColorStop(0, 'rgba(183,28,28,0.15)');
+  bedGrad.addColorStop(0.5, 'rgba(183,28,28,0.25)');
+  bedGrad.addColorStop(1, 'rgba(183,28,28,0.1)');
+  ctx.fillStyle = bedGrad;
+  ctx.beginPath();
+  ctx.roundRect(tubeLeft - 10, vesselTop, tubeW + 20, vesselH, 14);
+  ctx.fill();
+
+  // Main branching vessels
+  const vesselCount = 7;
+  for (let i = 0; i < vesselCount; i++) {
+    const x = tubeLeft + (tubeW / (vesselCount + 1)) * (i + 1);
+    const pulse = Math.sin((t || 0) * 0.005 + i * 0.8) * 2;
+    const vw = 7 + Math.sin(i * 1.3) * 2;
+
+    // Vessel glow
+    ctx.globalAlpha = 0.15 + Math.sin((t||0)*0.004 + i) * 0.08;
+    const glow = ctx.createRadialGradient(x + pulse, vesselTop + vesselH/2, 0, x + pulse, vesselTop + vesselH/2, 20);
+    glow.addColorStop(0, '#e53935');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - 20 + pulse, vesselTop, 40, vesselH);
+
+    // Vessel wall
+    ctx.globalAlpha = 1;
+    const vGrad = ctx.createLinearGradient(x - vw, 0, x + vw, 0);
+    vGrad.addColorStop(0, '#7f1d1d');
+    vGrad.addColorStop(0.3, '#c62828');
+    vGrad.addColorStop(0.5, '#e53935');
+    vGrad.addColorStop(0.7, '#c62828');
+    vGrad.addColorStop(1, '#7f1d1d');
+    ctx.fillStyle = vGrad;
+    ctx.beginPath();
+    ctx.roundRect(x - vw/2 + pulse, vesselTop + 4, vw, vesselH - 8, vw/2);
+    ctx.fill();
+
+    // Connecting capillary going UP to intestine wall
+    ctx.strokeStyle = 'rgba(229,57,53,0.4)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x + pulse, vesselTop + 4);
+    ctx.lineTo(x, tubeBottom + 10);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Horizontal collecting vessel
+  ctx.globalAlpha = 0.9;
+  const hGrad = ctx.createLinearGradient(0, vesselBottom - 10, 0, vesselBottom);
+  hGrad.addColorStop(0, '#c62828');
+  hGrad.addColorStop(1, '#8e0000');
+  ctx.fillStyle = hGrad;
+  ctx.beginPath();
+  ctx.roundRect(tubeLeft, vesselBottom - 10, tubeW, 10, 5);
+  ctx.fill();
+
+  // Flowing blood cells
+  ctx.globalAlpha = 0.7;
+  bloodCells.forEach(bc => {
+    bc.x += bc.speed;
+    if (bc.x > tubeLeft + tubeW + 10) bc.x = tubeLeft - 10;
+    const bob = Math.sin((t||0)*0.003 + bc.phase) * 1.5;
+    // Red blood cell = biconcave disc drawn as an ellipse
+    ctx.fillStyle = '#ef5350';
+    ctx.beginPath();
+    ctx.ellipse(bc.x, bc.y + bob, bc.r * 1.4, bc.r, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Darker center (biconcave indent)
+    ctx.fillStyle = 'rgba(183,28,28,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(bc.x, bc.y + bob, bc.r * 0.5, bc.r * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawVilli(villi, L, t) {
+  const { tubeBottom, tubeTop, tubeH } = L;
+  ctx.save();
+  villi.forEach((v) => {
+    const sway = Math.sin((t || 0) * 0.0018 + v.phase) * 4;
+    const tipY = tubeBottom - v.height;
+    const bw = v.widthBase;
+
+    // Villus shadow
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#3e1a10';
+    ctx.beginPath();
+    ctx.moveTo(v.x - bw + 2, tubeBottom);
+    ctx.quadraticCurveTo(v.x - bw - 1 + sway, tipY + v.height * 0.5, v.x - bw/2 + 2 + sway, tipY + 3);
+    ctx.quadraticCurveTo(v.x + sway, tipY - 3, v.x + bw/2 - 2 + sway, tipY + 3);
+    ctx.quadraticCurveTo(v.x + bw + 1 + sway, tipY + v.height * 0.5, v.x + bw - 2, tubeBottom);
+    ctx.closePath();
+    ctx.fill();
+
+    // Villus body with detailed gradient
+    ctx.globalAlpha = 1;
+    const vGrad = ctx.createLinearGradient(v.x - bw, 0, v.x + bw, 0);
+    vGrad.addColorStop(0, '#d4836a');
+    vGrad.addColorStop(0.2, '#efa48e');
+    vGrad.addColorStop(0.5, '#ffc4b0');
+    vGrad.addColorStop(0.8, '#efa48e');
+    vGrad.addColorStop(1, '#d4836a');
+    ctx.fillStyle = vGrad;
+    ctx.beginPath();
+    ctx.moveTo(v.x - bw, tubeBottom);
+    ctx.quadraticCurveTo(v.x - bw - 2 + sway, tipY + v.height * 0.45, v.x - bw/2 + sway, tipY + 2);
+    ctx.quadraticCurveTo(v.x + sway, tipY - 5, v.x + bw/2 + sway, tipY + 2);
+    ctx.quadraticCurveTo(v.x + bw + 2 + sway, tipY + v.height * 0.45, v.x + bw, tubeBottom);
+    ctx.closePath();
+    ctx.fill();
+
+    // Inner highlight (3D roundness)
+    ctx.globalAlpha = 0.25;
+    const hlGrad = ctx.createLinearGradient(v.x - 2, tipY, v.x + 3, tubeBottom);
+    hlGrad.addColorStop(0, '#fff');
+    hlGrad.addColorStop(0.3, 'rgba(255,255,255,0.1)');
+    hlGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = hlGrad;
+    ctx.beginPath();
+    ctx.moveTo(v.x - 1, tubeBottom - 4);
+    ctx.quadraticCurveTo(v.x - 2 + sway, tipY + v.height * 0.3, v.x + sway, tipY + 4);
+    ctx.quadraticCurveTo(v.x + 2 + sway, tipY + v.height * 0.3, v.x + 1, tubeBottom - 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Central lacteal (lymph vessel - white/cream)
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = '#f5f5dc';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(v.x, tubeBottom - 5);
+    ctx.quadraticCurveTo(v.x + v.capillaryOffset + sway*0.5, tipY + v.height*0.4, v.x + sway*0.5, tipY + 10);
+    ctx.stroke();
+
+    // Capillary network (red branching vessels inside villus)
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = '#e53935';
+    ctx.lineWidth = 1.5;
+    // Left branch
+    ctx.beginPath();
+    ctx.moveTo(v.x - 2, tubeBottom - 3);
+    ctx.bezierCurveTo(v.x - bw*0.5 + sway*0.3, tipY + v.height*0.6, v.x - bw*0.3 + sway*0.6, tipY + v.height*0.3, v.x - 1 + sway*0.7, tipY + 12);
+    ctx.stroke();
+    // Right branch
+    ctx.beginPath();
+    ctx.moveTo(v.x + 2, tubeBottom - 3);
+    ctx.bezierCurveTo(v.x + bw*0.5 + sway*0.3, tipY + v.height*0.6, v.x + bw*0.3 + sway*0.6, tipY + v.height*0.3, v.x + 1 + sway*0.7, tipY + 12);
+    ctx.stroke();
+
+    // Pulsing absorption glow at tip
+    ctx.globalAlpha = 0.2 + Math.sin((t || 0) * 0.004 + v.phase) * 0.15;
+    const tipGlow = ctx.createRadialGradient(v.x + sway, tipY + 2, 0, v.x + sway, tipY + 2, 14);
+    tipGlow.addColorStop(0, 'rgba(255,183,77,0.9)');
+    tipGlow.addColorStop(0.5, 'rgba(255,183,77,0.3)');
+    tipGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = tipGlow;
+    ctx.beginPath();
+    ctx.arc(v.x + sway, tipY + 2, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Microvilli brush border (tiny hair-like fringe along the surface)
+    ctx.globalAlpha = 0.45;
+    ctx.strokeStyle = '#ffab91';
+    ctx.lineWidth = 0.8;
+    const numMV = state.boostActive ? 14 : 7;
+    for (let m = 0; m < numMV; m++) {
+      const frac = (m + 0.5) / numMV;
+      // Position along the villus surface
+      const mxBase = v.x - bw/2 + bw * frac;
+      const myBase = tipY + 2 + v.height * 0.02 + Math.abs(frac - 0.5) * v.height * 0.5;
+      const angle = (frac - 0.5) * 1.2 + Math.sin((t||0)*0.003 + m + v.phase) * 0.15;
+      const mvLen = state.boostActive ? 8 : 4;
+      ctx.beginPath();
+      ctx.moveTo(mxBase + sway * (1 - Math.abs(frac-0.5)*1.5), myBase);
+      ctx.lineTo(mxBase + sway * (1 - Math.abs(frac-0.5)*1.5) + Math.sin(angle) * mvLen, myBase - Math.cos(angle) * mvLen);
+      ctx.stroke();
+    }
+
+    // Gold shimmer when boost is active
+    if (state.boostActive) {
+      ctx.globalAlpha = 0.12 + Math.sin((t||0) * 0.006 + v.phase) * 0.08;
+      ctx.fillStyle = '#ffd600';
+      ctx.beginPath();
+      ctx.moveTo(v.x - bw + 1, tubeBottom);
+      ctx.quadraticCurveTo(v.x - bw + sway, tipY + v.height * 0.4, v.x + sway, tipY);
+      ctx.quadraticCurveTo(v.x + bw + sway, tipY + v.height * 0.4, v.x + bw - 1, tubeBottom);
+      ctx.closePath();
+      ctx.fill();
+    }
+  });
+  ctx.restore();
+}
+
+function drawInflammation(villi, L, t) {
+  if (!state.inflammationActive || villi.length < 2) return;
+  ctx.save();
+  const mid = Math.floor(villi.length / 2);
+  const startX = villi[Math.max(0,mid - 2)] ? villi[Math.max(0,mid - 2)].x - 15 : L.tubeLeft + L.tubeW * 0.35;
+  const endX = villi[Math.min(villi.length-1,mid + 2)] ? villi[Math.min(villi.length-1,mid + 2)].x + 15 : L.tubeLeft + L.tubeW * 0.65;
+
+  // Red inflamed zone
+  const infGrad = ctx.createRadialGradient((startX+endX)/2, L.tubeBottom - L.tubeH*0.15, 10, (startX+endX)/2, L.tubeBottom - L.tubeH*0.15, (endX-startX)*0.7);
+  infGrad.addColorStop(0, 'rgba(229,57,53,0.45)');
+  infGrad.addColorStop(0.6, 'rgba(229,57,53,0.2)');
+  infGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = infGrad;
+  ctx.fillRect(startX - 20, L.tubeTop, endX - startX + 40, L.tubeH);
+
+  // Pulsing red edge
+  ctx.globalAlpha = 0.3 + Math.sin((t||0) * 0.008) * 0.2;
+  ctx.strokeStyle = '#f44336';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([8,6]);
+  ctx.strokeRect(startX, L.tubeBottom - L.tubeH * 0.35, endX - startX, L.tubeH * 0.35);
+  ctx.setLineDash([]);
+
+  // "Flat" label
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = '#ffcdd2';
+  ctx.font = 'bold 11px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText('FLAT', (startX + endX)/2, L.tubeBottom - L.tubeH * 0.38);
+  ctx.restore();
+}
+
+function drawParticles(L, t) {
+  ctx.save();
+
+  // Active flowing nutrient particles
+  particles.forEach(p => {
+    if (p.capturedDone) return;
+    ctx.globalAlpha = p.alpha;
+
+    // Outer glow
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 10;
+
+    // Trail (3 fade-out circles)
+    for (let trail = 3; trail >= 1; trail--) {
+      ctx.globalAlpha = p.alpha * 0.08 * trail;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x - p.vx * trail * 4, p.y - p.vy * trail * 2, p.r * (0.3 + trail * 0.15), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Main particle (with inner highlight for 3D look)
+    ctx.globalAlpha = p.alpha;
+    const pGrad = ctx.createRadialGradient(p.x - p.r*0.3, p.y - p.r*0.3, 0, p.x, p.y, p.r * 1.2);
+    pGrad.addColorStop(0, '#fff');
+    pGrad.addColorStop(0.3, p.color);
+    pGrad.addColorStop(1, p.darkColor || p.color);
+    ctx.fillStyle = pGrad;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  // Captured particles (green flash flowing down into vessels)
+  capturedParticles.forEach(cp => {
+    ctx.globalAlpha = cp.alpha;
+    // Green glow trail going downward
+    ctx.shadowColor = '#69f0ae';
+    ctx.shadowBlur = 14;
+    const cpGrad = ctx.createRadialGradient(cp.x, cp.y, 0, cp.x, cp.y, cp.r * 1.5);
+    cpGrad.addColorStop(0, '#b9f6ca');
+    cpGrad.addColorStop(0.5, '#4caf50');
+    cpGrad.addColorStop(1, '#2e7d32');
+    ctx.fillStyle = cpGrad;
+    ctx.beginPath();
+    ctx.arc(cp.x, cp.y, cp.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sparkle trail
+    ctx.globalAlpha = cp.alpha * 0.4;
+    ctx.fillStyle = '#69f0ae';
+    ctx.beginPath();
+    ctx.arc(cp.x + (Math.random()-0.5)*4, cp.y - 6, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  // Waste particles (gray, fading, drifting right)
+  wasteParticles.forEach(wp => {
+    ctx.globalAlpha = wp.alpha;
+    ctx.fillStyle = '#78909c';
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(wp.x, wp.y, wp.r, 0, Math.PI * 2);
+    ctx.fill();
+    // X mark on waste
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(wp.x - 2, wp.y - 2); ctx.lineTo(wp.x + 2, wp.y + 2);
+    ctx.moveTo(wp.x + 2, wp.y - 2); ctx.lineTo(wp.x - 2, wp.y + 2);
+    ctx.stroke();
+  });
+
+  // Sparkles (from captures)
+  sparkles = sparkles.filter(s => s.life > 0);
+  sparkles.forEach(s => {
+    s.x += s.vx; s.y += s.vy; s.life -= 0.02;
+    ctx.globalAlpha = s.life;
+    ctx.fillStyle = s.color;
+    ctx.beginPath();
+    // Star shape
+    const sr = 2;
+    for (let p = 0; p < 5; p++) {
+      const angle = (p * Math.PI * 2 / 5) - Math.PI / 2;
+      const method = p === 0 ? 'moveTo' : 'lineTo';
+      ctx[method](s.x + Math.cos(angle) * sr, s.y + Math.sin(angle) * sr);
+      const inner = angle + Math.PI / 5;
+      ctx.lineTo(s.x + Math.cos(inner) * sr * 0.4, s.y + Math.sin(inner) * sr * 0.4);
+    }
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+function drawLabels(L, villiIdx, lenIdx, t) {
+  const { tubeLeft, tubeRight, tubeTop, tubeBottom, tubeW, tubeH, vesselTop, vesselBottom, w, h } = L;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 6;
+
+  // Villi status label
+  ctx.font = 'bold 14px Segoe UI';
+  if (villiIdx > 0) {
+    ctx.fillStyle = '#ffcc80';
+    ctx.fillText(VILLI_LABELS[villiIdx] + ' Villi', tubeLeft + tubeW/2, tubeBottom + tubeH * 0.15 + 52);
+  } else {
+    ctx.fillStyle = '#ef5350';
+    ctx.fillText('⚠ No Villi — Smooth Wall', tubeLeft + tubeW/2, tubeBottom + 52);
+  }
+
+  // Length label
+  ctx.fillStyle = '#80cbc4';
+  ctx.font = 'bold 13px Segoe UI';
+  ctx.fillText(LENGTH_LABELS[lenIdx] + ' Intestine', tubeLeft + tubeW/2, tubeTop - 28);
+
+  // Entry arrow
+  ctx.fillStyle = '#ffc107';
+  ctx.font = 'bold 15px Segoe UI';
+  ctx.textAlign = 'right';
+  ctx.fillText('Food →', tubeLeft - 8, tubeTop + tubeH/2 + 4);
+
+  // Exit arrow
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#78909c';
+  ctx.fillText('→ Waste', tubeRight + 8, tubeTop + tubeH/2 + 4);
+
+  // Blood vessel label
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ef9a9a';
+  ctx.font = 'bold 12px Segoe UI';
+  ctx.fillText('🩸 Blood Vessels', tubeLeft + tubeW/2, vesselBottom + 16);
+
+  // Boost overlay label
+  if (state.boostActive) {
+    ctx.fillStyle = '#ffd600';
+    ctx.font = 'bold 12px Segoe UI';
+    ctx.globalAlpha = 0.6 + Math.sin((t||0)*0.006)*0.3;
+    ctx.fillText('🔬 MICROVILLI BOOST', tubeLeft + tubeW/2, tubeTop + 16);
+  }
+
+  ctx.restore();
+}
+
+function drawArena(time) {
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ambientTime = time || 0;
+
+  const villiIdx = parseInt(villiSlider.value);
+  const lenIdx = parseInt(lengthSlider.value);
+  const layout = getVilliPositions(villiIdx, lenIdx);
+  const L = getLayout(villiIdx, lenIdx);
+
+  // Initialize blood cells if needed
+  if (bloodCells.length === 0) initBloodCells(L);
+
+  // Layer 1: Background tissue
+  drawBackground(L, time);
+
+  // Layer 2: Blood vessels (behind intestine)
+  drawBloodVessels(L, time);
+
+  // Layer 3: Muscularis (outer intestine wall)
+  drawMuscularis(L, time);
+
+  // Layer 4: Lumen (interior)
+  drawLumen(L, time);
+
+  // Layer 5: Villi inside the lumen
+  drawVilli(layout.villi, L, time);
+
+  // Layer 6: Inflammation overlay
+  drawInflammation(layout.villi, L, time);
+
+  // Layer 7: Particles
+  drawParticles(L, time);
+
+  // Layer 8: Labels
+  drawLabels(L, villiIdx, lenIdx, time);
+}
+
+// ===================== ANIMATION LOOP =====================
+function idleLoop(time) {
+  if (arenaState.animating) return;
+  drawArena(time);
+  animFrame = requestAnimationFrame(idleLoop);
+}
+
+function startIdleLoop() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  arenaState.animating = false;
+  particles = [];
+  capturedParticles = [];
+  wasteParticles = [];
+  sparkles = [];
+  animFrame = requestAnimationFrame(idleLoop);
+}
+
+// ===================== RUN ROUND ANIMATION =====================
+function runRound() {
+  if (state.running || state.finished) return;
+  state.running = true;
+  goBtn.disabled = true;
+  goBtn.classList.add('running');
+  goBtn.textContent = '⏳ Running...';
+
+  const villiIdx = parseInt(villiSlider.value);
+  const lenIdx = parseInt(lengthSlider.value);
+  const meal = getMealSize();
+
+  // Check random event
+  state.inflammationActive = false;
+  eventOverlay.classList.remove('show');
+  const hadEvent = checkRandomEvent();
+
+  const absorption = calcAbsorption(villiIdx, lenIdx, meal);
+  const energyLabel = getEnergyLabel(absorption);
+  const energyLevel = getEnergyLevel(absorption);
+
+  // Create nutrient particles
+  const L = getLayout(villiIdx, lenIdx);
+  const layout = getVilliPositions(villiIdx, lenIdx);
+  const numParticles = meal === 'small' ? 30 : 50;
+  const numCaptured = Math.round(numParticles * absorption / 100);
+  const colorSets = [
+    {color:'#ff9800',dark:'#e65100'}, // orange - carbs
+    {color:'#ffc107',dark:'#ff8f00'}, // gold - fats
+    {color:'#42a5f5',dark:'#1565c0'}, // blue - minerals
+    {color:'#ab47bc',dark:'#7b1fa2'}, // purple - vitamins
+    {color:'#ef5350',dark:'#c62828'}  // red - proteins
+  ];
+
+  particles = [];
+  capturedParticles = [];
+  wasteParticles = [];
+  sparkles = [];
+
+  for (let i = 0; i < numParticles; i++) {
+    const cs = colorSets[Math.floor(Math.random() * colorSets.length)];
+    particles.push({
+      x: L.tubeLeft - 30 - Math.random() * 100,
+      y: L.tubeTop + 15 + Math.random() * (L.tubeH - 30),
+      vx: 1.2 + Math.random() * 2.2,
+      vy: (Math.random() - 0.5) * 0.8,
+      r: 4 + Math.random() * 3.5,
+      color: cs.color,
+      darkColor: cs.dark,
+      alpha: 1,
+      trail: true,
+      captured: i < numCaptured,
+      captureX: 0,
+      capturedDone: false
+    });
+  }
+
+  // Assign capture points near villi
+  let captureIdx = 0;
+  particles.forEach(p => {
+    if (p.captured && layout.villi.length > 0) {
+      const v = layout.villi[captureIdx % layout.villi.length];
+      p.captureX = v.x + (Math.random() - 0.5) * 14;
+      captureIdx++;
+    } else if (p.captured) {
+      p.captureX = L.tubeLeft + Math.random() * L.tubeW;
+    }
+  });
+
+  if (animFrame) cancelAnimationFrame(animFrame);
+  arenaState.animating = true;
+
+  let startTime = null;
+  const ANIM_DURATION = 4000;
+
+  function animateRound(time) {
+    if (!startTime) startTime = time;
+    const elapsed = time - startTime;
+    const progress = Math.min(1, elapsed / ANIM_DURATION);
+
+    const L = getLayout(villiIdx, lenIdx);
+    drawArena(time);
+
+    // Move particles
+    particles.forEach(p => {
+      if (p.capturedDone) return;
+      p.x += p.vx;
+      p.y += p.vy;
+      // Slight wobble for organic feel
+      p.y += Math.sin(time * 0.005 + p.x * 0.01) * 0.3;
+
+      // Bounce within tube
+      if (p.y < L.tubeTop + 10) { p.y = L.tubeTop + 10; p.vy *= -1; }
+      if (p.y > L.tubeBottom - 10) { p.y = L.tubeBottom - 10; p.vy *= -1; }
+
+      // Capture check
+      if (p.captured && p.x >= p.captureX) {
+        p.capturedDone = true;
+        p.alpha = 0;
+        capturedParticles.push({
+          x: p.x, y: p.y, r: p.r,
+          targetY: L.vesselTop + 20,
+          alpha: 1, vy: 1.8
+        });
+        // Spawn sparkles
+        for (let s = 0; s < 5; s++) {
+          sparkles.push({
+            x: p.x, y: p.y,
+            vx: (Math.random() - 0.5) * 3,
+            vy: (Math.random() - 0.5) * 3,
+            life: 1,
+            color: ['#69f0ae','#ffd600','#4caf50','#b9f6ca'][Math.floor(Math.random()*4)]
+          });
+        }
+      }
+
+      // Waste exit
+      if (!p.captured && p.x > L.tubeRight + 10) {
+        p.capturedDone = true;
+        p.alpha = 0;
+        wasteParticles.push({
+          x: p.x, y: p.y, r: p.r * 0.7,
+          alpha: 0.6, vx: 1.5
+        });
+      }
+    });
+
+    // Move captured particles down to vessels
+    capturedParticles.forEach(cp => {
+      if (cp.y < cp.targetY) {
+        cp.y += cp.vy;
+      } else {
+        cp.alpha = Math.max(0, cp.alpha - 0.02);
+      }
+    });
+
+    // Move waste particles off screen
+    wasteParticles.forEach(wp => {
+      wp.x += wp.vx;
+      wp.alpha = Math.max(0, wp.alpha - 0.008);
+    });
+
+    if (progress < 1) {
+      // Update absorption bar
+      const currentAbs = Math.round(absorption * progress);
+      absorbBarInner.style.width = currentAbs + '%';
+      absorbBarPct.textContent = currentAbs + '%';
+      if (currentAbs >= 60) absorbBarInner.style.background = 'linear-gradient(90deg,#4caf50,#00e676)';
+      else if (currentAbs >= 35) absorbBarInner.style.background = 'linear-gradient(90deg,#ff9800,#ffc107)';
+      else absorbBarInner.style.background = 'linear-gradient(90deg,#e53935,#ff5252)';
+
+      animFrame = requestAnimationFrame(animateRound);
+    } else {
+      // Final absorption bar state
+      absorbBarInner.style.width = absorption + '%';
+      absorbBarPct.textContent = absorption + '%';
+
+      // Screen flash
+      screenFlash.className = absorption >= 60 ? 'green' : 'red';
+      setTimeout(() => { screenFlash.className = ''; }, 300);
+
+      // Animation done - show result
+      setTimeout(() => { absorbBarContainer.classList.remove('show'); }, 2000);
+      finishRound(villiIdx, lenIdx, absorption, energyLabel, energyLevel, meal, hadEvent);
+    }
+  }
+
+  animFrame = requestAnimationFrame(animateRound);
+
+  // Show absorption bar
+  absorbBarContainer.classList.add('show');
+  absorbBarInner.style.width = '0%';
+  absorbBarPct.textContent = '0%';
+}
+
+function finishRound(villiIdx, lenIdx, absorption, energyLabel, energyLevel, meal, hadEvent) {
+  arenaState.animating = false;
+
+  // Update score
+  let pts = Math.round(absorption * state.combo);
+  if (absorption >= 70) {
+    state.streak++;
+    state.combo = Math.min(4, 1 + Math.floor(state.streak / 2));
+  } else {
+    state.streak = 0;
+    state.combo = 1;
+  }
+  state.score += pts;
+
+  // Update data
+  const settings = VILLI_LABELS[villiIdx] + ' villi + ' + LENGTH_LABELS[lenIdx] + ' length';
+  addDataRow(state.round, settings, absorption, energyLabel);
+
+  // Update displays
+  scoreDisplay.textContent = state.score;
+  absorbDisplay.textContent = absorption + '%';
+  absorbDisplay.style.color = absorption >= 60 ? '#69f0ae' : absorption >= 35 ? '#ffc107' : '#ef5350';
+  streakVal.textContent = state.streak;
+  comboVal.textContent = 'x' + state.combo;
+  updateEnergyMeter(energyLevel);
+
+  state.roundsCompleted++;
+  updateProgress();
+  updateLevel();
+  checkBoost();
+
+  // Show result
+  if (absorption >= 70) {
+    resultTitle.textContent = '🟢 ' + absorption + '% Absorbed!';
+    resultTitle.style.color = '#69f0ae';
+  } else if (absorption >= 40) {
+    resultTitle.textContent = '🟡 ' + absorption + '% Absorbed';
+    resultTitle.style.color = '#ffc107';
+  } else {
+    resultTitle.textContent = '🔴 ' + absorption + '% Absorbed';
+    resultTitle.style.color = '#ef5350';
+  }
+  resultDetail.textContent = 'Energy: ' + energyLabel + ' | +' + pts + ' pts';
+  if (hadEvent) resultDetail.textContent += ' (Inflammation!)';
+  roundResult.classList.add('show');
+
+  // Hide event overlay after a moment
+  setTimeout(() => { eventOverlay.classList.remove('show'); state.inflammationActive = false; }, 2000);
+
+  // Next round or completion
+  setTimeout(() => {
+    roundResult.classList.remove('show');
+
+    if (state.round === 5) {
+      // Required complete!
+      completionTitle.textContent = '✅ Required Complete!';
+      completionDetail.textContent = 'Continue for Extra Credit?';
+      completionMsg.classList.add('show');
+      setTimeout(() => { completionMsg.classList.remove('show'); }, 3000);
+    }
+
+    if (state.round === 8) {
+      // All done!
+      completionTitle.textContent = '🏆 Extra Credit Complete!';
+      completionDetail.textContent = 'Final Score: ' + state.score;
+      completionMsg.classList.add('show');
+      state.finished = true;
+      goBtn.textContent = 'DONE';
+      goBtn.disabled = true;
+      startIdleLoop();
+      state.running = false;
+      return;
+    }
+
+    state.round++;
+    state.running = false;
+    goBtn.disabled = false;
+    goBtn.classList.remove('running');
+    goBtn.textContent = '▶ GO';
+    updateControls();
+    startIdleLoop();
+  }, 2500);
+}
+
+// ===================== COPY TABLE =====================
+copyBtn.addEventListener('click', () => {
+  try {
+    let text = 'Round #\tVilli Density & Intestine Length\tAbsorption %\tEnergy Level\n';
+    state.data.forEach(d => {
+      text += d.round + '\t' + d.settings + '\t' + d.absorption + '\t' + d.energy + '\n';
+    });
+    navigator.clipboard.writeText(text).then(() => {
+      copyBtn.textContent = '✅ Copied!';
+      setTimeout(() => { copyBtn.textContent = '📋 Copy Table'; }, 2000);
+    }).catch(() => {
+      copyBtn.textContent = '⚠️ Try again';
+      setTimeout(() => { copyBtn.textContent = '📋 Copy Table'; }, 2000);
+    });
+  } catch(e) {
+    copyBtn.textContent = '⚠️ Try again';
+    setTimeout(() => { copyBtn.textContent = '📋 Copy Table'; }, 2000);
+  }
+});
+
+// ===================== RESET / NEW RUN =====================
+function fullReset() {
+  state = { round: 1, score: 0, streak: 0, combo: 1, boostActive: false, boostRoundsLeft: 0, roundsCompleted: 0, running: false, finished: false, inflammationActive: false, data: [] };
+  bloodCells = []; cachedVilli = null; cachedVilliKey = ''; sparkles = [];
+  villiSlider.value = 2; villiValue.textContent = 'Many';
+  lengthSlider.value = 1; lengthValue.textContent = 'Medium';
+  scoreDisplay.textContent = '0';
+  absorbDisplay.textContent = '—';
+  absorbDisplay.style.color = '#fff';
+  streakVal.textContent = '0';
+  comboVal.textContent = 'x1';
+  levelBadge.textContent = '⭐ Rookie';
+  boostDisplay.classList.remove('active');
+  dataBody.innerHTML = '';
+  updateEnergyMeter(0);
+  updateProgress();
+  updateControls();
+  goBtn.disabled = false;
+  goBtn.classList.remove('running');
+  goBtn.textContent = '▶ GO';
+  roundResult.classList.remove('show');
+  eventOverlay.classList.remove('show');
+  completionMsg.classList.remove('show');
+  absorbBarContainer.classList.remove('show');
+  progressInner.style.background = 'linear-gradient(90deg,#4caf50,#00e676)';
+  startIdleLoop();
+}
+
+resetBtn.addEventListener('click', fullReset);
+newRunBtn.addEventListener('click', fullReset);
+goBtn.addEventListener('click', runRound);
+
+// ===================== INIT =====================
+resizeCanvas();
+updateControls();
+startIdleLoop();
+
+} catch(e) { console.error('Simulation error:', e); }
+</script>
+</body>
+</html>

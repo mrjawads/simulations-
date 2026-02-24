@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad Simulation — Acid Lab</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);color:#fff;min-height:100vh;overflow-x:hidden;}
+/* TOP HUD */
+#hud{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(0,0,0,0.5);border-bottom:2px solid #444;flex-wrap:wrap;gap:6px;}
+#hud .title{font-size:15px;font-weight:700;color:#f0c040;text-shadow:0 0 8px rgba(240,192,64,0.5);}
+.hud-item{display:flex;align-items:center;gap:5px;font-size:13px;background:rgba(255,255,255,0.08);padding:4px 10px;border-radius:20px;}
+.hud-item .label{color:#aaa;font-size:11px;}
+.hud-item .val{font-weight:700;font-size:15px;}
+#foodBanner{text-align:center;padding:6px;font-size:18px;font-weight:800;letter-spacing:1px;background:linear-gradient(90deg,#5d4037,#795548);border-bottom:2px solid #8d6e63;transition:all 0.5s;}
+#foodBanner.tough{background:linear-gradient(90deg,#b71c1c,#c62828);border-color:#e53935;}
+/* MAIN LAYOUT */
+#main{display:flex;height:calc(100vh - 100px);min-height:500px;}
+#controls{width:260px;min-width:260px;background:rgba(0,0,0,0.35);padding:14px;display:flex;flex-direction:column;gap:10px;border-right:2px solid #333;overflow-y:auto;}
+#arena{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+#results-panel{width:300px;min-width:300px;background:rgba(0,0,0,0.35);border-left:2px solid #333;display:flex;flex-direction:column;overflow-y:auto;}
+/* CONTROLS */
+.ctrl-section{background:rgba(255,255,255,0.06);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.1);}
+.ctrl-label{font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.slider-wrap{position:relative;}
+.slider-wrap input[type=range]{width:100%;-webkit-appearance:none;height:8px;border-radius:4px;outline:none;cursor:pointer;}
+.slider-wrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid #fff;box-shadow:0 0 10px rgba(255,255,255,0.3);}
+#acidSlider::-webkit-slider-track{background:linear-gradient(90deg,#fff9c4,#ff9800,#d32f2f);}
+#acidSlider::-webkit-slider-thumb{background:#ff5722;}
+#enzymeSlider::-webkit-slider-track{background:linear-gradient(90deg,#e1f5fe,#29b6f6,#0277bd);}
+#enzymeSlider::-webkit-slider-thumb{background:#0288d1;}
+.slider-labels{display:flex;justify-content:space-between;font-size:10px;color:#999;margin-top:2px;}
+.level-display{text-align:center;font-size:16px;font-weight:800;margin-top:4px;padding:4px;border-radius:6px;}
+.locked-overlay{position:relative;}
+.locked-overlay::after{content:'🔒 LOCKED';position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#ff9800;border-radius:12px;z-index:2;}
+.locked-overlay input{pointer-events:none;opacity:0.3;}
+/* BUTTONS */
+.btn{padding:12px 20px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.2s;text-transform:uppercase;letter-spacing:1px;width:100%;}
+.btn:hover{transform:scale(1.03);filter:brightness(1.15);}
+.btn:active{transform:scale(0.97);}
+#mixBtn{background:linear-gradient(135deg,#ff6f00,#e65100);color:#fff;font-size:18px;box-shadow:0 4px 15px rgba(255,111,0,0.4);animation:pulseBtn 2s infinite;}
+#mixBtn:disabled{opacity:0.4;animation:none;cursor:not-allowed;transform:none;filter:none;}
+#nextBtn{background:linear-gradient(135deg,#2196f3,#1565c0);color:#fff;box-shadow:0 4px 15px rgba(33,150,243,0.4);}
+#nextBtn:disabled{opacity:0.4;cursor:not-allowed;transform:none;filter:none;}
+#resetBtn{background:linear-gradient(135deg,#f44336,#c62828);color:#fff;font-size:12px;padding:8px;}
+#newRunBtn{background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;font-size:12px;padding:8px;}
+.btn-row{display:flex;gap:6px;}
+@keyframes pulseBtn{0%,100%{box-shadow:0 4px 15px rgba(255,111,0,0.4);}50%{box-shadow:0 4px 25px rgba(255,111,0,0.7);}}
+/* BARS */
+.bar-container{background:rgba(0,0,0,0.4);border-radius:8px;padding:8px 10px;border:1px solid rgba(255,255,255,0.1);}
+.bar-label{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;}
+.bar-track{height:18px;background:#333;border-radius:9px;overflow:hidden;margin-top:4px;position:relative;}
+.bar-fill{height:100%;border-radius:9px;transition:width 1s ease, background 0.5s;}
+.bar-val{text-align:center;font-size:14px;font-weight:800;margin-top:2px;}
+/* POWER UP / RANDOM EVENT */
+#powerUpBox,#randomEventBox{display:none;padding:8px;border-radius:8px;font-size:11px;text-align:center;font-weight:600;}
+#powerUpBox{background:rgba(76,175,80,0.2);border:1px solid #4caf50;color:#a5d6a7;}
+#randomEventBox{background:rgba(244,67,54,0.2);border:1px solid #f44336;color:#ef9a9a;}
+#powerUpBtn{background:linear-gradient(135deg,#66bb6a,#388e3c);color:#fff;padding:6px;font-size:11px;margin-top:4px;width:100%;border:none;border-radius:6px;cursor:pointer;font-weight:700;}
+#powerUpBtn:disabled{opacity:0.4;cursor:not-allowed;}
+/* SAFETY ALERT */
+#safetyAlert{display:none;position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(244,67,54,0.9);color:#fff;padding:12px 24px;border-radius:12px;font-weight:700;font-size:14px;z-index:10;box-shadow:0 4px 20px rgba(244,67,54,0.5);animation:fadeInUp 0.3s;}
+@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+/* ARENA - STOMACH */
+#stomachCanvas{width:100%;height:100%;}
+.stomach-svg{width:100%;height:100%;}
+/* RESULTS */
+.results-header{padding:10px;background:rgba(255,255,255,0.05);border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;}
+.results-header span{font-size:13px;font-weight:700;color:#f0c040;}
+#copyBtn{background:#455a64;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;}
+#copyBtn:hover{background:#546e7a;}
+#dataTable{width:100%;border-collapse:collapse;font-size:11px;}
+#dataTable th{background:rgba(255,255,255,0.1);padding:6px 4px;text-align:center;font-size:10px;color:#aaa;text-transform:uppercase;position:sticky;top:0;}
+#dataTable td{padding:5px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05);font-size:11px;}
+/* COMPLETION OVERLAY */
+#completionOverlay{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:20;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+#completionOverlay.show{display:flex;}
+#completionOverlay h2{font-size:28px;color:#f0c040;text-shadow:0 0 20px rgba(240,192,64,0.5);}
+#completionOverlay p{font-size:16px;color:#ccc;max-width:400px;text-align:center;}
+#completionOverlay .badge{font-size:60px;animation:bounce 1s infinite;}
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+/* ROUND 5 MSG */
+#round5Msg{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.9);border:2px solid #f0c040;border-radius:16px;padding:24px;z-index:15;text-align:center;max-width:350px;}
+#round5Msg h3{color:#f0c040;font-size:20px;margin-bottom:8px;}
+#round5Msg p{color:#ccc;font-size:14px;margin-bottom:12px;}
+#continueBtn{background:linear-gradient(135deg,#f0c040,#ff9800);color:#000;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;}
+#continueBtn:hover{filter:brightness(1.15);}
+/* MISSION */
+#missionLine{font-size:11px;color:#b0bec5;text-align:center;font-style:italic;padding:4px 8px;background:rgba(255,255,255,0.03);border-radius:6px;}
+/* SCORE */
+.score-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.score-box{background:rgba(255,255,255,0.05);padding:6px;border-radius:6px;text-align:center;}
+.score-box .sb-label{font-size:9px;color:#888;text-transform:uppercase;}
+.score-box .sb-val{font-size:16px;font-weight:800;}
+/* STREAK */
+.streak-fire{color:#ff9800;text-shadow:0 0 8px rgba(255,152,0,0.6);}
+/* LEVEL BADGE */
+#levelBadge{text-align:center;padding:6px;background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(233,30,99,0.2));border-radius:8px;border:1px solid rgba(156,39,176,0.3);}
+#levelBadge .lb-label{font-size:9px;color:#ce93d8;text-transform:uppercase;}
+#levelBadge .lb-val{font-size:14px;font-weight:800;color:#e1bee7;}
+/* PROGRESS BAR */
+.progress-wrap{background:#333;border-radius:10px;height:10px;overflow:hidden;margin-top:4px;}
+.progress-fill{height:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);border-radius:10px;transition:width 0.5s;}
+/* RESPONSIVE */
+@media(max-width:900px){#main{flex-direction:column;height:auto;}#controls{width:100%;min-width:auto;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:2px solid #333;}#arena{min-height:350px;}#results-panel{width:100%;min-width:auto;border-left:none;border-top:2px solid #333;}}
+</style>
+</head>
+<body>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="title">🧪 Mr. Jawad — Acid Lab</div>
+  <div class="hud-item"><span class="label">Round</span><span class="val" id="roundDisplay">1/8</span></div>
+  <div class="hud-item"><span class="label">Score</span><span class="val" id="scoreDisplay">0</span></div>
+  <div class="hud-item"><span class="label">Streak</span><span class="val" id="streakDisplay">0</span></div>
+  <div class="hud-item"><span class="label">Best</span><span class="val" id="bestDisplay">—</span></div>
+</div>
+
+<!-- FOOD BANNER -->
+<div id="foodBanner">🍞 SOFT FOOD — BREAD</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- LEFT CONTROLS -->
+  <div id="controls">
+    <div id="missionLine">Mix acid + enzymes to break food safely</div>
+
+    <!-- ACID SLIDER -->
+    <div class="ctrl-section" id="acidSection">
+      <div class="ctrl-label">🧪 Acid Level</div>
+      <div class="slider-wrap">
+        <input type="range" id="acidSlider" min="0" max="2" value="1" step="1">
+        <div class="slider-labels"><span>Low</span><span>Med</span><span>High</span></div>
+      </div>
+      <div class="level-display" id="acidDisplay" style="color:#ff9800;">MEDIUM</div>
+    </div>
+
+    <!-- ENZYME SLIDER -->
+    <div class="ctrl-section" id="enzymeSection">
+      <div class="ctrl-label">⚗️ Enzyme Level</div>
+      <div class="slider-wrap">
+        <input type="range" id="enzymeSlider" min="0" max="2" value="1" step="1">
+        <div class="slider-labels"><span>Low</span><span>Med</span><span>High</span></div>
+      </div>
+      <div class="level-display" id="enzymeDisplay" style="color:#29b6f6;">MEDIUM</div>
+    </div>
+
+    <!-- BARS -->
+    <div class="bar-container">
+      <div class="bar-label">Breakdown</div>
+      <div class="bar-track"><div class="bar-fill" id="breakdownBar" style="width:0%;background:#4caf50;"></div></div>
+      <div class="bar-val" id="breakdownVal">—</div>
+    </div>
+    <div class="bar-container">
+      <div class="bar-label">🛡️ Lining Health</div>
+      <div class="bar-track"><div class="bar-fill" id="liningBar" style="width:100%;background:#4caf50;"></div></div>
+      <div class="bar-val" id="liningVal">100%</div>
+    </div>
+
+    <!-- POWER UP -->
+    <div id="powerUpBox">
+      🛡️ MUCUS BOOST<br><small>Extra lining protection for 1 round</small>
+      <button id="powerUpBtn" onclick="usePowerUp()" disabled>USE BOOST</button>
+    </div>
+    <!-- RANDOM EVENT -->
+    <div id="randomEventBox"></div>
+
+    <!-- LEVEL BADGE -->
+    <div id="levelBadge">
+      <div class="lb-label">Rank</div>
+      <div class="lb-val" id="rankDisplay">Rookie</div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="ctrl-section" style="padding:8px;">
+      <div class="ctrl-label">Progress</div>
+      <div class="progress-wrap"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+      <div style="font-size:10px;color:#888;text-align:center;margin-top:2px;" id="progressText">0/5 required</div>
+    </div>
+
+    <!-- BUTTONS -->
+    <button class="btn" id="mixBtn" onclick="doMix()">🧪 MIX</button>
+    <button class="btn" id="nextBtn" onclick="nextRound()" disabled>NEXT ROUND ➜</button>
+    <div class="btn-row">
+      <button class="btn" id="resetBtn" onclick="resetSim()">Reset</button>
+      <button class="btn" id="newRunBtn" onclick="newRun()">New Run</button>
+    </div>
+  </div>
+
+  <!-- CENTER ARENA -->
+  <div id="arena">
+    <canvas id="stomachCanvas"></canvas>
+    <div id="safetyAlert">⚠️ Lining stressed! Try safer mix</div>
+    <div id="round5Msg">
+      <h3>✅ Required Complete!</h3>
+      <p>You finished 5 rounds! Continue for Extra Credit?</p>
+      <button id="continueBtn" onclick="continueExtra()">Continue →</button>
+    </div>
+    <div id="completionOverlay">
+      <div class="badge">🏆</div>
+      <h2>Extra Credit Complete!</h2>
+      <p>All 8 rounds done. Copy your data table!</p>
+    </div>
+  </div>
+
+  <!-- RIGHT RESULTS -->
+  <div id="results-panel">
+    <div class="results-header">
+      <span>📊 Data Table</span>
+      <button id="copyBtn" onclick="copyTable()">📋 Copy Table</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;">
+      <table id="dataTable">
+        <thead><tr><th>Rnd</th><th>Acid/Enzyme</th><th>Breakdown</th><th>Lining</th></tr></thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+    <div style="padding:8px;">
+      <div class="score-grid">
+        <div class="score-box"><div class="sb-label">Avg Break</div><div class="sb-val" id="avgBreak">—</div></div>
+        <div class="score-box"><div class="sb-label">Avg Lining</div><div class="sb-val" id="avgLining">—</div></div>
+        <div class="score-box"><div class="sb-label">Healthy</div><div class="sb-val" id="healthyCount">0</div></div>
+        <div class="score-box"><div class="sb-label">Timer</div><div class="sb-val" id="timerDisplay">0:00</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== STATE ==========
+const LEVELS = ['Low','Medium','High'];
+const LEVEL_COLORS_ACID = ['#fff9c4','#ff9800','#d32f2f'];
+const LEVEL_COLORS_ENZYME = ['#e1f5fe','#29b6f6','#0277bd'];
+let round = 1;
+let score = 0;
+let streak = 0;
+let bestScore = 0;
+let totalBreakdown = 0;
+let totalLining = 0;
+let completedRounds = 0;
+let healthyRounds = 0;
+let isMixing = false;
+let powerUpAvail = false;
+let powerUpUsed = false;
+let powerUpActive = false;
+let acidSurgeActive = false;
+let gameOver = false;
+let timerSeconds = 0;
+let timerInterval = null;
+let roundData = [];
+
+// Canvas
+const canvas = document.getElementById('stomachCanvas');
+const ctx = canvas.getContext('2d');
+let animId = null;
+
+// Particles
+let foodChunks = [];
+let enzymeParticles = [];
+let acidWaves = [];
+let erosionHoles = [];
+let burstParticles = [];
+let ambientBubbles = [];
+
+// Current state
+let currentAcid = 1;
+let currentEnzyme = 1;
+let currentBreakdown = 0;
+let currentLining = 100;
+let stomachFluidColor = '#ff9800';
+let liningState = 'healthy'; // healthy, stressed, damaged
+let mixAnimPhase = 0; // 0=idle, 1=mixing, 2=done
+
+// Stomach geometry
+let stW, stH, stCx, stCy, stRx, stRy;
+
+function resizeCanvas() {
+  try {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+    stW = canvas.width;
+    stH = canvas.height;
+    stCx = stW * 0.5;
+    stCy = stH * 0.5;
+    stRx = Math.min(stW * 0.35, 220);
+    stRy = Math.min(stH * 0.38, 200);
+  } catch(e) {}
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ========== INIT ==========
+function init() {
+  try {
+    updateSliderUI();
+    setLockState();
+    startTimer();
+    initAmbientBubbles();
+    initFoodChunks();
+    requestAnimationFrame(renderLoop);
+  } catch(e) { console.error('Init error:', e); }
+}
+
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timerSeconds++;
+    let m = Math.floor(timerSeconds / 60);
+    let s = timerSeconds % 60;
+    document.getElementById('timerDisplay').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }, 1000);
+}
+
+// ========== SLIDER UI ==========
+const acidSlider = document.getElementById('acidSlider');
+const enzymeSlider = document.getElementById('enzymeSlider');
+
+acidSlider.addEventListener('input', updateSliderUI);
+enzymeSlider.addEventListener('input', updateSliderUI);
+
+function updateSliderUI() {
+  try {
+    let aVal = parseInt(acidSlider.value);
+    let eVal = parseInt(enzymeSlider.value);
+    document.getElementById('acidDisplay').textContent = LEVELS[aVal].toUpperCase();
+    document.getElementById('acidDisplay').style.color = LEVEL_COLORS_ACID[aVal];
+    document.getElementById('enzymeDisplay').textContent = LEVELS[eVal].toUpperCase();
+    document.getElementById('enzymeDisplay').style.color = LEVEL_COLORS_ENZYME[eVal];
+    // Update stomach fluid preview
+    currentAcid = aVal;
+    currentEnzyme = eVal;
+    updateStomachFluid();
+  } catch(e) {}
+}
+
+function updateStomachFluid() {
+  let colors = ['#fff9c4','#ff9800','#d32f2f'];
+  stomachFluidColor = colors[currentAcid];
+}
+
+// ========== LOCK STATE ==========
+function setLockState() {
+  try {
+    let acidSec = document.getElementById('acidSection');
+    let enzymeSec = document.getElementById('enzymeSection');
+    acidSec.classList.remove('locked-overlay');
+    enzymeSec.classList.remove('locked-overlay');
+    acidSlider.disabled = false;
+    enzymeSlider.disabled = false;
+
+    if (round <= 3) {
+      // Enzyme locked at Medium
+      enzymeSec.classList.add('locked-overlay');
+      enzymeSlider.value = 1;
+      enzymeSlider.disabled = true;
+      document.getElementById('enzymeDisplay').textContent = 'MEDIUM';
+      document.getElementById('enzymeDisplay').style.color = '#29b6f6';
+    } else if (round <= 5) {
+      // Acid locked at Medium
+      acidSec.classList.add('locked-overlay');
+      acidSlider.value = 1;
+      acidSlider.disabled = true;
+      document.getElementById('acidDisplay').textContent = 'MEDIUM';
+      document.getElementById('acidDisplay').style.color = '#ff9800';
+    }
+    // Rounds 6-8: both unlocked
+    currentAcid = parseInt(acidSlider.value);
+    currentEnzyme = parseInt(enzymeSlider.value);
+    updateStomachFluid();
+
+    // Food banner
+    let banner = document.getElementById('foodBanner');
+    if (round <= 5) {
+      banner.textContent = '🍞 SOFT FOOD — BREAD';
+      banner.classList.remove('tough');
+    } else {
+      banner.textContent = '🥩 TOUGH FOOD — STEAK';
+      banner.classList.add('tough');
+    }
+
+    // Power up & random event visibility
+    if (round >= 6) {
+      document.getElementById('powerUpBox').style.display = 'block';
+      document.getElementById('randomEventBox').style.display = 'block';
+      if (powerUpAvail && !powerUpUsed) {
+        document.getElementById('powerUpBtn').disabled = false;
+      } else {
+        document.getElementById('powerUpBtn').disabled = true;
+      }
+    } else {
+      document.getElementById('powerUpBox').style.display = 'none';
+      document.getElementById('randomEventBox').style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+// ========== FOOD CHUNKS ==========
+function initFoodChunks() {
+  foodChunks = [];
+  let count = round <= 5 ? 8 : 6;
+  for (let i = 0; i < count; i++) {
+    // Spawn well inside the stomach (60% of radii max)
+    let angle = Math.random() * Math.PI * 2;
+    let rFrac = Math.random() * 0.55;
+    foodChunks.push({
+      x: stCx + Math.cos(angle) * stRx * rFrac,
+      y: stCy + Math.sin(angle) * stRy * rFrac,
+      size: round <= 5 ? 12 + Math.random() * 10 : 16 + Math.random() * 12,
+      origSize: 0,
+      opacity: 1,
+      vx: (Math.random() - 0.5) * 0.2,
+      vy: (Math.random() - 0.5) * 0.2,
+      cracked: false
+    });
+    foodChunks[foodChunks.length-1].origSize = foodChunks[foodChunks.length-1].size;
+  }
+}
+
+function initAmbientBubbles() {
+  ambientBubbles = [];
+  for (let i = 0; i < 15; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let rFrac = Math.random() * 0.7;
+    ambientBubbles.push({
+      x: stCx + Math.cos(angle) * stRx * rFrac,
+      y: stCy + Math.sin(angle) * stRy * rFrac,
+      size: 2 + Math.random() * 4,
+      speed: 0.3 + Math.random() * 0.5,
+      opacity: 0.2 + Math.random() * 0.3
+    });
+  }
+}
+
+function initEnzymeParticles() {
+  enzymeParticles = [];
+  let count = (currentEnzyme + 1) * 8;
+  for (let i = 0; i < count; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let rFrac = Math.random() * 0.6;
+    enzymeParticles.push({
+      x: stCx + Math.cos(angle) * stRx * rFrac,
+      y: stCy + Math.sin(angle) * stRy * rFrac,
+      size: 4 + Math.random() * 3,
+      angle: Math.random() * Math.PI * 2,
+      speed: 0.5 + Math.random() * 1,
+      pulse: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+// ========== CALCULATIONS ==========
+function calcResults() {
+  let acid = currentAcid;
+  let enzyme = currentEnzyme;
+  let isTough = round > 5;
+
+  // Check acid surge
+  let effectiveAcid = acid;
+  if (acidSurgeActive) {
+    effectiveAcid = Math.min(2, acid + 1);
+  }
+
+  // Breakdown calculation
+  let baseBreak;
+  if (isTough) {
+    // Steak: harder to break down
+    let combo = effectiveAcid + enzyme;
+    if (combo <= 1) baseBreak = 15 + Math.random() * 10;
+    else if (combo == 2) baseBreak = 35 + Math.random() * 10;
+    else if (combo == 3) baseBreak = 55 + Math.random() * 10;
+    else baseBreak = 75 + Math.random() * 10;
+  } else {
+    // Bread: easier
+    let combo = effectiveAcid + enzyme;
+    if (combo <= 1) baseBreak = 20 + Math.random() * 10;
+    else if (combo == 2) baseBreak = 50 + Math.random() * 15;
+    else if (combo == 3) baseBreak = 75 + Math.random() * 10;
+    else baseBreak = 90 + Math.random() * 10;
+  }
+  let breakdown = Math.min(100, Math.round(baseBreak));
+
+  // Lining health
+  let lining;
+  let liningProtection = powerUpActive ? 1 : 0;
+  if (effectiveAcid == 0) {
+    lining = 95 + Math.random() * 5;
+  } else if (effectiveAcid == 1) {
+    lining = 80 + Math.random() * 15;
+  } else {
+    lining = powerUpActive ? (70 + Math.random() * 15) : (30 + Math.random() * 20);
+  }
+  lining = Math.round(lining);
+
+  return { breakdown, lining, effectiveAcid };
+}
+
+function getBreakdownLabel(val) {
+  if (val >= 80) return val + '% — mostly liquid';
+  if (val >= 50) return val + '% — small fragments';
+  if (val >= 30) return val + '% — partial chunks';
+  return val + '% — large chunks remain';
+}
+
+function getLiningLabel(val) {
+  if (val >= 75) return val + '% — healthy green';
+  if (val >= 45) return val + '% — stressed yellow';
+  return val + '% — damaged red';
+}
+
+function getLiningColor(val) {
+  if (val >= 75) return '#4caf50';
+  if (val >= 45) return '#ffc107';
+  return '#f44336';
+}
+
+function getBreakdownColor(val) {
+  if (val >= 70) return '#4caf50';
+  if (val >= 40) return '#ffc107';
+  return '#f44336';
+}
+
+// ========== MIX ==========
+function doMix() {
+  if (isMixing || gameOver) return;
+  try {
+    isMixing = true;
+    document.getElementById('mixBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    currentAcid = parseInt(acidSlider.value);
+    currentEnzyme = parseInt(enzymeSlider.value);
+
+    // Random event check (rounds 6-8 only)
+    acidSurgeActive = false;
+    if (round >= 6 && Math.random() < 0.35) {
+      acidSurgeActive = true;
+      document.getElementById('randomEventBox').innerHTML = '⚡ ACID SURGE! +1 acid this round';
+      document.getElementById('randomEventBox').style.display = 'block';
+    } else if (round >= 6) {
+      document.getElementById('randomEventBox').innerHTML = '';
+    }
+
+    updateStomachFluid();
+    initEnzymeParticles();
+    mixAnimPhase = 1;
+
+    // Calculate results
+    let results = calcResults();
+    currentBreakdown = results.breakdown;
+    currentLining = results.lining;
+
+    // Animate mixing for 3 seconds, then show results
+    setTimeout(() => {
+      try {
+        showResults(results);
+      } catch(e) { isMixing = false; document.getElementById('nextBtn').disabled = false; }
+    }, 3000);
+
+    // Safety timeout
+    setTimeout(() => {
+      if (isMixing) {
+        try { showResults(results); } catch(e) {}
+        isMixing = false;
+      }
+    }, 6000);
+
+  } catch(e) { isMixing = false; }
+}
+
+function showResults(results) {
+  try {
+    mixAnimPhase = 2;
+    isMixing = false;
+
+    // Update bars
+    let bBar = document.getElementById('breakdownBar');
+    bBar.style.width = results.breakdown + '%';
+    bBar.style.background = getBreakdownColor(results.breakdown);
+    document.getElementById('breakdownVal').textContent = results.breakdown + '%';
+    document.getElementById('breakdownVal').style.color = getBreakdownColor(results.breakdown);
+
+    let lBar = document.getElementById('liningBar');
+    lBar.style.width = results.lining + '%';
+    lBar.style.background = getLiningColor(results.lining);
+    document.getElementById('liningVal').textContent = results.lining + '%';
+    document.getElementById('liningVal').style.color = getLiningColor(results.lining);
+
+    // Lining state for arena
+    if (results.lining >= 75) liningState = 'healthy';
+    else if (results.lining >= 45) liningState = 'stressed';
+    else liningState = 'damaged';
+
+    // Safety alert
+    if (results.lining < 50) {
+      document.getElementById('safetyAlert').style.display = 'block';
+      setTimeout(() => { document.getElementById('safetyAlert').style.display = 'none'; }, 3000);
+    }
+
+    // Shrink food chunks based on breakdown
+    let remainRatio = 1 - (results.breakdown / 100);
+    foodChunks.forEach(c => {
+      c.size = c.origSize * (0.1 + remainRatio * 0.9);
+      if (results.breakdown > 70) c.opacity = 0.3;
+    });
+
+    // Add erosion holes if damaged
+    if (liningState === 'damaged') {
+      for (let i = 0; i < 4; i++) {
+        let angle = Math.random() * Math.PI * 2;
+        erosionHoles.push({
+          x: stCx + Math.cos(angle) * stRx * 0.85,
+          y: stCy + Math.sin(angle) * stRy * 0.85,
+          size: 5 + Math.random() * 8,
+          opacity: 0.8
+        });
+      }
+    }
+
+    // Score
+    let roundScore = 0;
+    let balanced = results.breakdown >= 60 && results.lining >= 60;
+    if (balanced) {
+      roundScore = 100 + Math.round(results.breakdown * 0.5) + Math.round(results.lining * 0.5);
+      streak++;
+      if (streak >= 3) roundScore += 50; // combo bonus
+      healthyRounds++;
+    } else {
+      roundScore = Math.round(results.breakdown * 0.3 + results.lining * 0.3);
+      streak = 0;
+    }
+    score += roundScore;
+    completedRounds++;
+    totalBreakdown += results.breakdown;
+    totalLining += results.lining;
+
+    // Check power up eligibility
+    if (completedRounds >= 5 && healthyRounds >= 3) {
+      powerUpAvail = true;
+    }
+
+    // Update HUD
+    document.getElementById('scoreDisplay').textContent = score;
+    document.getElementById('streakDisplay').textContent = streak > 0 ? streak + '🔥' : '0';
+    if (streak >= 3) document.getElementById('streakDisplay').classList.add('streak-fire');
+    else document.getElementById('streakDisplay').classList.remove('streak-fire');
+    if (score > bestScore) { bestScore = score; document.getElementById('bestDisplay').textContent = bestScore; }
+    document.getElementById('avgBreak').textContent = Math.round(totalBreakdown / completedRounds) + '%';
+    document.getElementById('avgLining').textContent = Math.round(totalLining / completedRounds) + '%';
+    document.getElementById('healthyCount').textContent = healthyRounds;
+    document.getElementById('progressFill').style.width = Math.min(100, (completedRounds / 5) * 100) + '%';
+    document.getElementById('progressText').textContent = Math.min(completedRounds, 5) + '/5 required';
+
+    // Rank
+    updateRank();
+
+    // Record data row
+    let acidLabel = LEVELS[currentAcid];
+    let enzymeLabel = LEVELS[currentEnzyme];
+    let acidSurgeNote = acidSurgeActive ? ' ⚡' : '';
+    let boostNote = powerUpActive ? ' 🛡️' : '';
+    let rowData = {
+      round: round,
+      levels: 'Acid: ' + acidLabel + ', Enzyme: ' + enzymeLabel + acidSurgeNote + boostNote,
+      breakdown: getBreakdownLabel(results.breakdown),
+      lining: getLiningLabel(results.lining)
+    };
+    roundData.push(rowData);
+    addDataRow(rowData);
+
+    // Power up consumed
+    if (powerUpActive) {
+      powerUpActive = false;
+      powerUpUsed = true;
+      document.getElementById('powerUpBtn').disabled = true;
+    }
+    acidSurgeActive = false;
+
+    // Enable next
+    document.getElementById('nextBtn').disabled = false;
+
+  } catch(e) { console.error('showResults error:', e); isMixing = false; }
+}
+
+function addDataRow(data) {
+  try {
+    let tbody = document.getElementById('dataBody');
+    let tr = document.createElement('tr');
+    let bColor = data.breakdown.includes('large') ? '#f44336' : data.breakdown.includes('partial') || data.breakdown.includes('small') ? '#ffc107' : '#4caf50';
+    let lColor = data.lining.includes('healthy') ? '#4caf50' : data.lining.includes('stressed') ? '#ffc107' : '#f44336';
+    tr.innerHTML = '<td>' + data.round + '</td><td style="font-size:10px;">' + data.levels + '</td><td style="color:' + bColor + ';font-size:10px;">' + data.breakdown + '</td><td style="color:' + lColor + ';font-size:10px;">' + data.lining + '</td>';
+    tbody.appendChild(tr);
+  } catch(e) {}
+}
+
+function updateRank() {
+  let rank = 'Rookie';
+  if (score >= 1200) rank = 'Master';
+  else if (score >= 800) rank = 'Expert';
+  else if (score >= 500) rank = 'Skilled';
+  else if (score >= 200) rank = 'Learner';
+  document.getElementById('rankDisplay').textContent = rank;
+}
+
+// ========== NEXT ROUND ==========
+function nextRound() {
+  if (isMixing) return;
+  try {
+    document.getElementById('nextBtn').disabled = true;
+    document.getElementById('randomEventBox').innerHTML = '';
+
+    if (round === 5) {
+      // Show round 5 message
+      document.getElementById('round5Msg').style.display = 'block';
+      return;
+    }
+    if (round >= 8) {
+      // Game complete
+      document.getElementById('completionOverlay').classList.add('show');
+      gameOver = true;
+      if (timerInterval) clearInterval(timerInterval);
+      return;
+    }
+
+    advanceRound();
+  } catch(e) {}
+}
+
+function continueExtra() {
+  try {
+    document.getElementById('round5Msg').style.display = 'none';
+    advanceRound();
+  } catch(e) {}
+}
+
+function advanceRound() {
+  round++;
+  document.getElementById('roundDisplay').textContent = round + '/8';
+
+  // Reset arena
+  mixAnimPhase = 0;
+  currentBreakdown = 0;
+  currentLining = 100;
+  liningState = 'healthy';
+  erosionHoles = [];
+  enzymeParticles = [];
+  burstParticles = [];
+
+  // Reset bars visually
+  document.getElementById('breakdownBar').style.width = '0%';
+  document.getElementById('breakdownVal').textContent = '—';
+  document.getElementById('liningBar').style.width = '100%';
+  document.getElementById('liningBar').style.background = '#4caf50';
+  document.getElementById('liningVal').textContent = '100%';
+  document.getElementById('liningVal').style.color = '#4caf50';
+
+  setLockState();
+  initFoodChunks();
+  updateSliderUI();
+
+  document.getElementById('mixBtn').disabled = false;
+}
+
+// ========== POWER UP ==========
+function usePowerUp() {
+  if (!powerUpAvail || powerUpUsed) return;
+  powerUpActive = true;
+  document.getElementById('powerUpBtn').disabled = true;
+  document.getElementById('powerUpBox').innerHTML = '🛡️ MUCUS BOOST ACTIVE!<br><small>Extra protection this round</small>';
+}
+
+// ========== COPY TABLE ==========
+function copyTable() {
+  try {
+    let text = 'Round #\tAcid & Enzyme Levels\tFood Breakdown Result\tLining Health Result\n';
+    roundData.forEach(d => {
+      text += d.round + '\t' + d.levels + '\t' + d.breakdown + '\t' + d.lining + '\n';
+    });
+    navigator.clipboard.writeText(text).then(() => {
+      document.getElementById('copyBtn').textContent = '✅ Copied!';
+      setTimeout(() => { document.getElementById('copyBtn').textContent = '📋 Copy Table'; }, 2000);
+    }).catch(() => {
+      // Fallback
+      let ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      document.getElementById('copyBtn').textContent = '✅ Copied!';
+      setTimeout(() => { document.getElementById('copyBtn').textContent = '📋 Copy Table'; }, 2000);
+    });
+  } catch(e) {}
+}
+
+// ========== RESET / NEW RUN ==========
+function resetSim() {
+  location.reload();
+}
+
+function newRun() {
+  round = 1; score = 0; streak = 0; totalBreakdown = 0; totalLining = 0;
+  completedRounds = 0; healthyRounds = 0; isMixing = false;
+  powerUpAvail = false; powerUpUsed = false; powerUpActive = false;
+  acidSurgeActive = false; gameOver = false; timerSeconds = 0;
+  roundData = [];
+  mixAnimPhase = 0; liningState = 'healthy'; erosionHoles = []; enzymeParticles = []; burstParticles = [];
+  document.getElementById('dataBody').innerHTML = '';
+  document.getElementById('roundDisplay').textContent = '1/8';
+  document.getElementById('scoreDisplay').textContent = '0';
+  document.getElementById('streakDisplay').textContent = '0';
+  document.getElementById('bestDisplay').textContent = '—';
+  document.getElementById('avgBreak').textContent = '—';
+  document.getElementById('avgLining').textContent = '—';
+  document.getElementById('healthyCount').textContent = '0';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressText').textContent = '0/5 required';
+  document.getElementById('rankDisplay').textContent = 'Rookie';
+  document.getElementById('breakdownBar').style.width = '0%';
+  document.getElementById('breakdownVal').textContent = '—';
+  document.getElementById('liningBar').style.width = '100%';
+  document.getElementById('liningBar').style.background = '#4caf50';
+  document.getElementById('liningVal').textContent = '100%';
+  document.getElementById('mixBtn').disabled = false;
+  document.getElementById('nextBtn').disabled = true;
+  document.getElementById('completionOverlay').classList.remove('show');
+  document.getElementById('round5Msg').style.display = 'none';
+  document.getElementById('safetyAlert').style.display = 'none';
+  acidSlider.value = 1; enzymeSlider.value = 1;
+  setLockState();
+  initFoodChunks();
+  initAmbientBubbles();
+  updateSliderUI();
+  startTimer();
+}
+
+// ========== RENDER LOOP ==========
+let frameCount = 0;
+
+function renderLoop() {
+  try {
+    frameCount++;
+    resizeCanvas();
+    ctx.clearRect(0, 0, stW, stH);
+    drawStomach();
+    drawFoodChunks();
+    drawEnzymeParticles();
+    drawAcidWaves();
+    drawErosionHoles();
+    drawBurstParticles();
+    drawAmbientBubbles();
+    drawLabels();
+  } catch(e) {}
+  animId = requestAnimationFrame(renderLoop);
+}
+
+// ========== DRAW STOMACH ==========
+function drawStomach() {
+  try {
+    // Outer wall (muscle)
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(stCx, stCy, stRx + 20, stRy + 20, 0, 0, Math.PI * 2);
+    let wallGrad = ctx.createRadialGradient(stCx, stCy, stRx * 0.5, stCx, stCy, stRx + 25);
+    wallGrad.addColorStop(0, 'rgba(180,60,60,0.0)');
+    wallGrad.addColorStop(0.7, 'rgba(180,60,60,0.15)');
+    wallGrad.addColorStop(1, 'rgba(140,40,40,0.5)');
+    ctx.fillStyle = wallGrad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(200,80,80,0.4)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+
+    // Mucus lining
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(stCx, stCy, stRx + 8, stRy + 8, 0, 0, Math.PI * 2);
+    let liningColor;
+    let pulseVal = Math.sin(frameCount * 0.03) * 0.15 + 0.85;
+    if (liningState === 'healthy') {
+      liningColor = 'rgba(129,199,132,' + (0.4 * pulseVal) + ')';
+    } else if (liningState === 'stressed') {
+      let flicker = Math.sin(frameCount * 0.1) > 0 ? 0.5 : 0.2;
+      liningColor = 'rgba(255,193,7,' + flicker + ')';
+    } else {
+      let flash = Math.sin(frameCount * 0.15) > 0 ? 0.6 : 0.15;
+      liningColor = 'rgba(244,67,54,' + flash + ')';
+    }
+    ctx.strokeStyle = liningColor;
+    ctx.lineWidth = liningState === 'stressed' ? 4 : liningState === 'damaged' ? 2 : 6;
+    ctx.stroke();
+
+    // Inner glow
+    ctx.beginPath();
+    ctx.ellipse(stCx, stCy, stRx + 4, stRy + 4, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = liningColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    // Stomach fluid
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(stCx, stCy, stRx, stRy, 0, 0, Math.PI * 2);
+    let fluidGrad = ctx.createRadialGradient(stCx - stRx * 0.3, stCy - stRy * 0.3, 10, stCx, stCy, stRx);
+    let fc = stomachFluidColor;
+    fluidGrad.addColorStop(0, fc + 'cc');
+    fluidGrad.addColorStop(0.6, fc + '88');
+    fluidGrad.addColorStop(1, fc + '44');
+    ctx.fillStyle = fluidGrad;
+    ctx.fill();
+    ctx.restore();
+
+    // Wave effect during mixing
+    if (mixAnimPhase === 1) {
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < stRx * 2; i++) {
+        let x = stCx - stRx + i;
+        let waveY = stCy + Math.sin((i + frameCount * 3) * 0.04) * 8 + Math.sin((i + frameCount * 5) * 0.07) * 4;
+        if (i === 0) ctx.moveTo(x, waveY);
+        else ctx.lineTo(x, waveY);
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  } catch(e) {}
+}
+
+// ========== DRAW FOOD CHUNKS ==========
+function drawFoodChunks() {
+  try {
+    let isBread = round <= 5;
+    foodChunks.forEach(c => {
+      // Float around gently
+      c.x += c.vx + Math.sin(frameCount * 0.01 + c.y) * 0.1;
+      c.y += c.vy + Math.cos(frameCount * 0.01 + c.x) * 0.08;
+
+      // Hard contain within stomach ellipse
+      let dx = c.x - stCx;
+      let dy = c.y - stCy;
+      let dist = Math.sqrt((dx * dx) / (stRx * stRx) + (dy * dy) / (stRy * stRy));
+      if (dist > 0.7) {
+        // Strong push back toward center
+        c.vx -= dx * 0.01;
+        c.vy -= dy * 0.01;
+      }
+      if (dist > 0.8) {
+        // Hard clamp — force back inside
+        let scale = 0.75 / dist;
+        c.x = stCx + dx * scale;
+        c.y = stCy + dy * scale;
+        c.vx *= -0.3;
+        c.vy *= -0.3;
+      }
+      // Dampen velocity to prevent buildup
+      c.vx *= 0.98;
+      c.vy *= 0.98;
+
+      if (c.size < 2) return;
+
+      ctx.save();
+      ctx.globalAlpha = c.opacity;
+
+      if (isBread) {
+        // Bread chunk - tan/brown
+        let bGrad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.size);
+        bGrad.addColorStop(0, '#d4a574');
+        bGrad.addColorStop(0.7, '#c49060');
+        bGrad.addColorStop(1, '#a0704a');
+        ctx.fillStyle = bGrad;
+        ctx.beginPath();
+        // Irregular shape
+        for (let a = 0; a < Math.PI * 2; a += 0.3) {
+          let r = c.size * (0.8 + Math.sin(a * 3 + c.x) * 0.2);
+          let px = c.x + Math.cos(a) * r;
+          let py = c.y + Math.sin(a) * r;
+          if (a === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(120,70,30,0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else {
+        // Steak chunk - red/brown
+        let sGrad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.size);
+        sGrad.addColorStop(0, '#c0392b');
+        sGrad.addColorStop(0.5, '#922b21');
+        sGrad.addColorStop(1, '#641e16');
+        ctx.fillStyle = sGrad;
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 2; a += 0.25) {
+          let r = c.size * (0.85 + Math.sin(a * 4 + c.y) * 0.15);
+          let px = c.x + Math.cos(a) * r;
+          let py = c.y + Math.sin(a) * r;
+          if (a === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        // Fat marbling
+        ctx.strokeStyle = 'rgba(255,200,180,0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(c.x - c.size * 0.5, c.y);
+        ctx.quadraticCurveTo(c.x, c.y - c.size * 0.3, c.x + c.size * 0.5, c.y + c.size * 0.2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Cracking effect during mixing
+      if (mixAnimPhase === 1 && c.size > 5) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,200,0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(c.x - c.size * 0.4, c.y);
+        ctx.lineTo(c.x + c.size * 0.4, c.y + c.size * 0.1);
+        ctx.stroke();
+        ctx.restore();
+
+        // Burst particles
+        if (frameCount % 10 === 0 && Math.random() < 0.4) {
+          burstParticles.push({
+            x: c.x, y: c.y,
+            vx: (Math.random() - 0.5) * 3,
+            vy: (Math.random() - 0.5) * 3,
+            life: 30,
+            color: isBread ? '#d4a574' : '#c0392b',
+            size: 2 + Math.random() * 3
+          });
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+// ========== ENZYME PARTICLES ==========
+function drawEnzymeParticles() {
+  try {
+    enzymeParticles.forEach(p => {
+      p.angle += 0.02;
+      p.pulse += 0.08;
+      p.x += Math.cos(p.angle) * p.speed;
+      p.y += Math.sin(p.angle) * p.speed;
+
+      // Contain hard inside stomach
+      let dx = p.x - stCx;
+      let dy = p.y - stCy;
+      let dist = Math.sqrt((dx * dx) / (stRx * stRx) + (dy * dy) / (stRy * stRy));
+      if (dist > 0.7) { p.angle += Math.PI * 0.5; }
+      if (dist > 0.8) {
+        let scale = 0.7 / dist;
+        p.x = stCx + dx * scale;
+        p.y = stCy + dy * scale;
+      }
+
+      let pulse = 0.7 + Math.sin(p.pulse) * 0.3;
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      let eGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * pulse * 2);
+      eGrad.addColorStop(0, 'rgba(41,182,246,0.9)');
+      eGrad.addColorStop(0.5, 'rgba(41,182,246,0.4)');
+      eGrad.addColorStop(1, 'rgba(41,182,246,0)');
+      ctx.fillStyle = eGrad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * pulse * 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Core
+      ctx.fillStyle = '#e1f5fe';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * pulse * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  } catch(e) {}
+}
+
+// ========== ACID WAVES ==========
+function drawAcidWaves() {
+  if (mixAnimPhase !== 1) return;
+  try {
+    for (let w = 0; w < 3; w++) {
+      let waveOffset = frameCount * 2 + w * 80;
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(stCx, stCy, stRx * 0.5 + (waveOffset % 120), stRy * 0.3 + (waveOffset % 80), 0, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,152,0,' + (0.3 - (waveOffset % 120) / 400) + ')';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  } catch(e) {}
+}
+
+// ========== EROSION HOLES ==========
+function drawErosionHoles() {
+  try {
+    erosionHoles.forEach(h => {
+      ctx.save();
+      ctx.globalAlpha = h.opacity * (0.5 + Math.sin(frameCount * 0.1) * 0.3);
+      let hGrad = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, h.size);
+      hGrad.addColorStop(0, 'rgba(50,0,0,0.9)');
+      hGrad.addColorStop(0.5, 'rgba(200,50,50,0.5)');
+      hGrad.addColorStop(1, 'rgba(244,67,54,0)');
+      ctx.fillStyle = hGrad;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, h.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  } catch(e) {}
+}
+
+// ========== BURST PARTICLES ==========
+function drawBurstParticles() {
+  try {
+    for (let i = burstParticles.length - 1; i >= 0; i--) {
+      let p = burstParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life--;
+      p.vx *= 0.95;
+      p.vy *= 0.95;
+
+      if (p.life <= 0) { burstParticles.splice(i, 1); continue; }
+
+      ctx.save();
+      ctx.globalAlpha = p.life / 30;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (p.life / 30), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  } catch(e) {}
+}
+
+// ========== AMBIENT BUBBLES ==========
+function drawAmbientBubbles() {
+  try {
+    ambientBubbles.forEach(b => {
+      b.y -= b.speed;
+      b.x += Math.sin(frameCount * 0.02 + b.x) * 0.3;
+      if (b.y < stCy - stRy * 0.7) {
+        b.y = stCy + stRy * 0.5;
+        let angle = Math.random() * Math.PI;
+        b.x = stCx + Math.cos(angle) * stRx * 0.5;
+      }
+
+      // Only draw if inside stomach
+      let dx = b.x - stCx;
+      let dy = b.y - stCy;
+      let dist = Math.sqrt((dx * dx) / (stRx * stRx) + (dy * dy) / (stRy * stRy));
+      if (dist > 0.95) return;
+
+      ctx.save();
+      ctx.globalAlpha = b.opacity;
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      ctx.restore();
+    });
+  } catch(e) {}
+}
+
+// ========== LABELS ==========
+function drawLabels() {
+  try {
+    ctx.save();
+    ctx.font = 'bold 12px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+
+    // "Stomach" label at top
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    ctx.fillText('Stomach', stCx, stCy - stRy - 28);
+
+    // Lining label
+    let liningLabelColor = liningState === 'healthy' ? '#81c784' : liningState === 'stressed' ? '#ffc107' : '#f44336';
+    ctx.fillStyle = liningLabelColor;
+    ctx.font = 'bold 11px Segoe UI, sans-serif';
+    ctx.fillText('Mucus Lining', stCx + stRx + 6, stCy - stRy * 0.2);
+    // Arrow
+    ctx.beginPath();
+    ctx.moveTo(stCx + stRx + 6, stCy - stRy * 0.15);
+    ctx.lineTo(stCx + stRx - 5, stCy - stRy * 0.05);
+    ctx.strokeStyle = liningLabelColor;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Fluid label
+    ctx.fillStyle = 'rgba(255,200,100,0.6)';
+    ctx.font = 'bold 11px Segoe UI, sans-serif';
+    ctx.fillText('Acid Fluid', stCx, stCy + stRy * 0.7);
+
+    // Enzyme label (when present)
+    if (enzymeParticles.length > 0) {
+      ctx.fillStyle = 'rgba(41,182,246,0.7)';
+      ctx.fillText('Enzymes', stCx - stRx * 0.5, stCy - stRy * 0.6);
+    }
+
+    // Food label
+    if (foodChunks.length > 0 && foodChunks[0].size > 3) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillText(round <= 5 ? 'Bread' : 'Steak', stCx, stCy - stRy * 0.3);
+    }
+
+    ctx.restore();
+  } catch(e) {}
+}
+
+// ========== START ==========
+init();
+</script>
+</body>
+</html>
