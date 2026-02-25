@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad Simulation — Body Under Attack</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0e1a; color: #e0e0e0; overflow-x: hidden; min-height: 100vh; }
+
+/* TOP BAR */
+.top-bar { background: linear-gradient(135deg, #1a237e, #283593, #1565c0); padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(0,0,0,0.5); border-bottom: 2px solid #42a5f5; }
+.top-bar h1 { font-size: 18px; color: #fff; text-shadow: 0 0 10px rgba(66,165,245,0.5); }
+.top-bar .round-display { font-size: 16px; color: #90caf9; font-weight: bold; }
+
+/* MAIN LAYOUT */
+.main-layout { display: flex; height: calc(100vh - 46px); }
+
+/* LEFT PANEL - Controls */
+.left-panel { width: 260px; min-width: 260px; background: linear-gradient(180deg, #0d1229, #121836); border-right: 2px solid #1a237e; padding: 12px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.panel-section { background: rgba(255,255,255,0.04); border-radius: 10px; padding: 10px; border: 1px solid rgba(255,255,255,0.08); }
+.panel-title { font-size: 11px; text-transform: uppercase; color: #64b5f6; letter-spacing: 1.5px; margin-bottom: 6px; font-weight: 700; }
+
+/* Mission */
+.mission-box { background: linear-gradient(135deg, rgba(244,67,54,0.15), rgba(255,152,0,0.1)); border: 1px solid rgba(244,67,54,0.3); border-radius: 8px; padding: 8px 10px; text-align: center; }
+.mission-text { font-size: 13px; color: #ffab91; font-weight: 600; }
+
+/* Threat Card - Visual Danger Meter */
+.threat-card { background: linear-gradient(135deg, rgba(244,67,54,0.15), rgba(183,28,28,0.12)); border: 1px solid rgba(244,67,54,0.35); border-radius: 10px; padding: 10px; text-align: center; }
+.threat-title { font-size: 11px; color: #ef9a9a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.threat-title::before { content: '🦠'; font-size: 13px; }
+.danger-skulls { display: flex; justify-content: center; gap: 3px; margin-bottom: 6px; }
+.danger-skull { font-size: 22px; opacity: 0.2; transition: all 0.4s; filter: grayscale(1); }
+.danger-skull.active { opacity: 1; filter: grayscale(0); animation: skullPop 0.3s; }
+@keyframes skullPop { 0% { transform: scale(0.5); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+.danger-bar-outer { height: 10px; background: rgba(0,0,0,0.4); border-radius: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+.danger-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s ease, background 0.6s ease; }
+.danger-bar-fill.d1 { width: 20%; background: linear-gradient(90deg, #66bb6a, #81c784); }
+.danger-bar-fill.d2 { width: 40%; background: linear-gradient(90deg, #fdd835, #ffee58); }
+.danger-bar-fill.d3 { width: 60%; background: linear-gradient(90deg, #ffa726, #ff9800); }
+.danger-bar-fill.d4 { width: 80%; background: linear-gradient(90deg, #ef5350, #f44336); }
+.danger-bar-fill.d5 { width: 100%; background: linear-gradient(90deg, #d32f2f, #b71c1c, #880e4f); animation: dangerPulse 1s infinite; }
+@keyframes dangerPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+/* WBC Control */
+.wbc-control { text-align: center; }
+.wbc-buttons { display: flex; gap: 4px; margin-top: 6px; }
+.wbc-btn { flex: 1; padding: 10px 4px; border: 2px solid #1565c0; background: rgba(21,101,192,0.15); color: #90caf9; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; transition: all 0.3s; }
+.wbc-btn:hover:not(.locked) { background: rgba(21,101,192,0.3); transform: scale(1.05); }
+.wbc-btn.active { background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; box-shadow: 0 0 15px rgba(21,101,192,0.5); border-color: #42a5f5; }
+.wbc-btn.locked { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+.lock-indicator { font-size: 11px; color: #ffab40; margin-top: 4px; }
+
+/* Fever Control */
+.fever-control { text-align: center; }
+.fever-buttons { display: flex; gap: 4px; margin-top: 6px; }
+.fever-btn { flex: 1; padding: 10px 4px; border: 2px solid #e65100; background: rgba(230,81,0,0.1); color: #ffab91; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; transition: all 0.3s; }
+.fever-btn:hover:not(.locked) { background: rgba(230,81,0,0.25); transform: scale(1.05); }
+.fever-btn.active { background: linear-gradient(135deg, #e65100, #ff6d00); color: #fff; box-shadow: 0 0 15px rgba(230,81,0,0.5); border-color: #ff9100; }
+.fever-btn.locked { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+
+/* Launch Button */
+.launch-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #2e7d32, #43a047, #66bb6a); color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 4px 15px rgba(46,125,50,0.4); transition: all 0.3s; }
+.launch-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(46,125,50,0.6); }
+.launch-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.launch-btn.retry-mode { background: linear-gradient(135deg, #f57f17, #ff8f00, #ffa000); box-shadow: 0 4px 15px rgba(245,127,23,0.4); }
+
+/* Reset/New */
+.bottom-btns { display: flex; gap: 6px; margin-top: auto; }
+.bottom-btns button { flex: 1; padding: 8px; border-radius: 8px; border: none; font-weight: 700; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+.reset-btn { background: linear-gradient(135deg, #c62828, #d32f2f); color: #fff; }
+.newrun-btn { background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; }
+
+/* CENTER - Arena */
+.center-panel { flex: 1; display: flex; flex-direction: column; position: relative; }
+
+/* HUD */
+.hud { display: flex; justify-content: space-around; align-items: center; padding: 6px 12px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.1); }
+.hud-item { text-align: center; }
+.hud-label { font-size: 9px; text-transform: uppercase; color: #78909c; letter-spacing: 1px; }
+.hud-value { font-size: 18px; font-weight: 800; }
+.health-val { color: #4caf50; transition: color 0.5s; }
+.score-val { color: #ffd740; }
+.streak-val { color: #e040fb; }
+.antibody-val { color: #00e5ff; }
+
+/* Health Bar */
+.health-bar-container { position: relative; margin: 0 12px; height: 24px; background: rgba(0,0,0,0.5); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; }
+.health-bar-fill { height: 100%; background: linear-gradient(90deg, #4caf50, #66bb6a); border-radius: 12px; transition: width 1.5s ease, background 1s ease; position: relative; }
+.health-bar-fill::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%; background: linear-gradient(180deg, rgba(255,255,255,0.25), transparent); border-radius: 12px 12px 0 0; }
+.health-bar-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.7); z-index: 2; }
+
+/* Arena */
+.arena { flex: 1; position: relative; overflow: hidden; background: linear-gradient(135deg, #2a1520 0%, #1e1028 25%, #16182e 50%, #1a1225 75%, #241520 100%); }
+
+/* Tissue texture overlay */
+.arena::before { content: ''; position: absolute; inset: 0; background:
+  radial-gradient(ellipse at 20% 30%, rgba(183,28,28,0.06) 0%, transparent 50%),
+  radial-gradient(ellipse at 70% 60%, rgba(183,28,28,0.05) 0%, transparent 40%),
+  radial-gradient(ellipse at 50% 80%, rgba(136,14,79,0.04) 0%, transparent 45%),
+  radial-gradient(circle at 30% 70%, rgba(244,143,177,0.03) 0%, transparent 30%),
+  radial-gradient(circle at 80% 20%, rgba(244,143,177,0.03) 0%, transparent 30%);
+  z-index: 0; pointer-events: none; }
+
+/* Blood vessels */
+.vessel { position: absolute; border-radius: 50px; pointer-events: none; z-index: 1; overflow: hidden; }
+.vessel::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.vessel-main { width: 90%; height: 28px; top: 50%; left: 5%; transform: translateY(-50%); background: linear-gradient(90deg, transparent 0%, rgba(183,28,28,0.12) 15%, rgba(211,47,47,0.18) 50%, rgba(183,28,28,0.12) 85%, transparent 100%); border: 1px solid rgba(183,28,28,0.08); animation: vesselPulse 3s ease-in-out infinite; }
+.vessel-branch1 { width: 45%; height: 18px; top: 25%; left: 30%; transform: rotate(-15deg); background: linear-gradient(90deg, transparent, rgba(183,28,28,0.1), rgba(211,47,47,0.14), rgba(183,28,28,0.08), transparent); border: 1px solid rgba(183,28,28,0.06); animation: vesselPulse 3.5s ease-in-out infinite 0.5s; }
+.vessel-branch2 { width: 40%; height: 16px; top: 72%; left: 25%; transform: rotate(12deg); background: linear-gradient(90deg, transparent, rgba(183,28,28,0.09), rgba(211,47,47,0.13), rgba(183,28,28,0.07), transparent); border: 1px solid rgba(183,28,28,0.05); animation: vesselPulse 4s ease-in-out infinite 1s; }
+.vessel-branch3 { width: 35%; height: 14px; top: 38%; right: 8%; transform: rotate(20deg); background: linear-gradient(90deg, transparent, rgba(183,28,28,0.08), rgba(211,47,47,0.12), transparent); border: 1px solid rgba(183,28,28,0.05); animation: vesselPulse 3.8s ease-in-out infinite 1.5s; }
+@keyframes vesselPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+/* Flow particles inside vessels */
+.flow-dot { position: absolute; width: 3px; height: 3px; background: rgba(239,83,80,0.4); border-radius: 50%; z-index: 2; pointer-events: none; animation: flowMove linear infinite; }
+@keyframes flowMove { 0% { transform: translateX(-20px); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translateX(calc(100vw * 0.6)); opacity: 0; } }
+
+/* Labels */
+.arena-label { position: absolute; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; pointer-events: none; z-index: 50; padding: 3px 8px; border-radius: 4px; }
+.label-wbc { top: 10px; left: 14px; color: #64b5f6; background: rgba(21,101,192,0.2); border: 1px solid rgba(21,101,192,0.3); }
+.label-pathogen { top: 10px; right: 14px; color: #ef9a9a; background: rgba(198,40,40,0.2); border: 1px solid rgba(198,40,40,0.3); }
+.label-tissue { bottom: 42px; left: 14px; color: rgba(244,143,177,0.4); font-size: 8px; letter-spacing: 1px; }
+
+/* Antibody Bar */
+.antibody-bar-wrap { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); width: 300px; z-index: 50; }
+.antibody-bar-label { font-size: 10px; color: #00e5ff; text-align: center; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 1px; }
+.antibody-bar-outer { height: 16px; background: rgba(0,0,0,0.5); border-radius: 8px; border: 1px solid rgba(0,229,255,0.3); overflow: hidden; position: relative; }
+.antibody-bar-inner { height: 100%; width: 0%; background: linear-gradient(90deg, #006064, #00bcd4, #00e5ff); border-radius: 8px; transition: width 0.3s; position: relative; }
+.antibody-bar-inner::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%; background: linear-gradient(180deg, rgba(255,255,255,0.3), transparent); border-radius: 8px 8px 0 0; }
+.antibody-threshold { position: absolute; left: 60%; top: 0; bottom: 0; width: 2px; background: #ffeb3b; z-index: 2; }
+.antibody-threshold::after { content: 'READY'; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); font-size: 7px; color: #ffeb3b; white-space: nowrap; }
+
+/* Fever overlay */
+.fever-overlay { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(255,152,0,0.08), rgba(255,87,34,0.04), transparent 70%); pointer-events: none; opacity: 0; transition: opacity 1s; z-index: 1; }
+.fever-overlay.active { opacity: 1; animation: feverPulse 2s infinite; }
+@keyframes feverPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+/* Battle result overlay */
+.battle-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.5s; }
+.battle-overlay.show { opacity: 1; pointer-events: auto; }
+.battle-overlay.win { background: radial-gradient(ellipse, rgba(46,125,50,0.4), rgba(0,0,0,0.6)); }
+.battle-overlay.lose { background: radial-gradient(ellipse, rgba(198,40,40,0.4), rgba(0,0,0,0.6)); }
+.battle-result-text { font-size: 48px; font-weight: 900; text-shadow: 0 0 30px currentColor; }
+.battle-result-text.win-text { color: #69f0ae; }
+.battle-result-text.lose-text { color: #ff5252; }
+.battle-result-detail { font-size: 16px; margin-top: 8px; color: rgba(255,255,255,0.8); }
+
+/* Required complete overlay */
+.milestone-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 110; background: radial-gradient(ellipse, rgba(255,215,0,0.2), rgba(0,0,0,0.7)); opacity: 0; pointer-events: none; transition: opacity 0.5s; }
+.milestone-overlay.show { opacity: 1; pointer-events: auto; }
+.milestone-text { font-size: 28px; font-weight: 900; color: #ffd740; text-shadow: 0 0 20px rgba(255,215,64,0.5); text-align: center; }
+.milestone-sub { font-size: 16px; color: #fff; margin-top: 8px; }
+.milestone-btn { margin-top: 16px; padding: 10px 24px; background: linear-gradient(135deg, #ffd740, #ffab00); color: #1a1a1a; border: none; border-radius: 8px; font-weight: 800; font-size: 14px; cursor: pointer; }
+
+/* Memory boost indicator */
+.memory-boost { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 22px; font-weight: 900; color: #00e5ff; text-shadow: 0 0 20px rgba(0,229,255,0.8); z-index: 60; opacity: 0; pointer-events: none; }
+.memory-boost.show { animation: memoryFlash 2s forwards; }
+@keyframes memoryFlash { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.5); } 20% { opacity: 1; transform: translate(-50%,-50%) scale(1.2); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1); } }
+
+/* RIGHT PANEL - Results */
+.right-panel { width: 280px; min-width: 280px; background: linear-gradient(180deg, #0d1229, #121836); border-left: 2px solid #1a237e; padding: 10px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+
+/* Results Table */
+.results-header { display: flex; justify-content: space-between; align-items: center; }
+.results-title { font-size: 12px; color: #64b5f6; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+.copy-btn { padding: 4px 10px; background: linear-gradient(135deg, #1565c0, #1976d2); color: #fff; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.copy-btn:hover { transform: scale(1.05); }
+.copy-btn.copied { background: linear-gradient(135deg, #2e7d32, #43a047); }
+
+.results-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 4px; }
+.results-table th { background: rgba(21,101,192,0.3); color: #90caf9; padding: 5px 3px; text-align: center; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid rgba(255,255,255,0.1); }
+.results-table td { padding: 4px 3px; text-align: center; border: 1px solid rgba(255,255,255,0.06); color: #b0bec5; font-size: 10px; }
+.results-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.results-table tr.filled { color: #e0e0e0; }
+.results-table tr.extra-credit { border-left: 2px solid #ffd740; }
+
+/* Progress */
+.progress-section { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 8px; border: 1px solid rgba(255,255,255,0.08); }
+.progress-title { font-size: 10px; color: #ffd740; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.progress-bar-outer { height: 14px; background: rgba(0,0,0,0.4); border-radius: 7px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+.progress-bar-inner { height: 100%; background: linear-gradient(90deg, #ffd740, #ffab00); border-radius: 7px; transition: width 0.5s; width: 0%; }
+.progress-text { font-size: 10px; color: #bdbdbd; margin-top: 3px; text-align: center; }
+
+/* Stats Grid */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.stat-box { background: rgba(255,255,255,0.04); border-radius: 6px; padding: 6px; text-align: center; border: 1px solid rgba(255,255,255,0.06); }
+.stat-label { font-size: 8px; text-transform: uppercase; color: #78909c; letter-spacing: 0.5px; }
+.stat-value { font-size: 16px; font-weight: 800; }
+
+/* Power-up indicator */
+.powerup-box { background: linear-gradient(135deg, rgba(0,229,255,0.1), rgba(0,131,143,0.1)); border: 1px solid rgba(0,229,255,0.3); border-radius: 8px; padding: 8px; text-align: center; display: none; }
+.powerup-box.show { display: block; }
+.powerup-text { font-size: 11px; color: #00e5ff; font-weight: 700; }
+
+/* Entities */
+.entity { position: absolute; border-radius: 50%; z-index: 10; transition: opacity 0.3s; }
+.wbc { background: radial-gradient(circle at 35% 35%, #bbdefb, #64b5f6, #1565c0, #0d47a1); box-shadow: 0 0 12px rgba(21,101,192,0.7), 0 0 25px rgba(21,101,192,0.3); border: 1px solid rgba(144,202,249,0.4); }
+.wbc.boosted { box-shadow: 0 0 18px rgba(0,229,255,0.9), 0 0 35px rgba(0,229,255,0.4); border-color: rgba(0,229,255,0.6); animation: wbcPulse 0.8s infinite; }
+@keyframes wbcPulse { 0%,100% { transform: scale(1); box-shadow: 0 0 18px rgba(0,229,255,0.9), 0 0 35px rgba(0,229,255,0.4); } 50% { transform: scale(1.2); box-shadow: 0 0 25px rgba(0,229,255,1), 0 0 50px rgba(0,229,255,0.6); } }
+
+.pathogen { background: radial-gradient(circle at 35% 35%, #ff8a80, #f44336, #c62828, #b71c1c); box-shadow: 0 0 12px rgba(244,67,54,0.8), 0 0 25px rgba(244,67,54,0.3); border: 1px solid rgba(255,138,128,0.3); }
+.pathogen::before { content: ''; position: absolute; width: 35%; height: 35%; background: radial-gradient(circle, #ff5252, #d32f2f); border-radius: 50%; top: -20%; left: 32%; box-shadow: 0 0 6px rgba(255,82,82,0.9); }
+.pathogen::after { content: ''; position: absolute; width: 30%; height: 30%; background: radial-gradient(circle, #ff5252, #d32f2f); border-radius: 50%; bottom: -15%; right: 10%; box-shadow: 0 0 6px rgba(255,82,82,0.9); }
+.pathogen.multiplying { animation: pathogenGrow 0.5s ease; }
+@keyframes pathogenGrow { 0% { transform: scale(0.3); opacity: 0; } 50% { transform: scale(1.4); } 100% { transform: scale(1); opacity: 1; } }
+.pathogen.dying { animation: pathogenDie 0.6s forwards; }
+@keyframes pathogenDie { 0% { transform: scale(1); opacity: 1; } 30% { transform: scale(1.3); } 100% { transform: scale(0); opacity: 0; } }
+
+/* Particle effects */
+.particle { position: absolute; border-radius: 50%; pointer-events: none; z-index: 5; }
+.combat-flash { position: absolute; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.9), rgba(255,235,59,0.5), transparent); pointer-events: none; z-index: 15; animation: flashOut 0.4s forwards; }
+@keyframes flashOut { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
+
+/* Start screen */
+.start-screen { position: absolute; inset: 0; z-index: 200; background: linear-gradient(135deg, #0a0e1a, #1a237e, #0d47a1); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.start-screen.hidden { display: none; }
+.start-title { font-size: 42px; font-weight: 900; color: #fff; text-shadow: 0 0 30px rgba(66,165,245,0.5); margin-bottom: 8px; text-align: center; }
+.start-subtitle { font-size: 18px; color: #90caf9; margin-bottom: 24px; text-align: center; }
+.start-mission { font-size: 14px; color: #ffab91; margin-bottom: 32px; background: rgba(255,255,255,0.05); padding: 12px 24px; border-radius: 10px; border: 1px solid rgba(255,171,145,0.2); text-align: center; max-width: 400px; }
+.start-btn { padding: 16px 48px; background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff; border: none; border-radius: 12px; font-size: 20px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 3px; box-shadow: 0 4px 20px rgba(46,125,50,0.5); transition: all 0.3s; }
+.start-btn:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 30px rgba(46,125,50,0.7); }
+
+/* Extra credit badge */
+.ec-badge { display: none; position: absolute; top: 8px; right: 8px; background: linear-gradient(135deg, #ffd740, #ffab00); color: #1a1a1a; padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 800; z-index: 60; }
+.ec-badge.show { display: block; animation: badgePop 0.5s; }
+@keyframes badgePop { 0% { transform: scale(0); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+
+/* Ambient particles */
+.ambient-particle { position: absolute; border-radius: 50%; background: rgba(144,202,249,0.15); pointer-events: none; z-index: 2; animation: ambientFloat linear infinite; }
+@keyframes ambientFloat { 0% { transform: translateY(0) translateX(0); opacity: 0.2; } 50% { opacity: 0.5; } 100% { transform: translateY(-200px) translateX(30px); opacity: 0; } }
+
+/* Screen shake */
+.arena.shake { animation: screenShake 0.5s; }
+@keyframes screenShake { 0%,100% { transform: translateX(0); } 10% { transform: translateX(-5px); } 20% { transform: translateX(5px); } 30% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 50% { transform: translateX(-2px); } }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .left-panel, .right-panel { width: 220px; min-width: 220px; }
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>Mr. Jawad Simulation — Body Under Attack</h1>
+  <div class="round-display" id="roundDisplay">Round 0 / 8</div>
+</div>
+
+<div class="main-layout">
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="mission-box">
+      <div class="mission-text">Keep health > 50%</div>
+    </div>
+
+    <div class="panel-section threat-card" id="threatCard">
+      <div class="threat-title">Danger Level</div>
+      <div class="danger-skulls" id="dangerSkulls">
+        <span class="danger-skull" id="skull1">💀</span>
+        <span class="danger-skull" id="skull2">💀</span>
+        <span class="danger-skull" id="skull3">💀</span>
+        <span class="danger-skull" id="skull4">💀</span>
+        <span class="danger-skull" id="skull5">💀</span>
+      </div>
+      <div class="danger-bar-outer"><div class="danger-bar-fill" id="dangerBarFill"></div></div>
+    </div>
+
+    <div class="panel-section wbc-control">
+      <div class="panel-title">WBC Count</div>
+      <div class="wbc-buttons" id="wbcButtons">
+        <button class="wbc-btn" data-val="Low" onclick="setWBC('Low')">Low</button>
+        <button class="wbc-btn" data-val="Medium" onclick="setWBC('Medium')">Med</button>
+        <button class="wbc-btn" data-val="High" onclick="setWBC('High')">High</button>
+      </div>
+      <div class="lock-indicator" id="wbcLock" style="display:none">🔒 Locked</div>
+    </div>
+
+    <div class="panel-section fever-control">
+      <div class="panel-title">Fever Response</div>
+      <div class="fever-buttons" id="feverButtons">
+        <button class="fever-btn" data-val="Allow" onclick="setFever('Allow')">Allow</button>
+        <button class="fever-btn" data-val="Block" onclick="setFever('Block')">Block</button>
+      </div>
+      <div class="lock-indicator" id="feverLock" style="display:none">🔒 Locked</div>
+    </div>
+
+    <button class="launch-btn" id="launchBtn" onclick="launchBattle()" disabled>⚔️ Launch Battle</button>
+
+    <div class="bottom-btns">
+      <button class="reset-btn" onclick="resetRound()">Reset Round</button>
+      <button class="newrun-btn" onclick="newRun()">New Run</button>
+    </div>
+  </div>
+
+  <!-- CENTER - Arena -->
+  <div class="center-panel">
+    <div class="hud">
+      <div class="hud-item"><div class="hud-label">Health</div><div class="hud-value health-val" id="hudHealth">100%</div></div>
+      <div class="hud-item"><div class="hud-label">Score</div><div class="hud-value score-val" id="hudScore">0</div></div>
+      <div class="hud-item"><div class="hud-label">Streak</div><div class="hud-value streak-val" id="hudStreak">0</div></div>
+      <div class="hud-item"><div class="hud-label">Antibodies</div><div class="hud-value antibody-val" id="hudAntibody">0%</div></div>
+    </div>
+    <div class="health-bar-container">
+      <div class="health-bar-fill" id="healthBarFill" style="width:100%"></div>
+      <div class="health-bar-label" id="healthBarLabel">100%</div>
+    </div>
+
+    <div class="arena" id="arena">
+      <!-- Blood vessels -->
+      <div class="vessel vessel-main"></div>
+      <div class="vessel vessel-branch1"></div>
+      <div class="vessel vessel-branch2"></div>
+      <div class="vessel vessel-branch3"></div>
+
+      <!-- Fever overlay -->
+      <div class="fever-overlay" id="feverOverlay"></div>
+
+      <!-- Labels -->
+      <div class="arena-label label-wbc">WBCs</div>
+      <div class="arena-label label-pathogen">Pathogens</div>
+      <div class="arena-label label-tissue">Body Tissue</div>
+
+      <!-- Antibody bar -->
+      <div class="antibody-bar-wrap">
+        <div class="antibody-bar-label">Antibodies</div>
+        <div class="antibody-bar-outer">
+          <div class="antibody-bar-inner" id="antibodyBarInner"></div>
+          <div class="antibody-threshold"></div>
+        </div>
+      </div>
+
+      <!-- Memory boost text -->
+      <div class="memory-boost" id="memoryBoost">⚡ Memory Cells!</div>
+
+      <!-- EC Badge -->
+      <div class="ec-badge" id="ecBadge">⭐ Extra Credit</div>
+
+      <!-- Battle overlay -->
+      <div class="battle-overlay" id="battleOverlay">
+        <div class="battle-result-text" id="battleResultText"></div>
+        <div class="battle-result-detail" id="battleResultDetail"></div>
+      </div>
+
+      <!-- Milestone overlay -->
+      <div class="milestone-overlay" id="milestoneOverlay">
+        <div class="milestone-text" id="milestoneText"></div>
+        <div class="milestone-sub" id="milestoneSub"></div>
+        <button class="milestone-btn" id="milestoneBtn" onclick="dismissMilestone()">Continue</button>
+      </div>
+
+      <!-- Start screen -->
+      <div class="start-screen" id="startScreen">
+        <div class="start-title">⚔️ Body Under Attack</div>
+        <div class="start-subtitle">Immune Defense Simulator</div>
+        <div class="start-mission">Your body runs a 24/7 war room — and today you are the general.</div>
+        <button class="start-btn" onclick="startGame()">Start Mission</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="progress-section">
+      <div class="progress-title">Progress</div>
+      <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
+      <div class="progress-text" id="progressText">Complete 5 rounds</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-label">Completed</div><div class="stat-value" id="statCompleted" style="color:#4caf50">0</div></div>
+      <div class="stat-box"><div class="stat-label">Best Health</div><div class="stat-value" id="statBest" style="color:#ffd740">—</div></div>
+      <div class="stat-box"><div class="stat-label">Wins</div><div class="stat-value" id="statWins" style="color:#69f0ae">0</div></div>
+      <div class="stat-box"><div class="stat-label">Losses</div><div class="stat-value" id="statLosses" style="color:#ff5252">0</div></div>
+    </div>
+
+    <div class="powerup-box" id="powerupBox">
+      <div class="powerup-text">⚡ Memory Cell Boost Unlocked!</div>
+    </div>
+
+    <div class="results-header">
+      <div class="results-title">Data Table</div>
+      <button class="copy-btn" id="copyBtn" onclick="copyTable()">📋 Copy Table</button>
+    </div>
+    <table class="results-table">
+      <thead>
+        <tr><th>Round</th><th>WBC</th><th>Fever</th><th>Health</th></tr>
+      </thead>
+      <tbody id="resultsBody">
+        <tr><td>1</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>2</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>3</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>4</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>5</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr class="extra-credit"><td>6</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr class="extra-credit"><td>7</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr class="extra-credit"><td>8</td><td>—</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ============ STATE ============
+let state = {
+  round: 0,
+  wbc: null,
+  fever: null,
+  health: 100,
+  score: 0,
+  streak: 0,
+  wins: 0,
+  losses: 0,
+  bestHealth: 0,
+  antibodyPct: 0,
+  battleRunning: false,
+  hasRetried: false,
+  results: [],
+  gameStarted: false,
+  memoryUnlocked: false,
+  round2Pathogen: null
+};
+
+// Round configs: { pathogenSpeed, wbcLocked, feverLocked, lockedWbc, lockedFever, isMemory, note }
+const roundConfigs = [
+  null, // index 0 unused
+  { speed: 1, danger: 1, wbcLocked: false, feverLocked: true, lockedFever: 'Allow' },
+  { speed: 1.5, danger: 2, wbcLocked: false, feverLocked: true, lockedFever: 'Allow' },
+  { speed: 2, danger: 3, wbcLocked: false, feverLocked: true, lockedFever: 'Allow' },
+  { speed: 2.5, danger: 4, wbcLocked: false, feverLocked: true, lockedFever: 'Allow' },
+  { speed: 2, danger: 3, wbcLocked: true, lockedWbc: 'Medium', feverLocked: false },
+  { speed: 1.5, danger: 2, wbcLocked: true, lockedWbc: 'Medium', feverLocked: true, lockedFever: 'Allow', isMemory: true },
+  { speed: 2.5, danger: 4, wbcLocked: false, feverLocked: true, lockedFever: 'Allow' },
+  { speed: 3, danger: 5, wbcLocked: false, feverLocked: true, lockedFever: 'Allow' }
+];
+
+// ============ REFS ============
+const arena = document.getElementById('arena');
+const arenaRect = () => arena.getBoundingClientRect();
+
+let wbcEntities = [];
+let pathogenEntities = [];
+let animationId = null;
+let antibodyInterval = null;
+let ambientParticles = [];
+
+// ============ GAME START ============
+function startGame() {
+  document.getElementById('startScreen').classList.add('hidden');
+  state.gameStarted = true;
+  createAmbientParticles();
+  advanceRound();
+}
+
+// ============ ROUND MANAGEMENT ============
+function advanceRound() {
+  state.round++;
+  if (state.round > 8) {
+    showMilestone('🏆 All 8 Complete!', 'Extra Credit Complete!', 'Finish');
+    return;
+  }
+  state.hasRetried = false;
+  state.wbc = null;
+  state.fever = null;
+  state.health = 100;
+  state.antibodyPct = 0;
+
+  updateRoundDisplay();
+  setupRoundControls();
+  updateHealthDisplay();
+  updateAntibodyBar();
+  clearArenaEntities();
+  hideBattleOverlay();
+
+  if (state.round === 6) {
+    document.getElementById('ecBadge').classList.add('show');
+  }
+
+  document.getElementById('launchBtn').disabled = true;
+  document.getElementById('launchBtn').classList.remove('retry-mode');
+  document.getElementById('launchBtn').textContent = '⚔️ Launch Battle';
+}
+
+function setupRoundControls() {
+  const cfg = roundConfigs[state.round];
+  if (!cfg) return;
+
+  // Threat card - visual danger meter
+  const danger = cfg.danger;
+  // Light up skulls
+  for (let s = 1; s <= 5; s++) {
+    const skull = document.getElementById('skull' + s);
+    skull.classList.toggle('active', s <= danger);
+  }
+  // Set danger bar
+  const dangerBar = document.getElementById('dangerBarFill');
+  dangerBar.className = 'danger-bar-fill d' + danger;
+
+  // WBC buttons
+  const wbcBtns = document.querySelectorAll('.wbc-btn');
+  const wbcLockEl = document.getElementById('wbcLock');
+  wbcBtns.forEach(b => { b.classList.remove('active', 'locked'); });
+
+  if (cfg.wbcLocked) {
+    wbcBtns.forEach(b => { b.classList.add('locked'); if (b.dataset.val === cfg.lockedWbc) b.classList.add('active'); });
+    wbcLockEl.style.display = 'block';
+    state.wbc = cfg.lockedWbc;
+  } else {
+    wbcLockEl.style.display = 'none';
+    state.wbc = null;
+  }
+
+  // Fever buttons
+  const feverBtns = document.querySelectorAll('.fever-btn');
+  const feverLockEl = document.getElementById('feverLock');
+  feverBtns.forEach(b => { b.classList.remove('active', 'locked'); });
+
+  if (cfg.feverLocked) {
+    feverBtns.forEach(b => { b.classList.add('locked'); if (b.dataset.val === cfg.lockedFever) b.classList.add('active'); });
+    feverLockEl.style.display = 'block';
+    state.fever = cfg.lockedFever;
+  } else {
+    feverLockEl.style.display = 'none';
+    state.fever = null;
+  }
+
+  checkLaunchReady();
+}
+
+function setWBC(val) {
+  const cfg = roundConfigs[state.round];
+  if (!cfg || cfg.wbcLocked || state.battleRunning) return;
+  state.wbc = val;
+  document.querySelectorAll('.wbc-btn').forEach(b => { b.classList.toggle('active', b.dataset.val === val); });
+  spawnPreviewWBCs();
+  checkLaunchReady();
+}
+
+function setFever(val) {
+  const cfg = roundConfigs[state.round];
+  if (!cfg || cfg.feverLocked || state.battleRunning) return;
+  state.fever = val;
+  document.querySelectorAll('.fever-btn').forEach(b => { b.classList.toggle('active', b.dataset.val === val); });
+  document.getElementById('feverOverlay').classList.toggle('active', val === 'Allow');
+  checkLaunchReady();
+}
+
+function checkLaunchReady() {
+  const ready = state.wbc !== null && state.fever !== null && !state.battleRunning;
+  document.getElementById('launchBtn').disabled = !ready;
+}
+
+// ============ BATTLE LOGIC ============
+let battleTimer = null;
+
+function launchBattle() {
+  if (state.battleRunning) return;
+  state.battleRunning = true;
+  document.getElementById('launchBtn').disabled = true;
+  hideBattleOverlay();
+
+  const cfg = roundConfigs[state.round];
+  const feverActive = state.fever === 'Allow';
+  document.getElementById('feverOverlay').classList.toggle('active', feverActive);
+
+  // Calculate counts based on WBC setting - BIG differences
+  const wbcCount = state.wbc === 'Low' ? 5 : state.wbc === 'Medium' ? 14 : 26;
+  const startPathogens = Math.floor(4 + cfg.speed * 2);
+  const isMemoryRound = cfg.isMemory && state.memoryUnlocked;
+
+  // Spawn WBCs on left side
+  clearArenaEntities();
+  spawnWBCs(wbcCount, feverActive);
+
+  // Pathogens pour in from right after a brief delay
+  setTimeout(() => {
+    spawnPathogens(startPathogens, cfg.speed);
+  }, 600);
+
+  // === BATTLE SIMULATION using setInterval for consistent timing ===
+  let health = 100;
+  let antibody = isMemoryRound ? 100 : 0;
+  const antibodyRate = feverActive ? 1.2 : 0.7;
+  let tick = 0;
+  const BATTLE_DURATION = 160; // ~8 seconds at 50ms intervals
+  let antibodyFlooded = isMemoryRound;
+  let pathogenMultiplyTimer = 0;
+
+  if (isMemoryRound) {
+    document.getElementById('memoryBoost').classList.add('show');
+    setTimeout(() => document.getElementById('memoryBoost').classList.remove('show'), 3000);
+  }
+
+  // Score how battle is going based on entity counts
+  function getBattleBalance() {
+    const aliveWBC = wbcEntities.filter(w => w.alive).length;
+    const aliveP = pathogenEntities.filter(p => p.alive).length;
+    if (aliveP === 0) return 3; // total win
+    return aliveWBC / Math.max(1, aliveP);
+  }
+
+  battleTimer = setInterval(() => {
+    try {
+      tick++;
+      const rect = arena.getBoundingClientRect();
+      const aW = rect.width;
+      const aH = rect.height - 55; // above antibody bar
+
+      // --- PATHOGEN MULTIPLICATION every ~1.5 seconds ---
+      pathogenMultiplyTimer++;
+      if (pathogenMultiplyTimer >= 30 && !antibodyFlooded) {
+        pathogenMultiplyTimer = 0;
+        const aliveP = pathogenEntities.filter(p => p.alive);
+        // More pathogens multiply at higher speeds
+        const multiplyCount = Math.min(3, Math.floor(cfg.speed));
+        for (let m = 0; m < multiplyCount; m++) {
+          if (aliveP.length > 0 && pathogenEntities.filter(p=>p.alive).length < 35) {
+            const parent = aliveP[Math.floor(Math.random() * aliveP.length)];
+            const size = 16 + Math.random() * 10;
+            const el = document.createElement('div');
+            el.className = 'entity pathogen multiplying';
+            el.style.width = size + 'px';
+            el.style.height = size + 'px';
+            const nx = parent.x + (Math.random() - 0.5) * 40;
+            const ny = parent.y + (Math.random() - 0.5) * 40;
+            el.style.left = nx + 'px';
+            el.style.top = ny + 'px';
+            arena.appendChild(el);
+            pathogenEntities.push({
+              el, x: nx, y: ny, size,
+              vx: -(Math.random() * cfg.speed * 0.6 + 0.2),
+              vy: (Math.random() - 0.5) * 1.5,
+              alive: true, hp: 2
+            });
+            // Multiply burst particles
+            createDestroyParticles(nx, ny, '#ff5252');
+          }
+        }
+      }
+
+      // --- ANTIBODY BUILD ---
+      if (!isMemoryRound) {
+        antibody = Math.min(100, antibody + antibodyRate);
+      }
+
+      // --- ANTIBODY FLOOD at 60% ---
+      if (antibody >= 60 && !antibodyFlooded) {
+        antibodyFlooded = true;
+        // Dramatic flood: spawn a wave of boosted WBCs
+        const floodCount = 8;
+        for (let f = 0; f < floodCount; f++) {
+          setTimeout(() => {
+            if (!state.battleRunning) return;
+            const size = 20 + Math.random() * 10;
+            const el = document.createElement('div');
+            el.className = 'entity wbc boosted';
+            el.style.width = size + 'px';
+            el.style.height = size + 'px';
+            const sx = Math.random() * aW * 0.15;
+            const sy = Math.random() * aH;
+            el.style.left = sx + 'px';
+            el.style.top = sy + 'px';
+            arena.appendChild(el);
+            wbcEntities.push({ el, x: sx, y: sy, size, vx: 3 + Math.random() * 2, vy: (Math.random() - 0.5) * 2, alive: true });
+          }, f * 120);
+        }
+        // Flash the antibody bar
+        const abBar = document.getElementById('antibodyBarInner');
+        abBar.style.boxShadow = '0 0 20px #00e5ff, 0 0 40px #00e5ff';
+        setTimeout(() => { abBar.style.boxShadow = ''; }, 1500);
+      }
+
+      // --- MOVE WBCs TOWARD PATHOGENS ---
+      wbcEntities.forEach(wbc => {
+        if (!wbc.alive) return;
+        let nearestP = null;
+        let nearestDist = Infinity;
+        pathogenEntities.forEach(p => {
+          if (!p.alive) return;
+          const dx = p.x - wbc.x;
+          const dy = p.y - wbc.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < nearestDist) { nearestDist = dist; nearestP = p; }
+        });
+
+        if (nearestP) {
+          const dx = nearestP.x - wbc.x;
+          const dy = nearestP.y - wbc.y;
+          const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+          const chaseSpeed = antibodyFlooded ? 3.5 : (feverActive ? 2.2 : 1.6);
+          wbc.vx += (dx / dist) * chaseSpeed * 0.15;
+          wbc.vy += (dy / dist) * chaseSpeed * 0.15;
+
+          // COLLISION - WBC destroys pathogen
+          if (dist < (wbc.size + nearestP.size) * 0.45) {
+            nearestP.hp--;
+            createCombatFlash(nearestP.x + nearestP.size/2, nearestP.y + nearestP.size/2);
+            if (nearestP.hp <= 0) {
+              nearestP.alive = false;
+              nearestP.el.classList.add('dying');
+              createDestroyParticles(nearestP.x, nearestP.y, '#ff5252');
+              setTimeout(() => { try { nearestP.el.remove(); } catch(e){} }, 600);
+            }
+          }
+        } else {
+          // No pathogens - drift gently
+          wbc.vx *= 0.9;
+          wbc.vy *= 0.9;
+        }
+
+        // Apply velocity with damping
+        wbc.vx *= 0.92;
+        wbc.vy *= 0.92;
+        // Clamp speed
+        const maxSpd = 4;
+        const spd = Math.sqrt(wbc.vx*wbc.vx + wbc.vy*wbc.vy);
+        if (spd > maxSpd) { wbc.vx = (wbc.vx/spd)*maxSpd; wbc.vy = (wbc.vy/spd)*maxSpd; }
+
+        wbc.x = Math.max(5, Math.min(aW - wbc.size - 5, wbc.x + wbc.vx));
+        wbc.y = Math.max(5, Math.min(aH - wbc.size - 5, wbc.y + wbc.vy));
+        wbc.el.style.left = wbc.x + 'px';
+        wbc.el.style.top = wbc.y + 'px';
+      });
+
+      // --- MOVE PATHOGENS ---
+      pathogenEntities.forEach(p => {
+        if (!p.alive) return;
+        // Pathogens push leftward (invading)
+        p.vx += -(cfg.speed * 0.04);
+        // Random jitter
+        p.vx += (Math.random() - 0.5) * 0.3;
+        p.vy += (Math.random() - 0.5) * 0.4;
+
+        // Damping
+        p.vx *= 0.95;
+        p.vy *= 0.94;
+
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Bounce off walls
+        if (p.y < 5) { p.y = 5; p.vy = Math.abs(p.vy) * 0.8; }
+        if (p.y > aH - p.size - 5) { p.y = aH - p.size - 5; p.vy = -Math.abs(p.vy) * 0.8; }
+        if (p.x < 5) { p.x = 5; p.vx = Math.abs(p.vx) * 0.3; }
+        if (p.x > aW - p.size - 5) { p.x = aW - p.size - 5; p.vx = -Math.abs(p.vx); }
+
+        p.el.style.left = p.x + 'px';
+        p.el.style.top = p.y + 'px';
+      });
+
+      // --- CALCULATE HEALTH based on battle balance ---
+      const balance = getBattleBalance();
+      if (balance >= 2) {
+        health = Math.min(100, health + 0.4); // WBCs winning → health recovers
+      } else if (balance >= 0.8) {
+        health = Math.min(100, health + 0.1); // Close fight, slight recovery
+      } else if (balance >= 0.4) {
+        health -= 0.5 * cfg.speed * 0.5; // Pathogens gaining
+      } else {
+        health -= 1.0 * cfg.speed * 0.5; // Pathogens overwhelming
+      }
+      health = Math.max(0, Math.min(100, health));
+
+      state.health = Math.round(health);
+      state.antibodyPct = Math.round(antibody);
+      updateHealthDisplay();
+      updateAntibodyBar();
+
+      // --- END CONDITIONS ---
+      const aliveP = pathogenEntities.filter(p => p.alive).length;
+      if (tick >= BATTLE_DURATION || health <= 0 || (aliveP === 0 && tick > 30)) {
+        clearInterval(battleTimer);
+        battleTimer = null;
+        finishBattle();
+      }
+    } catch(e) {
+      console.warn('Battle tick error:', e);
+    }
+  }, 50); // 50ms = 20fps, smooth enough and predictable
+}
+
+function finishBattle() {
+  state.battleRunning = false;
+  if (battleTimer) { clearInterval(battleTimer); battleTimer = null; }
+  if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+
+  const won = state.health > 50;
+  const healthResult = Math.max(0, state.health);
+
+  // Update stats
+  if (won) {
+    state.wins++;
+    state.streak++;
+    state.score += 100 + (state.streak > 1 ? state.streak * 20 : 0);
+  } else {
+    state.losses++;
+    state.streak = 0;
+    state.score += 25;
+    arena.classList.add('shake');
+    setTimeout(() => arena.classList.remove('shake'), 600);
+  }
+  if (healthResult > state.bestHealth) state.bestHealth = healthResult;
+
+  // Record result
+  state.results[state.round - 1] = { round: state.round, wbc: state.wbc, fever: state.fever, health: healthResult + '%' };
+
+  // Save round 2 pathogen for memory comparison
+  if (state.round === 2) {
+    state.round2Pathogen = { speed: roundConfigs[2].speed };
+  }
+
+  // Unlock memory boost after round 5
+  if (state.round === 5 && !state.memoryUnlocked) {
+    state.memoryUnlocked = true;
+    document.getElementById('powerupBox').classList.add('show');
+  }
+
+  updateResultsTable();
+  updateStats();
+  showBattleOverlay(won, healthResult);
+
+  // After overlay, check milestones
+  setTimeout(() => {
+    if (state.round === 5) {
+      showMilestone('✅ Required Complete!', 'Continue for Extra Credit?', 'Continue');
+    } else if (state.round === 8) {
+      showMilestone('🏆 Extra Credit Complete!', 'All 8 rounds finished!', 'Finish');
+    } else {
+      enableRetryOrAdvance();
+    }
+  }, 2000);
+}
+
+function enableRetryOrAdvance() {
+  const btn = document.getElementById('launchBtn');
+  if (!state.hasRetried && state.round === 5) {
+    // Round 5 gets a retry for fever comparison
+    btn.disabled = false;
+    btn.classList.add('retry-mode');
+    btn.textContent = '🔄 Retry (Switch Fever)';
+    btn.onclick = () => {
+      state.hasRetried = true;
+      // Toggle fever
+      const newFever = state.fever === 'Allow' ? 'Block' : 'Allow';
+      setFever(newFever);
+      btn.classList.remove('retry-mode');
+      btn.textContent = '⚔️ Launch Battle';
+      btn.onclick = launchBattle;
+      state.battleRunning = false;
+      state.health = 100;
+      state.antibodyPct = 0;
+      updateHealthDisplay();
+      updateAntibodyBar();
+      clearArenaEntities();
+      hideBattleOverlay();
+      launchBattle();
+    };
+  } else {
+    btn.disabled = false;
+    btn.textContent = '▶ Next Round';
+    btn.onclick = () => { btn.onclick = launchBattle; advanceRound(); };
+  }
+}
+
+// ============ UI UPDATES ============
+function updateRoundDisplay() {
+  document.getElementById('roundDisplay').textContent = `Round ${state.round} / 8`;
+}
+
+function updateHealthDisplay() {
+  const h = state.health;
+  const color = h > 70 ? '#4caf50' : h > 40 ? '#ff9800' : '#f44336';
+  const barColor = h > 70 ? 'linear-gradient(90deg, #4caf50, #66bb6a)' : h > 40 ? 'linear-gradient(90deg, #ff9800, #ffa726)' : 'linear-gradient(90deg, #f44336, #ef5350)';
+
+  document.getElementById('hudHealth').textContent = h + '%';
+  document.getElementById('hudHealth').style.color = color;
+  document.getElementById('healthBarFill').style.width = h + '%';
+  document.getElementById('healthBarFill').style.background = barColor;
+  document.getElementById('healthBarLabel').textContent = h + '%';
+}
+
+function updateAntibodyBar() {
+  document.getElementById('antibodyBarInner').style.width = state.antibodyPct + '%';
+  document.getElementById('hudAntibody').textContent = state.antibodyPct + '%';
+}
+
+function updateStats() {
+  document.getElementById('hudScore').textContent = state.score;
+  document.getElementById('hudStreak').textContent = state.streak;
+  document.getElementById('statCompleted').textContent = state.results.filter(r => r).length;
+  document.getElementById('statBest').textContent = state.bestHealth + '%';
+  document.getElementById('statWins').textContent = state.wins;
+  document.getElementById('statLosses').textContent = state.losses;
+
+  const completed = state.results.filter(r => r).length;
+  const pct = Math.min(100, (completed / 5) * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = completed >= 5 ? (completed >= 8 ? 'All complete!' : `${completed}/8 — extra credit!`) : `${completed}/5 required`;
+}
+
+function updateResultsTable() {
+  const tbody = document.getElementById('resultsBody');
+  const rows = tbody.querySelectorAll('tr');
+  state.results.forEach((r, i) => {
+    if (r && rows[i]) {
+      const cells = rows[i].querySelectorAll('td');
+      cells[0].textContent = r.round;
+      cells[1].textContent = r.wbc;
+      cells[2].textContent = r.fever;
+      cells[3].textContent = r.health;
+      rows[i].classList.add('filled');
+    }
+  });
+}
+
+function showBattleOverlay(won, health) {
+  const overlay = document.getElementById('battleOverlay');
+  const text = document.getElementById('battleResultText');
+  const detail = document.getElementById('battleResultDetail');
+
+  overlay.className = 'battle-overlay show ' + (won ? 'win' : 'lose');
+  text.className = 'battle-result-text ' + (won ? 'win-text' : 'lose-text');
+  text.textContent = won ? '✅ Defended!' : '❌ Overwhelmed!';
+  detail.textContent = `Body Health: ${health}%`;
+}
+
+function hideBattleOverlay() {
+  document.getElementById('battleOverlay').className = 'battle-overlay';
+}
+
+function showMilestone(title, sub, btnText) {
+  document.getElementById('milestoneText').textContent = title;
+  document.getElementById('milestoneSub').textContent = sub;
+  document.getElementById('milestoneBtn').textContent = btnText;
+  document.getElementById('milestoneOverlay').classList.add('show');
+}
+
+function dismissMilestone() {
+  document.getElementById('milestoneOverlay').classList.remove('show');
+  if (state.round < 8) {
+    const btn = document.getElementById('launchBtn');
+    btn.disabled = false;
+    btn.textContent = '▶ Next Round';
+    btn.onclick = () => { btn.onclick = launchBattle; advanceRound(); };
+  }
+}
+
+// ============ ENTITY MANAGEMENT ============
+function clearArenaEntities() {
+  wbcEntities.forEach(e => { try { e.el.remove(); } catch(ex){} });
+  pathogenEntities.forEach(e => { try { e.el.remove(); } catch(ex){} });
+  wbcEntities = [];
+  pathogenEntities = [];
+  document.getElementById('feverOverlay').classList.remove('active');
+  // Also clear any stray combat flashes or particles
+  arena.querySelectorAll('.combat-flash, .particle').forEach(el => el.remove());
+}
+
+function spawnPreviewWBCs() {
+  // Clear old WBCs
+  wbcEntities.forEach(e => { try { e.el.remove(); } catch(ex){} });
+  wbcEntities = [];
+
+  const count = state.wbc === 'Low' ? 4 : state.wbc === 'Medium' ? 10 : 20;
+  const rect = arena.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height - 55;
+
+  for (let i = 0; i < count; i++) {
+    const size = 22 + Math.random() * 12;
+    const el = document.createElement('div');
+    el.className = 'entity wbc';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    el.style.left = (Math.random() * w * 0.35 + w * 0.03) + 'px';
+    el.style.top = (Math.random() * (h - 20) + 10) + 'px';
+    el.style.opacity = '0.7';
+    arena.appendChild(el);
+    wbcEntities.push({ el, x: parseFloat(el.style.left), y: parseFloat(el.style.top), size, vx: 0, vy: 0, alive: true });
+  }
+
+  // Fever preview
+  if (state.fever === 'Allow') {
+    document.getElementById('feverOverlay').classList.add('active');
+  }
+}
+
+function spawnWBCs(count, boosted) {
+  wbcEntities.forEach(e => { try { e.el.remove(); } catch(ex){} });
+  wbcEntities = [];
+  const rect = arena.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height - 55;
+
+  for (let i = 0; i < count; i++) {
+    const size = 22 + Math.random() * 14; // BIGGER: 22-36px
+    const el = document.createElement('div');
+    el.className = 'entity wbc' + (boosted ? ' boosted' : '');
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    // Spread across left 40% of arena
+    const startX = Math.random() * w * 0.35 + w * 0.03;
+    const startY = Math.random() * (h - 20) + 10;
+    el.style.left = startX + 'px';
+    el.style.top = startY + 'px';
+    el.style.transition = 'none'; // no transition during battle
+    arena.appendChild(el);
+    wbcEntities.push({
+      el, x: startX, y: startY, size,
+      vx: (Math.random() + 0.5) * 1.2,
+      vy: (Math.random() - 0.5) * 1.0,
+      alive: true
+    });
+  }
+}
+
+function spawnPathogens(count, speed) {
+  const rect = arena.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height - 55;
+
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      if (!state.battleRunning) return;
+      const size = 18 + Math.random() * 12; // BIGGER: 18-30px
+      const el = document.createElement('div');
+      el.className = 'entity pathogen multiplying';
+      el.style.width = size + 'px';
+      el.style.height = size + 'px';
+      // Enter from right edge
+      const startX = w - size - Math.random() * w * 0.15;
+      const startY = Math.random() * (h - 20) + 10;
+      el.style.left = startX + 'px';
+      el.style.top = startY + 'px';
+      arena.appendChild(el);
+      pathogenEntities.push({
+        el, x: startX, y: startY, size,
+        vx: -(Math.random() * speed * 0.5 + 0.4),
+        vy: (Math.random() - 0.5) * 1.0,
+        alive: true, hp: 2
+      });
+    }, i * 150); // Staggered entry over time
+  }
+}
+
+// animateEntities is now integrated directly into the battle timer in launchBattle()
+
+function createCombatFlash(x, y) {
+  try {
+    const flash = document.createElement('div');
+    flash.className = 'combat-flash';
+    flash.style.left = (x - 15) + 'px';
+    flash.style.top = (y - 15) + 'px';
+    flash.style.width = '30px';
+    flash.style.height = '30px';
+    arena.appendChild(flash);
+    setTimeout(() => { try { flash.remove(); } catch(e){} }, 400);
+  } catch (e) {}
+}
+
+function createDestroyParticles(x, y, color) {
+  try {
+    for (let i = 0; i < 8; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = x + 'px';
+      p.style.top = y + 'px';
+      const sz = 4 + Math.random() * 5;
+      p.style.width = sz + 'px';
+      p.style.height = sz + 'px';
+      p.style.background = color;
+      p.style.boxShadow = `0 0 8px ${color}`;
+      arena.appendChild(p);
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 25 + Math.random() * 40;
+      const tx = x + Math.cos(angle) * dist;
+      const ty = y + Math.sin(angle) * dist;
+      p.style.transition = 'all 0.6s ease-out';
+      requestAnimationFrame(() => {
+        p.style.left = tx + 'px';
+        p.style.top = ty + 'px';
+        p.style.opacity = '0';
+        p.style.transform = 'scale(0.3)';
+      });
+      setTimeout(() => { try { p.remove(); } catch(e){} }, 700);
+    }
+  } catch (e) {}
+}
+
+function createAmbientParticles() {
+  try {
+    // Floating ambient particles
+    for (let i = 0; i < 12; i++) {
+      const p = document.createElement('div');
+      p.className = 'ambient-particle';
+      const size = 2 + Math.random() * 4;
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = Math.random() * 100 + '%';
+      p.style.animationDuration = (6 + Math.random() * 8) + 's';
+      p.style.animationDelay = Math.random() * 5 + 's';
+      arena.appendChild(p);
+    }
+    // Blood flow dots in vessels
+    for (let i = 0; i < 8; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'flow-dot';
+      dot.style.top = (45 + (Math.random() - 0.5) * 12) + '%';
+      dot.style.left = Math.random() * 30 + '%';
+      dot.style.animationDuration = (4 + Math.random() * 6) + 's';
+      dot.style.animationDelay = Math.random() * 4 + 's';
+      arena.appendChild(dot);
+    }
+  } catch (e) {}
+}
+
+// ============ CONTROLS ============
+function resetRound() {
+  if (state.battleRunning) {
+    if (battleTimer) { clearInterval(battleTimer); battleTimer = null; }
+    if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+    state.battleRunning = false;
+  }
+  state.health = 100;
+  state.antibodyPct = 0;
+  updateHealthDisplay();
+  updateAntibodyBar();
+  clearArenaEntities();
+  hideBattleOverlay();
+  setupRoundControls();
+  document.getElementById('launchBtn').disabled = true;
+  document.getElementById('launchBtn').classList.remove('retry-mode');
+  document.getElementById('launchBtn').textContent = '⚔️ Launch Battle';
+  document.getElementById('launchBtn').onclick = launchBattle;
+}
+
+function newRun() {
+  if (battleTimer) { clearInterval(battleTimer); battleTimer = null; }
+  if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+  state = {
+    round: 0, wbc: null, fever: null, health: 100, score: 0, streak: 0,
+    wins: 0, losses: 0, bestHealth: 0, antibodyPct: 0, battleRunning: false,
+    hasRetried: false, results: [], gameStarted: true, memoryUnlocked: false, round2Pathogen: null
+  };
+  clearArenaEntities();
+  hideBattleOverlay();
+  document.getElementById('milestoneOverlay').classList.remove('show');
+  document.getElementById('ecBadge').classList.remove('show');
+  document.getElementById('powerupBox').classList.remove('show');
+  updateStats();
+  updateHealthDisplay();
+  updateAntibodyBar();
+
+  // Reset table
+  const rows = document.getElementById('resultsBody').querySelectorAll('tr');
+  rows.forEach((row, i) => {
+    const cells = row.querySelectorAll('td');
+    cells[0].textContent = i + 1;
+    cells[1].textContent = '—';
+    cells[2].textContent = '—';
+    cells[3].textContent = '—';
+    row.classList.remove('filled');
+  });
+
+  advanceRound();
+}
+
+// ============ COPY TABLE ============
+function copyTable() {
+  try {
+    let text = 'Round\tWBC Count\tFever\tBody Health Result\n';
+    state.results.forEach((r, i) => {
+      if (r) {
+        text += `${r.round}\t${r.wbc}\t${r.fever}\t${r.health}\n`;
+      }
+    });
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✅ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 Copy Table'; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✅ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 Copy Table'; btn.classList.remove('copied'); }, 2000);
+    });
+  } catch (e) {
+    console.warn('Copy failed:', e);
+  }
+}
+</script>
+</body>
+</html>
