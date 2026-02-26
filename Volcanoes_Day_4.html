@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulation — Volcanoes</title>
+<style>
+:root {
+  --bg1:#0F0A1A;--bg2:#1A0F2E;
+  --neon:#39FF14;--pink:#FF1493;--gold:#FFD700;--orange:#FF6B35;
+  --panel:#1E1535;--panel2:#2A1F45;--text:#F0E8FF;--textdim:#9B8FBF;
+  --correct:#39FF14;--wrong:#FF4757;--hint1bg:#3A3520;--hint1border:#FFD93D;
+  --sbsbg:rgba(15,10,26,0.92);
+  --radius:12px;--radius-sm:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);min-height:100vh;overflow-x:hidden;user-select:none;-webkit-user-select:none;}
+/* Lava crack ambient bg */
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 80%,rgba(255,69,0,0.06) 0%,transparent 50%),radial-gradient(ellipse at 70% 90%,rgba(255,140,0,0.05) 0%,transparent 40%);pointer-events:none;z-index:0;animation:lavaShift 8s ease-in-out infinite alternate;}
+@keyframes lavaShift{0%{opacity:0.6;}100%{opacity:1;}}
+
+#app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh;max-width:900px;margin:0 auto;padding:4px;}
+
+/* TOP BAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid rgba(255,215,0,0.15);border-radius:var(--radius);padding:8px 14px;margin-bottom:6px;flex-wrap:wrap;gap:4px;}
+.topbar .round-label{font-size:1.05rem;font-weight:700;color:var(--gold);}
+.topbar .score-display{font-size:1rem;font-weight:600;color:var(--neon);}
+.topbar .streak-display{font-size:1rem;display:flex;align-items:center;gap:4px;min-width:60px;}
+.streak-flame{transition:all 0.3s;}
+.streak-bronze .streak-flame{color:#CD7F32;text-shadow:0 0 6px #CD7F32;}
+.streak-silver .streak-flame{color:#C0C0C0;text-shadow:0 0 8px #C0C0C0;}
+.streak-gold .streak-flame{color:var(--gold);text-shadow:0 0 12px var(--gold);animation:goldPulse 0.8s ease-in-out infinite alternate;}
+@keyframes goldPulse{0%{transform:scale(1);}100%{transform:scale(1.25);}}
+
+.points-anim{position:absolute;font-weight:800;font-size:1.3rem;color:var(--neon);pointer-events:none;animation:floatUp 1.2s ease-out forwards;z-index:100;}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-60px) scale(1.3);}}
+
+/* CONTEXT PANEL */
+.context-panel{background:var(--panel);border:1px solid rgba(255,215,0,0.1);border-radius:var(--radius);padding:10px;margin-bottom:6px;min-height:180px;position:relative;overflow:hidden;}
+.context-panel.bonus-round{border-color:var(--gold);box-shadow:0 0 20px rgba(255,215,0,0.15);}
+.context-caption{font-size:0.88rem;color:var(--textdim);margin-top:6px;line-height:1.4;padding:4px 8px;border-left:3px solid var(--orange);background:rgba(255,107,53,0.08);border-radius:0 var(--radius-sm) var(--radius-sm) 0;}
+.focus-prompt{position:absolute;top:0;left:0;right:0;background:rgba(255,215,0,0.12);border-bottom:2px solid var(--gold);padding:10px 14px;font-size:0.92rem;font-weight:600;color:var(--gold);z-index:5;transition:opacity 1s;}
+.arena-canvas{width:100%;height:200px;display:block;border-radius:var(--radius-sm);}
+
+/* INTERACTION ZONE */
+.interaction-zone{background:var(--panel2);border:1px solid rgba(57,255,20,0.1);border-radius:var(--radius);padding:12px;margin-bottom:6px;min-height:160px;}
+.iz-prompt{font-size:1rem;font-weight:600;margin-bottom:10px;line-height:1.4;}
+.iz-phase-label{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;text-transform:uppercase;margin-bottom:8px;}
+.iz-phase-do{background:rgba(57,255,20,0.15);color:var(--neon);}
+.iz-phase-prove{background:rgba(255,20,147,0.15);color:var(--pink);}
+
+/* MECHANIC SHARED */
+.mechanic-area{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:8px 0;}
+.drag-chip{padding:10px 16px;background:var(--panel);border:2px solid var(--textdim);border-radius:var(--radius-sm);cursor:grab;font-size:0.92rem;font-weight:600;min-height:48px;display:flex;align-items:center;justify-content:center;touch-action:none;transition:transform 0.15s,border-color 0.2s,background 0.2s;}
+.drag-chip:active{cursor:grabbing;transform:scale(1.05);}
+.drag-chip.placed{opacity:0.4;pointer-events:none;}
+.drag-chip.correct{border-color:var(--correct);background:rgba(57,255,20,0.12);pointer-events:none;}
+.drag-chip.wrong-flash{border-color:var(--wrong);background:rgba(255,71,87,0.15);animation:shakeX 0.4s;}
+.drop-zone{min-height:52px;padding:8px 12px;border:2px dashed var(--textdim);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:var(--textdim);transition:border-color 0.2s,background 0.2s;}
+.drop-zone.highlight{border-color:var(--gold);background:rgba(255,215,0,0.08);}
+.drop-zone.filled{border-style:solid;border-color:var(--neon);color:var(--text);}
+.drop-zone.correct{border-color:var(--correct);background:rgba(57,255,20,0.1);}
+.drop-zone.wrong-flash{border-color:var(--wrong);background:rgba(255,71,87,0.1);}
+
+/* Hotspot */
+.hotspot-area{position:relative;width:100%;max-width:500px;margin:0 auto;}
+.hotspot-btn{position:absolute;width:70px;height:70px;border-radius:50%;border:3px solid rgba(255,215,0,0.5);background:rgba(255,215,0,0.08);cursor:pointer;transition:all 0.3s;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:transparent;}
+.hotspot-btn:hover,.hotspot-btn:active{border-color:var(--gold);background:rgba(255,215,0,0.18);}
+.hotspot-btn.correct{border-color:var(--correct);background:rgba(57,255,20,0.2);color:var(--text);font-weight:600;font-size:0.75rem;}
+.hotspot-btn.wrong-flash{border-color:var(--wrong);background:rgba(255,71,87,0.2);animation:shakeX 0.4s;}
+.hotspot-btn.glow-nudge{animation:nudgeGlow 1s ease-in-out infinite;}
+@keyframes nudgeGlow{0%,100%{box-shadow:0 0 8px rgba(255,215,0,0.3);}50%{box-shadow:0 0 20px rgba(255,215,0,0.6);}}
+
+/* Sequence */
+.seq-slots{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.seq-slot{min-height:48px;padding:8px 12px;border:2px dashed var(--textdim);border-radius:var(--radius-sm);display:flex;align-items:center;gap:8px;font-size:0.88rem;color:var(--textdim);transition:all 0.2s;}
+.seq-slot .slot-num{font-weight:800;color:var(--gold);min-width:24px;}
+.seq-slot.filled{border-style:solid;border-color:var(--neon);color:var(--text);}
+.seq-slot.correct{border-color:var(--correct);background:rgba(57,255,20,0.08);}
+.seq-slot.wrong-flash{border-color:var(--wrong);animation:shakeX 0.4s;}
+.seq-slot.locked{border-color:var(--correct);background:rgba(57,255,20,0.12);pointer-events:none;}
+.seq-cards{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+.seq-card{padding:10px 14px;background:var(--panel);border:2px solid var(--textdim);border-radius:var(--radius-sm);cursor:pointer;font-size:0.88rem;min-height:48px;display:flex;align-items:center;transition:all 0.2s;max-width:100%;}
+.seq-card:hover,.seq-card:active{border-color:var(--gold);background:rgba(255,215,0,0.08);}
+.seq-card.selected{border-color:var(--pink);background:rgba(255,20,147,0.12);}
+.seq-card.placed{opacity:0.35;pointer-events:none;}
+
+/* Coach-Click */
+.cc-options{display:flex;flex-direction:column;gap:8px;max-width:500px;margin:0 auto;}
+.cc-option{padding:12px 16px;background:var(--panel);border:2px solid var(--textdim);border-radius:var(--radius-sm);cursor:pointer;font-size:0.92rem;min-height:48px;display:flex;align-items:center;gap:8px;transition:all 0.2s;}
+.cc-option:hover,.cc-option:active{border-color:var(--gold);background:rgba(255,215,0,0.06);}
+.cc-option.selected{border-color:var(--pink);background:rgba(255,20,147,0.1);}
+.cc-option.correct{border-color:var(--correct);background:rgba(57,255,20,0.12);pointer-events:none;}
+.cc-option.wrong-flash{border-color:var(--wrong);background:rgba(255,71,87,0.1);}
+.cc-option.dimmed{opacity:0.35;pointer-events:none;text-decoration:line-through;}
+
+/* Claim Builder */
+.claim-frame{padding:14px;background:rgba(255,215,0,0.06);border:2px solid var(--gold);border-radius:var(--radius);margin-bottom:10px;font-size:0.95rem;line-height:1.6;}
+.claim-slot{display:inline-block;min-width:120px;min-height:36px;border-bottom:2px dashed var(--gold);margin:0 4px;padding:2px 8px;vertical-align:bottom;transition:all 0.2s;}
+.claim-slot.filled{border-bottom-style:solid;border-color:var(--neon);color:var(--neon);font-weight:600;}
+.claim-slot.correct{border-color:var(--correct);color:var(--correct);}
+.claim-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+.claim-chip{padding:8px 14px;background:var(--panel);border:2px solid var(--textdim);border-radius:var(--radius-sm);cursor:pointer;font-size:0.88rem;min-height:44px;display:flex;align-items:center;transition:all 0.2s;}
+.claim-chip:hover,.claim-chip:active{border-color:var(--gold);}
+.claim-chip.selected{border-color:var(--pink);background:rgba(255,20,147,0.1);}
+.claim-chip.placed{opacity:0.35;pointer-events:none;}
+.claim-chip.locked{border-color:var(--correct);background:rgba(57,255,20,0.12);pointer-events:none;}
+
+/* MC Options for PROVE */
+.mc-options{display:flex;flex-direction:column;gap:8px;max-width:520px;margin:0 auto;}
+.mc-option{padding:12px 16px;background:var(--panel);border:2px solid var(--textdim);border-radius:var(--radius-sm);cursor:pointer;font-size:0.92rem;min-height:48px;display:flex;align-items:center;gap:8px;transition:all 0.2s;}
+.mc-option:hover,.mc-option:active{border-color:var(--gold);background:rgba(255,215,0,0.06);}
+.mc-option.selected{border-color:var(--pink);background:rgba(255,20,147,0.1);}
+.mc-option.correct{border-color:var(--correct);background:rgba(57,255,20,0.12);pointer-events:none;}
+.mc-option.wrong-flash{border-color:var(--wrong);background:rgba(255,71,87,0.1);}
+.mc-option.dimmed{opacity:0.35;pointer-events:none;text-decoration:line-through;}
+
+/* BUTTONS */
+.btn{padding:12px 28px;border:none;border-radius:var(--radius-sm);font-size:1rem;font-weight:700;cursor:pointer;min-height:48px;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+.btn-primary{background:var(--neon);color:#0F0A1A;}
+.btn-primary:hover{filter:brightness(1.15);transform:translateY(-1px);}
+.btn-primary:disabled{background:#333;color:#666;cursor:not-allowed;transform:none;}
+.btn-gold{background:var(--gold);color:#0F0A1A;}
+.btn-pink{background:var(--pink);color:#fff;}
+.btn-outline{background:transparent;border:2px solid var(--textdim);color:var(--text);}
+.btn-outline:hover{border-color:var(--gold);}
+.btn-try-again{background:var(--gold);color:#0F0A1A;font-size:1.1rem;padding:14px 32px;margin-top:8px;}
+
+.btn-row{display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap;}
+
+/* BOTTOM BAR */
+.bottombar{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid rgba(255,215,0,0.1);border-radius:var(--radius);padding:8px 14px;flex-wrap:wrap;gap:6px;}
+.source-day{font-size:0.82rem;font-weight:600;padding:4px 10px;border-radius:20px;}
+.source-mon{background:rgba(57,255,20,0.15);color:var(--neon);}
+.source-tue{background:rgba(0,136,255,0.15);color:#4DA6FF;}
+.source-wed{background:rgba(139,92,246,0.15);color:#A78BFA;}
+.source-all{background:rgba(255,215,0,0.15);color:var(--gold);}
+.progress-dots{display:flex;gap:4px;align-items:center;}
+.pdot{width:14px;height:14px;border-radius:50%;border:2px solid var(--textdim);transition:all 0.3s;position:relative;}
+.pdot.complete{background:var(--neon);border-color:var(--neon);}
+.pdot.current{border-color:var(--gold);animation:dotPulse 1s ease-in-out infinite;}
+.pdot.bonus{border-color:var(--gold);}
+.pdot.bonus.complete{background:var(--gold);border-color:var(--gold);}
+@keyframes dotPulse{0%,100%{box-shadow:0 0 4px rgba(255,215,0,0.3);}50%{box-shadow:0 0 12px rgba(255,215,0,0.7);}}
+.bottom-btns{display:flex;gap:8px;}
+.bottom-btns button{background:transparent;border:1px solid var(--textdim);color:var(--text);padding:6px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:0.82rem;min-height:36px;}
+.bottom-btns button:hover{border-color:var(--gold);}
+
+/* COACHING BAR */
+.coaching-bar{background:var(--hint1bg);border:1px solid var(--hint1border);border-radius:var(--radius);padding:10px 14px;margin-top:6px;font-size:0.9rem;line-height:1.5;animation:slideUp 0.3s ease-out;display:none;}
+.coaching-bar.visible{display:block;}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+/* STEP BY STEP OVERLAY */
+.sbs-overlay{position:fixed;inset:0;background:var(--sbsbg);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+.sbs-modal{background:var(--panel2);border:2px solid var(--gold);border-radius:var(--radius);padding:24px;max-width:450px;width:100%;text-align:center;}
+.sbs-modal h3{color:var(--gold);margin-bottom:12px;font-size:1.1rem;}
+.sbs-modal p{font-size:0.95rem;line-height:1.5;margin-bottom:16px;}
+.sbs-panel-indicator{font-size:0.8rem;color:var(--textdim);margin-bottom:8px;}
+
+/* VOCAB POPUP */
+.vocab-overlay{position:fixed;inset:0;background:rgba(15,10,26,0.9);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;}
+.vocab-modal{background:var(--panel2);border:2px solid var(--gold);border-radius:var(--radius);padding:20px;max-width:400px;width:100%;}
+.vocab-modal h3{color:var(--gold);margin-bottom:12px;text-align:center;}
+.vocab-item{padding:8px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:flex-start;gap:8px;}
+.vocab-item:last-child{border-bottom:none;}
+.vocab-term{font-weight:700;color:var(--orange);min-width:80px;}
+.vocab-def{color:var(--text);font-size:0.9rem;line-height:1.4;}
+
+/* CELEBRATION */
+.cele-overlay{position:fixed;inset:0;background:rgba(15,10,26,0.85);z-index:250;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;text-align:center;padding:20px;}
+.cele-text{font-size:1.8rem;font-weight:800;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,0.5);}
+.cele-sub{font-size:1.1rem;color:var(--text);opacity:0.9;}
+.cele-affirmation{font-size:1.2rem;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,0.5);animation:fadeInOut 2s ease-in-out forwards;margin-top:4px;}
+@keyframes fadeInOut{0%{opacity:0;transform:translateY(8px);}20%{opacity:1;transform:translateY(0);}80%{opacity:1;}100%{opacity:0;}}
+
+/* CHOICE SCREEN */
+.choice-screen{position:fixed;inset:0;background:rgba(15,10,26,0.92);z-index:260;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:20px;}
+.choice-screen h2{font-size:1.6rem;color:var(--gold);}
+.choice-screen p{font-size:1rem;color:var(--text);max-width:400px;}
+
+/* RECEIPT */
+.receipt-screen{display:none;background:var(--panel);border:2px solid var(--gold);border-radius:var(--radius);padding:20px;max-width:600px;margin:20px auto;width:100%;}
+.receipt-screen h2{text-align:center;color:var(--gold);margin-bottom:4px;}
+.receipt-screen .subtitle{text-align:center;color:var(--textdim);margin-bottom:16px;font-size:0.9rem;}
+.name-row{display:flex;gap:8px;align-items:center;margin-bottom:16px;}
+.name-row input{flex:1;padding:10px;background:var(--bg1);border:2px solid var(--textdim);border-radius:var(--radius-sm);color:var(--text);font-size:1rem;}
+.name-row input:disabled{opacity:0.6;}
+.overall-score{text-align:center;margin:16px 0;}
+.overall-score .big-pct{font-size:3rem;font-weight:800;}
+.overall-score .big-pct.green{color:var(--neon);}
+.overall-score .big-pct.yellow{color:var(--gold);}
+.overall-score .big-pct.red{color:var(--wrong);}
+.overall-score .mastery-label{font-size:1.1rem;font-weight:600;}
+.rtable{width:100%;border-collapse:collapse;margin:12px 0;font-size:0.85rem;}
+.rtable th{background:var(--panel2);padding:8px 6px;text-align:left;border-bottom:2px solid var(--gold);}
+.rtable td{padding:7px 6px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.rtable tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+.rtable .bonus-row td{border-left:3px solid var(--gold);}
+.rtable .score-cell.s100{color:var(--neon);}
+.rtable .score-cell.s85{color:#7FFF7F;}
+.rtable .score-cell.s60{color:var(--gold);}
+.rtable .score-cell.s50{color:var(--wrong);}
+.receipt-footer{text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1);}
+.receipt-footer p{font-size:0.92rem;margin-bottom:10px;color:var(--textdim);}
+.streak-record{text-align:center;margin:8px 0;font-size:0.95rem;color:var(--orange);}
+.status-line{text-align:center;font-size:0.95rem;margin:8px 0;}
+
+/* START SCREEN */
+.start-screen{position:fixed;inset:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:500;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:20px;}
+.start-screen h1{font-size:1.8rem;color:var(--gold);text-shadow:0 0 30px rgba(255,215,0,0.3);}
+.start-screen h2{font-size:1.1rem;color:var(--text);font-weight:400;max-width:500px;line-height:1.5;}
+.start-screen .round-count{font-size:2.5rem;font-weight:800;color:var(--pink);margin:8px 0;}
+
+/* UTILITY */
+.hidden{display:none!important;}
+@keyframes shakeX{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+@keyframes popIn{0%{transform:scale(0.8);opacity:0;}100%{transform:scale(1);opacity:1;}}
+.pop-in{animation:popIn 0.3s ease-out;}
+
+/* PRINT */
+@media print{
+  body{background:#fff!important;color:#000!important;}
+  body::before,.topbar,.bottombar,.context-panel,.interaction-zone,.start-screen,.cele-overlay,.choice-screen,.vocab-overlay,.sbs-overlay,.coaching-bar,.btn,.bottom-btns{display:none!important;}
+  .receipt-screen{display:block!important;border-color:#333!important;color:#000!important;max-width:700px;margin:auto;}
+  .receipt-screen *{color:#000!important;}
+  .receipt-screen h2{color:#333!important;}
+  .rtable th{background:#eee!important;}
+  .rtable td{border-color:#ccc!important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .topbar{font-size:0.88rem;padding:6px 10px;}
+  .context-panel{min-height:140px;padding:8px;}
+  .arena-canvas{height:160px;}
+  .interaction-zone{padding:10px;}
+  .drag-chip,.seq-card,.cc-option,.mc-option,.claim-chip{font-size:0.85rem;padding:10px 12px;}
+  .cele-text{font-size:1.4rem;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- TOP BAR -->
+  <div class="topbar" id="topbar">
+    <span class="round-label" id="roundLabel">Round 1 of 12</span>
+    <span class="score-display" id="scoreDisplay">Score: 0</span>
+    <span class="streak-display" id="streakDisplay"><span class="streak-flame" id="streakFlame"></span><span id="streakText"></span></span>
+  </div>
+
+  <!-- CONTEXT PANEL -->
+  <div class="context-panel" id="contextPanel">
+    <div class="focus-prompt" id="focusPrompt"></div>
+    <canvas class="arena-canvas" id="arenaCanvas"></canvas>
+    <div class="context-caption" id="contextCaption"></div>
+  </div>
+
+  <!-- INTERACTION ZONE -->
+  <div class="interaction-zone" id="interactionZone">
+    <div id="phaseLabel"></div>
+    <div class="iz-prompt" id="izPrompt"></div>
+    <div id="mechanicArea"></div>
+    <div class="btn-row" id="btnRow"></div>
+    <div class="coaching-bar" id="coachingBar"></div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottombar" id="bottombar">
+    <div class="bottom-btns">
+      <button onclick="showVocab()">&#128214; Vocab</button>
+      <button onclick="useHint()" id="hintBtn">&#128161; Hint</button>
+    </div>
+    <span class="source-day" id="sourceDay"></span>
+    <div class="progress-dots" id="progressDots"></div>
+  </div>
+</div>
+
+<!-- RECEIPT SCREEN (outside app for print) -->
+<div class="receipt-screen" id="receiptScreen">
+  <h2>Mr. Jawad's Simulation</h2>
+  <div class="subtitle">Volcanoes — Thursday Score Report</div>
+  <div class="name-row">
+    <span>Student Name:</span>
+    <input type="text" id="studentNameInput" placeholder="Type your name here" maxlength="40">
+    <button class="btn btn-gold" id="lockNameBtn" onclick="lockName()" style="padding:8px 16px;min-height:40px;">Lock</button>
+  </div>
+  <div class="overall-score" id="overallScore"></div>
+  <div class="streak-record" id="streakRecord"></div>
+  <div id="roundTable"></div>
+  <div class="status-line" id="statusLine"></div>
+  <div class="receipt-footer">
+    <p>Take a screenshot and upload to Google Classroom</p>
+    <button class="btn btn-primary" onclick="window.print()">&#128424; Print</button>
+    <button class="btn btn-outline" onclick="confirmRestart()" style="margin-left:8px;">Start Over</button>
+  </div>
+</div>
+
+<script>
+/* ========== AUDIO (LAZY) ========== */
+let audioCtx=null;
+function getAudioContext(){
+  if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){console.error('AudioCtx fail',e);}
+  return audioCtx;
+}
+function playTone(freq,dur){
+  try{const c=getAudioContext();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=freq;g.gain.value=0.12;o.start();g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+dur);o.stop(c.currentTime+dur);}catch(e){}
+}
+function playCorrectSound(){playTone(523,0.1);setTimeout(()=>playTone(659,0.1),100);setTimeout(()=>playTone(784,0.15),200);}
+function playWrongSound(){playTone(220,0.2);}
+
+/* ========== TEACHER & AFFIRMATIONS ========== */
+const TEACHER_DEFAULT='Mr. Jawad';
+let teacherName=TEACHER_DEFAULT;
+let studentFirstName='';
+const skillAffirmations=[
+  (skill,tn)=>`${tn} is proud of you!`,
+  (skill,tn)=>`${tn} knew you could do it!`,
+  (skill,tn)=>`That's strong ${skill} — ${tn} sees it!`,
+  (skill,tn)=>`Nice ${skill} — ${tn} is impressed!`,
+  (skill,tn)=>`That ${skill} is exactly what ${tn} loves to see!`,
+  (skill,tn)=>`${tn} says: that's real science thinking!`,
+  (skill,tn)=>`You're showing ${tn} what you can do!`,
+  (skill,tn)=>`${tn} says: keep that energy!`
+];
+const personalAffirmations=[
+  (name,skill,tn)=>`${name}, that's excellent ${skill}!`,
+  (name,skill,tn)=>`${name}, ${tn} is proud of that ${skill}!`,
+  (name,skill,tn)=>`Way to go ${name} — strong ${skill}!`,
+  (name,skill,tn)=>`${name}, ${tn} knew you could do it!`,
+  (name,skill,tn)=>`${name}, that ${skill} is on point!`,
+  (name,skill,tn)=>`${tn} sees your effort, ${name}!`,
+  (name,skill,tn)=>`${name}, that's the kind of thinking ${tn} loves!`,
+  (name,skill,tn)=>`Real scientist move, ${name}!`
+];
+let lastAffirm=-1;
+function getAffirmation(roundIdx){
+  const rd=ROUNDS[roundIdx!==undefined?roundIdx:GS.currentRound];
+  const skill=rd?rd.scienceSkill:'thinking';
+  const pool=studentFirstName?personalAffirmations:skillAffirmations;
+  let i;do{i=Math.floor(Math.random()*pool.length);}while(i===lastAffirm&&pool.length>1);
+  lastAffirm=i;
+  return studentFirstName?pool[i](studentFirstName,skill,teacherName):pool[i](skill,teacherName);
+}
+
+/* ========== VOCAB ========== */
+const vocab=[
+  {term:'MAGMA',def:'Melted rock under Earth\'s surface'},
+  {term:'PRESSURE',def:'Force pushing outward from inside'},
+  {term:'THICKNESS',def:'How thick or thin magma is'},
+  {term:'ERUPTION',def:'Magma escaping to the surface'}
+];
+let vocabOpen=false;
+function showVocab(){
+  if(vocabOpen){document.getElementById('vocabOvl')?.remove();vocabOpen=false;return;}
+  const d=document.createElement('div');d.className='vocab-overlay';d.id='vocabOvl';
+  d.onclick=e=>{if(e.target===d){d.remove();vocabOpen=false;}};
+  let h='<div class="vocab-modal"><h3>Key Vocabulary</h3>';
+  vocab.forEach(v=>{h+=`<div class="vocab-item"><span class="vocab-term">${v.term}</span><span class="vocab-def">${v.def}</span></div>`;});
+  h+='<div style="text-align:center;margin-top:12px;"><button class="btn btn-outline" onclick="this.closest(\'.vocab-overlay\').remove();vocabOpen=false;">Close</button></div></div>';
+  d.innerHTML=h;document.body.appendChild(d);vocabOpen=true;
+}
+
+/* ========== GAME STATE ========== */
+const GS={
+  currentRound:0, phase:'idle', score:0, streak:0, maxStreak:0,
+  roundScores:[], roundAttempts:[], roundHints:[], roundResets:[], roundTimes:[],
+  roundStartTime:0, hintsUsedThisRound:0, attemptsThisRound:0, resetsThisRound:0,
+  wrongCountDO:0, wrongCountPROVE:0, consecutiveFastWrongs:0, phaseStartTime:0,
+  doComplete:false, proveComplete:false, allRequired:false, allBonus:false,
+  studentName:'', nameLocked:false,
+  // anti-guessing trackers
+  lastWrongSlot:null, lastWrongOption:null, sameWrongCount:0, rapidClicks:0, lastClickTime:0,
+  disabled:false
+};
+
+/* ========== ROUND DATA ========== */
+const ROUNDS=[
+  // ROUND 1
+  {
+    num:1, name:'Volcano Anatomy', source:'Monday', required:true, mechanic:'hotspot',
+    scienceSkill:'diagram reading',
+    focusPrompt:'Remember the cross-section from Monday — find the three key parts Johnston monitored.',
+    contextCaption:'From Monday: This cross-section shows the inside of Mount St. Helens — the volcano Johnston was watching.',
+    doPrompt:'Tap the magma chamber, vent, and pressure zone.',
+    doData:{
+      hotspots:[
+        {id:'magma',label:'Magma Chamber',x:0.5,y:0.82,correct:true},
+        {id:'vent',label:'Vent',x:0.3,y:0.3,correct:true},
+        {id:'pressure',label:'Pressure Zone',x:0.7,y:0.55,correct:true},
+        {id:'crater',label:'Crater',x:0.15,y:0.08,correct:false},
+        {id:'surface',label:'Surface',x:0.85,y:0.08,correct:false}
+      ],
+      requiredCorrect:3
+    },
+    wrongFeedbackDO:{
+      crater:"That's the crater at the top — try lower, where the melted rock sits.",
+      surface:"That's the outside surface — the key parts are INSIDE the volcano.",
+      _default:"Try looking deeper inside the volcano — the three key parts are underground."
+    },
+    prove:{
+      question:'Where does pressure build inside a volcano?',
+      options:['At the surface crater','Outside the mountain','Between the magma chamber and the vent'],
+      correct:2,
+      wrongFeedback:[
+        'Pressure builds underground, not at the top — look at where the arrows push upward.',
+        'Pressure is the force pushing from INSIDE — look at the arrows between the chamber and the vent.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the bottom of the cross-section — the glowing red-orange pool is the magma chamber. Start there.'},
+      stepByStep:[
+        {text:'The magma chamber is at the bottom — look for the glowing red-orange pool.'},
+        {text:'The magma chamber is at the bottom. The vent goes up. Pressure builds between them.'}
+      ]
+    },
+    arenaType:'crossSection'
+  },
+  // ROUND 2
+  {
+    num:2, name:'Volcano Matchup', source:'Tuesday', required:true, mechanic:'dragToMatch',
+    scienceSkill:'comparing evidence',
+    focusPrompt:'Remember Tuesday\'s evidence — which volcano had thick magma and which had thin?',
+    contextCaption:'From Tuesday: These are the two volcanoes you investigated — St. Helens exploded, Kilauea flows gently.',
+    doPrompt:'Drag each label to the correct volcano.',
+    doData:{
+      chips:['Thick magma','High pressure','Gentle flow'],
+      zones:[
+        {id:'sthelens',label:'St. Helens',accepts:['Thick magma','High pressure']},
+        {id:'kilauea',label:'Kilauea',accepts:['Gentle flow']}
+      ]
+    },
+    wrongFeedbackDO:{
+      _default:'Thick magma traps gas and builds pressure — which volcano exploded?'
+    },
+    prove:{
+      question:'Why did St. Helens explode while Kilauea flows?',
+      options:['St. Helens had thicker magma trapping more gas','St. Helens is bigger','Kilauea has more magma'],
+      correct:0,
+      wrongFeedback:[
+        null,
+        "Size doesn't control eruption type — thickness and gas do. Look at the magma in each volcano.",
+        "Amount of magma isn't the key — it's how thick the magma is and how much gas gets trapped."
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the magma texture in each volcano — one looks chunky and dark, the other looks smooth and bright. The chunky one traps gas.'},
+      stepByStep:[
+        {text:'St. Helens has chunky dark magma labeled THICK — it traps gas.'},
+        {text:'Thick magma + trapped gas = high pressure = explosion. Drag "Thick magma" and "High pressure" to St. Helens.'}
+      ]
+    },
+    arenaType:'splitCompare'
+  },
+  // ROUND 3
+  {
+    num:3, name:'Eruption Predictor', source:'Wednesday', required:true, mechanic:'coachClick',
+    scienceSkill:'predicting outcomes',
+    focusPrompt:'Remember Wednesday\'s lab — what happened when BOTH thickness and gas were high?',
+    contextCaption:'From Wednesday: This lab model shows the variables you tested — thickness and gas control what the volcano does.',
+    doPrompt:'Thick magma + high gas = what eruption type?',
+    doData:{
+      options:['Gentle Flow','Moderate Eruption','Violently Explosive'],
+      correctIdx:2,
+      wrongFeedback:[
+        'Thick magma traps ALL that gas — pressure gets extreme. Gentle flows come from thin magma.',
+        'Thick magma traps ALL that gas — pressure gets extreme. What kind of eruption does extreme pressure cause?'
+      ]
+    },
+    wrongFeedbackDO:{_default:'Thick magma traps ALL that gas — pressure gets extreme. What kind of eruption does extreme pressure cause?'},
+    prove:{
+      question:'What made this eruption so violent?',
+      options:['Only the thick magma','The combination of thick magma AND high gas','Only the high gas'],
+      correct:1,
+      wrongFeedback:[
+        'Thickness alone isn\'t enough — remember, thick magma with LOW gas just builds slowly. BOTH variables matter.',
+        null,
+        'Gas alone isn\'t enough — thin magma with high gas only makes a moderate eruption. The thickness TRAPS the gas.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the pressure gauge on the left — it\'s at the highest level. In Wednesday\'s lab, what combination made pressure go that high?'},
+      stepByStep:[
+        {text:'Thick magma + High gas = maximum trapped pressure.'},
+        {text:'Maximum pressure = violently explosive. Click "Violently Explosive."'}
+      ]
+    },
+    arenaType:'labModel'
+  },
+  // ROUND 4
+  {
+    num:4, name:'Eruption Sequence', source:'Monday', required:true, mechanic:'sequenceBuilder',
+    scienceSkill:'cause-and-effect sequencing',
+    focusPrompt:'Remember Monday\'s story — put the steps in order from underground to eruption.',
+    contextCaption:'From Monday: Johnston tracked each step of what was happening inside St. Helens before it erupted.',
+    doPrompt:'Order the steps from first to last.',
+    doData:{
+      items:['Magma heats underground','Gas gets trapped in thick magma','Pressure builds inside the vent','Mountain erupts explosively'],
+      correctOrder:['Magma heats underground','Gas gets trapped in thick magma','Pressure builds inside the vent','Mountain erupts explosively']
+    },
+    wrongFeedbackDO:{_default:'Think about what has to happen FIRST underground before anything shows on the surface.'},
+    prove:{
+      question:'What must happen BEFORE pressure can build?',
+      options:['Gas must get trapped in thick magma','The mountain must erupt first','Pressure must escape at the surface first'],
+      correct:0,
+      wrongFeedback:[
+        null,
+        'The eruption is the LAST step — pressure builds before it erupts, not after.',
+        'If pressure escapes, it RELEASES — trapping gas is what BUILDS pressure in the first place.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the cross-section — everything starts at the bottom. What happens in the magma chamber BEFORE anything moves upward?'},
+      stepByStep:[
+        {text:'The first card "Magma heats underground" goes in position 1.'},
+        {text:'Magma heats first. Then gas gets trapped. Then pressure builds. Then it erupts.'}
+      ]
+    },
+    arenaType:'crossSection'
+  },
+  // ROUND 5
+  {
+    num:5, name:'Pressure Detective', source:'Tuesday', required:true, mechanic:'hotspot',
+    scienceSkill:'reading data',
+    focusPrompt:'Remember Tuesday\'s investigation — find the pressure gauge that shows St. Helens was under more pressure.',
+    contextCaption:'From Tuesday: These pressure gauges show what was happening inside each volcano before it erupted.',
+    doPrompt:'Tap the gauge showing higher pressure.',
+    doData:{
+      hotspots:[
+        {id:'sthPressure',label:'St. Helens (HIGH)',x:0.25,y:0.5,correct:true},
+        {id:'kilPressure',label:'Kilauea (LOW)',x:0.75,y:0.5,correct:false}
+      ],
+      requiredCorrect:1
+    },
+    wrongFeedbackDO:{
+      kilPressure:'Compare the two gauges — one is in the red zone, one is in the green zone. Higher pressure means more force pushing out.',
+      _default:'Compare the two gauges — one is in the red zone, one is in the green zone. Higher pressure means more force pushing out.'
+    },
+    prove:{
+      question:'Why was St. Helens\' pressure so much higher?',
+      options:['It had less magma inside','It was a newer volcano','Its magma was thicker, trapping more gas'],
+      correct:2,
+      wrongFeedback:[
+        'Less magma would mean LESS gas and LESS pressure — St. Helens had thick magma that TRAPPED the gas.',
+        'Age doesn\'t control pressure — the thickness of the magma and the amount of trapped gas do.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at both gauges — one needle is in the red, one is in the green. Which volcano had the dangerous pressure level?'},
+      stepByStep:[
+        {text:'St. Helens\' gauge has the needle in the red zone — that means HIGH PRESSURE.'},
+        {text:'Red zone = high pressure = more danger. Tap St. Helens\' gauge.'}
+      ]
+    },
+    arenaType:'splitCompare'
+  },
+  // ROUND 6
+  {
+    num:6, name:'Build an Explosion', source:'Wednesday', required:true, mechanic:'dragToMatch',
+    scienceSkill:'applying variables',
+    focusPrompt:'Remember Wednesday\'s lab — drag the right settings to make the volcano explode.',
+    contextCaption:'From Wednesday: You tested these sliders to see which combinations caused which eruptions.',
+    doPrompt:'Set the variables to cause an explosive eruption.',
+    doData:{
+      chips:['Thin','Medium','Thick','Low','Medium gas','High'],
+      correctChips:['Thick','High'],
+      zones:[
+        {id:'thickness',label:'Thickness',accepts:['Thick']},
+        {id:'gas',label:'Gas Level',accepts:['High']}
+      ],
+      distractors:['Thin','Medium','Low','Medium']
+    },
+    wrongFeedbackDO:{_default:'An explosive eruption needs MAXIMUM pressure — what combination trapped the most gas in Wednesday\'s lab?'},
+    prove:{
+      question:'Could medium thickness with high gas also explode?',
+      options:['Yes — high gas with any thickness explodes','Yes — but less violently than thick with high gas','No — only thick magma can explode'],
+      correct:1,
+      wrongFeedback:[
+        'Not any thickness — thin magma with high gas only makes a moderate eruption because the gas escapes more easily.',
+        null,
+        'Medium thickness with high gas DID cause an explosive eruption in the lab — just not as violent as thick with high gas. Both variables matter.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the eruption target — it says "explosive." In Wednesday\'s lab, the MOST explosive result came from the two HIGHEST settings.'},
+      stepByStep:[
+        {text:'The thickness slot needs "Thick" and the gas slot needs "High."'},
+        {text:'Thick + High = most trapped gas = most pressure = explosion. Drag both.'}
+      ]
+    },
+    arenaType:'labModel'
+  },
+  // ROUND 7
+  {
+    num:7, name:'Johnston\'s Evidence', source:'Monday', required:true, mechanic:'coachClick',
+    scienceSkill:'identifying evidence',
+    focusPrompt:'Remember Monday — click the science evidence that told Johnston the eruption was coming.',
+    contextCaption:'From Monday: Johnston used three types of data to predict St. Helens would erupt. One was most important.',
+    doPrompt:'Which evidence told Johnston an eruption was coming?',
+    doData:{
+      options:['The mountain\'s color changed','Pressure readings were rising and the mountain was bulging','Birds were flying away from the mountain'],
+      correctIdx:1,
+      wrongFeedback:[
+        'Johnston was a scientist — he used instruments, not observations about color. What did his PRESSURE readings show?',
+        null,
+        'Johnston was a scientist — he used instruments, not observations about animals. What did his PRESSURE readings show?'
+      ]
+    },
+    wrongFeedbackDO:{_default:'Johnston was a scientist — he used instruments, not casual observations. What did his PRESSURE readings show?'},
+    prove:{
+      question:'Why did rising pressure mean an eruption was likely?',
+      options:['Pressure pushes magma toward the surface','Pressure makes the mountain change color','Pressure only affects the outside of the mountain'],
+      correct:0,
+      wrongFeedback:[
+        null,
+        'Pressure doesn\'t change color — it pushes magma upward through the vent toward the surface.',
+        'Pressure builds INSIDE and pushes outward — that\'s what causes the bulge AND eventually the eruption.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the cross-section — find the pressure gauge and the bulge on the side of the mountain. Johnston measured THOSE with instruments.'},
+      stepByStep:[
+        {text:'Johnston measured rising pressure and a growing bulge — those are instrument readings.'},
+        {text:'Johnston measured rising pressure and a growing bulge — that told him magma was pushing up. Click the pressure option.'}
+      ]
+    },
+    arenaType:'crossSection'
+  },
+  // ROUND 8
+  {
+    num:8, name:'Evidence Chain', source:'Tuesday', required:true, mechanic:'sequenceBuilder',
+    scienceSkill:'sequencing an investigation',
+    focusPrompt:'Remember Tuesday\'s investigation — put the evidence steps in the order you used them.',
+    contextCaption:'From Tuesday: You followed these steps to figure out why St. Helens and Kilauea erupted differently.',
+    doPrompt:'Order the investigation steps from first to last.',
+    doData:{
+      items:['Observe eruption differences on the surface','Examine magma thickness samples','Measure pressure gauge readings','Explain: thick magma + gas = high pressure = explosion'],
+      correctOrder:['Observe eruption differences on the surface','Examine magma thickness samples','Measure pressure gauge readings','Explain: thick magma + gas = high pressure = explosion']
+    },
+    wrongFeedbackDO:{_default:'Investigations start with what you can SEE on the surface, then go deeper underground. What did you observe first?'},
+    prove:{
+      question:'Why do scientists examine magma BEFORE explaining an eruption?',
+      options:['Magma is the easiest thing to see','Scientists always start underground','Magma thickness is the key variable underground'],
+      correct:2,
+      wrongFeedback:[
+        'Magma is actually underground and hard to see — but it\'s the KEY VARIABLE that controls gas trapping and pressure.',
+        'Scientists start with surface observations and work deeper — but they examine magma because thickness controls the eruption type.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the evidence board — Tuesday\'s investigation started with what you could see (eruption footage) and ended with an explanation. What came first?'},
+      stepByStep:[
+        {text:'"Observe eruption differences on the surface" goes in position 1.'},
+        {text:'Start with what you see, then go deeper. Observation then samples then measurements then explanation.'}
+      ]
+    },
+    arenaType:'splitCompare'
+  },
+  // ROUND 9
+  {
+    num:9, name:'Key Variable', source:'Wednesday', required:true, mechanic:'hotspot',
+    scienceSkill:'identifying key variables',
+    focusPrompt:'Remember Wednesday\'s lab model — which variable makes eruptions most dangerous when gas is already high?',
+    contextCaption:'From Wednesday: When gas was locked at HIGH, changing this one variable made the biggest difference in eruption power.',
+    doPrompt:'Tap the variable that most increases eruption danger when gas is high.',
+    doData:{
+      hotspots:[
+        {id:'thickness',label:'Thickness Slider',x:0.2,y:0.5,correct:true},
+        {id:'gas',label:'Gas (Locked)',x:0.8,y:0.5,correct:false},
+        {id:'pressureGauge',label:'Pressure Gauge',x:0.5,y:0.5,correct:false}
+      ],
+      requiredCorrect:1
+    },
+    wrongFeedbackDO:{
+      gas:'Gas is already locked at HIGH — you can\'t change it. Which OTHER variable increases the danger?',
+      pressureGauge:'The pressure gauge SHOWS the result — it doesn\'t CAUSE it. Which slider can you CHANGE to affect pressure?',
+      _default:'Look for the variable you can actually change — not the one that shows results.'
+    },
+    prove:{
+      question:'Why does thickness matter most when gas is already high?',
+      options:['Thick magma traps the high gas, building extreme pressure','Thick magma is hotter than thin magma','Thickness doesn\'t matter if gas is high'],
+      correct:0,
+      wrongFeedback:[
+        null,
+        'Thickness isn\'t about temperature — it\'s about how easily gas can escape. Thick magma TRAPS gas.',
+        'Thickness absolutely matters — thin magma with high gas only makes a moderate eruption, but thick magma with high gas makes a violent explosion.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the lab model — gas is locked at HIGH. In Wednesday\'s lab, what happened when you changed thickness from thin to thick with high gas? The difference was huge.'},
+      stepByStep:[
+        {text:'The thickness slider is the one you can change — it\'s on the left side.'},
+        {text:'Thick + high gas = violent explosion. Thin + high gas = only moderate. Thickness makes the difference. Tap the thickness slider.'}
+      ]
+    },
+    arenaType:'labModel'
+  },
+  // ROUND 10
+  {
+    num:10, name:'Vocabulary Master', source:'Monday', required:true, mechanic:'dragToMatch',
+    scienceSkill:'using vocabulary',
+    focusPrompt:'Remember all week — match each vocabulary term to its correct definition on the cross-section.',
+    contextCaption:'From Monday: These four terms describe the parts and forces inside every volcano you\'ve studied this week.',
+    doPrompt:'Drag each term to its correct definition.',
+    doData:{
+      chips:['MAGMA','PRESSURE','THICKNESS','ERUPTION'],
+      zones:[
+        {id:'def1',label:'Melted rock under Earth\'s surface',accepts:['MAGMA']},
+        {id:'def2',label:'Force pushing outward from inside',accepts:['PRESSURE']},
+        {id:'def3',label:'How thick or thin magma is',accepts:['THICKNESS']},
+        {id:'def4',label:'Magma escaping to the surface',accepts:['ERUPTION']}
+      ]
+    },
+    wrongFeedbackDO:{
+      _default:'Look at the cross-section — each term describes something you can point to. Start with the easiest one.'
+    },
+    prove:{
+      question:'Which term describes what you see at the TOP of the volcano?',
+      options:['Magma','Eruption','Pressure'],
+      correct:1,
+      wrongFeedback:[
+        'Magma is underground in the chamber — the eruption is what you see at the surface.',
+        null,
+        'Pressure is the force building inside — the eruption is what happens when that pressure escapes at the top.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the cross-section — each term describes something you can point to. Start with the easiest: the glowing pool at the bottom is the MAGMA.'},
+      stepByStep:[
+        {text:'MAGMA goes with "Melted rock under Earth\'s surface" — the glowing pool at the bottom.'},
+        {text:'PRESSURE is the force (arrows), THICKNESS is chunky or runny (texture), ERUPTION is the escape (top).'}
+      ]
+    },
+    arenaType:'crossSection'
+  },
+  // ROUND 11 (BONUS)
+  {
+    num:11, name:'Nyiragongo Case', source:'Tuesday + Wednesday', required:false, mechanic:'sequenceBuilder',
+    scienceSkill:'applying patterns to new cases',
+    focusPrompt:'Remember the Nyiragongo extension case — use what you know to sequence this eruption.',
+    contextCaption:'From Tuesday + Wednesday: Nyiragongo has THIN magma but HIGH gas — a combination you tested. What happens?',
+    doPrompt:'Order: data profile then eruption prediction then evidence.',
+    doData:{
+      items:['Nyiragongo has thin magma and high gas','Thin magma lets gas escape — pressure stays moderate','Eruption type: moderate, fast-flowing lava','Danger: lava flows quickly into nearby city streets'],
+      correctOrder:['Nyiragongo has thin magma and high gas','Thin magma lets gas escape — pressure stays moderate','Eruption type: moderate, fast-flowing lava','Danger: lava flows quickly into nearby city streets']
+    },
+    wrongFeedbackDO:{_default:'Start with the DATA — what does Nyiragongo have? Then think about what that combination does.'},
+    prove:{
+      question:'Why is Nyiragongo dangerous even with thin magma?',
+      options:['Thin magma flows fast into cities','Thin magma always explodes','Thin magma has no gas'],
+      correct:0,
+      wrongFeedback:[
+        null,
+        'Thin magma does NOT explode — it flows. But it flows FAST, and that\'s what makes it dangerous for nearby cities.',
+        'Nyiragongo has HIGH gas — but thin magma lets that gas escape instead of trapping it. The danger is speed, not explosion.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the data profile — thin magma means gas escapes and lava flows. But Nyiragongo is near a CITY. What makes flowing lava dangerous?'},
+      stepByStep:[
+        {text:'Start with the data: "Nyiragongo has thin magma and high gas" goes first.'},
+        {text:'Thin + high gas = moderate eruption that flows fast. Fast lava + nearby city = danger.'}
+      ]
+    },
+    arenaType:'splitCompare'
+  },
+  // ROUND 12 (BONUS)
+  {
+    num:12, name:'The Final Claim', source:'All 3 Days', required:false, mechanic:'claimBuilder',
+    scienceSkill:'building a scientific claim',
+    focusPrompt:'Use everything from this week — build the claim that explains Mount St. Helens.',
+    contextCaption:'From all week: Monday\'s story, Tuesday\'s evidence, and Wednesday\'s lab all point to the same answer. Build it.',
+    doPrompt:'Complete: "St. Helens erupted explosively because ___."',
+    doData:{
+      frameText:'Mount St. Helens erupted explosively because {0}, {1}, and {2}.',
+      slots:['its magma was thick','gas was trapped inside','pressure built to extreme levels'],
+      allChips:['its magma was thick','gas was trapped inside','pressure built to extreme levels','the mountain was old','thin magma let gas escape','Kilauea is in Hawaii']
+    },
+    wrongFeedbackDO:{_default:'The claim is about St. Helens — use the evidence about its THICK magma, TRAPPED gas, and EXTREME pressure.'},
+    prove:{
+      question:'Which two variables together caused the extreme pressure?',
+      options:['Thick magma and high gas','Thin magma and low gas','Mountain size and age'],
+      correct:0,
+      wrongFeedback:[
+        null,
+        'Thin magma with low gas makes a GENTLE flow — the opposite of what happened at St. Helens.',
+        'Size and age don\'t control eruptions — the magma thickness and gas amount determine pressure and eruption type.'
+      ]
+    },
+    hints:{
+      hint1:{text:'Look at the claim — it says "erupted explosively." From Wednesday\'s lab, what combination caused the most violent eruption? Use those terms.'},
+      stepByStep:[
+        {text:'"Its magma was thick" goes in the first slot of the claim.'},
+        {text:'Thick magma trapped gas, which built pressure, which caused the explosion. Add "gas was trapped inside" and "pressure built to extreme levels."'}
+      ]
+    },
+    arenaType:'crossSection'
+  }
+];
+
+/* ========== CANVAS DRAWING ========== */
+const canvas=document.getElementById('arenaCanvas');
+const ctx=canvas.getContext('2d');
+let cW,cH;
+function resizeCanvas(){
+  const r=canvas.parentElement.getBoundingClientRect();
+  canvas.width=r.width*window.devicePixelRatio;
+  canvas.height=canvas.clientHeight*window.devicePixelRatio;
+  cW=canvas.width;cH=canvas.height;
+  ctx.setTransform(window.devicePixelRatio,0,0,window.devicePixelRatio,0,0);
+  cW=r.width;cH=canvas.clientHeight;
+}
+window.addEventListener('resize',()=>{try{resizeCanvas();drawArena();}catch(e){}});
+
+function drawArena(highlightId,wrongId){
+  try{
+    resizeCanvas();
+    const rd=ROUNDS[GS.currentRound];
+    if(!rd)return;
+    ctx.clearRect(0,0,cW,cH);
+    if(rd.arenaType==='crossSection') drawCrossSection(highlightId,wrongId);
+    else if(rd.arenaType==='splitCompare') drawSplitCompare(highlightId,wrongId);
+    else if(rd.arenaType==='labModel') drawLabModel(highlightId,wrongId);
+  }catch(e){console.error('Arena draw fail',e);}
+}
+
+function drawCrossSection(hlId,wrId){
+  const w=cW,h=cH;
+  // Sky gradient
+  const skyG=ctx.createLinearGradient(0,0,0,h*0.3);
+  skyG.addColorStop(0,'#1a0a2e');skyG.addColorStop(1,'#2d1b4e');
+  ctx.fillStyle=skyG;ctx.fillRect(0,0,w,h*0.3);
+  // Mountain
+  ctx.beginPath();ctx.moveTo(w*0.15,h*0.7);ctx.lineTo(w*0.5,h*0.12);ctx.lineTo(w*0.85,h*0.7);ctx.closePath();
+  const mtnG=ctx.createLinearGradient(0,h*0.12,0,h*0.7);
+  mtnG.addColorStop(0,'#4a3728');mtnG.addColorStop(1,'#2d2018');
+  ctx.fillStyle=mtnG;ctx.fill();ctx.strokeStyle='#5a4a38';ctx.lineWidth=1.5;ctx.stroke();
+  // Underground
+  ctx.fillStyle='#1a0f0a';ctx.fillRect(0,h*0.7,w,h*0.3);
+  ctx.fillStyle='#2a1a10';ctx.fillRect(w*0.1,h*0.7,w*0.8,h*0.3);
+  // Magma chamber
+  const mcx=w*0.5,mcy=h*0.82,mcr=w*0.14;
+  const mcG=ctx.createRadialGradient(mcx,mcy,mcr*0.2,mcx,mcy,mcr);
+  mcG.addColorStop(0,'#ff4500');mcG.addColorStop(0.6,'#cc3300');mcG.addColorStop(1,'#8b1a00');
+  ctx.beginPath();ctx.ellipse(mcx,mcy,mcr,mcr*0.6,0,0,Math.PI*2);ctx.fillStyle=mcG;ctx.fill();
+  if(hlId==='magma'||hlId==='all'){ctx.strokeStyle='#39FF14';ctx.lineWidth=3;ctx.stroke();}
+  else if(wrId==='magma'){ctx.strokeStyle='#FF4757';ctx.lineWidth=3;ctx.stroke();}
+  drawLabel(mcx,mcy+mcr*0.6+12,'MAGMA CHAMBER','#ff6b35',hlId==='magma'||hlId==='all');
+  // Vent
+  ctx.beginPath();ctx.moveTo(w*0.47,h*0.75);ctx.lineTo(w*0.48,h*0.25);ctx.lineTo(w*0.52,h*0.25);ctx.lineTo(w*0.53,h*0.75);ctx.closePath();
+  const ventG=ctx.createLinearGradient(0,h*0.25,0,h*0.75);
+  ventG.addColorStop(0,'#cc5500');ventG.addColorStop(1,'#ff4500');
+  ctx.fillStyle=ventG;ctx.fill();
+  if(hlId==='vent'||hlId==='all'){ctx.strokeStyle='#39FF14';ctx.lineWidth=3;ctx.stroke();}
+  drawLabel(w*0.62,h*0.48,'VENT','#ff6b35',hlId==='vent'||hlId==='all');
+  // Pressure zone
+  const pzy=h*0.62;
+  ctx.save();ctx.globalAlpha=0.4;
+  for(let i=0;i<3;i++){
+    const ax=w*0.5,ay=pzy-i*12;
+    ctx.beginPath();ctx.moveTo(ax-6,ay+8);ctx.lineTo(ax,ay-4);ctx.lineTo(ax+6,ay+8);
+    ctx.strokeStyle=(hlId==='pressure'||hlId==='all')?'#39FF14':'#FFD700';ctx.lineWidth=2;ctx.stroke();
+  }
+  ctx.restore();
+  if(hlId==='pressure'||hlId==='all'){
+    ctx.beginPath();ctx.arc(w*0.5,pzy,20,0,Math.PI*2);ctx.strokeStyle='#39FF14';ctx.lineWidth=2.5;ctx.stroke();
+  }
+  drawLabel(w*0.32,pzy,'PRESSURE','#FFD700',hlId==='pressure'||hlId==='all');
+  // Crater
+  ctx.beginPath();ctx.ellipse(w*0.5,h*0.14,w*0.04,h*0.02,0,0,Math.PI*2);ctx.fillStyle='#3a2a1a';ctx.fill();
+  drawLabel(w*0.5,h*0.08,'Crater','#9B8FBF',false);
+}
+
+function drawSplitCompare(hlId,wrId){
+  const w=cW,h=cH,mid=w*0.5;
+  // Left: St. Helens
+  ctx.fillStyle='#1a1025';ctx.fillRect(0,0,mid-2,h);
+  drawMiniVolcano(mid*0.5,h*0.5,mid*0.35,h*0.35,'explosive',hlId==='sthelens',wrId==='sthelens');
+  drawLabel(mid*0.5,h*0.08,'ST. HELENS','#FF4757',false);
+  // Thick magma indicator
+  ctx.fillStyle='#8b1a00';ctx.fillRect(mid*0.2,h*0.82,mid*0.6,h*0.12);
+  ctx.fillStyle='#5a1000';
+  for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(mid*0.3+i*mid*0.15,h*0.88,4,0,Math.PI*2);ctx.fill();}
+  drawLabel(mid*0.5,h*0.78,'Thick Magma','#ff6b35',hlId==='sthelens');
+  // Pressure gauge left
+  drawGauge(mid*0.15,h*0.45,20,0.9,hlId==='sthPressure',wrId==='sthPressure');
+
+  // Divider
+  ctx.fillStyle='var(--gold)';ctx.fillRect(mid-1,0,2,h);
+
+  // Right: Kilauea
+  ctx.fillStyle='#0f1a25';ctx.fillRect(mid+2,0,mid-2,h);
+  drawMiniVolcano(mid+mid*0.5,h*0.5,mid*0.35,h*0.3,'gentle',hlId==='kilauea',wrId==='kilauea');
+  drawLabel(mid+mid*0.5,h*0.08,'KILAUEA','#39FF14',false);
+  // Thin magma
+  ctx.fillStyle='#ff6600';ctx.fillRect(mid+mid*0.2,h*0.82,mid*0.6,h*0.12);
+  drawLabel(mid+mid*0.5,h*0.78,'Thin Magma','#ff9940',hlId==='kilauea');
+  // Pressure gauge right
+  drawGauge(mid+mid*0.15,h*0.45,20,0.2,hlId==='kilPressure',wrId==='kilPressure');
+}
+
+function drawLabModel(hlId,wrId){
+  const w=cW,h=cH;
+  // Background
+  ctx.fillStyle='#0f1520';ctx.fillRect(0,0,w,h);
+  // Mini volcano center
+  drawMiniVolcano(w*0.5,h*0.45,w*0.25,h*0.35,'moderate',false,false);
+  // Thickness slider visual
+  ctx.fillStyle='#2a1f45';ctx.fillRect(w*0.05,h*0.15,w*0.18,h*0.7);
+  ctx.strokeStyle=(hlId==='thickness')?'#39FF14':'#8B5CF6';ctx.lineWidth=2;ctx.strokeRect(w*0.05,h*0.15,w*0.18,h*0.7);
+  drawLabel(w*0.14,h*0.1,'THICKNESS','#8B5CF6',hlId==='thickness');
+  // Slider track
+  ctx.fillStyle='#4a3a6a';ctx.fillRect(w*0.13,h*0.25,w*0.02,h*0.5);
+  ctx.fillStyle=(hlId==='thickness')?'#39FF14':'#ff6b35';ctx.beginPath();ctx.arc(w*0.14,h*0.35,8,0,Math.PI*2);ctx.fill();
+  drawLabel(w*0.14,h*0.48,'Thick','#ff6b35',false);
+
+  // Gas slider visual
+  ctx.fillStyle='#2a1f45';ctx.fillRect(w*0.77,h*0.15,w*0.18,h*0.7);
+  ctx.strokeStyle=(hlId==='gas')?'#39FF14':'#3B82F6';ctx.lineWidth=2;ctx.strokeRect(w*0.77,h*0.15,w*0.18,h*0.7);
+  drawLabel(w*0.86,h*0.1,'GAS','#3B82F6',hlId==='gas');
+  ctx.fillStyle='#3a4a6a';ctx.fillRect(w*0.85,h*0.25,w*0.02,h*0.5);
+  ctx.fillStyle=(hlId==='gas')?'#39FF14':'#4DA6FF';ctx.beginPath();ctx.arc(w*0.86,h*0.35,8,0,Math.PI*2);ctx.fill();
+  drawLabel(w*0.86,h*0.48,'High','#4DA6FF',false);
+
+  // Pressure gauge center-left
+  drawGauge(w*0.32,h*0.75,18,0.85,hlId==='pressureGauge',wrId==='pressureGauge');
+  drawLabel(w*0.32,h*0.92,'PRESSURE','#FFD700',hlId==='pressureGauge');
+
+  // Gas bubbles in magma
+  ctx.save();ctx.globalAlpha=0.5;
+  for(let i=0;i<6;i++){
+    const bx=w*0.45+Math.random()*w*0.1,by=h*0.45+Math.random()*h*0.15;
+    ctx.beginPath();ctx.arc(bx,by,3+Math.random()*3,0,Math.PI*2);ctx.fillStyle='#4DA6FF';ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawMiniVolcano(cx,cy,vw,vh,type,hl,wr){
+  ctx.beginPath();ctx.moveTo(cx-vw,cy+vh*0.5);ctx.lineTo(cx,cy-vh*0.5);ctx.lineTo(cx+vw,cy+vh*0.5);ctx.closePath();
+  const g=ctx.createLinearGradient(cx,cy-vh*0.5,cx,cy+vh*0.5);
+  g.addColorStop(0,'#4a3728');g.addColorStop(1,'#2d2018');
+  ctx.fillStyle=g;ctx.fill();
+  if(hl){ctx.strokeStyle='#39FF14';ctx.lineWidth=2.5;ctx.stroke();}
+  else if(wr){ctx.strokeStyle='#FF4757';ctx.lineWidth=2.5;ctx.stroke();}
+  // Eruption indicator
+  if(type==='explosive'){
+    ctx.save();ctx.globalAlpha=0.7;
+    for(let i=0;i<5;i++){
+      const px=cx-8+Math.random()*16,py=cy-vh*0.5-5-Math.random()*20;
+      ctx.beginPath();ctx.arc(px,py,2+Math.random()*3,0,Math.PI*2);ctx.fillStyle='#ff4500';ctx.fill();
+    }
+    ctx.restore();
+  }else if(type==='gentle'){
+    ctx.beginPath();ctx.moveTo(cx,cy-vh*0.45);
+    ctx.quadraticCurveTo(cx+vw*0.5,cy,cx+vw,cy+vh*0.3);
+    ctx.strokeStyle='#ff6600';ctx.lineWidth=3;ctx.globalAlpha=0.6;ctx.stroke();ctx.globalAlpha=1;
+  }
+}
+
+function drawGauge(x,y,r,level,hl,wr){
+  ctx.beginPath();ctx.arc(x,y,r,Math.PI,0);ctx.strokeStyle=hl?'#39FF14':wr?'#FF4757':'#555';ctx.lineWidth=3;ctx.stroke();
+  // Fill arc based on level
+  const startA=Math.PI,endA=Math.PI+Math.PI*level;
+  ctx.beginPath();ctx.arc(x,y,r-3,startA,endA);
+  ctx.strokeStyle=level>0.7?'#FF4757':level>0.4?'#FFD700':'#39FF14';ctx.lineWidth=4;ctx.stroke();
+  // Needle
+  const na=Math.PI+Math.PI*level;
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(na)*(r-6),y+Math.sin(na)*(r-6));
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+}
+
+function drawLabel(x,y,text,color,highlight){
+  ctx.font=`${highlight?'bold ':''}10px sans-serif`;
+  ctx.textAlign='center';ctx.textBaseline='top';
+  if(highlight){
+    const tw=ctx.measureText(text).width+10;
+    ctx.fillStyle='rgba(57,255,20,0.15)';
+    ctx.fillRect(x-tw/2,y-2,tw,16);
+  }
+  ctx.fillStyle=color||'#ccc';ctx.fillText(text,x,y);
+}
+
+/* ========== PROGRESS DOTS ========== */
+function renderProgressDots(){
+  const c=document.getElementById('progressDots');c.innerHTML='';
+  ROUNDS.forEach((r,i)=>{
+    const d=document.createElement('div');d.className='pdot';
+    if(!r.required)d.classList.add('bonus');
+    if(i<GS.currentRound)d.classList.add('complete');
+    if(i===GS.currentRound)d.classList.add('current');
+    c.appendChild(d);
+  });
+}
+
+/* ========== SOURCE DAY BADGE ========== */
+function renderSourceDay(src){
+  const el=document.getElementById('sourceDay');
+  if(src.includes('All')){el.className='source-day source-all';el.textContent='Source: All Days';}
+  else if(src.includes('Monday')){el.className='source-day source-mon';el.textContent='Source: Monday';}
+  else if(src.includes('Tuesday')){el.className='source-day source-tue';el.textContent='Source: Tuesday';}
+  else if(src.includes('Wednesday')){el.className='source-day source-wed';el.textContent='Source: Wednesday';}
+  else{el.className='source-day source-all';el.textContent='Source: '+src;}
+}
+
+/* ========== STREAK ========== */
+function updateStreak(correct){
+  if(correct&&GS.hintsUsedThisRound===0&&GS.attemptsThisRound<=1){
+    GS.streak++;
+    if(GS.streak>GS.maxStreak)GS.maxStreak=GS.streak;
+  }else if(!correct){
+    GS.streak=0;
+  }
+  renderStreak();
+}
+
+function renderStreak(){
+  const sd=document.getElementById('streakDisplay');
+  const fl=document.getElementById('streakFlame');
+  const tx=document.getElementById('streakText');
+  sd.className='streak-display';
+  if(GS.streak>=8){sd.classList.add('streak-gold');fl.textContent='\uD83D\uDD25';tx.textContent='x'+GS.streak;}
+  else if(GS.streak>=5){sd.classList.add('streak-silver');fl.textContent='\uD83D\uDD25';tx.textContent='x'+GS.streak;}
+  else if(GS.streak>=3){sd.classList.add('streak-bronze');fl.textContent='\uD83D\uDD25';tx.textContent='x'+GS.streak;}
+  else if(GS.streak>0){fl.textContent='\uD83D\uDD25';tx.textContent='x'+GS.streak;}
+  else{fl.textContent='';tx.textContent='';}
+}
+
+/* ========== SCORING ========== */
+function calcRoundScore(){
+  if(GS.resetsThisRound>=1)return 50;
+  if(GS.hintsUsedThisRound>=2)return 60;
+  if(GS.hintsUsedThisRound===1)return 85;
+  return 100;
+}
+
+function showPointsAnim(pts){
+  try{
+    const el=document.createElement('div');el.className='points-anim';el.textContent='+'+pts;
+    const tb=document.getElementById('topbar');
+    el.style.left=(tb.offsetWidth*0.5)+'px';el.style.top='10px';
+    tb.style.position='relative';tb.appendChild(el);
+    setTimeout(()=>el.remove(),1300);
+  }catch(e){}
+}
+
+function updateScoreDisplay(){
+  document.getElementById('scoreDisplay').textContent='Score: '+GS.score;
+}
+
+/* ========== HINT SYSTEM ========== */
+function useHint(){
+  if(GS.phase!=='do'&&GS.phase!=='prove')return;
+  const rd=ROUNDS[GS.currentRound];if(!rd)return;
+  GS.hintsUsedThisRound++;
+  if(GS.hintsUsedThisRound===1){
+    showCoaching(rd.hints.hint1.text);
+  }else{
+    showStepByStep(rd.hints.stepByStep);
+  }
+}
+
+function showCoaching(text){
+  const bar=document.getElementById('coachingBar');
+  bar.textContent=text;bar.classList.add('visible');
+  setTimeout(()=>bar.classList.remove('visible'),6000);
+}
+
+function showStepByStep(panels){
+  let idx=0;
+  const ovl=document.createElement('div');ovl.className='sbs-overlay';ovl.id='sbsOvl';
+  function renderPanel(){
+    const p=panels[idx];
+    ovl.innerHTML=`<div class="sbs-modal"><div class="sbs-panel-indicator">Step ${idx+1} of ${panels.length}</div><h3>Step-by-Step</h3><p>${p.text}</p><button class="btn btn-gold" id="sbsNext">${idx<panels.length-1?'Next':'Got it'}</button></div>`;
+    ovl.querySelector('#sbsNext').onclick=()=>{
+      idx++;
+      if(idx>=panels.length){ovl.remove();}
+      else renderPanel();
+    };
+  }
+  renderPanel();
+  document.body.appendChild(ovl);
+}
+
+/* ========== ANTI-GUESSING ========== */
+function checkFastGuess(){
+  const now=Date.now();
+  const elapsed=now-GS.phaseStartTime;
+  if(elapsed<2000){
+    GS.consecutiveFastWrongs++;
+    if(GS.consecutiveFastWrongs>=2){
+      GS.consecutiveFastWrongs=0;
+      showCoaching('Slow down. Think about what you learned on '+ROUNDS[GS.currentRound].source+'.');
+      GS.disabled=true;
+      setTimeout(()=>{GS.disabled=false;},5000);
+      return true;
+    }
+  }
+  return false;
+}
+
+/* ========== MECHANIC ENGINES ========== */
+
+// --- HOTSPOT ---
+function renderHotspot(rd){
+  const area=document.getElementById('mechanicArea');
+  area.innerHTML='';
+  const wrap=document.createElement('div');wrap.className='hotspot-area';
+  wrap.style.height='220px';wrap.style.position='relative';wrap.style.maxWidth='550px';wrap.style.margin='0 auto';
+  const found=new Set();
+  // Subtle background label
+  const bgLabel=document.createElement('div');
+  bgLabel.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0.06;font-size:2.5rem;font-weight:900;color:var(--gold);text-transform:uppercase;';
+  bgLabel.textContent=rd.arenaType==='splitCompare'?'Compare the Gauges':rd.arenaType==='labModel'?'Lab Variables':'Volcano Cross-Section';
+  wrap.appendChild(bgLabel);
+  rd.doData.hotspots.forEach(hs=>{
+    const btn=document.createElement('button');btn.className='hotspot-btn';
+    const sz=80;
+    btn.style.width=sz+'px';btn.style.height=sz+'px';
+    btn.style.left=`calc(${hs.x*100}% - ${sz/2}px)`;
+    btn.style.top=`calc(${hs.y*100}% - ${sz/2}px)`;
+    btn.setAttribute('data-id',hs.id);
+    btn.style.color='var(--textdim)';btn.style.fontSize='0.68rem';btn.style.fontWeight='600';
+    btn.style.textAlign='center';btn.style.lineHeight='1.2';btn.style.padding='6px';
+    btn.textContent=hs.label;
+    btn.onclick=()=>{
+      if(GS.disabled)return;
+      if(found.has(hs.id))return;
+      if(hs.correct){
+        found.add(hs.id);btn.classList.add('correct');btn.style.color='#fff';btn.style.fontSize='0.75rem';
+        safeCall(()=>playTone(660,0.08));
+        drawArena(hs.id);
+        if(found.size>=rd.doData.requiredCorrect){
+          setTimeout(()=>completeDO(rd),500);
+        }
+      }else{
+        GS.attemptsThisRound++;GS.wrongCountDO++;
+        btn.classList.add('wrong-flash');setTimeout(()=>btn.classList.remove('wrong-flash'),500);
+        safeCall(()=>playWrongSound());
+        const fb=rd.wrongFeedbackDO[hs.id]||rd.wrongFeedbackDO._default||'Try again — look at the cross-section carefully.';
+        showCoaching(fb);
+        drawArena(null,hs.id);
+        if(GS.wrongCountDO>=3){
+          rd.doData.hotspots.filter(h=>h.correct&&!found.has(h.id)).forEach(h=>{
+            const b=wrap.querySelector(`[data-id="${h.id}"]`);if(b)b.classList.add('glow-nudge');
+          });
+          if(GS.hintsUsedThisRound<1)useHint();
+        }
+        checkAutoAdvance();
+      }
+    };
+    wrap.appendChild(btn);
+  });
+  area.appendChild(wrap);
+}
+
+// --- DRAG-TO-MATCH ---
+function renderDragToMatch(rd){
+  const area=document.getElementById('mechanicArea');
+  area.innerHTML='';
+  // Zones
+  const zonesDiv=document.createElement('div');zonesDiv.style.cssText='display:flex;gap:10px;justify-content:center;margin-bottom:12px;flex-wrap:wrap;';
+  const zoneEls={};
+  rd.doData.zones.forEach(z=>{
+    const col=document.createElement('div');col.style.cssText='flex:1;min-width:130px;max-width:220px;';
+    col.innerHTML=`<div style="text-align:center;font-weight:700;margin-bottom:6px;color:var(--gold);">${z.label}</div>`;
+    const dropArea=document.createElement('div');dropArea.style.cssText='display:flex;flex-direction:column;gap:6px;min-height:60px;';
+    z.accepts.forEach((_,i)=>{
+      const dz=document.createElement('div');dz.className='drop-zone';dz.setAttribute('data-zone',z.id);dz.setAttribute('data-idx',i);
+      dz.textContent='Drop here';
+      dz.onclick=()=>{
+        if(GS.disabled)return;
+        if(selectedChip&&!dz.classList.contains('correct')){
+          attemptDrop(rd,selectedChip,dz,z);
+        }
+      };
+      dropArea.appendChild(dz);
+    });
+    col.appendChild(dropArea);
+    zonesDiv.appendChild(col);
+    zoneEls[z.id]=col;
+  });
+  area.appendChild(zonesDiv);
+
+  // Chips
+  let selectedChip=null;
+  const chipsDiv=document.createElement('div');chipsDiv.className='mechanic-area';
+  const shuffled=[...rd.doData.chips].sort(()=>Math.random()-0.5);
+  shuffled.forEach(chip=>{
+    const el=document.createElement('div');el.className='drag-chip';el.textContent=chip;el.setAttribute('data-chip',chip);
+    el.onclick=()=>{
+      if(GS.disabled||el.classList.contains('placed'))return;
+      document.querySelectorAll('.drag-chip.selected').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');el.style.borderColor='var(--pink)';
+      selectedChip=chip;
+      // highlight zones
+      document.querySelectorAll('.drop-zone:not(.correct)').forEach(dz=>dz.classList.add('highlight'));
+    };
+    chipsDiv.appendChild(el);
+  });
+  area.appendChild(chipsDiv);
+
+  // Store placed items count
+  area._placedCount=0;
+  area._totalNeeded=rd.doData.correctChips?rd.doData.correctChips.length:rd.doData.chips.length;
+  area._selectedChip=()=>selectedChip;
+  area._setSelected=(v)=>{selectedChip=v;};
+}
+
+function attemptDrop(rd,chipText,dropZone,zone){
+  if(dropZone.classList.contains('correct'))return;
+  const area=document.getElementById('mechanicArea');
+  // Check if this chip belongs in this zone
+  if(zone.accepts.includes(chipText)){
+    dropZone.textContent=chipText;dropZone.classList.add('filled','correct');
+    dropZone.classList.remove('highlight');
+    const chipEl=document.querySelector(`.drag-chip[data-chip="${chipText}"]`);
+    if(chipEl)chipEl.classList.add('placed','correct');
+    safeCall(()=>playTone(660,0.08));
+    area._placedCount=(area._placedCount||0)+1;
+    area._setSelected(null);
+    document.querySelectorAll('.drag-chip.selected').forEach(c=>{c.classList.remove('selected');c.style.borderColor='';});
+    document.querySelectorAll('.drop-zone.highlight').forEach(d=>d.classList.remove('highlight'));
+    if(area._placedCount>=area._totalNeeded){
+      setTimeout(()=>completeDO(rd),500);
+    }
+  }else{
+    GS.attemptsThisRound++;GS.wrongCountDO++;
+    dropZone.classList.add('wrong-flash');setTimeout(()=>dropZone.classList.remove('wrong-flash'),500);
+    safeCall(()=>playWrongSound());
+    const fb=rd.wrongFeedbackDO._default||'Think about which volcano this label matches.';
+    showCoaching(fb);
+    area._setSelected(null);
+    document.querySelectorAll('.drag-chip.selected').forEach(c=>{c.classList.remove('selected');c.style.borderColor='';});
+    document.querySelectorAll('.drop-zone.highlight').forEach(d=>d.classList.remove('highlight'));
+    if(GS.wrongCountDO>=3&&GS.hintsUsedThisRound<1)useHint();
+    checkAutoAdvance();
+  }
+}
+
+// --- COACH-CLICK ---
+function renderCoachClick(rd){
+  const area=document.getElementById('mechanicArea');
+  area.innerHTML='';
+  const opts=document.createElement('div');opts.className='cc-options';
+  rd.doData.options.forEach((opt,i)=>{
+    const el=document.createElement('div');el.className='cc-option';el.textContent=opt;
+    el.setAttribute('data-idx',i);
+    el.onclick=()=>{
+      if(GS.disabled||el.classList.contains('dimmed'))return;
+      // Anti-guess: rapid click check
+      const now=Date.now();
+      if(now-GS.lastClickTime<1500&&GS.lastWrongOption!==null){
+        GS.disabled=true;showCoaching('Read the context visual first.');
+        setTimeout(()=>{GS.disabled=false;},3000);
+        GS.lastClickTime=now;return;
+      }
+      GS.lastClickTime=now;
+      document.querySelectorAll('.cc-option').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');
+      // Show lock-in
+      showLockIn(()=>{
+        if(i===rd.doData.correctIdx){
+          el.classList.add('correct');safeCall(()=>playCorrectSound());
+          completeDO(rd);
+        }else{
+          GS.attemptsThisRound++;GS.wrongCountDO++;
+          el.classList.add('wrong-flash');setTimeout(()=>{el.classList.remove('wrong-flash','selected');el.classList.add('dimmed');},500);
+          safeCall(()=>playWrongSound());
+          const fb=rd.doData.wrongFeedback?.[i]||rd.wrongFeedbackDO._default||'Try again.';
+          showCoaching(fb);
+          GS.lastWrongOption=i;
+          if(GS.wrongCountDO>=3&&GS.hintsUsedThisRound<1)useHint();
+          checkAutoAdvance();
+        }
+      });
+    };
+    opts.appendChild(el);
+  });
+  area.appendChild(opts);
+}
+
+// --- SEQUENCE BUILDER ---
+function renderSequenceBuilder(rd){
+  const area=document.getElementById('mechanicArea');
+  area.innerHTML='';
+  const items=rd.doData.items;
+  const correctOrder=rd.doData.correctOrder;
+  const placed=[];let selectedCard=null;
+
+  // Slots
+  const slotsDiv=document.createElement('div');slotsDiv.className='seq-slots';
+  correctOrder.forEach((_,i)=>{
+    const slot=document.createElement('div');slot.className='seq-slot';slot.setAttribute('data-slot',i);
+    slot.innerHTML=`<span class="slot-num">${i+1}.</span><span class="slot-text">Tap a card, then tap here</span>`;
+    slot.onclick=()=>{
+      if(GS.disabled||!selectedCard)return;
+      if(placed[i])return;
+      placed[i]=selectedCard;
+      slot.querySelector('.slot-text').textContent=selectedCard;
+      slot.classList.add('filled');
+      const cardEl=document.querySelector(`.seq-card[data-text="${CSS.escape(selectedCard)}"]`);
+      if(cardEl)cardEl.classList.add('placed');
+      selectedCard=null;
+      document.querySelectorAll('.seq-card.selected').forEach(c=>c.classList.remove('selected'));
+      // Check if all placed
+      if(placed.filter(Boolean).length===correctOrder.length){
+        showLockIn(()=>checkSequence(rd,placed,slotsDiv));
+      }
+    };
+    slotsDiv.appendChild(slot);
+  });
+  area.appendChild(slotsDiv);
+
+  // Cards
+  const cardsDiv=document.createElement('div');cardsDiv.className='seq-cards';
+  const shuffled=[...items].sort(()=>Math.random()-0.5);
+  shuffled.forEach(item=>{
+    const el=document.createElement('div');el.className='seq-card';el.textContent=item;el.setAttribute('data-text',item);
+    el.onclick=()=>{
+      if(GS.disabled||el.classList.contains('placed'))return;
+      document.querySelectorAll('.seq-card.selected').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedCard=item;
+    };
+    cardsDiv.appendChild(el);
+  });
+  area.appendChild(cardsDiv);
+}
+
+function checkSequence(rd,placed,slotsDiv){
+  const correct=rd.doData.correctOrder;
+  let allCorrect=true;
+  placed.forEach((item,i)=>{
+    const slot=slotsDiv.querySelector(`[data-slot="${i}"]`);
+    if(item===correct[i]){
+      slot.classList.add('correct');
+    }else{
+      allCorrect=false;
+      slot.classList.add('wrong-flash');
+      setTimeout(()=>slot.classList.remove('wrong-flash'),500);
+    }
+  });
+  if(allCorrect){
+    safeCall(()=>playCorrectSound());
+    completeDO(rd);
+  }else{
+    GS.attemptsThisRound++;GS.wrongCountDO++;
+    safeCall(()=>playWrongSound());
+    showCoaching(rd.wrongFeedbackDO._default||'Think about what happens first.');
+    // Reset after delay
+    setTimeout(()=>{
+      if(GS.wrongCountDO>=2){
+        // Lock first correct item
+        const firstSlot=slotsDiv.querySelector('[data-slot="0"]');
+        firstSlot.querySelector('.slot-text').textContent=correct[0];
+        firstSlot.classList.add('locked','filled');
+        const cardEl=document.querySelector(`.seq-card[data-text="${CSS.escape(correct[0])}"]`);
+        if(cardEl)cardEl.classList.add('placed');
+      }
+      // Reset unlocked slots
+      slotsDiv.querySelectorAll('.seq-slot:not(.locked)').forEach(s=>{
+        s.classList.remove('filled','correct','wrong-flash');
+        s.querySelector('.slot-text').textContent='Tap a card, then tap here';
+      });
+      document.querySelectorAll('.seq-card:not(.placed)').forEach(c=>c.classList.remove('selected'));
+      placed.length=0;
+      if(slotsDiv.querySelector('.locked')){placed[0]=correct[0];}
+      if(GS.wrongCountDO>=3&&GS.hintsUsedThisRound<1)useHint();
+      checkAutoAdvance();
+    },800);
+  }
+}
+
+// --- CLAIM BUILDER ---
+function renderClaimBuilder(rd){
+  const area=document.getElementById('mechanicArea');
+  area.innerHTML='';
+  const frame=document.createElement('div');frame.className='claim-frame';
+  let frameHTML=rd.doData.frameText;
+  rd.doData.slots.forEach((_,i)=>{
+    frameHTML=frameHTML.replace(`{${i}}`,`<span class="claim-slot" data-slot="${i}">___</span>`);
+  });
+  frame.innerHTML=frameHTML;
+  area.appendChild(frame);
+
+  const placed=[];let selectedChip=null;
+  const chipsDiv=document.createElement('div');chipsDiv.className='claim-chips';
+  const shuffled=[...rd.doData.allChips].sort(()=>Math.random()-0.5);
+  shuffled.forEach(chip=>{
+    const el=document.createElement('div');el.className='claim-chip';el.textContent=chip;el.setAttribute('data-chip',chip);
+    el.onclick=()=>{
+      if(GS.disabled||el.classList.contains('placed')||el.classList.contains('locked'))return;
+      document.querySelectorAll('.claim-chip.selected').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedChip=chip;
+    };
+    chipsDiv.appendChild(el);
+  });
+  area.appendChild(chipsDiv);
+
+  // Click slots to place
+  frame.querySelectorAll('.claim-slot').forEach(slot=>{
+    slot.style.cursor='pointer';
+    slot.onclick=()=>{
+      if(!selectedChip||slot.classList.contains('correct'))return;
+      const idx=parseInt(slot.getAttribute('data-slot'));
+      const expected=rd.doData.slots[idx];
+      if(selectedChip===expected){
+        slot.textContent=selectedChip;slot.classList.add('filled','correct');
+        const chipEl=document.querySelector(`.claim-chip[data-chip="${CSS.escape(selectedChip)}"]`);
+        if(chipEl)chipEl.classList.add('placed');
+        placed[idx]=selectedChip;selectedChip=null;
+        document.querySelectorAll('.claim-chip.selected').forEach(c=>c.classList.remove('selected'));
+        safeCall(()=>playTone(660,0.08));
+        if(placed.filter(Boolean).length>=rd.doData.slots.length)setTimeout(()=>completeDO(rd),500);
+      }else{
+        GS.attemptsThisRound++;GS.wrongCountDO++;
+        slot.classList.add('wrong-flash');setTimeout(()=>slot.classList.remove('wrong-flash'),400);
+        safeCall(()=>playWrongSound());
+        showCoaching(rd.wrongFeedbackDO._default||'Read carefully.');
+        selectedChip=null;
+        document.querySelectorAll('.claim-chip.selected').forEach(c=>c.classList.remove('selected'));
+        if(GS.wrongCountDO>=2){
+          // Lock one correct chip
+          const nextUnfilled=rd.doData.slots.findIndex((_,i)=>!placed[i]);
+          if(nextUnfilled>=0){
+            const correctChip=rd.doData.slots[nextUnfilled];
+            const ce=document.querySelector(`.claim-chip[data-chip="${CSS.escape(correctChip)}"]`);
+            if(ce)ce.classList.add('locked');
+            const sl=frame.querySelector(`[data-slot="${nextUnfilled}"]`);
+            if(sl){sl.textContent=correctChip;sl.classList.add('filled','correct');}
+            placed[nextUnfilled]=correctChip;
+            if(ce)ce.classList.add('placed');
+          }
+        }
+        if(GS.wrongCountDO>=3&&GS.hintsUsedThisRound<1)useHint();
+        checkAutoAdvance();
+      }
+    };
+  });
+}
+
+/* ========== LOCK-IN BUTTON ========== */
+function showLockIn(callback){
+  const row=document.getElementById('btnRow');
+  row.innerHTML='';
+  const btn=document.createElement('button');btn.className='btn btn-primary';btn.textContent='Lock In';
+  btn.onclick=()=>{row.innerHTML='';callback();};
+  row.appendChild(btn);
+}
+
+/* ========== TRY AGAIN ========== */
+function showTryAgain(callback){
+  const row=document.getElementById('btnRow');
+  const btn=document.createElement('button');btn.className='btn btn-try-again';btn.textContent='Try Again';
+  btn.onclick=()=>{btn.remove();callback();};
+  row.appendChild(btn);
+}
+
+/* ========== AUTO ADVANCE ON REPEATED FAILS ========== */
+function checkAutoAdvance(){
+  if(GS.resetsThisRound>=3||(GS.wrongCountDO+GS.wrongCountPROVE)>=6){
+    showCoaching("Let's move on — you'll see this idea again.");
+    GS.resetsThisRound++;
+    setTimeout(()=>completeRound(50),2000);
+    return true;
+  }
+  return false;
+}
+
+/* ========== PHASE FLOW ========== */
+function startRound(idx){
+  try{
+    GS.currentRound=idx;
+    GS.phase='do';GS.doComplete=false;GS.proveComplete=false;
+    GS.hintsUsedThisRound=0;GS.attemptsThisRound=0;GS.resetsThisRound=0;
+    GS.wrongCountDO=0;GS.wrongCountPROVE=0;GS.consecutiveFastWrongs=0;
+    GS.lastWrongSlot=null;GS.lastWrongOption=null;GS.sameWrongCount=0;
+    GS.phaseStartTime=Date.now();GS.roundStartTime=Date.now();GS.disabled=false;
+
+    const rd=ROUNDS[idx];
+    document.getElementById('roundLabel').textContent=`Round ${rd.num} of 12`;
+    const cp=document.getElementById('contextPanel');
+    cp.classList.toggle('bonus-round',!rd.required);
+
+    // Focus prompt
+    const fp=document.getElementById('focusPrompt');fp.textContent=rd.focusPrompt;fp.style.opacity='1';
+    setTimeout(()=>{fp.style.opacity='0.4';fp.style.fontSize='0.8rem';fp.style.padding='6px 10px';},3500);
+
+    // Caption
+    document.getElementById('contextCaption').textContent=rd.contextCaption;
+    // Arena
+    drawArena();
+    // Source day
+    renderSourceDay(rd.source);
+    // Progress
+    renderProgressDots();
+    // Coaching clear
+    document.getElementById('coachingBar').classList.remove('visible');
+    document.getElementById('btnRow').innerHTML='';
+
+    // Phase label
+    document.getElementById('phaseLabel').innerHTML='<span class="iz-phase-label iz-phase-do">DO</span>';
+    document.getElementById('izPrompt').textContent=rd.doPrompt;
+
+    // Render mechanic
+    renderMechanic(rd);
+    updateScoreDisplay();
+  }catch(e){
+    console.error('startRound fail',e);
+    // Safety: skip round
+    setTimeout(()=>{if(GS.currentRound===idx)completeRound(50);},3000);
+  }
+}
+
+function renderMechanic(rd){
+  try{
+    if(rd.mechanic==='hotspot')renderHotspot(rd);
+    else if(rd.mechanic==='dragToMatch')renderDragToMatch(rd);
+    else if(rd.mechanic==='coachClick')renderCoachClick(rd);
+    else if(rd.mechanic==='sequenceBuilder')renderSequenceBuilder(rd);
+    else if(rd.mechanic==='claimBuilder')renderClaimBuilder(rd);
+  }catch(e){console.error('Mechanic render fail',e);}
+}
+
+function completeDO(rd){
+  GS.doComplete=true;GS.phase='prove';GS.phaseStartTime=Date.now();
+  GS.wrongCountPROVE=0;
+  drawArena('all');
+  document.getElementById('phaseLabel').innerHTML='<span class="iz-phase-label iz-phase-prove">PROVE</span>';
+  document.getElementById('izPrompt').textContent=rd.prove.question;
+  document.getElementById('btnRow').innerHTML='';
+  renderProve(rd);
+}
+
+function renderProve(rd){
+  const area=document.getElementById('mechanicArea');
+  area.innerHTML='';
+  const opts=document.createElement('div');opts.className='mc-options';
+  rd.prove.options.forEach((opt,i)=>{
+    const el=document.createElement('div');el.className='mc-option';
+    el.innerHTML=`<span style="font-weight:700;color:var(--gold);min-width:22px;">${String.fromCharCode(65+i)}</span><span>${opt}</span>`;
+    el.setAttribute('data-idx',i);
+    el.onclick=()=>{
+      if(GS.disabled||el.classList.contains('dimmed'))return;
+      document.querySelectorAll('.mc-option').forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');
+      showLockIn(()=>{
+        if(i===rd.prove.correct){
+          el.classList.add('correct');safeCall(()=>playCorrectSound());
+          GS.proveComplete=true;
+          const score=calcRoundScore();
+          updateStreak(true);
+          setTimeout(()=>completeRound(score),600);
+        }else{
+          GS.attemptsThisRound++;GS.wrongCountPROVE++;
+          el.classList.add('wrong-flash');
+          setTimeout(()=>{el.classList.remove('wrong-flash','selected');el.classList.add('dimmed');},500);
+          safeCall(()=>playWrongSound());
+          const fb=rd.prove.wrongFeedback[i]||'Look at the context visual for a clue.';
+          showCoaching(fb);
+          updateStreak(false);
+          if(!checkAutoAdvance()){
+            showTryAgain(()=>{document.getElementById('coachingBar').classList.remove('visible');});
+          }
+        }
+      });
+    };
+    opts.appendChild(el);
+  });
+  area.appendChild(opts);
+}
+
+function completeRound(score){
+  const rd=ROUNDS[GS.currentRound];
+  const elapsed=Math.round((Date.now()-GS.roundStartTime)/1000);
+  GS.roundScores[GS.currentRound]=score;
+  GS.roundAttempts[GS.currentRound]=GS.attemptsThisRound;
+  GS.roundHints[GS.currentRound]=GS.hintsUsedThisRound;
+  GS.roundResets[GS.currentRound]=GS.resetsThisRound;
+  GS.roundTimes[GS.currentRound]=elapsed;
+  GS.score+=score;
+  updateScoreDisplay();
+  showPointsAnim(score);
+
+  const isFirstTry=score===100;
+  const roundNum=GS.currentRound+1;
+
+  // Celebrations
+  if(roundNum===10){
+    // Required complete
+    setTimeout(()=>showChoiceScreen(),1500);
+  }else if(roundNum===12){
+    // All complete
+    setTimeout(()=>showBossDefeated(),800);
+  }else if(roundNum%2===0){
+    // Every 2 rounds mini celebration
+    showMiniCelebration(isFirstTry);
+    setTimeout(()=>advanceRound(),1200);
+  }else{
+    if(isFirstTry)showAffirmation();
+    setTimeout(()=>advanceRound(),800);
+  }
+}
+
+function advanceRound(){
+  if(GS.currentRound<ROUNDS.length-1){
+    startRound(GS.currentRound+1);
+  }else{
+    showReceipt();
+  }
+}
+
+/* ========== CELEBRATIONS ========== */
+function showMiniCelebration(firstTry){
+  try{
+    const ovl=document.createElement('div');ovl.className='cele-overlay';ovl.style.pointerEvents='none';
+    const msgs=['Nice!','Keep going!','Strong work!','On fire!','You got this!'];
+    ovl.innerHTML=`<div class="cele-text">${msgs[Math.floor(Math.random()*msgs.length)]}</div>${firstTry?`<div class="cele-affirmation">${getAffirmation()}</div>`:''}`;
+    document.body.appendChild(ovl);
+    safeCall(()=>{playTone(523,0.08);setTimeout(()=>playTone(659,0.08),100);setTimeout(()=>playTone(784,0.1),200);});
+    createParticles(ovl,30);
+    setTimeout(()=>ovl.remove(),1200);
+  }catch(e){}
+}
+
+function showAffirmation(){
+  try{
+    const div=document.createElement('div');div.className='cele-affirmation';div.style.cssText='position:fixed;bottom:30%;left:50%;transform:translateX(-50%);z-index:150;font-size:1.1rem;';
+    div.textContent=getAffirmation();
+    document.body.appendChild(div);
+    setTimeout(()=>div.remove(),2200);
+  }catch(e){}
+}
+
+function showChoiceScreen(){
+  GS.allRequired=true;
+  const ovl=document.createElement('div');ovl.className='choice-screen';ovl.id='choiceOvl';
+  ovl.innerHTML=`
+    <h2>REQUIRED COMPLETE!</h2>
+    <p>You proved you can read a volcano like Johnston.</p>
+    <div class="cele-affirmation" style="position:static;animation:none;opacity:1;">${getAffirmation()}</div>
+    <div class="btn-row" style="margin-top:20px;">
+      <button class="btn btn-gold" onclick="document.getElementById('choiceOvl').remove();advanceRound();">Take on 2 BONUS rounds</button>
+      <button class="btn btn-outline" onclick="document.getElementById('choiceOvl').remove();showReceipt();">See My Score</button>
+    </div>`;
+  document.body.appendChild(ovl);
+  safeCall(()=>playCorrectSound());
+  createParticles(ovl,80);
+}
+
+function showBossDefeated(){
+  GS.allBonus=true;
+  const ovl=document.createElement('div');ovl.className='cele-overlay';ovl.id='bossOvl';
+  ovl.innerHTML=`<div class="cele-text" style="font-size:2.2rem;">BOSS DEFEATED! &#11088;</div><div class="cele-sub">You conquered the Volcano Gauntlet!</div><div class="cele-affirmation" style="position:static;animation:none;opacity:1;">${getAffirmation()}</div>`;
+  document.body.appendChild(ovl);
+  safeCall(()=>{playTone(523,0.1);setTimeout(()=>playTone(659,0.1),120);setTimeout(()=>playTone(784,0.1),240);setTimeout(()=>playTone(1047,0.2),360);});
+  createParticles(ovl,120);
+  setTimeout(()=>{ovl.remove();showReceipt();},3500);
+}
+
+function createParticles(container,count){
+  try{
+    const colors=['#FFD700','#39FF14','#FF1493','#FF6B35','#ff4500'];
+    for(let i=0;i<count;i++){
+      const p=document.createElement('div');
+      const c=colors[Math.floor(Math.random()*colors.length)];
+      const x=Math.random()*100,dur=0.8+Math.random()*1.5,delay=Math.random()*0.5;
+      p.style.cssText=`position:absolute;left:${x}%;bottom:20%;width:${4+Math.random()*6}px;height:${4+Math.random()*6}px;background:${c};border-radius:50%;pointer-events:none;animation:particleUp ${dur}s ${delay}s ease-out forwards;`;
+      container.appendChild(p);
+    }
+    if(!document.getElementById('particleStyle')){
+      const s=document.createElement('style');s.id='particleStyle';
+      s.textContent='@keyframes particleUp{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(-300px) rotate(720deg);}}';
+      document.head.appendChild(s);
+    }
+  }catch(e){}
+}
+
+/* ========== RECEIPT ========== */
+function showReceipt(){
+  GS.phase='receipt';
+  document.getElementById('app').classList.add('hidden');
+  const rs=document.getElementById('receiptScreen');rs.style.display='block';
+  // Update receipt header with dynamic teacher name
+  rs.querySelector('h2').textContent=teacherName+"'s Simulation";
+  rs.querySelector('.subtitle').textContent='Volcanoes — Thursday Score Report';
+
+  // Calculate overall
+  const reqScores=GS.roundScores.filter((_,i)=>ROUNDS[i]&&ROUNDS[i].required);
+  const base=reqScores.length>0?Math.round(reqScores.reduce((a,b)=>a+b,0)/reqScores.length):0;
+  const bonusDone=GS.roundScores.filter((_,i)=>ROUNDS[i]&&!ROUNDS[i].required).filter(s=>s>0).length;
+  const overall=Math.min(100,base+bonusDone*5);
+
+  let colorClass='red',label='Needs More Practice';
+  if(overall>=85){colorClass='green';label='Mastery';}
+  else if(overall>=70){colorClass='yellow';label='Approaching Mastery';}
+
+  document.getElementById('overallScore').innerHTML=`<div class="big-pct ${colorClass}">${overall}%</div><div class="mastery-label">${label}</div>`;
+
+  // Streak record
+  let streakLabel='';
+  if(GS.maxStreak>=8)streakLabel='Gold Streak ('+GS.maxStreak+')';
+  else if(GS.maxStreak>=5)streakLabel='Silver Streak ('+GS.maxStreak+')';
+  else if(GS.maxStreak>=3)streakLabel='Bronze Streak ('+GS.maxStreak+')';
+  else streakLabel='Best Streak: '+GS.maxStreak;
+  document.getElementById('streakRecord').textContent='Highest Streak: '+streakLabel;
+
+  // Table
+  let tHTML='<table class="rtable"><thead><tr><th>#</th><th>Round</th><th>Source</th><th>Score</th><th>Attempts</th><th>Time</th></tr></thead><tbody>';
+  ROUNDS.forEach((rd,i)=>{
+    if(GS.roundScores[i]===undefined)return;
+    const sc=GS.roundScores[i];
+    const scClass=sc>=100?'s100':sc>=85?'s85':sc>=60?'s60':'s50';
+    const t=GS.roundTimes[i]||0;const mm=Math.floor(t/60);const ss=String(t%60).padStart(2,'0');
+    const bonusMark=rd.required?'':'&#11088; ';
+    tHTML+=`<tr class="${rd.required?'':'bonus-row'}"><td>${bonusMark}${rd.num}</td><td>${rd.name}</td><td>${rd.source}</td><td class="score-cell ${scClass}">${sc}%</td><td>${(GS.roundAttempts[i]||0)+1}</td><td>${mm}:${ss}</td></tr>`;
+  });
+  tHTML+='</tbody></table>';
+  document.getElementById('roundTable').innerHTML=tHTML;
+
+  // Total time
+  const totalSec=GS.roundTimes.reduce((a,b)=>a+(b||0),0);
+  const tm=Math.floor(totalSec/60),ts=String(totalSec%60).padStart(2,'0');
+  const completedAll=GS.roundScores.filter(s=>s!==undefined).length===12;
+  const completedReq=GS.roundScores.slice(0,10).filter(s=>s!==undefined).length===10;
+  let status='In Progress';
+  if(completedAll)status='All Complete (Bonus!)';
+  else if(completedReq)status='Required Complete';
+  document.getElementById('statusLine').innerHTML=`Total Time: ${tm}:${ts} &nbsp; | &nbsp; Status: ${status}`;
+}
+
+function lockName(){
+  const inp=document.getElementById('studentNameInput');
+  if(inp.value.trim()){
+    GS.studentName=inp.value.trim();inp.disabled=true;GS.nameLocked=true;
+    document.getElementById('lockNameBtn').disabled=true;
+  }
+}
+
+function confirmRestart(){
+  if(confirm('Start completely over? Your scores will be reset.')){
+    location.reload();
+  }
+}
+
+/* ========== START SCREEN ========== */
+function showStartScreen(){
+  const ovl=document.createElement('div');ovl.className='start-screen';ovl.id='startOvl';
+  ovl.innerHTML=`
+    <h1 id="startTitle">Mr. Jawad's Simulation — Volcanoes</h1>
+    <div class="round-count">12 ROUNDS</div>
+    <h2>Earth is throwing its most dangerous eruptions at you. You've studied the science all week. Now prove you can read a volcano like Johnston did.</h2>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;width:100%;max-width:340px;">
+      <input type="text" id="startStudentName" placeholder="Your first name" maxlength="25" style="padding:12px 16px;border-radius:8px;border:2px solid var(--gold);background:var(--panel);color:var(--text);font-size:1.05rem;text-align:center;">
+      <input type="text" id="startTeacherName" placeholder="Your teacher's name (e.g. Mr. Jawad)" maxlength="30" style="padding:12px 16px;border-radius:8px;border:2px solid var(--textdim);background:var(--panel);color:var(--text);font-size:1.05rem;text-align:center;">
+    </div>
+    <button class="btn btn-gold" style="font-size:1.2rem;padding:16px 40px;margin-top:16px;" onclick="launchGauntlet()">Begin Gauntlet</button>`;
+  document.body.appendChild(ovl);
+}
+
+function launchGauntlet(){
+  const sn=document.getElementById('startStudentName').value.trim();
+  const tn=document.getElementById('startTeacherName').value.trim();
+  if(sn)studentFirstName=sn;
+  if(tn)teacherName=tn;
+  // Update title bar if teacher name changed
+  if(tn){document.title=tn+"'s Simulation — Volcanoes";}
+  // Pre-fill receipt name field
+  if(sn){document.getElementById('studentNameInput').value=sn;}
+  document.getElementById('startOvl').remove();
+  startRound(0);
+}
+
+/* ========== SAFE CALL ========== */
+function safeCall(fn,msg){try{fn();}catch(e){console.error(msg||'safeCall error',e);}}
+
+/* ========== INIT ========== */
+showStartScreen();
+renderStreak();
+renderProgressDots();
+</script>
+</body>
+</html>
