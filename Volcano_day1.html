@@ -1,0 +1,2603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulation — Volcano</title>
+<style>
+:root {
+  --bg-start: #FFF8F0;
+  --bg-end: #FFEFD5;
+  --accent-amber: #F59E0B;
+  --accent-coral: #EF6C6C;
+  --accent-green: #2D8B4E;
+  --accent-dark: #5A3E1B;
+  --text-dark: #2D2016;
+  --text-mid: #5C4A38;
+  --text-light: #8B7355;
+  --panel-bg: rgba(255,252,245,0.95);
+  --card-bg: #FFFDF8;
+  --correct-green: #22C55E;
+  --wrong-red: #EF4444;
+  --hint1-bg: #FFF9C4;
+  --hint2-bg: #FFE0B2;
+  --shadow-sm: 0 2px 8px rgba(90,62,27,0.08);
+  --shadow-md: 0 4px 16px rgba(90,62,27,0.12);
+  --shadow-lg: 0 8px 32px rgba(90,62,27,0.16);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;background:linear-gradient(135deg,var(--bg-start),var(--bg-end));color:var(--text-dark);}
+button{cursor:pointer;border:none;font-family:inherit;font-size:inherit;}
+button:focus-visible{outline:3px solid var(--accent-amber);outline-offset:2px;}
+
+/* ===== MAIN LAYOUT ===== */
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;}
+
+/* TOP BAR */
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;min-height:52px;box-shadow:var(--shadow-md);z-index:10;flex-shrink:0;}
+.top-bar .level-badge{background:rgba(255,255,255,0.25);border-radius:20px;padding:4px 14px;font-weight:700;font-size:14px;white-space:nowrap;}
+.top-bar .level-name{font-size:15px;font-weight:600;flex:1;text-align:center;padding:0 8px;line-height:1.3;}
+.top-bar .hud-right{display:flex;align-items:center;gap:12px;font-size:14px;font-weight:600;}
+.top-bar .score-display{background:rgba(255,255,255,0.25);border-radius:12px;padding:4px 10px;}
+.progress-bar-wrap{width:80px;height:8px;background:rgba(255,255,255,0.3);border-radius:4px;overflow:hidden;}
+.progress-bar-fill{height:100%;background:#fff;border-radius:4px;transition:width 0.5s ease;}
+
+/* MAIN CONTENT AREA */
+.main-area{display:flex;flex:1;overflow:hidden;min-height:0;}
+
+/* NARRATIVE PANEL */
+.narrative-panel{width:40%;padding:16px;display:flex;flex-direction:column;background:var(--panel-bg);border-right:2px solid rgba(245,158,11,0.15);overflow-y:auto;}
+.narrative-panel .story-text{font-size:16px;line-height:1.7;color:var(--text-dark);flex:1;}
+.narrative-panel .story-text .keyword{font-weight:700;color:var(--accent-amber);transition:all 0.3s;}
+.narrative-panel .story-text .keyword.pulse{text-shadow:0 0 8px rgba(245,158,11,0.5);transform:scale(1.05);}
+.read-aloud-toggle{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--card-bg);border-radius:var(--radius-sm);border:1px solid rgba(245,158,11,0.2);margin-bottom:12px;font-size:13px;color:var(--text-mid);cursor:pointer;min-height:40px;}
+.read-aloud-toggle input{width:18px;height:18px;accent-color:var(--accent-amber);}
+.narrative-dimmed{opacity:0.4;pointer-events:none;transition:opacity 0.5s;}
+
+/* DATA PANEL */
+.data-panel{background:linear-gradient(135deg,#3D2B1F,#2D1F15);border-radius:var(--radius-sm);padding:10px;margin-top:12px;color:#FFE0B2;}
+.data-panel h4{font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;color:#F59E0B;}
+.data-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;}
+.data-row .data-label{width:80px;font-weight:600;color:#FFD08A;}
+.data-bar-wrap{flex:1;height:12px;background:rgba(255,255,255,0.1);border-radius:6px;overflow:hidden;}
+.data-bar-fill{height:100%;border-radius:6px;transition:width 1s ease, background 1s ease;}
+
+/* SCIENCE ARENA */
+.arena-panel{width:60%;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#arenaCanvas{width:100%;height:100%;display:block;}
+
+/* INTERACTION ZONE */
+.interaction-zone{min-height:120px;max-height:45vh;padding:12px 16px;background:var(--panel-bg);border-top:2px solid rgba(245,158,11,0.15);display:flex;flex-direction:column;align-items:center;gap:10px;flex-shrink:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.iz-prompt{font-size:16px;font-weight:600;color:var(--text-dark);text-align:center;max-width:700px;}
+.iz-options{display:flex;flex-direction:column;gap:10px;justify-content:center;width:100%;max-width:700px;}
+
+.clear-btn{padding:10px 24px;background:var(--card-bg);color:var(--text-mid);border:2px solid rgba(239,68,68,0.25);border-radius:20px;font-size:14px;font-weight:600;min-height:44px;transition:all 0.2s;margin-top:4px;}
+.clear-btn:hover{background:rgba(239,68,68,0.08);border-color:var(--accent-coral);}
+.iz-option{padding:12px 20px;background:var(--card-bg);border:2px solid rgba(245,158,11,0.25);border-radius:var(--radius);font-size:15px;color:var(--text-dark);min-height:48px;min-width:48px;transition:all 0.2s;text-align:left;line-height:1.4;max-width:100%;flex:1 1 auto;word-wrap:break-word;}
+.iz-option:hover{border-color:var(--accent-amber);box-shadow:var(--shadow-sm);}
+.iz-option.selected{border-color:var(--accent-amber);background:rgba(245,158,11,0.1);box-shadow:0 0 0 3px rgba(245,158,11,0.2);}
+.iz-option.correct-flash{border-color:var(--correct-green);background:rgba(34,197,94,0.15);animation:correctPulse 0.6s;}
+.iz-option.wrong-flash{border-color:var(--wrong-red);background:rgba(239,68,68,0.1);animation:wrongShake 0.5s;}
+.iz-option.dimmed{opacity:0.35;pointer-events:none;text-decoration:line-through;}
+.iz-option.eliminated{opacity:0.3;pointer-events:none;border-style:dashed;}
+.iz-option.l1-glow{box-shadow:0 0 12px rgba(245,158,11,0.3);}
+
+.lock-in-btn{padding:14px 36px;background:linear-gradient(135deg,var(--accent-amber),#D97706);color:#fff;border-radius:30px;font-size:16px;font-weight:700;min-height:48px;box-shadow:var(--shadow-md);transition:all 0.2s;opacity:0;pointer-events:none;}
+.lock-in-btn.visible{opacity:1;pointer-events:auto;}
+.lock-in-btn:hover{transform:scale(1.03);box-shadow:var(--shadow-lg);}
+
+.try-again-btn{padding:14px 36px;background:linear-gradient(135deg,var(--accent-amber),#D97706);color:#fff;border-radius:30px;font-size:16px;font-weight:700;min-height:48px;box-shadow:var(--shadow-md);transition:all 0.2s;}
+.try-again-btn:hover{transform:scale(1.03);}
+
+/* COACHING BAR */
+.coaching-bar{background:var(--hint1-bg);border-radius:var(--radius-sm);padding:12px 16px;font-size:14px;color:var(--text-dark);max-width:700px;text-align:center;line-height:1.5;box-shadow:var(--shadow-sm);animation:slideUp 0.3s ease;}
+
+/* BOTTOM BAR */
+.bottom-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--panel-bg);border-top:2px solid rgba(245,158,11,0.15);min-height:48px;flex-shrink:0;}
+.bottom-bar button{padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;background:var(--card-bg);color:var(--text-mid);border:1px solid rgba(245,158,11,0.2);min-height:40px;min-width:48px;}
+.bottom-bar button:hover{background:rgba(245,158,11,0.1);}
+.bottom-bar .level-counter{font-size:14px;color:var(--text-mid);font-weight:600;}
+
+/* FOCUS PROMPT BANNER */
+.focus-banner{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(245,158,11,0.95),rgba(217,119,6,0.95));color:#fff;padding:12px 28px;border-radius:30px;font-size:15px;font-weight:600;z-index:20;text-align:center;max-width:90%;box-shadow:var(--shadow-lg);transition:opacity 1s ease;line-height:1.4;}
+.focus-banner.faded{opacity:0.3;font-size:12px;padding:6px 16px;}
+
+/* PHASE BADGE */
+.phase-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(245,158,11,0.95);color:#fff;padding:16px 32px;border-radius:20px;font-size:22px;font-weight:700;z-index:25;box-shadow:var(--shadow-lg);animation:badgePop 0.6s ease;}
+
+/* CELEBRATION OVERLAY */
+.celebration-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(45,32,22,0.6);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px);}
+.celebration-overlay .cel-text{font-size:32px;font-weight:700;color:#fff;text-shadow:0 2px 16px rgba(0,0,0,0.3);margin-bottom:8px;text-align:center;}
+.celebration-overlay .cel-affirm{font-size:28px;color:#FFE0B2;text-shadow:0 2px 8px rgba(0,0,0,0.2);animation:fadeInUp 0.5s ease 0.3s both;text-align:center;}
+.celebration-overlay .cel-btns{display:flex;gap:16px;margin-top:20px;}
+.celebration-overlay .cel-btns button{padding:14px 32px;border-radius:30px;font-size:16px;font-weight:700;min-height:48px;}
+.cel-btn-primary{background:linear-gradient(135deg,var(--correct-green),#16A34A);color:#fff;box-shadow:var(--shadow-md);}
+.cel-btn-secondary{background:rgba(255,255,255,0.2);color:#fff;border:2px solid rgba(255,255,255,0.4);}
+
+/* VOCAB PANEL */
+.vocab-overlay{position:fixed;top:0;right:0;width:320px;height:100%;background:var(--panel-bg);box-shadow:-4px 0 24px rgba(0,0,0,0.15);z-index:80;transform:translateX(100%);transition:transform 0.3s ease;padding:20px;overflow-y:auto;}
+.vocab-overlay.open{transform:translateX(0);}
+.vocab-overlay h3{font-size:18px;color:var(--accent-amber);margin-bottom:16px;}
+.vocab-item{padding:12px;background:var(--card-bg);border-radius:var(--radius-sm);margin-bottom:10px;border-left:4px solid var(--accent-amber);}
+.vocab-item .v-term{font-weight:700;color:var(--accent-amber);font-size:15px;}
+.vocab-item .v-def{font-size:14px;color:var(--text-mid);margin-top:4px;}
+.vocab-close{position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid rgba(0,0,0,0.1);font-size:18px;display:flex;align-items:center;justify-content:center;}
+
+/* HINT STEP-BY-STEP MODAL */
+.sbs-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(45,32,22,0.7);display:flex;align-items:center;justify-content:center;z-index:90;backdrop-filter:blur(3px);}
+.sbs-modal{background:var(--panel-bg);border-radius:var(--radius);padding:24px;max-width:500px;width:90%;box-shadow:var(--shadow-lg);}
+.sbs-modal h3{font-size:18px;color:var(--accent-amber);margin-bottom:16px;}
+.sbs-modal .sbs-text{font-size:15px;line-height:1.6;color:var(--text-dark);min-height:60px;}
+.sbs-modal .sbs-nav{display:flex;justify-content:space-between;margin-top:16px;}
+.sbs-modal .sbs-nav button{padding:10px 24px;border-radius:20px;font-size:14px;font-weight:600;min-height:44px;}
+.sbs-next-btn{background:linear-gradient(135deg,var(--accent-amber),#D97706);color:#fff;}
+.sbs-done-btn{background:linear-gradient(135deg,var(--correct-green),#16A34A);color:#fff;}
+.sbs-counter{font-size:13px;color:var(--text-light);align-self:center;}
+
+/* SCORE RECEIPT */
+.receipt-screen{position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,var(--bg-start),var(--bg-end));z-index:200;overflow-y:auto;padding:20px;}
+.receipt-inner{max-width:650px;margin:0 auto;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:32px;border:3px solid var(--accent-amber);}
+.receipt-header{text-align:center;margin-bottom:20px;}
+.receipt-header h2{font-size:22px;color:var(--accent-amber);}
+.receipt-header h3{font-size:16px;color:var(--text-mid);font-weight:400;}
+.receipt-name{display:flex;gap:8px;align-items:center;margin-bottom:20px;}
+.receipt-name input{flex:1;padding:10px 14px;border:2px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);font-size:16px;min-height:44px;}
+.receipt-name button{padding:10px 20px;background:var(--accent-amber);color:#fff;border-radius:var(--radius-sm);font-weight:600;min-height:44px;}
+.receipt-name input:disabled{background:#f5f0e8;color:var(--text-dark);}
+.receipt-grade{text-align:center;margin:24px 0;}
+.receipt-grade .big-pct{font-size:56px;font-weight:700;line-height:1;}
+.receipt-grade .grade-label{font-size:18px;font-weight:600;margin-top:4px;}
+.receipt-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+.receipt-table th{background:var(--accent-amber);color:#fff;padding:8px 12px;text-align:left;}
+.receipt-table td{padding:8px 12px;border-bottom:1px solid #eee;}
+.receipt-table tr:nth-child(even){background:#FFFDF8;}
+.receipt-table .bonus-row{background:rgba(245,158,11,0.08);}
+.receipt-table .score-cell{font-weight:700;}
+.receipt-footer{text-align:center;margin-top:20px;font-size:15px;color:var(--text-mid);}
+.receipt-btns{display:flex;gap:12px;justify-content:center;margin-top:16px;}
+.receipt-btns button{padding:12px 24px;border-radius:20px;font-size:14px;font-weight:600;min-height:44px;}
+.print-btn{background:var(--accent-amber);color:#fff;}
+.restart-btn{background:var(--card-bg);color:var(--text-mid);border:1px solid rgba(0,0,0,0.15);}
+
+/* DRAG-TO-MATCH */
+.dtm-container{display:flex;gap:24px;align-items:flex-start;justify-content:center;flex-wrap:wrap;width:100%;max-width:800px;}
+.dtm-labels{display:flex;flex-direction:column;gap:8px;}
+.dtm-draggable{padding:10px 16px;background:var(--card-bg);border:2px solid var(--accent-amber);border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:grab;min-height:44px;display:flex;align-items:center;user-select:none;touch-action:none;transition:all 0.2s;}
+.dtm-draggable.dragging{opacity:0.5;transform:scale(0.95);}
+.dtm-draggable.placed{opacity:0.4;pointer-events:none;border-style:dashed;}
+.dtm-draggable.locked{background:rgba(34,197,94,0.1);border-color:var(--correct-green);pointer-events:none;}
+.dtm-zones{display:flex;flex-direction:column;gap:8px;}
+.dtm-zone{padding:10px 16px;min-height:44px;min-width:180px;border:2px dashed rgba(245,158,11,0.4);border-radius:var(--radius-sm);font-size:13px;color:var(--text-light);display:flex;align-items:center;transition:all 0.2s;}
+.dtm-zone.highlight{border-color:var(--accent-amber);background:rgba(245,158,11,0.05);}
+.dtm-zone.filled{border-style:solid;border-color:var(--accent-amber);background:rgba(245,158,11,0.08);}
+.dtm-zone.correct{border-color:var(--correct-green);background:rgba(34,197,94,0.1);}
+.dtm-zone.wrong-flash{animation:wrongShake 0.5s;border-color:var(--wrong-red);}
+
+/* SEQUENCE BUILDER */
+.seq-container{display:flex;gap:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap;width:100%;max-width:800px;}
+.seq-bank{display:flex;flex-direction:column;gap:8px;min-width:250px;}
+.seq-card{padding:10px 16px;background:var(--card-bg);border:2px solid rgba(245,158,11,0.3);border-radius:var(--radius-sm);font-size:14px;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px;transition:all 0.2s;user-select:none;}
+.seq-card:hover{border-color:var(--accent-amber);}
+.seq-card.selected{border-color:var(--accent-amber);background:rgba(245,158,11,0.1);box-shadow:0 0 0 3px rgba(245,158,11,0.15);}
+.seq-card.locked{background:rgba(34,197,94,0.1);border-color:var(--correct-green);pointer-events:none;}
+.seq-card.wrong-flash{animation:wrongShake 0.5s;}
+.seq-slots{display:flex;flex-direction:column;gap:8px;min-width:250px;}
+.seq-slot{padding:10px 16px;min-height:44px;border:2px dashed rgba(245,158,11,0.3);border-radius:var(--radius-sm);font-size:14px;color:var(--text-light);cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s;}
+.seq-slot .slot-num{width:28px;height:28px;border-radius:50%;background:var(--accent-amber);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.seq-slot.filled{border-style:solid;border-color:var(--accent-amber);background:rgba(245,158,11,0.05);color:var(--text-dark);}
+.seq-slot.correct{border-color:var(--correct-green);background:rgba(34,197,94,0.08);}
+
+/* CLAIM BUILDER */
+.claim-container{display:flex;flex-direction:column;gap:12px;width:100%;max-width:800px;align-items:center;}
+.claim-row{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;width:100%;}
+.claim-evidence{padding:10px 16px;background:var(--card-bg);border:2px solid var(--accent-amber);border-radius:var(--radius-sm);font-size:14px;cursor:pointer;min-height:44px;transition:all 0.2s;flex:1;min-width:120px;text-align:center;}
+.claim-evidence.selected{background:rgba(245,158,11,0.15);box-shadow:0 0 0 3px rgba(245,158,11,0.2);}
+.claim-evidence.locked{border-color:var(--correct-green);background:rgba(34,197,94,0.1);pointer-events:none;}
+.claim-supports{padding:10px 16px;min-height:44px;border:2px dashed rgba(245,158,11,0.3);border-radius:var(--radius-sm);font-size:13px;color:var(--text-light);cursor:pointer;transition:all 0.2s;flex:1;min-width:120px;text-align:center;}
+.claim-supports.highlight{border-color:var(--accent-amber);}
+.claim-supports.filled{border-style:solid;color:var(--text-dark);background:rgba(245,158,11,0.05);}
+.claim-supports.correct{border-color:var(--correct-green);background:rgba(34,197,94,0.1);}
+.claim-arrow{font-size:20px;color:var(--accent-amber);}
+
+/* HOTSPOT */
+.hotspot-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;cursor:crosshair;}
+
+/* ANTI-GUESS COACHING SCREEN */
+.ag-screen{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(45,32,22,0.8);display:flex;align-items:center;justify-content:center;z-index:150;backdrop-filter:blur(4px);}
+.ag-box{background:#fff;border-radius:var(--radius);padding:32px;max-width:400px;text-align:center;box-shadow:var(--shadow-lg);}
+.ag-box h3{color:var(--accent-coral);font-size:20px;margin-bottom:12px;}
+.ag-box p{font-size:15px;color:var(--text-mid);line-height:1.6;}
+.ag-timer{font-size:32px;font-weight:700;color:var(--accent-amber);margin-top:16px;}
+
+/* ANIMATIONS */
+@keyframes correctPulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes wrongShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes badgePop{0%{transform:translate(-50%,-50%) scale(0.5);opacity:0}60%{transform:translate(-50%,-50%) scale(1.1)}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+@keyframes slideUp{0%{transform:translateY(20px);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes fadeInUp{0%{transform:translateY(12px);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes gentleGlow{0%,100%{box-shadow:0 0 8px rgba(245,158,11,0.2)}50%{box-shadow:0 0 16px rgba(245,158,11,0.5)}}
+
+/* WELCOME SCREEN */
+.welcome-screen{position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#FFF8F0,#FFEFD5);z-index:300;display:flex;align-items:center;justify-content:center;}
+.welcome-box{background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(90,62,27,0.15);padding:40px;max-width:440px;width:90%;text-align:center;}
+.welcome-box h1{font-size:26px;color:#F59E0B;margin-bottom:6px;}
+.welcome-box h2{font-size:18px;color:#5C4A38;font-weight:400;margin-bottom:28px;}
+.welcome-box label{display:block;text-align:left;font-size:14px;font-weight:600;color:#5C4A38;margin-bottom:6px;margin-top:18px;}
+.welcome-box input{width:100%;padding:12px 16px;border:2px solid rgba(245,158,11,0.3);border-radius:10px;font-size:16px;font-family:inherit;min-height:48px;transition:border-color 0.2s;}
+.welcome-box input:focus{outline:none;border-color:#F59E0B;box-shadow:0 0 0 3px rgba(245,158,11,0.15);}
+.welcome-box .welcome-start{margin-top:28px;padding:16px 40px;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;border-radius:30px;font-size:18px;font-weight:700;min-height:52px;box-shadow:0 4px 16px rgba(245,158,11,0.3);transition:all 0.2s;width:100%;opacity:0.4;pointer-events:none;}
+.welcome-box .welcome-start.ready{opacity:1;pointer-events:auto;}
+.welcome-box .welcome-start.ready:hover{transform:scale(1.03);box-shadow:0 6px 20px rgba(245,158,11,0.4);}
+.welcome-box .welcome-note{font-size:12px;color:#8B7355;margin-top:12px;}
+
+/* PRINT */
+@media print{
+  .top-bar,.bottom-bar,.interaction-zone,.main-area,.celebration-overlay,.vocab-overlay,.sbs-overlay,.ag-screen,.focus-banner,.phase-badge,.welcome-screen{display:none!important;}
+  .receipt-screen{position:static!important;padding:0!important;}
+  .receipt-inner{box-shadow:none!important;border:2px solid #999!important;}
+  .receipt-btns{display:none!important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+
+/* MOBILE */
+@media(max-width:768px){
+  .main-area{flex-direction:column;}
+  .narrative-panel{width:100%;max-height:30%;border-right:none;border-bottom:2px solid rgba(245,158,11,0.15);}
+  .arena-panel{width:100%;flex:1;min-height:25vh;}
+  .interaction-zone{min-height:100px;max-height:50vh;}
+  .top-bar .level-name{font-size:13px;}
+  .iz-option{font-size:14px;padding:10px 14px;}
+  .dtm-container,.seq-container{flex-direction:column;align-items:stretch;}
+  .dtm-container{gap:12px;}
+  .vocab-overlay{width:280px;}
+  .receipt-inner{padding:20px;}
+  .receipt-grade .big-pct{font-size:44px;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="level-badge" id="levelBadge">Level 1</div>
+    <div class="level-name" id="levelName">Lava in the Streets</div>
+    <div class="hud-right">
+      <div class="score-display" id="scoreDisplay">0</div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-area">
+    <!-- NARRATIVE PANEL -->
+    <div class="narrative-panel" id="narrativePanel">
+      <label class="read-aloud-toggle">
+        <input type="checkbox" id="readAloudToggle" checked>
+        Read Aloud
+      </label>
+      <div class="story-text" id="storyText"></div>
+      <div class="data-panel" id="dataPanel" style="display:none;">
+        <h4>Johnston's Data</h4>
+        <div class="data-row"><span class="data-label">Pressure</span><div class="data-bar-wrap"><div class="data-bar-fill" id="dataPressure" style="width:0%;background:#22C55E;"></div></div></div>
+        <div class="data-row"><span class="data-label">Thickness</span><div class="data-bar-wrap"><div class="data-bar-fill" id="dataThickness" style="width:0%;background:#F59E0B;"></div></div></div>
+        <div class="data-row"><span class="data-label">Bulge</span><div class="data-bar-wrap"><div class="data-bar-fill" id="dataBulge" style="width:0%;background:#EF6C6C;"></div></div></div>
+      </div>
+    </div>
+
+    <!-- ARENA -->
+    <div class="arena-panel" id="arenaPanel">
+      <canvas id="arenaCanvas"></canvas>
+      <div id="hotspotOverlay" class="hotspot-overlay" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- INTERACTION ZONE -->
+  <div class="interaction-zone" id="interactionZone"></div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <button id="vocabBtn" onclick="toggleVocab()">Vocab</button>
+    <button id="hintBtn" onclick="useHint()" style="display:none;">Hint</button>
+    <div class="level-counter" id="levelCounter">Level 1 of 8</div>
+    <button id="settingsBtn" onclick="toggleSettings()">Settings</button>
+  </div>
+</div>
+
+<!-- FOCUS BANNER -->
+<div class="focus-banner" id="focusBanner" style="display:none;"></div>
+
+<!-- PHASE BADGE -->
+<div class="phase-badge" id="phaseBadge" style="display:none;"></div>
+
+<!-- VOCAB PANEL -->
+<div class="vocab-overlay" id="vocabOverlay">
+  <button class="vocab-close" onclick="toggleVocab()">X</button>
+  <h3>Key Vocabulary</h3>
+  <div class="vocab-item"><div class="v-term">MAGMA</div><div class="v-def">Melted rock under Earth's surface</div></div>
+  <div class="vocab-item"><div class="v-term">PRESSURE</div><div class="v-def">Force pushing outward from inside</div></div>
+  <div class="vocab-item"><div class="v-term">THICKNESS</div><div class="v-def">How easily melted rock flows</div></div>
+  <div class="vocab-item"><div class="v-term">ERUPTION</div><div class="v-def">Melted rock escaping to the surface</div></div>
+</div>
+
+<!-- WELCOME SCREEN -->
+<div class="welcome-screen" id="welcomeScreen">
+  <div class="welcome-box">
+    <h1>Mr. Jawad's Simulation</h1>
+    <h2>Volcano — Story Map</h2>
+    <label for="welcomeName">Your Name</label>
+    <input type="text" id="welcomeName" placeholder="Type your first name..." autocomplete="off">
+    <label for="welcomeTeacher">Your Teacher's Name</label>
+    <input type="text" id="welcomeTeacher" placeholder="Example: Mr. P, Mrs. Smith..." autocomplete="off">
+    <button class="welcome-start" id="welcomeStart" onclick="launchSimulation()">Start</button>
+    <div class="welcome-note">Your teacher's name will appear in congratulations messages.</div>
+  </div>
+</div>
+
+<!-- CONFETTI CANVAS -->
+<canvas id="confettiCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:101;display:none;"></canvas>
+
+<script>
+// ===== GLOBALS =====
+// Global error handler — prevents crashes from killing the simulation
+window.onerror = function(msg, src, line, col, err){
+  console.error('Global error caught:', msg, 'at line', line, err);
+  return true; // Prevent default error handling
+};
+window.addEventListener('unhandledrejection', function(e){
+  console.error('Unhandled promise rejection:', e.reason);
+  e.preventDefault();
+});
+
+let teacherName = "Your teacher";
+let studentFirstName = "";
+let audioCtx = null;
+function getAudioContext(){
+  if(!audioCtx) try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){console.error('AudioContext failed',e);}
+  return audioCtx;
+}
+
+let speechEnabled = true;
+let resumeInterval = null;
+const readAloudToggle = document.getElementById('readAloudToggle');
+readAloudToggle.addEventListener('change', e => { speechEnabled = e.target.checked; if(!speechEnabled) try{speechSynthesis.cancel();}catch(e){}});
+
+// Game state
+const gameState = {
+  studentName: '',
+  currentLevel: 0,
+  levels: [],
+  overallScore: 0,
+  totalTimeMs: 0,
+  startTime: Date.now(),
+  requiredComplete: false,
+  allComplete: false
+};
+
+// Per-level tracking
+let levelState = {
+  phase: 'intro', // intro, focus, watch, transition, do, prove, complete
+  attempts: 0,
+  hintsUsed: 0,
+  resets: 0,
+  score: 100,
+  startTime: 0,
+  wrongCount: 0,
+  consecutiveFastWrongs: 0,
+  selectedOption: null,
+  doComplete: false,
+  proveComplete: false,
+  phaseStartTime: 0,
+  eliminatedOptions: [],
+  dtmState: {},
+  seqState: {},
+  claimState: {}
+};
+
+// Affirmations - generated dynamically from entered teacher name
+let lastAffirmIdx = -1;
+function getAffirmation(){
+  const t = teacherName;
+  const pool = [
+    `${t} is proud of you!`,
+    `${t} knew you could do it!`,
+    `That's the kind of thinking ${t} loves to see!`,
+    `${t} says: you're getting it!`,
+    `Strong work — ${t} sees your effort!`,
+    `${t} is impressed right now!`,
+    `You're showing ${t} what you can do!`,
+    `${t} says: keep that energy!`
+  ];
+  let idx;
+  do { idx = Math.floor(Math.random()*pool.length); } while(idx===lastAffirmIdx && pool.length>1);
+  lastAffirmIdx = idx;
+  return pool[idx];
+}
+
+// Arena state (persists across levels)
+const arenaState = {
+  labels: [], // {text, x, y, visible}
+  pressureLevel: 0, // 0-1
+  thicknessShown: false,
+  bulgeAmount: 0, // 0-1
+  gasBubbles: [],
+  showSplit: false,
+  eruptionPhase: 0,
+  showEvacuation: false,
+  showEvidenceBoard: false,
+  highlightZone: null, // 'chamber','vent','crater','bulge'
+  highlightColor: null,
+  pressureArrows: false,
+  thickMagma: false,
+  trappedGas: false
+};
+
+// Canvas
+const canvas = document.getElementById('arenaCanvas');
+const ctx = canvas.getContext('2d');
+let animFrame;
+let arenaW, arenaH;
+
+function resizeCanvas(){
+  const panel = document.getElementById('arenaPanel');
+  canvas.width = panel.clientWidth * (window.devicePixelRatio||1);
+  canvas.height = panel.clientHeight * (window.devicePixelRatio||1);
+  canvas.style.width = panel.clientWidth+'px';
+  canvas.style.height = panel.clientHeight+'px';
+  arenaW = canvas.width;
+  arenaH = canvas.height;
+}
+window.addEventListener('resize', ()=>{ resizeCanvas(); });
+
+// ===== LEVEL DATA =====
+const levels = [
+  // Level 1: Lava in the Streets
+  {
+    num: 1, name: "Lava in the Streets", required: true,
+    phase: "Foundation", scienceSkill: "Identify where magma exists inside a volcanic system",
+    focusPrompt: "Watch where the glowing magma sits inside the volcano.",
+    watchText: 'In 2002, <kw>magma</kw> reached the surface in Goma, Congo. Hot lava flowed right through city streets. The cross-section shows where <kw>magma</kw> hides underground. A glowing red-orange pool fills the chamber at the base.',
+    watchDuration: 15000,
+    watchSetup: function(){
+      arenaState.labels = [{text:'MAGMA',x:0.5,y:0.78,visible:true}];
+      arenaState.gasBubbles = [{x:0.48,y:0.7,vy:-0.0003,size:4},{x:0.52,y:0.72,vy:-0.0002,size:3}];
+    },
+    doMechanic: 'coach-click',
+    doPrompt: "Where is the magma hiding inside this volcano?",
+    doOptions: [
+      {id:'A', text:'Crater at the top', zone:'crater'},
+      {id:'B', text:'Vent in the middle', zone:'vent'},
+      {id:'C', text:'Magma chamber at the base', zone:'chamber'}
+    ],
+    doCorrect: 'C',
+    doCorrectFeedback: function(){
+      arenaState.labels[0].visible = true;
+      playCorrectSound();
+    },
+    doWrongFeedback: {
+      'A': "Look at the bottom of the volcano — what's glowing?",
+      'B': "Look at the bottom of the volcano — what's glowing?",
+      default: "Look at the bottom of the volcano — what's glowing?"
+    },
+    proveQuestion: "Magma is melted rock found where in a volcano?",
+    proveOptions: [
+      {id:'A', text:'On the surface where we can see it'},
+      {id:'B', text:'Underground in the magma chamber'},
+      {id:'C', text:'Floating in the air above the crater'}
+    ],
+    proveCorrect: 'B',
+    proveWrongFeedback: {
+      'A': "When magma reaches the surface, we call it lava. Magma is the melted rock UNDERGROUND.",
+      'C': "Once material is in the air, it's ash or debris. Magma is melted rock sitting UNDERGROUND."
+    },
+    hintLadder: {
+      hint1: { text: "Look at the glowing red-orange area at the very bottom of the cross-section.", zone: 'chamber' },
+      hint2: { text: "It's not at the top opening — look much lower on the cross-section.", eliminate: 'A' },
+      stepByStep: [
+        "This cross-section shows the inside of a volcano.",
+        "The glowing red-orange pool at the bottom is called the magma chamber.",
+        "Click the magma chamber — the glowing area at the base."
+      ]
+    }
+  },
+  // Level 2: The Scientist Arrives
+  {
+    num: 2, name: "The Scientist Arrives", required: true,
+    phase: "Foundation", scienceSkill: "Identify where pressure builds inside a volcanic system",
+    focusPrompt: "Watch for the arrows showing where pressure pushes upward.",
+    watchText: 'In 1979, scientist David Johnston arrived at Mount St. Helens. He studied the <kw>magma</kw> deep underground. Gas bubbles formed inside the <kw>magma</kw> and pushed upward. Arrows on screen show <kw>pressure</kw> building inside the vent.',
+    watchDuration: 18000,
+    watchSetup: function(){
+      arenaState.pressureArrows = true;
+      arenaState.pressureLevel = 0.2;
+      arenaState.gasBubbles = [
+        {x:0.48,y:0.7,vy:-0.0004,size:4},{x:0.52,y:0.72,vy:-0.0003,size:3},
+        {x:0.50,y:0.68,vy:-0.0005,size:5},{x:0.49,y:0.74,vy:-0.0002,size:3}
+      ];
+      if(!arenaState.labels.find(l=>l.text==='PRESSURE'))
+        arenaState.labels.push({text:'PRESSURE',x:0.62,y:0.52,visible:false});
+      // Show data panel
+      const _dp0=$('dataPanel'); if(_dp0) _dp0.style.display='';
+      const _dp1=$('dataPressure'); if(_dp1){ _dp1.style.width='20%'; _dp1.style.background='#22C55E'; }
+      
+    },
+    doMechanic: 'hotspot',
+    doPrompt: "Click where pressure builds inside the volcano.",
+    hotspotZones: [
+      {id:'chamber', cx:0.5, cy:0.75, r:0.08, label:'Magma Chamber'},
+      {id:'vent', cx:0.5, cy:0.52, r:0.07, label:'Vent'},
+      {id:'crater', cx:0.5, cy:0.3, r:0.06, label:'Crater'}
+    ],
+    hotspotCorrect: 'vent',
+    doCorrectFeedback: function(){
+      let lbl = arenaState.labels.find(l=>l.text==='PRESSURE');
+      if(lbl) lbl.visible = true;
+      arenaState.pressureLevel = 0.3;
+      const _dp2=$('dataPressure'); if(_dp2) _dp2.style.width='30%';
+      playCorrectSound();
+    },
+    doWrongFeedback: {
+      'chamber': "That's where the magma sits — pressure builds ABOVE it in the vent.",
+      'crater': "That's the opening at the top. Pressure builds in the vent below it.",
+      default: "That's not where the force builds — try a different part of the cross-section."
+    },
+    proveQuestion: "Pressure builds when trapped gas pushes through the ___.",
+    proveOptions: [
+      {id:'A', text:'Magma chamber'},
+      {id:'B', text:'Vent'},
+      {id:'C', text:'Crater'}
+    ],
+    proveCorrect: 'B',
+    proveWrongFeedback: {
+      'A': "The magma chamber holds the magma. The pressure pushes UP through the vent above it.",
+      'C': "The crater is the opening at the top. Pressure builds in the vent below it."
+    },
+    hintLadder: {
+      hint1: { text: "Look at the arrows in the middle part of the cross-section — they point upward through one specific tube.", zone: 'vent' },
+      hint2: { text: "The opening at the very top is just the exit — pressure builds BELOW the surface.", eliminate: 'C' },
+      stepByStep: [
+        "Gas forms bubbles inside the magma.",
+        "Those bubbles push upward through the vent — see the arrows going up.",
+        "Click the vent — the tube in the middle where the arrows are."
+      ]
+    }
+  },
+  // Level 3: The Mountain Bulges
+  {
+    num: 3, name: "The Mountain Bulges", required: true,
+    phase: "Connection", scienceSkill: "Connect magma thickness to gas trapping",
+    focusPrompt: "Watch the magma texture — is the gas escaping or getting trapped?",
+    watchText: 'Johnston measured the <kw>magma</kw> under St. Helens. It was <kw>thick</kw> and chunky, not smooth. Gas bubbles tried to rise but got trapped in the <kw>thickness</kw>. The mountain\'s north side started bulging outward.',
+    watchDuration: 18000,
+    watchSetup: function(){
+      arenaState.thickMagma = true;
+      arenaState.trappedGas = true;
+      arenaState.bulgeAmount = 0.4;
+      arenaState.gasBubbles = [
+        {x:0.48,y:0.68,vy:-0.0002,size:5},{x:0.52,y:0.70,vy:-0.0001,size:4},
+        {x:0.50,y:0.65,vy:-0.0003,size:4},{x:0.49,y:0.72,vy:-0.0001,size:3},
+        {x:0.51,y:0.67,vy:-0.0002,size:5}
+      ];
+      if(!arenaState.labels.find(l=>l.text==='THICKNESS'))
+        arenaState.labels.push({text:'THICKNESS',x:0.35,y:0.78,visible:true});
+      const _dt1=$('dataThickness'); if(_dt1){ _dt1.style.width='80%'; _dt1.style.background='#EF6C6C'; }
+      
+      const _db1=$('dataBulge'); if(_db1) _db1.style.width='40%';
+    },
+    doMechanic: 'drag-to-match',
+    doPrompt: "Drag each label to the correct spot on the cross-section.",
+    doData: {
+      labels: ["Thick magma", "Trapped gas", "Bulge"],
+      zones: ["Magma chamber (base)", "Stuck bubbles in vent", "North side of mountain"],
+      correctMap: {0:0, 1:1, 2:2} // label idx -> zone idx
+    },
+    doCorrectFeedback: function(){
+      playCorrectSound();
+    },
+    doWrongFeedback: {
+      default: "Look at where the magma is chunky and where the bubbles are stuck."
+    },
+    proveQuestion: "Why did gas get trapped inside the magma?",
+    proveOptions: [
+      {id:'A', text:'The magma was too thick for gas to escape'},
+      {id:'B', text:'The vent was blocked by rocks'},
+      {id:'C', text:'There was not enough gas'}
+    ],
+    proveCorrect: 'A',
+    proveWrongFeedback: {
+      'B': "The vent is open — the gas got stuck inside the MAGMA itself because the magma is too thick.",
+      'C': "Look at all the bubbles — there's plenty of gas. It just can't move through the thick magma."
+    },
+    hintLadder: {
+      hint1: { text: "Look at the texture of the magma in the chamber — is it smooth or chunky?", zone: 'chamber' },
+      hint2: { text: "There ARE gas bubbles — you can see them stuck and wobbling. The question is WHY they're stuck.", eliminate: 'C' },
+      stepByStep: [
+        "The magma is thick and chunky — see the dark red texture.",
+        "Gas bubbles try to rise but get stuck — they wobble and can't pass through.",
+        "Drag 'Thick magma' to the chamber, 'Trapped gas' to the stuck bubbles, 'Bulge' to the north side."
+      ]
+    }
+  },
+  // Level 4: Pressure Keeps Building
+  {
+    num: 4, name: "Pressure Keeps Building", required: true,
+    phase: "Connection", scienceSkill: "Sequence the cause-and-effect chain",
+    focusPrompt: "Watch the chain reaction — what happens first, second, third, fourth?",
+    watchText: 'Month after month, <kw>pressure</kw> grew inside St. Helens. <kw>Thick</kw> <kw>magma</kw> trapped more and more gas underground. The gas had nowhere to go, so force pushed outward. Johnston\'s <kw>pressure</kw> readings kept climbing higher and higher.',
+    watchDuration: 20000,
+    watchSetup: function(){
+      arenaState.pressureLevel = 0.7;
+      arenaState.bulgeAmount = 0.6;
+      const _dp3=$('dataPressure'); if(_dp3){ _dp3.style.width='70%'; _dp3.style.background='#F59E0B'; }
+      
+      const _db2=$('dataBulge'); if(_db2) _db2.style.width='60%';
+      arenaState.gasBubbles = [
+        {x:0.47,y:0.68,vy:-0.0002,size:5},{x:0.52,y:0.70,vy:-0.0001,size:4},
+        {x:0.50,y:0.65,vy:-0.0003,size:6},{x:0.49,y:0.72,vy:-0.0001,size:4},
+        {x:0.51,y:0.67,vy:-0.0002,size:5},{x:0.48,y:0.63,vy:-0.0003,size:5}
+      ];
+    },
+    doMechanic: 'sequence',
+    doPrompt: "Put the steps in order: how does pressure build?",
+    doData: {
+      cards: [
+        {text:"Magma is thick and chunky underground", idx:0},
+        {text:"Gas forms but gets trapped in thick magma", idx:1},
+        {text:"Trapped gas builds pressure in the vent", idx:2},
+        {text:"The mountain bulges from the pressure", idx:3}
+      ],
+      correctOrder: [0,1,2,3],
+      numSlots: 4,
+      hasDistractor: false
+    },
+    doCorrectFeedback: function(){
+      playCorrectSound();
+      const _dp4=$('dataPressure'); if(_dp4){ _dp4.style.width='80%'; _dp4.style.background='#EF6C6C'; }
+      
+    },
+    doWrongFeedback: {
+      default: "Start underground — what was there FIRST?"
+    },
+    proveQuestion: "What causes pressure to build inside a volcano?",
+    proveOptions: [
+      {id:'A', text:'Thick magma trapping gas underground'},
+      {id:'B', text:'Wind pushing on the mountain from outside'},
+      {id:'C', text:'The volcano getting taller over time'}
+    ],
+    proveCorrect: 'A',
+    proveWrongFeedback: {
+      'B': "Pressure builds from INSIDE the volcano, not from outside forces. Gas trapped in thick magma creates the upward force.",
+      'C': "The mountain's height doesn't create pressure. The force comes from gas trapped in thick magma INSIDE."
+    },
+    hintLadder: {
+      hint1: { text: "Look at the numbered steps on the cross-section — which one was at the BOTTOM and happened first?", zone: 'chamber' },
+      hint2: { text: "The force comes from INSIDE the volcano. What's happening to the gas underground?", eliminate: 'B' },
+      stepByStep: [
+        "First: thick, chunky magma sits deep underground.",
+        "Gas gets trapped in the thick magma and pushes upward — that's pressure building.",
+        "Order: thick magma, then trapped gas, then pressure builds, then mountain bulges."
+      ]
+    }
+  },
+  // Level 5: What If the Magma Were Thin?
+  {
+    num: 5, name: "What If the Magma Were Thin?", required: true,
+    phase: "Application", scienceSkill: "Predict outcomes when magma thickness variable changes",
+    focusPrompt: "Watch both volcanoes side by side — where do the gas bubbles go in each one?",
+    watchText: 'Not all volcanoes have <kw>thick</kw> <kw>magma</kw> like St. Helens. Hawaiian volcanoes have thin, runny <kw>magma</kw> instead. In thin <kw>magma</kw>, gas bubbles rise freely to the surface. The <kw>pressure</kw> stays low, and lava flows out gently.',
+    watchDuration: 18000,
+    watchSetup: function(){
+      arenaState.showSplit = true;
+      if(!arenaState.labels.find(l=>l.text==='ERUPTION'))
+        arenaState.labels.push({text:'ERUPTION',x:0.5,y:0.2,visible:false});
+    },
+    doMechanic: 'coach-click',
+    doPrompt: "If St. Helens had thin magma, would it have exploded?",
+    doOptions: [
+      {id:'A', text:'Yes — thin magma would still trap gas and explode'},
+      {id:'B', text:'No — thin magma lets gas escape, so pressure stays low'},
+      {id:'C', text:'Yes — thin magma is hotter, so it explodes faster'}
+    ],
+    doCorrect: 'B',
+    doCorrectFeedback: function(){
+      let lbl = arenaState.labels.find(l=>l.text==='ERUPTION');
+      if(lbl) lbl.visible = true;
+      playCorrectSound();
+    },
+    doWrongFeedback: {
+      'A': "Compare both sides — watch where the gas bubbles GO in each volcano.",
+      'C': "Compare both sides — watch where the gas bubbles GO in each volcano.",
+      default: "Compare both sides — watch where the gas bubbles GO in each volcano."
+    },
+    proveQuestion: "Thin magma causes low pressure because ___.",
+    proveOptions: [
+      {id:'A', text:'Gas escapes easily through the runny magma'},
+      {id:'B', text:'Gas gets trapped and pushes outward'},
+      {id:'C', text:'Thin magma has no gas inside it'}
+    ],
+    proveCorrect: 'A',
+    proveWrongFeedback: {
+      'B': "That's what happens with THICK magma on the LEFT side. In thin magma, gas rises and escapes — no buildup.",
+      'C': "Thin magma still has gas — look at the bubbles on the right side. The difference is the gas can ESCAPE."
+    },
+    hintLadder: {
+      hint1: { text: "Look at the gas bubbles on BOTH sides — on which side do they escape to the surface?", zone: null },
+      hint2: { text: "Both volcanoes have gas — look at the bubbles. The question is what the gas DOES in thin vs. thick magma.", eliminate: 'C' },
+      stepByStep: [
+        "Left side (St. Helens): thick magma — bubbles are stuck and wobbling.",
+        "Right side (Hawaii): thin magma — bubbles rise freely and escape at the top.",
+        "If St. Helens had thin magma, gas would escape too — no pressure buildup, no explosion."
+      ]
+    }
+  },
+  // Level 6: Johnston's Warning
+  {
+    num: 6, name: "Johnston's Warning", required: true,
+    phase: "Application", scienceSkill: "Connect scientific data to real-world predictions",
+    focusPrompt: "Watch Johnston's Data panel — what three pieces of evidence told him an explosion was coming?",
+    watchText: 'Johnston showed officials his data about St. Helens. High <kw>pressure</kw> readings meant <kw>magma</kw> was pushing hard upward. The <kw>thickness</kw> of the <kw>magma</kw> meant an explosive <kw>eruption</kw> was likely. Thousands of people evacuated because of his science.',
+    watchDuration: 20000,
+    watchSetup: function(){
+      arenaState.showSplit = false;
+      arenaState.pressureLevel = 0.9;
+      arenaState.bulgeAmount = 0.8;
+      arenaState.showEvacuation = true;
+      const dp = $('dataPressure'); if(dp){ dp.style.width='95%'; dp.style.background='#EF4444'; }
+      const dt = $('dataThickness'); if(dt){ dt.style.width='90%'; }
+      const db = $('dataBulge'); if(db){ db.style.width='80%'; db.style.background='#EF6C6C'; }
+    },
+    doMechanic: 'drag-to-match',
+    doPrompt: "What did each reading tell Johnston about the danger?",
+    doData: {
+      labels: ["High pressure gauge", "Thick magma sample", "Growing mountain bulge"],
+      zones: ["Magma is pushing hard upward", "Gas is trapped and can't escape", "Mountain is about to break open"],
+      correctMap: {0:0, 1:1, 2:2}
+    },
+    doCorrectFeedback: function(){
+      playCorrectSound();
+    },
+    doWrongFeedback: {
+      default: "Think about what each reading MEANS — what would high pressure tell a scientist?"
+    },
+    proveQuestion: "Johnston's data saved lives because it showed ___.",
+    proveOptions: [
+      {id:'A', text:'Thick magma and high pressure meant an explosion was coming'},
+      {id:'B', text:'The volcano was cooling down and becoming safe'},
+      {id:'C', text:'The mountain was too strong to erupt'}
+    ],
+    proveCorrect: 'A',
+    proveWrongFeedback: {
+      'B': "The opposite — every reading showed DANGER increasing. High pressure and thick magma meant an explosion, not safety.",
+      'C': "The growing bulge showed the mountain was WEAKENING under pressure, not getting stronger."
+    },
+    hintLadder: {
+      hint1: { text: "Look at Johnston's Data panel on the bottom right — the pressure gauge is in the RED zone. What does high pressure mean for the volcano?", zone: null },
+      hint2: { text: "The pressure gauge is in the RED zone — which conclusion matches high pressure? Look for the one about FORCE pushing.", eliminate: null },
+      stepByStep: [
+        "Johnston measured three things: pressure, magma thickness, and the bulge.",
+        "High pressure = magma pushing hard. Thick magma = gas trapped. Growing bulge = about to break.",
+        "Drag each data reading to its matching conclusion."
+      ]
+    }
+  },
+  // Level 7: Vancouver! Vancouver! This Is It! (BONUS)
+  {
+    num: 7, name: "Vancouver! Vancouver! This Is It!", required: false,
+    phase: "Synthesis", scienceSkill: "Sequence the complete eruption process",
+    focusPrompt: "Watch the full chain — from underground magma all the way to the blast at the surface.",
+    watchText: 'May 18, 1980 — the <kw>pressure</kw> inside finally broke through. The <kw>eruption</kw> didn\'t go upward through the crater. It blasted SIDEWAYS through the bulge on the north side. Johnston was at his post six miles away.',
+    watchDuration: 20000,
+    watchSetup: function(){
+      arenaState.showSplit = false;
+      arenaState.pressureLevel = 1.0;
+      arenaState.bulgeAmount = 1.0;
+      arenaState.eruptionPhase = 0.8;
+      const _dp5=$('dataPressure'); if(_dp5){ _dp5.style.width='100%'; _dp5.style.background='#EF4444'; }
+      
+      const _db3=$('dataBulge'); if(_db3){ _db3.style.width='100%'; _db3.style.background='#EF4444'; }
+      
+    },
+    doMechanic: 'sequence',
+    doPrompt: "Order the eruption chain — but one card does NOT belong.",
+    doData: {
+      cards: [
+        {text:"Thick magma holds trapped gas underground", idx:0},
+        {text:"Pressure builds higher and higher in the vent", idx:1},
+        {text:"The north-side bulge reaches its breaking point", idx:2},
+        {text:"The eruption blasts sideways through the bulge", idx:3},
+        {text:"Thin magma lets gas escape freely to the surface", idx:4, distractor:true}
+      ],
+      correctOrder: [0,1,2,3],
+      numSlots: 4,
+      hasDistractor: true
+    },
+    doCorrectFeedback: function(){
+      arenaState.eruptionPhase = 1.0;
+      playCorrectSound();
+    },
+    doWrongFeedback: {
+      default: "One of these cards describes a DIFFERENT volcano — which one doesn't fit St. Helens?"
+    },
+    proveQuestion: "The eruption blasted sideways because pressure broke through ___.",
+    proveOptions: [
+      {id:'A', text:'The weakest point — the north-side bulge'},
+      {id:'B', text:'The crater opening at the top'},
+      {id:'C', text:'The base of the mountain'}
+    ],
+    proveCorrect: 'A',
+    proveWrongFeedback: {
+      'B': "Normally eruptions exit through the top. But the bulge was WEAKER — the pressure broke through there first.",
+      'C': "Pressure pushes UPWARD and OUTWARD, not downward. The bulge on the north side was the weak spot."
+    },
+    hintLadder: {
+      hint1: { text: "One card describes what happens in a HAWAIIAN volcano, not St. Helens — look for the one about thin magma.", zone: null },
+      hint2: { text: "The card about thin magma letting gas escape does NOT belong — that's Hawaii. Now put the remaining four St. Helens steps in order, starting underground.", eliminate: null },
+      stepByStep: [
+        "Remove 'Thin magma lets gas escape' — that's Hawaii, not St. Helens.",
+        "Start underground: thick magma traps gas, then pressure builds, then bulge reaches limit.",
+        "Final step: the eruption blasts sideways through the bulge."
+      ]
+    }
+  },
+  // Level 8: Reading a Volcano Like Johnston Did (BONUS)
+  {
+    num: 8, name: "Reading a Volcano Like Johnston Did", required: false,
+    phase: "Synthesis", scienceSkill: "Construct an evidence-based scientific explanation",
+    focusPrompt: "Look at all the evidence on the board — which pieces explain WHY St. Helens exploded?",
+    watchText: 'Johnston understood exactly why St. Helens was deadly. <kw>Thick</kw> <kw>magma</kw> trapped gas and built enormous <kw>pressure</kw> inside. Understanding <kw>thickness</kw> and <kw>pressure</kw> is life-and-death science. Scientists still use his methods to predict <kw>eruptions</kw> today.',
+    watchDuration: 20000,
+    watchSetup: function(){
+      arenaState.showSplit = false;
+      arenaState.showEvidenceBoard = true;
+      arenaState.eruptionPhase = 0;
+      // Show full diagram with all labels
+      arenaState.labels.forEach(l => l.visible = true);
+    },
+    doMechanic: 'claim-builder',
+    doPrompt: "Build the claim: St. Helens erupted explosively because ___.",
+    doData: {
+      evidence: ["Magma was thick and chunky", "Trapped gas built high pressure", "Pressure broke through the bulge"],
+      supports: ["Gas couldn't escape", "Force pushed outward", "Explosive lateral blast"],
+      correctMap: {0:0, 1:1, 2:2} // evidence idx -> supports idx
+    },
+    doCorrectFeedback: function(){
+      arenaState.eruptionPhase = 1.0;
+      playCorrectSound();
+    },
+    doWrongFeedback: {
+      default: "Read each evidence card — what does it EXPLAIN about the eruption?"
+    },
+    proveQuestion: "St. Helens erupted explosively because of ___.",
+    proveOptions: [
+      {id:'A', text:'Thick magma trapping gas and building pressure'},
+      {id:'B', text:'Thin magma letting gas escape slowly'},
+      {id:'C', text:'The volcano being taller than other mountains'}
+    ],
+    proveCorrect: 'A',
+    proveWrongFeedback: {
+      'B': "Thin magma causes GENTLE eruptions. St. Helens had THICK magma — that's why it was explosive.",
+      'C': "Height doesn't determine eruption type. What matters is the MAGMA inside — how thick it is and how much gas is trapped."
+    },
+    hintLadder: {
+      hint1: { text: "Look at the evidence board — the first card shows the magma sample. Was it thick or thin?", zone: 'chamber' },
+      hint2: { text: "Thin magma causes gentle flows — that's Hawaii. St. Helens was the opposite.", eliminate: 'B' },
+      stepByStep: [
+        "St. Helens had thick, chunky magma — that's what the first evidence card shows.",
+        "Thick magma trapped gas, gas built pressure, pressure broke through the bulge.",
+        "Match: thick magma to gas trapped, high pressure to force outward, bulge broke to lateral blast."
+      ]
+    }
+  }
+];
+
+// Init game state levels
+levels.forEach((l,i) => {
+  gameState.levels.push({
+    levelNum: l.num, levelName: l.name, required: l.required,
+    completed: false, score: 0, attempts: 0, hintsUsed: 0, resets: 0, timeSeconds: 0
+  });
+});
+
+// ===== ARENA DRAWING =====
+let animTime = 0;
+function drawArena(){
+  try {
+    animTime += 0.016;
+    ctx.clearRect(0,0,arenaW,arenaH);
+    const level = levels[gameState.currentLevel];
+    if(!level) return;
+
+    // Background sky
+    const skyGrad = ctx.createLinearGradient(0,0,0,arenaH*0.6);
+    skyGrad.addColorStop(0,'#87CEEB');
+    skyGrad.addColorStop(1,'#B0E0FF');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0,0,arenaW,arenaH*0.6);
+
+    // Ground
+    ctx.fillStyle = '#8B7355';
+    ctx.fillRect(0,arenaH*0.6,arenaW,arenaH*0.4);
+
+    const cx = arenaW * 0.5;
+    const baseY = arenaH * 0.85;
+    const peakY = arenaH * 0.15;
+    const baseHalfW = arenaW * 0.4;
+
+    if(arenaState.showSplit && level.num === 5){
+      drawSplitVolcanoes();
+    } else {
+      drawSingleVolcano(cx, baseY, peakY, baseHalfW);
+    }
+
+    // Labels
+    arenaState.labels.forEach(lbl => {
+      if(!lbl.visible) return;
+      const lx = lbl.x * arenaW;
+      const ly = lbl.y * arenaH;
+      ctx.save();
+      const pulse = Math.sin(animTime*3)*0.1+0.9;
+      ctx.font = `bold ${Math.round(14*(arenaW/600))}px 'Segoe UI', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = `rgba(245,158,11,${pulse})`;
+      const tw = ctx.measureText(lbl.text).width;
+      ctx.fillStyle = 'rgba(45,32,22,0.8)';
+      const pad = 6;
+      ctx.beginPath();
+      ctx.roundRect(lx-tw/2-pad, ly-10-pad, tw+pad*2, 20+pad, 6);
+      ctx.fill();
+      ctx.fillStyle = '#F59E0B';
+      ctx.fillText(lbl.text, lx, ly+4);
+      ctx.restore();
+    });
+
+    // Highlight zone
+    if(arenaState.highlightZone){
+      drawHighlight(cx, baseY, peakY, baseHalfW);
+    }
+  } catch(e){ console.error('Arena draw error',e); }
+  animFrame = requestAnimationFrame(drawArena);
+}
+
+function drawSingleVolcano(cx, baseY, peakY, baseHalfW){
+  const dpr = arenaW/600;
+
+  // Mountain exterior
+  ctx.beginPath();
+  ctx.moveTo(cx - baseHalfW, baseY);
+  // Left slope
+  ctx.lineTo(cx - baseHalfW*0.12, peakY + (baseY-peakY)*0.05);
+  // Crater dip
+  ctx.lineTo(cx - baseHalfW*0.08, peakY + (baseY-peakY)*0.08);
+  ctx.lineTo(cx + baseHalfW*0.08, peakY + (baseY-peakY)*0.08);
+  ctx.lineTo(cx + baseHalfW*0.12, peakY + (baseY-peakY)*0.05);
+  // Right slope - with bulge if active
+  if(arenaState.bulgeAmount > 0){
+    const bulgeX = cx + baseHalfW*0.25;
+    const bulgeY = peakY + (baseY-peakY)*0.35;
+    const bulgeOut = arenaState.bulgeAmount * baseHalfW * 0.15;
+    ctx.lineTo(cx + baseHalfW*0.2, peakY + (baseY-peakY)*0.2);
+    ctx.quadraticCurveTo(bulgeX + bulgeOut, bulgeY, cx + baseHalfW*0.35, peakY + (baseY-peakY)*0.5);
+    ctx.lineTo(cx + baseHalfW, baseY);
+  } else {
+    ctx.lineTo(cx + baseHalfW, baseY);
+  }
+  ctx.closePath();
+  const mtnGrad = ctx.createLinearGradient(cx,peakY,cx,baseY);
+  mtnGrad.addColorStop(0,'#8B8B8B');
+  mtnGrad.addColorStop(0.3,'#9E9E88');
+  mtnGrad.addColorStop(1,'#6B5B4B');
+  ctx.fillStyle = mtnGrad;
+  ctx.fill();
+
+  // Snow cap
+  ctx.beginPath();
+  ctx.moveTo(cx - baseHalfW*0.15, peakY + (baseY-peakY)*0.12);
+  ctx.lineTo(cx - baseHalfW*0.12, peakY + (baseY-peakY)*0.05);
+  ctx.lineTo(cx - baseHalfW*0.08, peakY + (baseY-peakY)*0.08);
+  ctx.lineTo(cx + baseHalfW*0.08, peakY + (baseY-peakY)*0.08);
+  ctx.lineTo(cx + baseHalfW*0.12, peakY + (baseY-peakY)*0.05);
+  ctx.lineTo(cx + baseHalfW*0.15, peakY + (baseY-peakY)*0.12);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fill();
+
+  // Cross-section cutaway (interior)
+  const cutL = cx - baseHalfW*0.35;
+  const cutR = cx + baseHalfW*0.35;
+  const cutTop = peakY + (baseY-peakY)*0.08;
+  const cutBot = baseY;
+
+  // Interior rock
+  ctx.beginPath();
+  ctx.moveTo(cutL, cutBot);
+  ctx.lineTo(cx - baseHalfW*0.08, cutTop);
+  ctx.lineTo(cx + baseHalfW*0.08, cutTop);
+  ctx.lineTo(cutR, cutBot);
+  ctx.closePath();
+  ctx.fillStyle = '#5C4A38';
+  ctx.fill();
+
+  // Magma chamber
+  const chamberCx = cx;
+  const chamberCy = baseY - (baseY-peakY)*0.18;
+  const chamberRx = baseHalfW*0.22;
+  const chamberRy = (baseY-peakY)*0.1;
+  const magmaPulse = 0.7 + Math.sin(animTime*2)*0.3;
+
+  ctx.beginPath();
+  ctx.ellipse(chamberCx, chamberCy, chamberRx, chamberRy, 0, 0, Math.PI*2);
+  ctx.closePath();
+  let magmaColor;
+  if(arenaState.thickMagma){
+    magmaColor = ctx.createRadialGradient(chamberCx,chamberCy,0,chamberCx,chamberCy,chamberRx);
+    magmaColor.addColorStop(0,`rgba(180,50,20,${magmaPulse})`);
+    magmaColor.addColorStop(1,`rgba(120,30,10,${magmaPulse*0.8})`);
+  } else {
+    magmaColor = ctx.createRadialGradient(chamberCx,chamberCy,0,chamberCx,chamberCy,chamberRx);
+    magmaColor.addColorStop(0,`rgba(255,100,30,${magmaPulse})`);
+    magmaColor.addColorStop(1,`rgba(200,60,10,${magmaPulse*0.8})`);
+  }
+  ctx.fillStyle = magmaColor;
+  ctx.fill();
+
+  // Magma glow
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,100,30,0.5)';
+  ctx.shadowBlur = 20*dpr*magmaPulse;
+  ctx.beginPath();
+  ctx.ellipse(chamberCx, chamberCy, chamberRx*0.5, chamberRy*0.5, 0, 0, Math.PI*2);
+  ctx.fillStyle = `rgba(255,150,50,${magmaPulse*0.3})`;
+  ctx.fill();
+  ctx.restore();
+
+  // Thick magma texture
+  if(arenaState.thickMagma){
+    for(let i=0;i<8;i++){
+      const tx = chamberCx + Math.cos(i*0.8+animTime)*chamberRx*0.6;
+      const ty = chamberCy + Math.sin(i*1.1+animTime*0.5)*chamberRy*0.5;
+      ctx.beginPath();
+      ctx.arc(tx,ty,3*dpr,0,Math.PI*2);
+      ctx.fillStyle = 'rgba(80,20,5,0.6)';
+      ctx.fill();
+    }
+  }
+
+  // Vent (conduit)
+  const ventW = baseHalfW*0.06;
+  const ventTop = cutTop + 5;
+  const ventBot = chamberCy - chamberRy*0.5;
+  ctx.fillStyle = '#4A3828';
+  ctx.fillRect(cx-ventW, ventTop, ventW*2, ventBot-ventTop);
+
+  // Inner vent glow
+  ctx.fillStyle = `rgba(200,80,20,${0.2+magmaPulse*0.15})`;
+  ctx.fillRect(cx-ventW*0.6, ventTop, ventW*1.2, ventBot-ventTop);
+
+  // Pressure arrows
+  if(arenaState.pressureArrows && arenaState.pressureLevel > 0){
+    const numArrows = Math.ceil(arenaState.pressureLevel * 5);
+    const arrowSize = 8*dpr * (0.5 + arenaState.pressureLevel*0.5);
+    for(let i=0;i<numArrows;i++){
+      const ay = ventBot - (ventBot-ventTop)*(i+1)/(numArrows+1);
+      const ax = cx;
+      const bounce = Math.sin(animTime*3+i)*3*dpr;
+      ctx.save();
+      ctx.translate(ax, ay+bounce);
+      ctx.beginPath();
+      ctx.moveTo(0, -arrowSize);
+      ctx.lineTo(-arrowSize*0.6, arrowSize*0.3);
+      ctx.lineTo(arrowSize*0.6, arrowSize*0.3);
+      ctx.closePath();
+
+      const arrowR = Math.min(255, 100 + arenaState.pressureLevel*155);
+      const arrowG = Math.max(50, 200 - arenaState.pressureLevel*150);
+      ctx.fillStyle = `rgba(${arrowR},${arrowG},50,0.8)`;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // Gas bubbles
+  arenaState.gasBubbles.forEach(b => {
+    b.y += b.vy;
+    if(arenaState.trappedGas && b.y < 0.55){
+      b.y = 0.55 + Math.random()*0.15;
+      b.vy = -0.0001;
+    }
+    if(b.y < 0.3) b.y = 0.7 + Math.random()*0.1;
+    const bx = b.x * arenaW + Math.sin(animTime*2+b.x*10)*3*dpr;
+    const by = b.y * arenaH;
+    ctx.beginPath();
+    ctx.arc(bx, by, b.size*dpr, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,200,100,0.6)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,150,50,0.4)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  // Eruption effects
+  if(arenaState.eruptionPhase > 0){
+    drawEruption(cx, cutTop, dpr);
+  }
+}
+
+function drawSplitVolcanoes(){
+  const dpr = arenaW/600;
+  const halfW = arenaW*0.45;
+
+  // LEFT: St. Helens (thick)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0,0,arenaW*0.48,arenaH);
+  ctx.clip();
+  drawMiniVolcano(arenaW*0.24, true, 'St. Helens (Thick)', dpr);
+  ctx.restore();
+
+  // Divider
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.setLineDash([6,4]);
+  ctx.beginPath();
+  ctx.moveTo(arenaW*0.5, 0);
+  ctx.lineTo(arenaW*0.5, arenaH);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // RIGHT: Hawaii (thin)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(arenaW*0.52,0,arenaW*0.48,arenaH);
+  ctx.clip();
+  drawMiniVolcano(arenaW*0.76, false, 'Hawaii (Thin)', dpr);
+  ctx.restore();
+}
+
+function drawMiniVolcano(cx, isThick, label, dpr){
+  const baseY = arenaH*0.85;
+  const peakY = arenaH*0.25;
+  const halfW = arenaW*0.18;
+
+  // Mountain shape
+  ctx.beginPath();
+  ctx.moveTo(cx-halfW, baseY);
+  ctx.lineTo(cx-halfW*0.15, peakY);
+  ctx.lineTo(cx+halfW*0.15, peakY);
+  ctx.lineTo(cx+halfW, baseY);
+  ctx.closePath();
+  ctx.fillStyle = isThick ? '#7A7A6A' : '#8B6B4B';
+  ctx.fill();
+
+  // Interior
+  ctx.beginPath();
+  ctx.moveTo(cx-halfW*0.5, baseY);
+  ctx.lineTo(cx-halfW*0.1, peakY+10);
+  ctx.lineTo(cx+halfW*0.1, peakY+10);
+  ctx.lineTo(cx+halfW*0.5, baseY);
+  ctx.closePath();
+  ctx.fillStyle = '#4A3828';
+  ctx.fill();
+
+  // Chamber
+  const chY = baseY - (baseY-peakY)*0.15;
+  const chRx = halfW*0.3;
+  const chRy = (baseY-peakY)*0.08;
+  const pulse = 0.7+Math.sin(animTime*2)*0.3;
+  ctx.beginPath();
+  ctx.ellipse(cx,chY,chRx,chRy,0,0,Math.PI*2);
+  ctx.fillStyle = isThick ? `rgba(160,40,15,${pulse})` : `rgba(255,120,40,${pulse})`;
+  ctx.fill();
+
+  // Bubbles
+  for(let i=0;i<4;i++){
+    let by;
+    if(isThick){
+      by = chY - chRy - Math.abs(Math.sin(animTime+i))*30*dpr;
+    } else {
+      by = chY - chRy - ((animTime*30+i*40)%(baseY-peakY-30));
+    }
+    const bx = cx + Math.sin(animTime+i*2)*8*dpr;
+    ctx.beginPath();
+    ctx.arc(bx, by, 3*dpr, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,200,100,0.6)';
+    ctx.fill();
+
+    // Pop at surface for thin
+    if(!isThick && by < peakY+20){
+      ctx.beginPath();
+      ctx.arc(bx, peakY+15, 5*dpr, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(34,197,94,0.4)';
+      ctx.fill();
+    }
+  }
+
+  // Label
+  ctx.font = `bold ${12*dpr}px 'Segoe UI', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillText(label, cx, arenaH*0.18);
+
+  // Vent label
+  if(isThick){
+    ctx.fillStyle = 'rgba(239,68,68,0.8)';
+    ctx.font = `bold ${10*dpr}px 'Segoe UI', sans-serif`;
+    ctx.fillText('GAS STUCK', cx, chY-chRy-5*dpr);
+  } else {
+    ctx.fillStyle = 'rgba(34,197,94,0.8)';
+    ctx.font = `bold ${10*dpr}px 'Segoe UI', sans-serif`;
+    ctx.fillText('GAS ESCAPES', cx, peakY+35*dpr);
+  }
+}
+
+function drawEruption(cx, topY, dpr){
+  // Lateral blast particles
+  const intensity = arenaState.eruptionPhase;
+  for(let i=0;i<Math.floor(intensity*30);i++){
+    const angle = (Math.random()-0.3)*Math.PI;
+    const dist = Math.random()*intensity*arenaW*0.3;
+    const px = cx + Math.cos(angle)*dist + Math.sin(animTime*5+i)*5;
+    const py = topY + Math.sin(angle)*dist*0.5 - Math.random()*30*dpr;
+    const size = (1+Math.random()*3)*dpr;
+    ctx.beginPath();
+    ctx.arc(px,py,size,0,Math.PI*2);
+    ctx.fillStyle = `rgba(${150+Math.random()*100},${50+Math.random()*50},${20+Math.random()*30},${0.3+Math.random()*0.5})`;
+    ctx.fill();
+  }
+  // Ash plume
+  ctx.beginPath();
+  ctx.ellipse(cx, topY-20*dpr, 30*dpr*intensity, 40*dpr*intensity, 0, 0, Math.PI*2);
+  ctx.fillStyle = `rgba(100,90,80,${intensity*0.3})`;
+  ctx.fill();
+}
+
+function drawHighlight(cx, baseY, peakY, baseHalfW){
+  const zone = arenaState.highlightZone;
+  const color = arenaState.highlightColor || 'rgba(245,158,11,0.4)';
+  const pulse = 0.5 + Math.sin(animTime*4)*0.5;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3*(arenaW/600);
+  ctx.setLineDash([8,4]);
+
+  if(zone === 'chamber'){
+    ctx.beginPath();
+    ctx.ellipse(cx, baseY-(baseY-peakY)*0.18, baseHalfW*0.25, (baseY-peakY)*0.12, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(245,158,11,${pulse*0.15})`;
+    ctx.fill();
+  } else if(zone === 'vent'){
+    const ventW = baseHalfW*0.1;
+    const ventTop = peakY+(baseY-peakY)*0.1;
+    const ventBot = baseY-(baseY-peakY)*0.25;
+    ctx.strokeRect(cx-ventW, ventTop, ventW*2, ventBot-ventTop);
+    ctx.fillStyle = `rgba(245,158,11,${pulse*0.1})`;
+    ctx.fillRect(cx-ventW, ventTop, ventW*2, ventBot-ventTop);
+  } else if(zone === 'crater'){
+    ctx.beginPath();
+    ctx.ellipse(cx, peakY+(baseY-peakY)*0.07, baseHalfW*0.12, (baseY-peakY)*0.04, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// ===== SOUND =====
+function playCorrectSound(){
+  safeCall(()=>{
+    const ac = getAudioContext();
+    if(!ac) return;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.frequency.setValueAtTime(523,ac.currentTime);
+    osc.frequency.setValueAtTime(659,ac.currentTime+0.1);
+    osc.frequency.setValueAtTime(784,ac.currentTime+0.2);
+    gain.gain.setValueAtTime(0.15,ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01,ac.currentTime+0.4);
+    osc.start(ac.currentTime);
+    osc.stop(ac.currentTime+0.4);
+  },'Sound failed');
+}
+
+function playWrongSound(){
+  safeCall(()=>{
+    const ac = getAudioContext();
+    if(!ac) return;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(200,ac.currentTime);
+    osc.frequency.setValueAtTime(150,ac.currentTime+0.15);
+    gain.gain.setValueAtTime(0.1,ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01,ac.currentTime+0.3);
+    osc.start(ac.currentTime);
+    osc.stop(ac.currentTime+0.3);
+  },'Sound failed');
+}
+
+function playCelebrationSound(){
+  safeCall(()=>{
+    const ac = getAudioContext();
+    if(!ac) return;
+    [523,659,784].forEach((freq,i)=>{
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.12,ac.currentTime+i*0.15);
+      gain.gain.exponentialRampToValueAtTime(0.01,ac.currentTime+i*0.15+0.5);
+      osc.start(ac.currentTime+i*0.15);
+      osc.stop(ac.currentTime+i*0.15+0.5);
+    });
+  },'Celebration sound failed');
+}
+
+// ===== SPEECH =====
+function speakText(text, onEnd){
+  if(!speechEnabled || !window.speechSynthesis){
+    if(onEnd) setTimeout(onEnd, 500);
+    return;
+  }
+  try {
+    speechSynthesis.cancel();
+    clearInterval(resumeInterval);
+    const clean = text.replace(/<[^>]*>/g,'');
+    const utter = new SpeechSynthesisUtterance(clean);
+    utter.rate = 0.85;
+    utter.pitch = 1;
+    const dur = Math.max(5000, clean.length * 80);
+    const timeout = setTimeout(()=>{
+      try{speechSynthesis.cancel();}catch(e){}
+      clearInterval(resumeInterval);
+      if(onEnd) onEnd();
+    }, dur + 3000);
+
+    utter.onend = ()=>{ clearTimeout(timeout); clearInterval(resumeInterval); if(onEnd) onEnd(); };
+    utter.onerror = ()=>{ clearTimeout(timeout); clearInterval(resumeInterval); if(onEnd) onEnd(); };
+
+    speechSynthesis.speak(utter);
+    resumeInterval = setInterval(()=>{
+      try{ if(speechSynthesis.speaking) speechSynthesis.resume(); }catch(e){}
+    }, 10000);
+  } catch(e){
+    console.error('Speech failed', e);
+    if(onEnd) setTimeout(onEnd, 500);
+  }
+}
+
+// ===== UTILITY =====
+function safeCall(fn, msg){
+  try{fn();}catch(e){console.error(msg,e);}
+}
+
+// Null-safe element helpers
+function $(id){ return document.getElementById(id); }
+function $q(sel){ return document.querySelector(sel); }
+function addCls(el, cls){ if(el && el.classList) el.classList.add(cls); }
+function rmCls(el, cls){ if(el && el.classList) el.classList.remove(cls); }
+function toggleCls(el, cls, force){ if(el && el.classList) el.classList.toggle(cls, force); }
+
+// roundRect polyfill
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+    if(typeof r === 'number') r = {tl:r,tr:r,br:r,bl:r};
+    this.moveTo(x+r.tl,y);
+    this.lineTo(x+w-r.tr,y);
+    this.quadraticCurveTo(x+w,y,x+w,y+r.tr);
+    this.lineTo(x+w,y+h-r.br);
+    this.quadraticCurveTo(x+w,y+h,x+w-r.br,y+h);
+    this.lineTo(x+r.bl,y+h);
+    this.quadraticCurveTo(x,y+h,x,y+h-r.bl);
+    this.lineTo(x,y+r.tl);
+    this.quadraticCurveTo(x,y,x+r.tl,y);
+    this.closePath();
+    return this;
+  };
+}
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function formatTime(sec){
+  const m = Math.floor(sec/60);
+  const s = Math.floor(sec%60);
+  return m+':'+(s<10?'0':'')+s;
+}
+
+// ===== UI HELPERS =====
+// UI references use $() helper for null safety
+
+function setIZ(html){ const el=$('interactionZone'); if(el) el.innerHTML = html; }
+
+function showFocusBanner(text){
+  const fb = $('focusBanner');
+  if(!fb) return;
+  fb.textContent = text;
+  fb.style.display = '';
+  rmCls(fb, 'faded');
+  setTimeout(()=>{ addCls(fb, 'faded'); }, 3000);
+}
+
+function hideFocusBanner(){ const fb=$('focusBanner'); if(fb) fb.style.display='none'; }
+
+async function showPhaseBadge(text, duration=1500){
+  const pb = $('phaseBadge');
+  if(!pb) { await sleep(duration); return; }
+  pb.textContent = text;
+  pb.style.display = '';
+  await sleep(duration);
+  pb.style.display = 'none';
+}
+
+function updateHUD(){
+  try {
+    const level = levels[gameState.currentLevel];
+    if(!level) return;
+    const lb = $('levelBadge'); if(lb) lb.textContent = (level.required?'':'BONUS ') + 'Level '+level.num;
+    const ln = $('levelName'); if(ln) ln.textContent = level.name;
+    const totalScore = gameState.levels.filter(l=>l.completed).reduce((s,l)=>s+l.score,0);
+    const sd = $('scoreDisplay'); if(sd) sd.textContent = totalScore;
+    const pct = ((gameState.currentLevel) / levels.length)*100;
+    const pf = $('progressFill'); if(pf) pf.style.width = pct+'%';
+    const lc = $('levelCounter'); if(lc) lc.textContent = `Level ${level.num} of ${levels.length}`;
+    const hb = $('hintBtn'); if(hb) hb.style.display = (levelState.phase==='do'||levelState.phase==='prove') ? '' : 'none';
+  } catch(e){ console.error('updateHUD error',e); }
+}
+
+function toggleVocab(){
+  const vo = $('vocabOverlay');
+  if(vo) vo.classList.toggle('open');
+}
+
+function toggleSettings(){
+  // Simple settings — just reset option for now
+  if(confirm('Reset the simulation and start over?')){
+    location.reload();
+  }
+}
+
+// ===== TYPEWRITER EFFECT =====
+function typewriterText(container, html, speed=30){
+  return new Promise(resolve => {
+    container.innerHTML = '';
+    // Parse keywords
+    const div = document.createElement('div');
+    div.innerHTML = html.replace(/<kw>/g,'<span class="keyword">').replace(/<\/kw>/g,'</span>');
+    const fullText = div.innerHTML;
+
+    let i = 0;
+    let inTag = false;
+    let result = '';
+    const timer = setInterval(()=>{
+      if(i >= fullText.length){ clearInterval(timer); resolve(); return; }
+      const ch = fullText[i];
+      if(ch === '<') inTag = true;
+      if(inTag){
+        const closeIdx = fullText.indexOf('>',i);
+        result += fullText.substring(i, closeIdx+1);
+        i = closeIdx+1;
+        if(fullText[i-1] === '>') inTag = false;
+      } else {
+        result += ch;
+        i++;
+      }
+      container.innerHTML = result;
+    }, speed);
+  });
+}
+
+// ===== MAIN GAME FLOW =====
+async function startLevel(idx){
+  gameState.currentLevel = idx;
+  const level = levels[idx];
+
+  // Reset level state
+  levelState = {
+    phase:'intro', attempts:0, hintsUsed:0, resets:0, score:100,
+    startTime:Date.now(), wrongCount:0, consecutiveFastWrongs:0,
+    selectedOption:null, doComplete:false, proveComplete:false,
+    phaseStartTime:0, eliminatedOptions:[], dtmState:{}, seqState:{}, claimState:{}
+  };
+
+  rmCls($('narrativePanel'), 'narrative-dimmed');
+  arenaState.highlightZone = null;
+  // Reset global mechanic state from prior levels
+  dtmSelectedLabel = null;
+  seqSelectedCard = null;
+  updateHUD();
+  setIZ('');
+  hideFocusBanner();
+
+  // Phase: Intro badge
+  await showPhaseBadge((level.required?'':'BONUS ') + 'Level '+level.num+': '+level.name, 1500);
+
+  // Phase: Focus prompt
+  showFocusBanner(level.focusPrompt);
+
+  // Level 1 extra coaching
+  if(idx === 0){
+    setIZ('<div class="coaching-bar">Watch what happens to the glowing magma. You will be asked about this next.</div>');
+  }
+
+  // Phase: WATCH
+  levelState.phase = 'watch';
+  safeCall(()=>level.watchSetup(), 'watchSetup failed');
+
+  const storyContainer = document.getElementById('storyText');
+  const watchPromise = typewriterText(storyContainer, level.watchText, 40);
+  speakText(level.watchText.replace(/<kw>/g,'').replace(/<\/kw>/g,''));
+
+  // Auto-advance timeout
+  const watchTimeout = setTimeout(()=>{
+    transitionToDo();
+  }, level.watchDuration + 3000);
+
+  // Safety net: if STILL in watch after duration+10s, force transition
+  const safetyTimeout = setTimeout(()=>{
+    if(levelState.phase === 'watch' || levelState.phase === 'intro'){
+      console.warn('Safety timeout: forcing transition to DO');
+      transitionToDo();
+    }
+  }, level.watchDuration + 10000);
+
+  await watchPromise;
+  await sleep(Math.max(0, level.watchDuration - 5000));
+  clearTimeout(watchTimeout);
+  clearTimeout(safetyTimeout);
+
+  await transitionToDo();
+}
+
+async function transitionToDo(){
+  if(levelState.phase === 'do' || levelState.phase === 'prove' || levelState.phase === 'transition') return;
+  levelState.phase = 'transition';
+  const level = levels[gameState.currentLevel];
+
+  // Dim narrative
+  addCls($('narrativePanel'), 'narrative-dimmed');
+
+  // Level 1 coaching bridge
+  if(gameState.currentLevel === 0){
+    setIZ('<div class="coaching-bar">Did you see the glowing area? Now show me where it is.</div>');
+    await sleep(2000);
+  }
+
+  // "Your Turn" badge
+  await showPhaseBadge('Your Turn', 1000);
+
+  levelState.phase = 'do';
+  levelState.phaseStartTime = Date.now();
+  updateHUD();
+  renderDoMechanic();
+}
+
+// ===== MECHANIC RENDERERS =====
+function renderDoMechanic(){
+  const level = levels[gameState.currentLevel];
+  switch(level.doMechanic){
+    case 'coach-click': renderCoachClick(); break;
+    case 'hotspot': renderHotspot(); break;
+    case 'drag-to-match': renderDragToMatch(); break;
+    case 'sequence': renderSequence(); break;
+    case 'claim-builder': renderClaimBuilder(); break;
+  }
+}
+
+// --- COACH-CLICK ---
+function renderCoachClick(){
+  const level = levels[gameState.currentLevel];
+  let html = `<div class="iz-prompt">${level.doPrompt}</div><div class="iz-options">`;
+  level.doOptions.forEach(opt => {
+    const dim = levelState.eliminatedOptions.includes(opt.id) ? 'eliminated' : '';
+    const glow = (gameState.currentLevel===0 && opt.id===level.doCorrect) ? 'l1-glow' : '';
+    html += `<button class="iz-option ${dim} ${glow}" data-id="${opt.id}" onclick="handleCoachClick('${opt.id}')">${opt.text}</button>`;
+  });
+  html += '</div>';
+  html += '<button class="lock-in-btn" id="lockInBtn" onclick="lockInCoachClick()">Lock In</button>';
+  setIZ(html);
+}
+
+function handleCoachClick(id){
+  if(levelState.eliminatedOptions.includes(id)) return;
+  levelState.selectedOption = id;
+  document.querySelectorAll('.iz-option').forEach(el=>{
+    toggleCls(el, 'selected', el.dataset.id===id);
+  });
+  addCls($('lockInBtn'), 'visible');
+}
+
+function lockInCoachClick(){
+  try {
+  if(!levelState.selectedOption) return;
+  const level = levels[gameState.currentLevel];
+  const timeSincePhase = Date.now() - levelState.phaseStartTime;
+
+  if(levelState.selectedOption === level.doCorrect){
+    // Correct!
+    addCls($q(`[data-id="${level.doCorrect}"]`), 'correct-flash');
+    arenaState.highlightZone = null;
+    safeCall(()=>level.doCorrectFeedback(), 'correct feedback failed');
+    levelState.doComplete = true;
+    updateScore();
+    setTimeout(()=>startProve(), 1200);
+  } else {
+    // Wrong
+    playWrongSound();
+    levelState.wrongCount++;
+    levelState.attempts++;
+
+    // Fast-guess gate
+    if(timeSincePhase < 2000){
+      levelState.consecutiveFastWrongs++;
+      if(levelState.consecutiveFastWrongs >= 2){
+        showAntiGuessScreen();
+        return;
+      }
+    } else {
+      levelState.consecutiveFastWrongs = 0;
+    }
+
+    const btn = $q(`[data-id="${levelState.selectedOption}"]`);
+    if(btn){
+      addCls(btn, 'wrong-flash');
+      setTimeout(()=>rmCls(btn, 'wrong-flash'),500);
+    }
+
+    // Coaching
+    const fb = level.doWrongFeedback[levelState.selectedOption] || level.doWrongFeedback.default || 'Look more carefully at the cross-section.';
+
+    // Highlight relevant arena zone
+    if(level.doOptions){
+      const correctOpt = level.doOptions.find(o=>o.id===level.doCorrect);
+      if(correctOpt && correctOpt.zone){
+        arenaState.highlightZone = correctOpt.zone;
+        arenaState.highlightColor = 'rgba(245,158,11,0.5)';
+      }
+    }
+
+    // Dim wrong option
+    levelState.eliminatedOptions.push(levelState.selectedOption);
+
+    // Show coaching + try again
+    rmCls($('lockInBtn'), 'visible');
+    levelState.selectedOption = null;
+
+    let coachHtml = `<div class="coaching-bar">${fb}</div>`;
+    coachHtml += `<button class="try-again-btn" onclick="retryDo()">Try Again</button>`;
+    // Keep options but append coaching
+    const optionsHtml = document.querySelector('.iz-options')?.outerHTML || '';
+    setIZ(`<div class="iz-prompt">${level.doPrompt}</div>${optionsHtml}${coachHtml}`);
+    // Re-apply eliminated
+    levelState.eliminatedOptions.forEach(eid=>{
+      const el = document.querySelector(`[data-id="${eid}"]`);
+      if(el){ el.classList.add('dimmed'); el.onclick=null; }
+    });
+
+    // Auto-apply hints based on wrong count
+    applyAutoHint();
+
+    // Check if 3 resets
+    checkResetAdvance();
+  }
+  } catch(e){ console.error('lockInCoachClick error',e); }
+}
+
+function retryDo(){
+  levelState.phaseStartTime = Date.now();
+  renderDoMechanic();
+}
+
+// --- HOTSPOT ---
+function renderHotspot(){
+  const level = levels[gameState.currentLevel];
+  setIZ(`<div class="iz-prompt">${level.doPrompt}</div><div class="coaching-bar" style="background:rgba(245,158,11,0.1);">Click on the correct part of the volcano cross-section above.</div>`);
+
+  const overlay = document.getElementById('hotspotOverlay');
+  overlay.style.display = '';
+  overlay.onclick = (e) => handleHotspotClick(e);
+}
+
+function handleHotspotClick(e){
+  try {
+  const level = levels[gameState.currentLevel];
+  if(!level.hotspotZones) return;
+
+  const rect = document.getElementById('arenaPanel').getBoundingClientRect();
+  const x = (e.clientX - rect.left) / rect.width;
+  const y = (e.clientY - rect.top) / rect.height;
+
+  let clickedZone = null;
+  level.hotspotZones.forEach(zone => {
+    const dx = x - zone.cx;
+    const dy = y - zone.cy;
+    if(Math.sqrt(dx*dx+dy*dy) < zone.r + 0.03){
+      clickedZone = zone.id;
+    }
+  });
+
+  if(!clickedZone) return;
+
+  const timeSincePhase = Date.now() - levelState.phaseStartTime;
+
+  if(clickedZone === level.hotspotCorrect){
+    // Correct
+    playCorrectSound();
+    arenaState.highlightZone = clickedZone;
+    arenaState.highlightColor = 'rgba(34,197,94,0.5)';
+    document.getElementById('hotspotOverlay').style.display = 'none';
+    safeCall(()=>level.doCorrectFeedback(), 'hotspot correct feedback failed');
+    levelState.doComplete = true;
+    updateScore();
+    setIZ('<div class="coaching-bar" style="background:rgba(34,197,94,0.1);">Correct!</div>');
+    setTimeout(()=>startProve(), 1200);
+  } else {
+    // Wrong
+    playWrongSound();
+    levelState.wrongCount++;
+    levelState.attempts++;
+
+    // Fast-guess gate
+    if(timeSincePhase < 1500){
+      levelState.consecutiveFastWrongs++;
+      if(levelState.consecutiveFastWrongs >= 2){
+        document.getElementById('hotspotOverlay').style.display = 'none';
+        showAntiGuessScreen();
+        return;
+      }
+    }
+
+    arenaState.highlightZone = clickedZone;
+    arenaState.highlightColor = 'rgba(239,68,68,0.4)';
+    setTimeout(()=>{ arenaState.highlightZone = null; },800);
+
+    const fb = level.doWrongFeedback[clickedZone] || level.doWrongFeedback.default;
+    setIZ(`<div class="iz-prompt">${level.doPrompt}</div><div class="coaching-bar">${fb}</div>`);
+
+    levelState.phaseStartTime = Date.now();
+    applyAutoHint();
+    checkResetAdvance();
+  }
+  } catch(e){ console.error('handleHotspotClick error',e); }
+}
+
+// --- DRAG-TO-MATCH ---
+function renderDragToMatch(){
+  const level = levels[gameState.currentLevel];
+  const data = level.doData;
+  if(!data || !data.labels) return;
+  dtmSelectedLabel = null; // Always reset selection on re-render
+
+  // Initialize state
+  if(!levelState.dtmState.placements){
+    levelState.dtmState = {
+      placements: {}, // label -> zone
+      wrongSameCount: {} // "label-zone" -> count
+    };
+  }
+
+  let html = `<div class="iz-prompt">${level.doPrompt}</div>`;
+  html += `<div style="font-size:13px;color:var(--text-light);text-align:center;margin-bottom:6px;">Tap a label on the left, then tap where it belongs on the right. Tap a filled zone to undo it.</div>`;
+  html += '<div class="dtm-container">';
+  html += '<div class="dtm-labels">';
+  data.labels.forEach((lbl,i)=>{
+    const placed = Object.values(levelState.dtmState.placements).includes(i);
+    const locked = levelState.dtmState['locked_'+i];
+    html += `<div class="dtm-draggable ${placed?'placed':''} ${locked?'locked':''}" data-idx="${i}" onclick="selectDtmLabel(${i})">${lbl}</div>`;
+  });
+  html += '</div><div class="dtm-zones">';
+  data.zones.forEach((zone,i)=>{
+    const filled = Object.entries(levelState.dtmState.placements).find(([k,v])=>parseInt(k)===i);
+    const filledLabel = filled ? data.labels[filled[1]] : '';
+    html += `<div class="dtm-zone ${filled?'filled':''}" data-zone="${i}" onclick="selectDtmZone(${i})">${zone}${filled?' - '+filledLabel:''}</div>`;
+  });
+  html += '</div></div>';
+  const filledCount = Object.keys(levelState.dtmState.placements).length;
+  html += `<div style="display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;">`;
+  if(filledCount > 0) html += `<button class="clear-btn" onclick="clearDtm()">Clear All</button>`;
+  html += `<button class="lock-in-btn ${filledCount===data.labels.length?'visible':''}" id="lockInBtn" onclick="lockInDtm()">Lock In</button>`;
+  html += `</div>`;
+  setIZ(html);
+}
+
+let dtmSelectedLabel = null;
+function selectDtmLabel(idx){
+  dtmSelectedLabel = idx;
+  document.querySelectorAll('.dtm-draggable').forEach(el=>rmCls(el,'selected'));
+  const el = $q(`[data-idx="${idx}"]`);
+  addCls(el, 'selected');
+}
+
+function selectDtmZone(zoneIdx){
+  // If zone already has a label, remove it
+  if(levelState.dtmState.placements[zoneIdx] !== undefined && dtmSelectedLabel === null){
+    delete levelState.dtmState.placements[zoneIdx];
+    renderDragToMatch();
+    return;
+  }
+  if(dtmSelectedLabel === null) return;
+  levelState.dtmState.placements[zoneIdx] = dtmSelectedLabel;
+  dtmSelectedLabel = null;
+  renderDragToMatch();
+}
+
+function lockInDtm(){
+  const level = levels[gameState.currentLevel];
+  const data = level.doData;
+  const placements = levelState.dtmState.placements;
+
+  let allCorrect = true;
+  Object.entries(placements).forEach(([zoneIdx, labelIdx]) => {
+    if(data.correctMap[parseInt(labelIdx)] !== parseInt(zoneIdx)){
+      allCorrect = false;
+    }
+  });
+
+  if(allCorrect){
+    playCorrectSound();
+    safeCall(()=>{ if(level.doCorrectFeedback) level.doCorrectFeedback(); },'dtm correct failed');
+    levelState.doComplete = true;
+    updateScore();
+    setIZ('<div class="coaching-bar" style="background:rgba(34,197,94,0.1);">All matches correct!</div>');
+    setTimeout(()=>startProve(), 1200);
+  } else {
+    playWrongSound();
+    levelState.wrongCount++;
+    levelState.attempts++;
+    levelState.dtmState.placements = {};
+    const fb = level.doWrongFeedback?.default || 'Look more carefully at the cross-section.';
+    setIZ(`<div class="coaching-bar">${fb}</div><button class="try-again-btn" onclick="retryDo()">Try Again</button>`);
+    applyAutoHint();
+    checkResetAdvance();
+  }
+}
+
+// --- SEQUENCE BUILDER ---
+
+function clearDtm(){
+  levelState.dtmState.placements = {};
+  dtmSelectedLabel = null;
+  renderDragToMatch();
+}
+
+// --- SEQUENCE BUILDER ---
+function renderSequence(){
+  const level = levels[gameState.currentLevel];
+  const data = level.doData;
+  if(!data || !data.cards) return;
+
+  if(!levelState.seqState.slots){
+    levelState.seqState = {
+      slots: new Array(data.numSlots || data.cards.length).fill(null),
+      bank: data.cards.map((c,i)=>({text:c.text, idx:i, inSlot:false, isDistractor: c.distractor||false})),
+      wrongOrderCount: 0
+    };
+    // Shuffle bank
+    for(let i=levelState.seqState.bank.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [levelState.seqState.bank[i],levelState.seqState.bank[j]]=[levelState.seqState.bank[j],levelState.seqState.bank[i]];
+    }
+  }
+
+  const ss = levelState.seqState;
+  let html = `<div class="iz-prompt">${level.doPrompt}</div>`;
+  html += `<div style="font-size:13px;color:var(--text-light);text-align:center;margin-bottom:6px;">Tap a card, then tap a slot. Tap a filled slot to remove it.</div>`;
+  html += '<div class="seq-container">';
+  html += '<div class="seq-bank">';
+  ss.bank.forEach((card,i) => {
+    if(!card.inSlot){
+      html += `<div class="seq-card" data-bank="${i}" onclick="selectSeqCard(${i})">${card.text}</div>`;
+    }
+  });
+  // Distractor zone if applicable
+  if(data.hasDistractor){
+    html += `<div class="seq-slot" style="border-color:var(--accent-coral);margin-top:12px;" data-zone="distractor" onclick="placeSeqDistractor()"><span class="slot-num" style="background:var(--accent-coral);">X</span> Does Not Belong</div>`;
+  }
+  html += '</div><div class="seq-slots">';
+  const numSlots = data.numSlots || data.correctOrder.length;
+  for(let i=0;i<numSlots;i++){
+    const filled = ss.slots[i] !== null;
+    const cardText = filled ? ss.bank[ss.slots[i]].text : 'Drop step '+(i+1);
+    html += `<div class="seq-slot ${filled?'filled':''}" data-slot="${i}" onclick="placeSeqInSlot(${i})"><span class="slot-num">${i+1}</span>${cardText}</div>`;
+  }
+  html += '</div></div>';
+  const anyFilled = ss.slots.some(s=>s!==null) || ss.distractorPlaced;
+  const allFilled = ss.slots.every(s=>s!==null) && (!data.hasDistractor || ss.distractorPlaced);
+  html += `<div style="display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;">`;
+  if(anyFilled) html += `<button class="clear-btn" onclick="clearSeq()">Clear All</button>`;
+  html += `<button class="lock-in-btn ${allFilled?'visible':''}" id="lockInBtn" onclick="lockInSequence()">Lock In</button>`;
+  html += `</div>`;
+  setIZ(html);
+}
+
+let seqSelectedCard = null;
+function selectSeqCard(bankIdx){
+  seqSelectedCard = bankIdx;
+  document.querySelectorAll('.seq-card').forEach(el=>rmCls(el,'selected'));
+  addCls($q(`[data-bank="${bankIdx}"]`), 'selected');
+}
+
+function placeSeqInSlot(slotIdx){
+  const ss = levelState.seqState;
+  // If slot already has a card, remove it first
+  if(ss.slots[slotIdx] !== null){
+    ss.bank[ss.slots[slotIdx]].inSlot = false;
+    ss.slots[slotIdx] = null;
+    seqSelectedCard = null;
+    renderSequence();
+    return;
+  }
+  if(seqSelectedCard === null) return;
+  // Remove from previous slot if any
+  const prevSlot = ss.slots.indexOf(seqSelectedCard);
+  if(prevSlot !== -1) ss.slots[prevSlot] = null;
+  ss.slots[slotIdx] = seqSelectedCard;
+  ss.bank[seqSelectedCard].inSlot = true;
+  seqSelectedCard = null;
+  renderSequence();
+}
+
+function placeSeqDistractor(){
+  if(seqSelectedCard === null) return;
+  const ss = levelState.seqState;
+  ss.bank[seqSelectedCard].inSlot = true;
+  ss.distractorPlaced = seqSelectedCard;
+  seqSelectedCard = null;
+  renderSequence();
+}
+
+function clearSeq(){
+  const ss = levelState.seqState;
+  ss.slots.fill(null);
+  ss.distractorPlaced = null;
+  ss.bank.forEach(c=>c.inSlot=false);
+  seqSelectedCard = null;
+  renderSequence();
+}
+
+function lockInSequence(){
+  const level = levels[gameState.currentLevel];
+  const data = level.doData;
+  const ss = levelState.seqState;
+
+  let correct = true;
+  // Check order
+  for(let i=0;i<data.correctOrder.length;i++){
+    if(ss.slots[i] === null || ss.bank[ss.slots[i]].idx !== data.correctOrder[i]){
+      correct = false;
+      break;
+    }
+  }
+  // Check distractor
+  if(data.hasDistractor){
+    if(ss.distractorPlaced === undefined || ss.distractorPlaced === null || !ss.bank[ss.distractorPlaced].isDistractor){
+      correct = false;
+    }
+  }
+
+  if(correct){
+    playCorrectSound();
+    safeCall(()=>{ if(level.doCorrectFeedback) level.doCorrectFeedback(); },'seq correct failed');
+    levelState.doComplete = true;
+    updateScore();
+    setIZ('<div class="coaching-bar" style="background:rgba(34,197,94,0.1);">Sequence correct!</div>');
+    setTimeout(()=>startProve(), 1200);
+  } else {
+    playWrongSound();
+    levelState.wrongCount++;
+    levelState.attempts++;
+    ss.wrongOrderCount++;
+    // Reset slots
+    ss.slots.fill(null);
+    ss.distractorPlaced = null;
+    ss.bank.forEach(c=>c.inSlot=false);
+
+    const fb = level.doWrongFeedback?.default || 'Start underground — what was there FIRST?';
+    setIZ(`<div class="coaching-bar">${fb}</div><button class="try-again-btn" onclick="retryDo()">Try Again</button>`);
+    applyAutoHint();
+    checkResetAdvance();
+  }
+}
+
+// --- CLAIM BUILDER ---
+function renderClaimBuilder(){
+  const level = levels[gameState.currentLevel];
+  const data = level.doData;
+  if(!data || !data.evidence) return;
+
+  if(!levelState.claimState.matches){
+    levelState.claimState = { matches: {}, selectedEvidence: null, lockedPairs: 0 };
+  }
+  const cs = levelState.claimState;
+
+  let html = `<div class="iz-prompt">${level.doPrompt}</div><div class="claim-container">`;
+  data.evidence.forEach((ev,i) => {
+    const matched = Object.values(cs.matches).includes(i);
+    const locked = cs['locked_'+i];
+    const selected = cs.selectedEvidence === i;
+    html += `<div class="claim-row">`;
+    html += `<div class="claim-evidence ${locked?'locked':''} ${selected?'selected':''}" data-ev="${i}" onclick="selectClaimEvidence(${i})">${ev}</div>`;
+    html += `<span class="claim-arrow">&rarr; supports &rarr;</span>`;
+    const matchedTo = Object.entries(cs.matches).find(([k,v])=>v===i);
+    const supText = matchedTo ? data.supports[parseInt(matchedTo[0])] : data.supports[i];
+    html += `<div class="claim-supports ${matched?'filled':''} ${locked?'correct':''}" data-sup="${i}" onclick="selectClaimSupport(${i})">${supText}</div>`;
+    html += '</div>';
+  });
+  html += '</div>';
+  const matchCount = Object.keys(cs.matches).length;
+  const allMatched = matchCount === data.evidence.length;
+  html += `<div style="display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;">`;
+  if(matchCount > 0) html += `<button class="clear-btn" onclick="clearClaim()">Clear All</button>`;
+  html += `<button class="lock-in-btn ${allMatched?'visible':''}" id="lockInBtn" onclick="lockInClaim()">Lock In</button>`;
+  html += `</div>`;
+  setIZ(html);
+}
+
+function selectClaimEvidence(idx){
+  levelState.claimState.selectedEvidence = idx;
+  renderClaimBuilder();
+}
+
+function selectClaimSupport(idx){
+  const cs = levelState.claimState;
+  if(cs.selectedEvidence === null) return;
+  cs.matches[idx] = cs.selectedEvidence;
+  cs.selectedEvidence = null;
+  renderClaimBuilder();
+}
+
+function clearClaim(){
+  levelState.claimState.matches = {};
+  levelState.claimState.selectedEvidence = null;
+  renderClaimBuilder();
+}
+
+function lockInClaim(){
+  const level = levels[gameState.currentLevel];
+  const data = level.doData;
+  const cs = levelState.claimState;
+
+  let allCorrect = true;
+  Object.entries(cs.matches).forEach(([supIdx, evIdx]) => {
+    if(data.correctMap[parseInt(evIdx)] !== parseInt(supIdx)){
+      allCorrect = false;
+    }
+  });
+
+  if(allCorrect){
+    playCorrectSound();
+    safeCall(()=>{ if(level.doCorrectFeedback) level.doCorrectFeedback(); },'claim correct failed');
+    levelState.doComplete = true;
+    updateScore();
+    setIZ('<div class="coaching-bar" style="background:rgba(34,197,94,0.1);">Claim built correctly!</div>');
+    setTimeout(()=>startProve(), 1200);
+  } else {
+    playWrongSound();
+    levelState.wrongCount++;
+    levelState.attempts++;
+    cs.matches = {};
+    const fb = level.doWrongFeedback?.default || 'Read each evidence card — what does it EXPLAIN about the eruption?';
+    setIZ(`<div class="coaching-bar">${fb}</div><button class="try-again-btn" onclick="retryDo()">Try Again</button>`);
+    applyAutoHint();
+    checkResetAdvance();
+  }
+}
+
+// ===== PROVE PHASE =====
+async function startProve(){
+  levelState.phase = 'prove';
+  levelState.phaseStartTime = Date.now();
+  levelState.wrongCount = 0;
+  levelState.consecutiveFastWrongs = 0;
+  levelState.eliminatedOptions = [];
+  updateHUD();
+
+  const level = levels[gameState.currentLevel];
+  document.getElementById('hotspotOverlay').style.display = 'none';
+
+  let html = `<div class="iz-prompt">${level.proveQuestion}</div><div class="iz-options">`;
+  level.proveOptions.forEach(opt => {
+    html += `<button class="iz-option" data-id="${opt.id}" onclick="handleProve('${opt.id}')">${opt.text}</button>`;
+  });
+  html += '</div><button class="lock-in-btn" id="lockInBtn" onclick="lockInProve()">Lock In</button>';
+  setIZ(html);
+}
+
+function handleProve(id){
+  if(levelState.eliminatedOptions.includes(id)) return;
+  levelState.selectedOption = id;
+  document.querySelectorAll('.iz-option').forEach(el=>{
+    toggleCls(el, 'selected', el.dataset.id===id);
+  });
+  addCls($('lockInBtn'), 'visible');
+}
+
+function lockInProve(){
+  try {
+  if(!levelState.selectedOption) return;
+  const level = levels[gameState.currentLevel];
+  const timeSincePhase = Date.now() - levelState.phaseStartTime;
+
+  if(levelState.selectedOption === level.proveCorrect){
+    // Correct!
+    playCorrectSound();
+    addCls($q(`[data-id="${level.proveCorrect}"]`), 'correct-flash');
+    levelState.proveComplete = true;
+    updateScore();
+    setTimeout(()=>completeLevel(), 1000);
+  } else {
+    playWrongSound();
+    levelState.wrongCount++;
+    levelState.attempts++;
+
+    // Fast-guess gate
+    if(timeSincePhase < 2000){
+      levelState.consecutiveFastWrongs++;
+      if(levelState.consecutiveFastWrongs >= 2){
+        showAntiGuessScreen();
+        return;
+      }
+    }
+
+    const btn = $q(`[data-id="${levelState.selectedOption}"]`);
+    if(btn){
+      addCls(btn, 'wrong-flash');
+      setTimeout(()=>rmCls(btn, 'wrong-flash'),500);
+    }
+
+    const fb = level.proveWrongFeedback[levelState.selectedOption] || 'Look more carefully.';
+    levelState.eliminatedOptions.push(levelState.selectedOption);
+    levelState.selectedOption = null;
+    rmCls($('lockInBtn'), 'visible');
+
+    // Re-render with eliminated
+    let html = `<div class="iz-prompt">${level.proveQuestion}</div><div class="iz-options">`;
+    level.proveOptions.forEach(opt => {
+      const dim = levelState.eliminatedOptions.includes(opt.id) ? 'dimmed' : '';
+      html += `<button class="iz-option ${dim}" data-id="${opt.id}" onclick="handleProve('${opt.id}')">${opt.text}</button>`;
+    });
+    html += '</div>';
+    html += `<div class="coaching-bar">${fb}</div>`;
+    html += `<button class="try-again-btn" onclick="retryProve()">Try Again</button>`;
+    html += '<button class="lock-in-btn" id="lockInBtn" onclick="lockInProve()">Lock In</button>';
+    setIZ(html);
+
+    applyAutoHint();
+    checkResetAdvance();
+  }
+  } catch(e){ console.error('lockInProve error',e); }
+}
+
+function retryProve(){
+  levelState.phaseStartTime = Date.now();
+  startProve();
+}
+
+// ===== SCORING =====
+function updateScore(){
+  if(levelState.hintsUsed === 0 && levelState.resets === 0) levelState.score = 100;
+  else if(levelState.hintsUsed === 1 && levelState.resets === 0) levelState.score = 85;
+  else if(levelState.hintsUsed === 2 && levelState.resets === 0) levelState.score = 70;
+  else if(levelState.hintsUsed >= 3 && levelState.resets === 0) levelState.score = 60;
+  else if(levelState.resets >= 1) levelState.score = 50;
+}
+
+// ===== HINTS =====
+function useHint(){
+  const level = levels[gameState.currentLevel];
+  const hl = level.hintLadder;
+  levelState.hintsUsed++;
+  updateScore();
+
+  if(levelState.hintsUsed === 1 && hl.hint1){
+    showHintBar(hl.hint1.text, 'hint1');
+    if(hl.hint1.zone) arenaState.highlightZone = hl.hint1.zone;
+  } else if(levelState.hintsUsed === 2 && hl.hint2){
+    showHintBar(hl.hint2.text, 'hint2');
+    if(hl.hint2.eliminate) levelState.eliminatedOptions.push(hl.hint2.eliminate);
+    renderCurrentMechanic();
+  } else if(levelState.hintsUsed >= 3 && hl.stepByStep){
+    showStepByStep(hl.stepByStep);
+  }
+}
+
+function applyAutoHint(){
+  const level = levels[gameState.currentLevel];
+  const hl = level.hintLadder;
+  // Auto-show hints based on wrong count
+  if(levelState.wrongCount === 1 && levelState.hintsUsed < 1){
+    levelState.hintsUsed = 1;
+    updateScore();
+    if(hl.hint1){
+      showHintBar(hl.hint1.text, 'hint1');
+      if(hl.hint1.zone){
+        arenaState.highlightZone = hl.hint1.zone;
+        arenaState.highlightColor = 'rgba(245,158,11,0.4)';
+      }
+    }
+  } else if(levelState.wrongCount === 2 && levelState.hintsUsed < 2){
+    levelState.hintsUsed = 2;
+    updateScore();
+    if(hl.hint2){
+      showHintBar(hl.hint2.text, 'hint2');
+      if(hl.hint2.eliminate && !levelState.eliminatedOptions.includes(hl.hint2.eliminate)){
+        levelState.eliminatedOptions.push(hl.hint2.eliminate);
+      }
+    }
+  } else if(levelState.wrongCount >= 3 && levelState.hintsUsed < 3){
+    levelState.hintsUsed = 3;
+    updateScore();
+    if(hl.stepByStep) showStepByStep(hl.stepByStep);
+  }
+}
+
+function showHintBar(text, type){
+  const bg = type==='hint1' ? 'var(--hint1-bg)' : 'var(--hint2-bg)';
+  const icon = type==='hint1' ? '' : '';
+  // Append to interaction zone
+  const existing = document.querySelector('.coaching-bar');
+  if(existing) existing.remove();
+  const bar = document.createElement('div');
+  bar.className = 'coaching-bar';
+  bar.style.background = bg;
+  bar.textContent = text;
+  const izEl = $('interactionZone');
+  if(izEl) izEl.appendChild(bar);
+}
+
+function showStepByStep(panels){
+  let currentPanel = 0;
+  const overlay = document.createElement('div');
+  overlay.className = 'sbs-overlay';
+
+  function renderPanel(){
+    overlay.innerHTML = `<div class="sbs-modal">
+      <h3>Step-by-Step</h3>
+      <div class="sbs-text">${panels[currentPanel]}</div>
+      <div class="sbs-nav">
+        <span class="sbs-counter">Step ${currentPanel+1} of ${panels.length}</span>
+        ${currentPanel < panels.length-1 ?
+          '<button class="sbs-next-btn" onclick="this.closest(\'.sbs-overlay\').sbsNext()">Next</button>' :
+          '<button class="sbs-done-btn" onclick="this.closest(\'.sbs-overlay\').remove()">Got It</button>'}
+      </div>
+    </div>`;
+    overlay.sbsNext = ()=>{ currentPanel++; renderPanel(); };
+  }
+  renderPanel();
+  document.body.appendChild(overlay);
+}
+
+function renderCurrentMechanic(){
+  if(levelState.phase === 'do') renderDoMechanic();
+  else if(levelState.phase === 'prove') startProve();
+}
+
+// ===== ANTI-GUESSING =====
+function showAntiGuessScreen(){
+  let countdown = 5;
+  const screen = document.createElement('div');
+  screen.className = 'ag-screen';
+  screen.innerHTML = `<div class="ag-box"><h3>Slow Down</h3><p>Take your time and look at the cross-section before answering.</p><div class="ag-timer">${countdown}</div></div>`;
+  document.body.appendChild(screen);
+
+  const timer = setInterval(()=>{
+    countdown--;
+    screen.querySelector('.ag-timer').textContent = countdown;
+    if(countdown <= 0){
+      clearInterval(timer);
+      screen.remove();
+      levelState.consecutiveFastWrongs = 0;
+      levelState.resets++;
+      updateScore();
+      retryDo();
+    }
+  }, 1000);
+}
+
+// ===== RESET/ADVANCE CHECK =====
+function checkResetAdvance(){
+  // Count a reset every 3 wrong answers (not every call once >= 6)
+  if(levelState.wrongCount > 0 && levelState.wrongCount % 3 === 0){
+    const expectedResets = Math.floor(levelState.wrongCount / 3);
+    if(levelState.resets < expectedResets){
+      levelState.resets = expectedResets;
+      updateScore();
+    }
+  }
+  if(levelState.resets >= 3){
+    levelState.score = 50;
+    setIZ('<div class="coaching-bar">Let\'s move on — you\'ll see this idea again.</div>');
+    levelState.doComplete = true;
+    levelState.proveComplete = true;
+    setTimeout(()=>completeLevel(), 2000);
+  }
+}
+
+// ===== LEVEL COMPLETE =====
+async function completeLevel(){
+  const idx = gameState.currentLevel;
+  const level = levels[idx];
+  const gs = gameState.levels[idx];
+
+  gs.completed = true;
+  gs.score = levelState.score;
+  gs.attempts = levelState.attempts;
+  gs.hintsUsed = levelState.hintsUsed;
+  gs.resets = levelState.resets;
+  gs.timeSeconds = (Date.now() - levelState.startTime) / 1000;
+
+  hideFocusBanner();
+  document.getElementById('hotspotOverlay').style.display = 'none';
+  rmCls($('narrativePanel'), 'narrative-dimmed');
+
+  // Score display
+  const totalScore = gameState.levels.filter(l=>l.completed).reduce((s,l)=>s+l.score,0);
+  document.getElementById('scoreDisplay').textContent = totalScore;
+  const pct = ((idx+1)/levels.length)*100;
+  document.getElementById('progressFill').style.width = pct+'%';
+
+  setIZ(`<div class="coaching-bar" style="background:rgba(34,197,94,0.1);font-size:18px;font-weight:600;">Level ${level.num} Complete — ${levelState.score}%</div>`);
+
+  // Affirmation on first-try
+  if(levelState.score === 100){
+    const affirmEl = document.createElement('div');
+    affirmEl.style.cssText = 'text-align:center;font-size:18px;color:var(--accent-amber);margin-top:8px;animation:fadeInUp 0.5s ease;';
+    affirmEl.textContent = getAffirmation();
+    const izEl2 = $('interactionZone');
+    if(izEl2) izEl2.appendChild(affirmEl);
+  }
+
+  await sleep(2000);
+
+  // Milestone celebration every 2 levels
+  const completedCount = gameState.levels.filter(l=>l.completed).length;
+  if(completedCount % 2 === 0 && completedCount < 6){
+    await showCelebration(getAffirmation(), 2000);
+  }
+
+  // Required complete check (after level 6)
+  if(idx === 5){
+    gameState.requiredComplete = true;
+    await showCelebration("You've completed all required levels!", 0, true);
+    return; // Wait for user choice
+  }
+
+  // All complete (after level 8)
+  if(idx === 7){
+    gameState.allComplete = true;
+    await showCelebration("BONUS COMPLETE!", 3000, false, true);
+    showReceipt();
+    return;
+  }
+
+  // Auto-advance
+  if(idx < levels.length - 1){
+    startLevel(idx + 1);
+  } else {
+    showReceipt();
+  }
+}
+
+// ===== CELEBRATION =====
+async function showCelebration(message, duration=2000, showChoice=false, isFinal=false){
+  return new Promise(resolve => {
+    safeCall(()=>playCelebrationSound(),'cel sound failed');
+    startConfetti(isFinal ? 100 : 50);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'celebration-overlay';
+    let html = `<div class="cel-text">${message}</div>`;
+    html += `<div class="cel-affirm">${getAffirmation()}</div>`;
+
+    if(showChoice){
+      html += `<div class="cel-btns">
+        <button class="cel-btn-secondary" onclick="this.closest('.celebration-overlay').remove();showReceipt();">View Score</button>
+        <button class="cel-btn-primary" onclick="this.closest('.celebration-overlay').remove();startLevel(6);">Continue to Bonus</button>
+      </div>`;
+    }
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+
+    if(!showChoice){
+      setTimeout(()=>{
+        overlay.remove();
+        stopConfetti();
+        resolve();
+      }, duration);
+    } else {
+      // Safety timeout
+      setTimeout(()=>{
+        if(document.body.contains(overlay)){ overlay.remove(); stopConfetti(); resolve(); }
+      }, 15000);
+      resolve();
+    }
+  });
+}
+
+// ===== CONFETTI =====
+const confettiCanvas = document.getElementById('confettiCanvas');
+const confCtx = confettiCanvas.getContext('2d');
+let confettiParticles = [];
+let confettiAnim = null;
+
+function startConfetti(count=50){
+  confettiCanvas.style.display='';
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+  confettiParticles = [];
+  for(let i=0;i<count;i++){
+    confettiParticles.push({
+      x: Math.random()*confettiCanvas.width,
+      y: -10 - Math.random()*100,
+      vx: (Math.random()-0.5)*4,
+      vy: 2 + Math.random()*4,
+      size: 4+Math.random()*8,
+      color: ['#F59E0B','#EF6C6C','#2D8B4E','#22C55E','#FFD700','#FF69B4'][Math.floor(Math.random()*6)],
+      rotation: Math.random()*360,
+      rotSpeed: (Math.random()-0.5)*10
+    });
+  }
+  animateConfetti();
+}
+
+function animateConfetti(){
+  confCtx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+  let alive = false;
+  confettiParticles.forEach(p=>{
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.rotation += p.rotSpeed;
+    if(p.y < confettiCanvas.height + 20) alive = true;
+    confCtx.save();
+    confCtx.translate(p.x,p.y);
+    confCtx.rotate(p.rotation*Math.PI/180);
+    confCtx.fillStyle = p.color;
+    confCtx.fillRect(-p.size/2,-p.size/4,p.size,p.size/2);
+    confCtx.restore();
+  });
+  if(alive) confettiAnim = requestAnimationFrame(animateConfetti);
+  else stopConfetti();
+}
+
+function stopConfetti(){
+  cancelAnimationFrame(confettiAnim);
+  confettiCanvas.style.display='none';
+}
+
+// ===== SCORE RECEIPT =====
+function showReceipt(){
+  stopConfetti();
+  const requiredLevels = gameState.levels.filter(l=>levels[l.levelNum-1].required && l.completed);
+  const bonusLevels = gameState.levels.filter(l=>!levels[l.levelNum-1].required && l.completed);
+  const baseGrade = requiredLevels.length > 0 ? Math.round(requiredLevels.reduce((s,l)=>s+l.score,0)/requiredLevels.length) : 0;
+  const bonusPoints = bonusLevels.length * 5;
+  const overall = Math.min(100, baseGrade + bonusPoints);
+  const gradeColor = overall >= 85 ? '#22C55E' : overall >= 70 ? '#F59E0B' : '#EF4444';
+  const gradeLabel = overall >= 85 ? 'Mastery' : overall >= 70 ? 'Approaching Mastery' : 'Needs More Practice';
+  const totalTime = gameState.levels.reduce((s,l)=>s+l.timeSeconds,0);
+  const status = gameState.allComplete ? 'All Complete (Bonus!)' : gameState.requiredComplete ? 'Required Complete' : 'In Progress';
+
+  let tableRows = '';
+  gameState.levels.forEach((l,i)=>{
+    if(!l.completed) return;
+    const isBonus = !levels[i].required;
+    const scoreColor = l.score >= 85 ? '#22C55E' : l.score >= 70 ? '#F59E0B' : '#EF4444';
+    tableRows += `<tr class="${isBonus?'bonus-row':''}">
+      <td>${isBonus ? '&#11088; ':''} ${l.levelNum}</td>
+      <td>${l.levelName}</td>
+      <td class="score-cell" style="color:${scoreColor}">${l.score}%</td>
+      <td>${l.attempts+1}</td>
+      <td>${formatTime(l.timeSeconds)}</td>
+    </tr>`;
+  });
+
+  const receiptHTML = `<div class="receipt-screen" id="receiptScreen">
+    <div class="receipt-inner">
+      <div class="receipt-header">
+        <h2>${teacherName}'s Simulation</h2>
+        <h3>Volcano — Monday Score Report</h3>
+      </div>
+      <div class="receipt-name">
+        <input type="text" id="studentNameInput" placeholder="Type your name here..." value="${gameState.studentName||''}">
+        <button onclick="lockName()">Lock</button>
+      </div>
+      <div class="receipt-grade">
+        <div class="big-pct" style="color:${gradeColor}">${overall}%</div>
+        <div class="grade-label" style="color:${gradeColor}">${gradeLabel}</div>
+      </div>
+      <table class="receipt-table">
+        <thead><tr><th>#</th><th>Level</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+      <div class="receipt-footer">
+        Total Time: ${formatTime(totalTime)}<br>
+        Status: ${status}
+      </div>
+      <div style="text-align:center;margin-top:16px;font-size:15px;color:var(--text-mid);">
+        Take a screenshot and upload to Google Classroom
+      </div>
+      <div class="receipt-btns">
+        <button class="print-btn" onclick="window.print()">Print</button>
+        <button class="restart-btn" onclick="confirmRestart()">Start Over</button>
+      </div>
+    </div>
+  </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', receiptHTML);
+}
+
+function lockName(){
+  const input = document.getElementById('studentNameInput');
+  input.disabled = true;
+  gameState.studentName = input.value;
+  input.nextElementSibling.textContent = 'Locked';
+  input.nextElementSibling.disabled = true;
+}
+
+function confirmRestart(){
+  if(confirm('Are you sure? This will erase all progress and start over.')){
+    location.reload();
+  }
+}
+
+// ===== INIT =====
+function init(){
+  resizeCanvas();
+  drawArena();
+  // Show welcome screen, don't start levels yet
+  const nameInput = $('welcomeName');
+  const teacherInput = $('welcomeTeacher');
+  const startBtn = $('welcomeStart');
+
+  function checkReady(){
+    const ready = nameInput && nameInput.value.trim().length > 0;
+    if(startBtn) {
+      if(ready) addCls(startBtn, 'ready');
+      else rmCls(startBtn, 'ready');
+    }
+  }
+  if(nameInput) nameInput.addEventListener('input', checkReady);
+  if(teacherInput) teacherInput.addEventListener('input', checkReady);
+}
+
+function launchSimulation(){
+  const nameInput = $('welcomeName');
+  const teacherInput = $('welcomeTeacher');
+  const name = nameInput ? nameInput.value.trim() : '';
+  const teacher = teacherInput ? teacherInput.value.trim() : '';
+
+  if(!name) return;
+
+  studentFirstName = name;
+  gameState.studentName = name;
+  teacherName = teacher || "Your teacher";
+
+  // Update title bar
+  const ln = $('levelName');
+  if(ln) ln.parentElement; // title is set per-level
+
+  // Hide welcome
+  const ws = $('welcomeScreen');
+  if(ws) ws.style.display = 'none';
+
+  // Start
+  startLevel(0);
+}
+
+// Wait for first interaction to enable audio
+let firstInteraction = false;
+document.addEventListener('click', function initAudio(){
+  if(!firstInteraction){
+    firstInteraction = true;
+    safeCall(()=>getAudioContext(),'init audio failed');
+  }
+}, {once: false});
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
