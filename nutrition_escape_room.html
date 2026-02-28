@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escape Room Simulation — Pellagra &amp; Niacin Deficiency</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#1a1a2e;--bg2:#16213e;--text:#e0e0e0;--text-bright:#ffffff;
+--green:#2ecc71;--red:#e74c3c;--amber:#f39c12;--blue:#3498db;
+--room1:#e74c3c;--room1a:#ff6b6b;
+--room2:#f39c12;--room2a:#f1c40f;
+--room3:#2ecc71;--room3a:#27ae60;
+--room4:#3498db;--room4a:#2980b9;
+--current-color:#e74c3c;
+}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text)}
+button{cursor:pointer;font-family:inherit;border:none;outline:none}
+.hidden{display:none!important}
+/* ===== SCREENS ===== */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .5s ease}
+.screen.active{opacity:1;pointer-events:auto}
+/* ===== START SCREEN ===== */
+#startScreen{background:radial-gradient(ellipse at center,#16213e 0%,#0f0f23 100%)}
+.start-title{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;color:var(--text-bright);text-align:center;margin-bottom:.3em;text-shadow:0 0 30px rgba(52,152,219,.5)}
+.start-subtitle{font-size:clamp(1rem,2vw,1.4rem);color:#aaa;text-align:center;margin-bottom:2em}
+.start-btn{padding:18px 48px;font-size:1.3rem;font-weight:700;background:linear-gradient(135deg,var(--blue),#8e44ad);color:#fff;border-radius:12px;box-shadow:0 0 25px rgba(52,152,219,.4);transition:all .3s ease}
+.start-btn:hover{transform:scale(1.05);box-shadow:0 0 40px rgba(52,152,219,.6)}
+/* ===== TOP BAR ===== */
+.topbar{width:100%;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.4);border-bottom:2px solid rgba(255,255,255,.08);flex-shrink:0;min-height:52px;gap:8px}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.room-label{font-size:clamp(.85rem,1.8vw,1.1rem);font-weight:700;color:var(--current-color);text-shadow:0 0 10px currentColor;user-select:none}
+.room-indicator{font-size:.8rem;color:#888;white-space:nowrap}
+.topbar-center{display:flex;align-items:center;gap:16px}
+.timer-display{font-size:1rem;color:#ccc;font-variant-numeric:tabular-nums;white-space:nowrap}
+.timer-display::before{content:'⏱ '}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.xp-container{display:flex;align-items:center;gap:6px}
+.xp-label{font-size:.8rem;color:#aaa;white-space:nowrap}
+.xp-bar-outer{width:clamp(60px,10vw,120px);height:14px;background:rgba(255,255,255,.1);border-radius:7px;overflow:hidden}
+.xp-bar-inner{height:100%;background:linear-gradient(90deg,var(--green),#f1c40f);border-radius:7px;transition:width .5s ease;width:0%}
+.xp-val{font-size:.85rem;font-weight:700;color:var(--green);min-width:36px;text-align:right}
+.streak-icon{font-size:1.2rem;opacity:0;transition:opacity .3s ease}
+.streak-icon.active{opacity:1;animation:fireFlicker 0.6s infinite alternate}
+@keyframes fireFlicker{0%{transform:scale(1) rotate(-3deg)}100%{transform:scale(1.15) rotate(3deg)}}
+/* ===== MISSION LINE ===== */
+.mission-line{width:100%;text-align:center;padding:6px 16px;font-size:clamp(.85rem,1.6vw,1.05rem);color:var(--current-color);font-style:italic;opacity:.85;flex-shrink:0;text-shadow:0 0 8px currentColor}
+/* ===== PUZZLE AREA ===== */
+.puzzle-area{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 16px;overflow-y:auto;position:relative}
+/* ===== BOTTOM BAR ===== */
+.bottombar{width:100%;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.3);border-top:2px solid rgba(255,255,255,.06);flex-shrink:0;min-height:48px}
+.scanner-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;background:rgba(255,255,255,.08);color:#ccc;border-radius:8px;font-size:.9rem;border:1px solid rgba(255,255,255,.15);transition:all .3s ease}
+.scanner-btn:hover{background:rgba(255,255,255,.15)}
+.scanner-btn.pulse{animation:scanPulse 1.5s infinite}
+@keyframes scanPulse{0%,100%{box-shadow:0 0 5px rgba(255,255,255,.2)}50%{box-shadow:0 0 18px var(--current-color)}}
+.progress-dots{display:flex;gap:10px}
+.progress-dot{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.15);transition:all .4s ease}
+.progress-dot.solved{background:var(--current-color);box-shadow:0 0 10px var(--current-color)}
+.progress-dot.active{border:2px solid var(--current-color);box-shadow:0 0 8px var(--current-color)}
+/* ===== CODE VAULT ===== */
+.code-vault{display:flex;flex-direction:column;gap:3px;align-items:flex-end}
+.vault-slot{font-size:.75rem;display:flex;align-items:center;gap:4px;color:#888}
+.vault-code{font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:2px;transition:all .4s ease}
+.vault-code.revealed{color:var(--text-bright);text-shadow:0 0 8px currentColor}
+/* ===== DOOR TRANSITION ===== */
+#doorOverlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:#0a0a15;opacity:0;pointer-events:none;transition:opacity .3s ease}
+#doorOverlay.show{opacity:1;pointer-events:auto}
+.door-container{position:relative;width:clamp(200px,40vw,400px);height:clamp(300px,50vh,500px)}
+.door{position:absolute;width:50%;height:100%;top:0;background:linear-gradient(180deg,#2a2a3e,#1a1a2e,#0f0f1e);border:2px solid rgba(255,255,255,.1);transition:transform 1.2s cubic-bezier(.25,.46,.45,.94)}
+.door-left{left:0;transform-origin:left center;border-radius:8px 0 0 8px}
+.door-right{right:0;transform-origin:right center;border-radius:0 8px 8px 0}
+.door.open-left{transform:perspective(800px) rotateY(-85deg)}
+.door.open-right{transform:perspective(800px) rotateY(85deg)}
+.door-handle{position:absolute;top:50%;width:12px;height:40px;background:linear-gradient(180deg,#555,#333);border-radius:3px;transform:translateY(-50%)}
+.door-left .door-handle{right:12px}
+.door-right .door-handle{left:12px}
+.door-lock{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;border:2px solid;box-shadow:0 0 15px;animation:lockGlow 1.5s infinite alternate}
+@keyframes lockGlow{0%{opacity:.6}100%{opacity:1}}
+.door-label{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:clamp(1rem,2.5vw,1.5rem);font-weight:700;color:#fff;text-shadow:0 0 20px var(--current-color);white-space:nowrap}
+/* ===== PASS THE LAPTOP ===== */
+#passLaptop{position:fixed;inset:0;z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,10,20,.95);opacity:0;pointer-events:none;transition:opacity .3s ease}
+#passLaptop.show{opacity:1;pointer-events:auto}
+.pass-text{font-size:clamp(2rem,6vw,3.5rem);font-weight:900;color:var(--current-color);text-shadow:0 0 30px var(--current-color);margin-bottom:1em;text-align:center;animation:passPulse 1s infinite alternate}
+@keyframes passPulse{0%{transform:scale(1)}100%{transform:scale(1.04)}}
+.pass-sub{font-size:1rem;color:#888;margin-bottom:1.5em;text-align:center}
+.ready-btn{padding:16px 40px;font-size:1.2rem;font-weight:700;background:var(--current-color);color:#fff;border-radius:10px;box-shadow:0 0 20px var(--current-color);transition:all .3s ease}
+.ready-btn:hover{transform:scale(1.05)}
+/* ===== SCANNER OVERLAY ===== */
+#scannerOverlay{position:fixed;inset:0;z-index:800;display:flex;align-items:center;justify-content:center;background:rgba(10,10,20,.85);opacity:0;pointer-events:none;transition:opacity .3s ease}
+#scannerOverlay.show{opacity:1;pointer-events:auto}
+.scanner-box{max-width:500px;width:90%;padding:24px;background:var(--bg2);border:2px solid var(--current-color);border-radius:16px;box-shadow:0 0 30px var(--current-color);text-align:center}
+.scanner-title{font-size:1.1rem;font-weight:700;color:var(--current-color);margin-bottom:12px}
+.scanner-body{font-size:1rem;color:var(--text);line-height:1.5;margin-bottom:16px}
+.scanner-close{padding:10px 28px;background:rgba(255,255,255,.1);color:#ccc;border-radius:8px;font-size:.95rem;border:1px solid rgba(255,255,255,.2)}
+.scanner-close:hover{background:rgba(255,255,255,.2)}
+.scanner-box.strong{border-color:var(--amber);box-shadow:0 0 30px var(--amber)}
+.scanner-box.strong .scanner-title{color:var(--amber)}
+/* ===== CODE ENTRY ===== */
+.code-entry{display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:16px}
+.code-display{display:flex;gap:12px}
+.code-digit-slot{width:56px;height:68px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:var(--text-bright);transition:all .3s ease}
+.code-digit-slot.filled{border-color:var(--current-color);box-shadow:0 0 12px var(--current-color)}
+.code-digit-slot.correct{border-color:var(--green);box-shadow:0 0 15px var(--green);color:var(--green)}
+.code-digit-slot.wrong{border-color:var(--red);box-shadow:0 0 15px var(--red);animation:shakeSlot .4s ease}
+@keyframes shakeSlot{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.code-numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px}
+.numpad-btn{width:60px;height:52px;font-size:1.3rem;font-weight:700;background:rgba(255,255,255,.08);color:var(--text-bright);border-radius:8px;border:1px solid rgba(255,255,255,.12);transition:all .2s ease}
+.numpad-btn:hover{background:rgba(255,255,255,.15);border-color:var(--current-color)}
+.numpad-btn.action{font-size:.85rem;color:#aaa}
+/* ===== PUZZLE CARDS ===== */
+.puzzle-title{font-size:clamp(1.1rem,2.2vw,1.5rem);font-weight:700;color:var(--current-color);text-align:center;margin-bottom:8px;text-shadow:0 0 10px var(--current-color)}
+.puzzle-instruction{font-size:.9rem;color:#999;text-align:center;margin-bottom:16px}
+/* Match Lock */
+.match-container{display:flex;gap:clamp(16px,4vw,40px);justify-content:center;flex-wrap:wrap;width:100%;max-width:800px}
+.match-col{display:flex;flex-direction:column;gap:8px;min-width:180px;flex:1;max-width:320px}
+.match-card{padding:12px 16px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.12);border-radius:10px;font-size:clamp(.85rem,1.5vw,1rem);color:var(--text);cursor:pointer;transition:all .3s ease;min-height:48px;display:flex;align-items:center;gap:8px;user-select:none}
+.match-card:hover{border-color:var(--current-color);background:rgba(255,255,255,.1)}
+.match-card.selected{border-color:var(--current-color);box-shadow:0 0 15px var(--current-color);background:rgba(255,255,255,.12)}
+.match-card.matched{border-color:var(--green);box-shadow:0 0 12px var(--green);background:rgba(46,204,113,.1);pointer-events:none}
+.match-card.wrong{border-color:var(--red);animation:shakeCard .4s ease}
+@keyframes shakeCard{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.match-header{font-size:.8rem;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+/* Sequence Lock */
+.sequence-container{display:flex;flex-direction:column;gap:8px;width:100%;max-width:500px}
+.seq-slot{display:flex;align-items:center;gap:8px}
+.seq-num{width:28px;height:28px;background:rgba(255,255,255,.08);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:var(--current-color);flex-shrink:0}
+.seq-card{flex:1;padding:12px 16px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.12);border-radius:10px;font-size:1rem;color:var(--text);cursor:pointer;transition:all .3s ease;min-height:48px;display:flex;align-items:center;gap:8px;user-select:none}
+.seq-card:hover{border-color:var(--current-color)}
+.seq-card.selected{border-color:var(--current-color);box-shadow:0 0 12px var(--current-color)}
+.seq-card.locked{border-color:var(--green);box-shadow:0 0 10px var(--green);background:rgba(46,204,113,.1);pointer-events:none}
+.seq-card.wrong{border-color:var(--red)}
+.check-btn{align-self:center;padding:12px 32px;font-size:1rem;font-weight:700;background:var(--current-color);color:#fff;border-radius:10px;box-shadow:0 0 15px var(--current-color);margin-top:10px;transition:all .3s ease}
+.check-btn:hover{transform:scale(1.04)}
+/* System Scanner / Visual Recall / Mystery Input */
+.gauge-container{display:flex;gap:clamp(12px,3vw,24px);justify-content:center;flex-wrap:wrap;margin-bottom:16px;width:100%;max-width:700px}
+.gauge{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:100px;flex:1;max-width:160px}
+.gauge-label{font-size:.8rem;color:#ccc;text-align:center;font-weight:600}
+.gauge-bar-outer{width:100%;height:clamp(120px,18vh,200px);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;position:relative;overflow:hidden}
+.gauge-bar-inner{position:absolute;bottom:0;width:100%;border-radius:0 0 6px 6px;transition:height .8s ease}
+.gauge-value{font-size:.75rem;color:#aaa;margin-top:2px}
+.gauge-zone{position:absolute;top:4px;right:4px;width:10px;height:10px;border-radius:50%}
+.answer-cards{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;max-width:700px;width:100%}
+.answer-card{padding:14px 20px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.12);border-radius:12px;font-size:clamp(.9rem,1.5vw,1.05rem);color:var(--text);cursor:pointer;transition:all .3s ease;min-height:48px;min-width:120px;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;user-select:none;flex:1;max-width:220px}
+.answer-card:hover{border-color:var(--current-color);background:rgba(255,255,255,.1)}
+.answer-card.correct-reveal{border-color:var(--green)!important;box-shadow:0 0 18px var(--green)!important;background:rgba(46,204,113,.15)!important}
+.answer-card.wrong-reveal{border-color:var(--red)!important;opacity:.5}
+.answer-card.dimmed{opacity:.3;pointer-events:none}
+/* Quick Fire */
+.qf-question{font-size:clamp(1rem,2vw,1.3rem);color:var(--text-bright);text-align:center;margin-bottom:20px;min-height:60px;display:flex;align-items:center;justify-content:center}
+.qf-progress{font-size:.85rem;color:#888;margin-bottom:10px}
+.qf-buttons{display:flex;gap:16px;justify-content:center}
+.qf-btn{padding:16px 40px;font-size:1.2rem;font-weight:700;border-radius:12px;min-width:140px;transition:all .3s ease}
+.qf-btn.true-btn{background:rgba(46,204,113,.15);color:var(--green);border:2px solid var(--green)}
+.qf-btn.false-btn{background:rgba(231,76,60,.15);color:var(--red);border:2px solid var(--red)}
+.qf-btn:hover{transform:scale(1.05)}
+.qf-btn.flash-correct{background:var(--green)!important;color:#fff!important}
+.qf-btn.flash-wrong{background:var(--red)!important;color:#fff!important}
+/* Diagnostic Panel */
+.diag-panel{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:600px}
+.diag-slots{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.diag-slot{width:clamp(140px,22vw,200px);min-height:80px;background:rgba(255,255,255,.04);border:2px dashed rgba(255,255,255,.2);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px;cursor:pointer;transition:all .3s ease}
+.diag-slot-label{font-size:.75rem;color:#888;text-transform:uppercase}
+.diag-slot.filled{border-style:solid;border-color:var(--current-color);background:rgba(255,255,255,.08)}
+.diag-slot .chip-in-slot{font-size:.95rem;color:var(--text-bright)}
+.diag-bank{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:500px}
+.diag-chip{padding:10px 16px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.12);border-radius:8px;font-size:.9rem;color:var(--text);cursor:pointer;transition:all .3s ease;user-select:none;display:flex;align-items:center;gap:6px}
+.diag-chip:hover{border-color:var(--current-color)}
+.diag-chip.used{opacity:.3;pointer-events:none}
+.diag-chip.correct-flash{border-color:var(--green);box-shadow:0 0 12px var(--green)}
+.diag-chip.wrong-flash{border-color:var(--red)}
+.activate-btn{padding:12px 32px;font-size:1rem;font-weight:700;background:var(--current-color);color:#fff;border-radius:10px;box-shadow:0 0 15px var(--current-color);transition:all .3s ease}
+.activate-btn:hover{transform:scale(1.04)}
+.activate-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+/* Visual Recall Scene */
+.vr-scene{width:100%;max-width:600px;min-height:clamp(160px,25vh,280px);background:rgba(255,255,255,.03);border:2px solid rgba(255,255,255,.1);border-radius:12px;position:relative;overflow:hidden;margin-bottom:12px;padding:16px}
+/* Cause-effect chain */
+.chain-container{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;max-width:700px}
+.chain-box{padding:10px 16px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.15);border-radius:10px;font-size:clamp(.85rem,1.4vw,1rem);color:var(--text);text-align:center;min-width:80px}
+.chain-box.mystery{border-color:var(--amber);color:var(--amber);font-weight:700;box-shadow:0 0 12px rgba(243,156,18,.3)}
+.chain-arrow{font-size:1.2rem;color:#666}
+/* Final Lock */
+.final-slots{display:flex;flex-direction:column;gap:10px;width:100%;max-width:500px;margin-bottom:16px}
+.final-slot{min-height:56px;background:rgba(255,255,255,.04);border:2px dashed rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;gap:10px;padding:8px 14px;transition:all .3s ease}
+.final-slot .slot-num{font-size:.85rem;font-weight:700;width:24px;flex-shrink:0}
+.final-slot .slot-emoji{font-size:1.2rem;flex-shrink:0}
+.final-slot.filled{border-style:solid}
+.final-slot .slot-text{font-size:1rem;color:var(--text-bright)}
+.final-bank{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:600px;margin-bottom:12px}
+.final-card{padding:12px 18px;background:rgba(255,255,255,.06);border:2px solid;border-radius:10px;font-size:.95rem;cursor:pointer;transition:all .3s ease;user-select:none;display:flex;align-items:center;gap:6px}
+.final-card:hover{transform:scale(1.03)}
+.final-card.used{opacity:.25;pointer-events:none}
+.final-card.locked{pointer-events:none;box-shadow:0 0 12px}
+/* XP popup */
+.xp-popup{position:fixed;z-index:500;font-size:1.1rem;font-weight:700;color:var(--green);pointer-events:none;animation:xpFloat 1.5s ease forwards}
+@keyframes xpFloat{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(1.2)}}
+/* Digit reveal */
+.digit-reveal{position:fixed;inset:0;z-index:700;display:flex;align-items:center;justify-content:center;background:rgba(10,10,20,.9);opacity:0;pointer-events:none;transition:opacity .3s ease}
+.digit-reveal.show{opacity:1;pointer-events:auto}
+.digit-big{font-size:clamp(4rem,12vw,8rem);font-weight:900;color:var(--current-color);text-shadow:0 0 40px var(--current-color),0 0 80px var(--current-color);animation:digitPop .6s cubic-bezier(.17,.67,.35,1.2)}
+.digit-sub{font-size:1rem;color:#888;margin-top:10px}
+@keyframes digitPop{0%{transform:scale(0) rotate(-10deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+/* Particles */
+.particle{position:fixed;z-index:600;width:8px;height:8px;border-radius:2px;pointer-events:none}
+@keyframes particleBurst{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0)}}
+/* Room complete message */
+.room-complete-msg{font-size:clamp(.9rem,1.8vw,1.2rem);color:var(--current-color);text-align:center;margin-top:12px;text-shadow:0 0 10px var(--current-color);animation:fadeSlideUp .5s ease}
+@keyframes fadeSlideUp{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+/* Feedback overlays */
+.feedback-flash{position:fixed;inset:0;z-index:650;pointer-events:none;opacity:0;transition:opacity .15s ease}
+.feedback-flash.show-correct{opacity:1;background:rgba(46,204,113,.08)}
+.feedback-flash.show-wrong{opacity:1;background:rgba(231,76,60,.12)}
+.feedback-flash.show-wrong-strong{opacity:1;background:rgba(231,76,60,.2);animation:screenShake .3s ease}
+@keyframes screenShake{0%,100%{transform:translate(0)}20%{transform:translate(-4px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-3px,1px)}80%{transform:translate(3px,-1px)}}
+.feedback-icon{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:4rem;z-index:660;pointer-events:none;opacity:0;transition:opacity .2s ease}
+.feedback-icon.show{opacity:1;animation:iconPop .5s ease}
+@keyframes iconPop{0%{transform:translate(-50%,-50%) scale(0)}50%{transform:translate(-50%,-50%) scale(1.2)}100%{transform:translate(-50%,-50%) scale(1)}}
+/* Escape Report */
+.report-container{display:flex;flex-direction:column;align-items:center;gap:16px;max-width:500px;width:90%;padding:24px;overflow-y:auto}
+.report-header{font-size:clamp(2rem,5vw,3rem);font-weight:900;color:var(--green);text-shadow:0 0 30px var(--green);animation:escapePulse 1.5s infinite alternate}
+@keyframes escapePulse{0%{text-shadow:0 0 20px var(--green)}100%{text-shadow:0 0 40px var(--green),0 0 60px rgba(46,204,113,.3)}}
+.report-stars{font-size:2.5rem;margin:8px 0}
+.report-row{display:flex;justify-content:space-between;width:100%;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:1rem}
+.report-row .rl{color:#999}.report-row .rv{color:var(--text-bright);font-weight:600}
+.report-badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.badge{padding:6px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:20px;font-size:.85rem;color:var(--text)}
+.report-btns{display:flex;gap:12px;margin-top:8px}
+.report-btn{padding:12px 28px;font-size:1rem;font-weight:600;border-radius:10px;transition:all .3s ease}
+.report-btn.primary{background:var(--green);color:#fff}
+.report-btn.secondary{background:rgba(255,255,255,.1);color:#ccc;border:1px solid rgba(255,255,255,.15)}
+.report-btn:hover{transform:scale(1.04)}
+/* Confetti */
+.confetti{position:fixed;z-index:1100;pointer-events:none}
+@keyframes confettiFall{0%{transform:translateY(-10px) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+/* Tutorial overrides */
+.tutorial-note{font-size:.85rem;color:#888;margin-top:12px;text-align:center}
+/* Retry button */
+.retry-btn{margin-top:12px;padding:10px 28px;font-size:.95rem;background:rgba(255,255,255,.08);color:#ccc;border-radius:8px;border:1px solid rgba(255,255,255,.15);transition:all .3s ease}
+.retry-btn:hover{background:rgba(255,255,255,.15)}
+/* Room background tint */
+.room-bg{position:absolute;inset:0;pointer-events:none;opacity:.04;transition:background .5s ease}
+/* Override label */
+.override-label{font-size:.8rem;color:var(--amber);font-style:italic;margin-top:6px;text-align:center}
+</style>
+</head>
+<body>
+<!-- FEEDBACK OVERLAYS -->
+<div id="feedbackFlash" class="feedback-flash"></div>
+<div id="feedbackIcon" class="feedback-icon"></div>
+<!-- DIGIT REVEAL -->
+<div id="digitReveal" class="digit-reveal"><div style="text-align:center"><div id="digitBig" class="digit-big"></div><div id="digitSub" class="digit-sub"></div></div></div>
+<!-- DOOR OVERLAY -->
+<div id="doorOverlay"><div class="door-container"><div class="door door-left" id="doorLeft"><div class="door-handle"></div></div><div class="door door-right" id="doorRight"><div class="door-handle"></div></div><div class="door-lock" id="doorLock"></div><div class="door-label" id="doorLabel"></div></div></div>
+<!-- PASS THE LAPTOP -->
+<div id="passLaptop"><div class="pass-text">🔄 PASS THE LAPTOP</div><div class="pass-sub">Next person's turn!</div><button class="ready-btn" onclick="G.dismissPass()">Ready</button></div>
+<!-- SCANNER OVERLAY -->
+<div id="scannerOverlay"><div class="scanner-box" id="scannerBox"><div class="scanner-title" id="scannerTitle">📡 Scanner</div><div class="scanner-body" id="scannerBody"></div><button class="scanner-close" onclick="G.closeScanner()">Got it</button></div></div>
+<!-- START SCREEN -->
+<div class="screen active" id="startScreen">
+<div class="start-title">🔐 Escape Room Simulation</div>
+<div class="start-subtitle">Nutrition: Pellagra &amp; Niacin Deficiency</div>
+<button class="start-btn" onclick="G.startGame()">Enter the Escape Room</button>
+<div style="margin-top:2em;font-size:.7rem;color:#555;letter-spacing:1px">DESIGNED BY MR. JAWAD</div>
+</div>
+<!-- GAME SCREEN -->
+<div class="screen" id="gameScreen">
+<div class="room-bg" id="roomBg"></div>
+<div class="topbar">
+<div class="topbar-left">
+<div class="room-label" id="roomLabel">Tutorial</div>
+<div class="room-indicator" id="roomIndicator"></div>
+</div>
+<div class="topbar-center">
+<div class="timer-display" id="timerDisplay">00:00</div>
+</div>
+<div class="topbar-right">
+<span class="streak-icon" id="streakIcon">🔥</span>
+<div class="xp-container">
+<span class="xp-label">XP</span>
+<div class="xp-bar-outer"><div class="xp-bar-inner" id="xpBar"></div></div>
+<span class="xp-val" id="xpVal">0</span>
+</div>
+<div class="code-vault" id="codeVault"></div>
+</div>
+</div>
+<div class="mission-line" id="missionLine"></div>
+<div class="puzzle-area" id="puzzleArea"></div>
+<div class="bottombar">
+<button class="scanner-btn pulse" id="scannerBtn" onclick="G.openScanner()">📡 Scanner</button>
+<div class="progress-dots" id="progressDots"></div>
+<div style="width:80px"></div>
+</div>
+</div>
+<!-- ESCAPE REPORT -->
+<div class="screen" id="reportScreen">
+<div class="report-container" id="reportContainer"></div>
+</div>
+
+<script>
+// ===== GAME ENGINE =====
+try{
+const G = window.G = {};
+
+// ===== DATA =====
+const ROOMS = [
+{id:1,name:'Patient Zero',emoji:'🏥',color:'#e74c3c',accent:'#ff6b6b',
+mission:'Diagnose the mystery disease before it spreads.',
+code:[7,3,5],completeMsg:'Patient Zero diagnosed — quarantine cleared! 🏥🔓',
+puzzles:[
+{type:'match',digit:7,title:'Pin each clue to the right case file',
+pairs:[
+{term:'Niacin',match:'🌽❌ Stripped from orphans\' corn diet'},
+{term:'Deficiency',match:'🏚️ Why the orphanage kids got sick'},
+{term:'Nutrient',match:'🥩🥛🥚 What Goldberger added to fix them'},
+{term:'Epidemic',match:'💀 30,000 cases in South Carolina'},
+{term:'Symptom',match:'🩹 Cracking skin on the patients'}
+],
+scanner:'Scan the case board — look at the scene icons next to each card. Which clue connects to which term?',
+strongScanner:'Focus on the remaining unmatched pairs.',
+},
+{type:'sequence',digit:3,title:'Order the orphanage timeline',
+cards:[
+{label:'Corn-only diet',icon:'🌽'},
+{label:'Pellagra develops',icon:'🤒'},
+{label:'Better food added',icon:'🥩'},
+{label:'Symptoms gone',icon:'✅'}
+],
+scanner:'Scan the orphanage timeline — what did Goldberger change about the kids\' meals?',
+strongScanner:'First and last cards locked. Arrange the middle two.',
+lockPositions:[0,3]
+},
+{type:'visual',digit:5,title:'What happened after they swallowed the pills?',
+scene:'filthParty',
+options:[
+{label:'✅ Nobody got sick',correct:true},
+{label:'🤒 Everyone got pellagra',correct:false},
+{label:'😷 Only Goldberger got sick',correct:false}
+],
+scanner:'Scan the Filth Party lab — what was Goldberger trying to prove about how pellagra spreads?',
+strongScanner:'Narrows to: Nobody got sick or Everyone got pellagra.',
+strongDim:[2]
+}
+]},
+{id:2,name:'Cotton Country',emoji:'🌾',color:'#f39c12',accent:'#f1c40f',
+mission:'Crack the cotton code before the harvest fails.',
+code:[8,2,6],completeMsg:'Cotton code cracked — the farm is free! 🌾🔓',
+puzzles:[
+{type:'scanner',digit:8,title:'What happens when cotton goes up?',
+gauges:[
+{label:'🌾 Cotton Land',value:90,color:'#e74c3c'},
+{label:'💰 Money Earned',value:80,color:'#2ecc71'},
+{label:'🥬 Food Grown',value:15,color:'#e74c3c'},
+{label:'🤒 Sickness Rate',value:75,color:'#e74c3c'}
+],
+options:[
+{label:'🥬 More food, less sickness',correct:false},
+{label:'💰🤒 More money, more sickness',correct:true},
+{label:'📉 Less money, less food',correct:false}
+],
+scanner:'Scan the farm dashboard — watch what happens to the food bar when cotton goes above 80%.',
+strongScanner:'Narrows to: More food or More money & sickness.',
+strongDim:[2]
+},
+{type:'quickfire',digit:2,title:'Quick Fire — King Cotton',threshold:3,
+questions:[
+{text:'Planting more cotton grows more food',answer:false},
+{text:'Diverse diet drops the sickness meter',answer:true},
+{text:'A price crash saves high-cotton farms',answer:false},
+{text:'Local corn gives less niacin than diverse diet',answer:true},
+{text:'90% cotton locks out the diverse food option',answer:true}
+],
+scanner:'Scan the King Cotton dashboard — remember what happened to the food bar and sickness bar when you moved the cotton slider past 80%.',
+strongScanner:'Think: does cotton help families stay healthy?'
+},
+{type:'mystery',digit:6,title:'Find the missing piece',
+chain:['When 90% land grows cotton','the ??? disappears','family gets sicker'],
+mysteryIndex:1,
+options:[
+{label:'🏪 Farmer\'s Market',correct:false},
+{label:'🌽 Shipped Corn',correct:false},
+{label:'🍽️ Diverse Diet',correct:true}
+],
+scanner:'Scan the land slider — what food option disappears when cotton takes over all the land?',
+strongScanner:'Narrows to: Farmer\'s Market or Diverse Diet.',
+strongDim:[1]
+}
+]},
+{id:3,name:'The Niacin Lab',emoji:'⚙️',color:'#2ecc71',accent:'#27ae60',
+mission:'Restore the niacin levels before the system crashes.',
+code:[4,9,1],completeMsg:'Niacin levels restored — lab stabilized! ⚙️🔓',
+puzzles:[
+{type:'diagnostic',digit:4,title:'NIACIN RECOVERY SYSTEM',
+slots:[
+{label:'CORN PROCESSING',hint:'Which method unlocks the most niacin?'},
+{label:'FOOD BOOST',hint:'Which diet adds the most niacin?'}
+],
+parts:[
+{label:'Stripped Corn',icon:'⚡',info:'🔴 LOW'},
+{label:'Whole Corn',icon:'🌽',info:'🟡 MED'},
+{label:'Lime-Soaked Corn',icon:'💧',info:'🟢 HIGH',slot:0},
+{label:'Corn Bread',icon:'🍞',info:'🔴 LOW'},
+{label:'Meat & Eggs',icon:'🥩',info:'🟡 MED'},
+{label:'Full Diet',icon:'🍽️',info:'🟢 BIG',slot:1}
+],
+scanner:'Scan the niacin meter — which corn type pushed the meter highest in the simulation?',
+strongScanner:'Stripped Corn and Corn Bread dimmed out.',
+strongDim:[0,3]
+},
+{type:'sequence',digit:9,title:'Order the factory timeline',
+cards:[
+{label:'Niacin stripped',icon:'⚙️'},
+{label:'Level crashes',icon:'📉'},
+{label:'Fortification added',icon:'🏭'},
+{label:'Level recovers',icon:'📈'}
+],
+scanner:'Scan the factory timeline — what happened to the niacin meter right after the degerminator ran?',
+strongScanner:'First and last cards locked. Arrange the middle two.',
+lockPositions:[0,3]
+},
+{type:'mystery',digit:1,title:'Find the missing piece',
+chain:['Degerminator strips niacin','level drops to dangerous','??? is turned ON','level jumps back to safe'],
+mysteryIndex:2,
+options:[
+{label:'💧 Lime water',correct:false},
+{label:'🍽️ Diverse diet',correct:false},
+{label:'🏭 Fortification',correct:true}
+],
+scanner:'Scan the factory timeline — after the machine stripped the corn, what was turned ON to bring niacin back up?',
+strongScanner:'Narrows to: Lime water or Fortification.',
+strongDim:[1]
+}
+]},
+{id:4,name:'System Reboot',emoji:'💊',color:'#3498db',accent:'#2980b9',
+mission:'Reboot the body\'s niacin supply before total shutdown.',
+code:[0,7,3],completeMsg:'System rebooted — body defenses online! 💊🔓',
+puzzles:[
+{type:'match',digit:0,title:'Reconnect the system wires',
+pairs:[
+{term:'Bioavailable',match:'🔓 Lime-soaked corn: body absorbs it'},
+{term:'Processing',match:'⚙️ Machines change the corn'},
+{term:'Fortification',match:'🥣 Niacin added back to cereal'},
+{term:'Niacin',match:'💊 Keeps skin, gut, brain running'},
+{term:'Deficiency',match:'📉 Body runs low, organs fail'}
+],
+scanner:'Scan the icons on each card — the 🥣 icon goes with putting nutrients back. The ⚙️ icon goes with what machines do.',
+strongScanner:'Focus on the remaining unmatched pairs.',
+},
+{type:'scanner',digit:7,title:'What fails first when niacin drops?',
+gauges:[
+{label:'🩹 Skin (Dermatitis)',value:10,color:'#e74c3c',flash:true},
+{label:'🫁 Gut (Diarrhea)',value:15,color:'#e74c3c'},
+{label:'🧠 Brain (Dementia)',value:25,color:'#f39c12'}
+],
+warningLabel:'4th D = ☠️ DEATH',
+options:[
+{label:'🩹 Skin',correct:true},
+{label:'🧠 Brain',correct:false},
+{label:'❤️ Heart',correct:false}
+],
+scanner:'Scan the 4 Ds sequence — which body system meter drops into red first?',
+strongScanner:'Narrows to: Skin or Brain.',
+strongDim:[2]
+},
+{type:'quickfire',digit:3,title:'Quick Fire — Body Systems',threshold:3,
+questions:[
+{text:'Fortification adds niacin back to food',answer:true},
+{text:'Stripped corn has the most niacin',answer:false},
+{text:'The 4 Ds start with diarrhea',answer:false},
+{text:'Lime-soaked corn unlocks niacin',answer:true},
+{text:'A damaged gut blocks niacin absorption',answer:true}
+],
+scanner:'Scan the body system panel — watch the order the organs fail when niacin drops.',
+strongScanner:'Nudges appear for missed questions.'
+}
+]}
+];
+
+const FINAL_LOCK = {
+cards:[
+{text:'Corn-only poverty',color:'#e74c3c',emoji:'🏥'},
+{text:'Cotton blocks food',color:'#f39c12',emoji:'🌾'},
+{text:'Niacin stripped out',color:'#2ecc71',emoji:'⚙️'},
+{text:'Fortification fixes it',color:'#3498db',emoji:'💊'}
+],
+scanner:'Scan all four room icons — what\'s the big story? Poverty → cotton → stripped → fixed.',
+strongScanner:'First and last cards locked.',
+lockPositions:[0,3]
+};
+
+// ===== STATE =====
+let state = {};
+function resetState(){
+state = {
+phase:'start',currentRoom:-1,currentPuzzle:0,
+roomCodes:['???','???','???','???'],
+xp:0,streak:0,firstTries:0,totalSolved:0,
+timerStart:0,timerElapsed:0,timerPaused:false,timerInterval:null,
+puzzleWrongs:0,scannerUsed:false,roomScannerUsed:false,
+roomFirstSecond:0,
+badges:[],
+roomTimes:[0,0,0,0],roomStartTime:0,
+puzzleAttempts:Array(4).fill(null).map(()=>[0,0,0]),
+skipHoldTimer:null,shiftSTimer:null
+};
+}
+resetState();
+
+// ===== DOM REFS =====
+const $=id=>document.getElementById(id);
+const startScreen=$('startScreen'),gameScreen=$('gameScreen'),reportScreen=$('reportScreen');
+const roomLabel=$('roomLabel'),roomIndicator=$('roomIndicator'),timerDisplay=$('timerDisplay');
+const missionLine=$('missionLine'),puzzleArea=$('puzzleArea');
+const progressDots=$('progressDots'),scannerBtn=$('scannerBtn');
+const xpBar=$('xpBar'),xpVal=$('xpVal'),streakIcon=$('streakIcon');
+const codeVault=$('codeVault'),roomBg=$('roomBg');
+const feedbackFlash=$('feedbackFlash'),feedbackIcon=$('feedbackIcon');
+const digitReveal=$('digitReveal'),digitBig=$('digitBig'),digitSub=$('digitSub');
+const doorOverlay=$('doorOverlay'),doorLeft=$('doorLeft'),doorRight=$('doorRight'),doorLock=$('doorLock'),doorLabel=$('doorLabel');
+const passLaptop=$('passLaptop');
+const scannerOverlay=$('scannerOverlay'),scannerBox=$('scannerBox'),scannerTitle=$('scannerTitle'),scannerBody=$('scannerBody');
+
+// ===== UTILITY =====
+function setScreen(id){
+[startScreen,gameScreen,reportScreen].forEach(s=>s.classList.remove('active'));
+$(id).classList.add('active');
+}
+function setColor(c){
+document.documentElement.style.setProperty('--current-color',c);
+}
+function updateXP(amount,label){
+if(amount<=0)return;
+state.xp+=amount;
+xpVal.textContent=state.xp;
+const maxXP=2200;
+xpBar.style.width=Math.min(100,state.xp/maxXP*100)+'%';
+if(label){showXPPopup(label)}
+}
+function showXPPopup(text){
+try{
+const p=document.createElement('div');
+p.className='xp-popup';
+p.textContent=text;
+p.style.left='50%';p.style.top='40%';
+p.style.transform='translateX(-50%)';
+document.body.appendChild(p);
+setTimeout(()=>p.remove(),1600);
+}catch(e){}
+}
+function updateStreak(firstTry){
+if(firstTry){state.streak++;streakIcon.classList.toggle('active',state.streak>=2)}
+else{state.streak=0;streakIcon.classList.remove('active')}
+}
+function buildVault(){
+codeVault.innerHTML='';
+const colors=[ROOMS[0].color,ROOMS[1].color,ROOMS[2].color,ROOMS[3].color];
+for(let i=0;i<4;i++){
+const s=document.createElement('div');s.className='vault-slot';
+const l=document.createElement('span');l.textContent='R'+(i+1)+': ';
+const c=document.createElement('span');c.className='vault-code';
+if(state.roomCodes[i]!=='???'){
+c.textContent=state.roomCodes[i];c.classList.add('revealed');c.style.color=colors[i];c.style.textShadow='0 0 8px '+colors[i];
+}else{c.textContent='???';}
+s.appendChild(l);s.appendChild(c);codeVault.appendChild(s);
+}
+}
+function buildDots(total,solved){
+progressDots.innerHTML='';
+for(let i=0;i<total;i++){
+const d=document.createElement('div');d.className='progress-dot';
+if(i<solved)d.classList.add('solved');
+else if(i===solved)d.classList.add('active');
+progressDots.appendChild(d);
+}
+}
+function showFeedback(correct,strong){
+try{
+const cls=correct?'show-correct':(strong?'show-wrong-strong':'show-wrong');
+feedbackFlash.className='feedback-flash '+cls;
+feedbackIcon.textContent=correct?'✔':'✖';
+feedbackIcon.style.color=correct?'var(--green)':'var(--red)';
+feedbackIcon.className='feedback-icon show';
+setTimeout(()=>{feedbackFlash.className='feedback-flash';feedbackIcon.className='feedback-icon'},600);
+}catch(e){}
+}
+function spawnParticles(color){
+try{
+for(let i=0;i<10;i++){
+const p=document.createElement('div');p.className='particle';
+p.style.background=color;
+p.style.left='50%';p.style.top='50%';
+const angle=Math.random()*Math.PI*2;
+const dist=60+Math.random()*80;
+p.style.setProperty('--tx',Math.cos(angle)*dist+'px');
+p.style.setProperty('--ty',Math.sin(angle)*dist+'px');
+p.style.animation='particleBurst 0.6s ease forwards';
+document.body.appendChild(p);
+p.addEventListener('animationend',()=>p.remove());
+}
+}catch(e){}
+}
+function showDigitReveal(digit,roomColor){
+return new Promise(resolve=>{
+try{
+digitBig.textContent=digit;
+digitBig.style.color=roomColor;
+digitBig.style.textShadow='0 0 40px '+roomColor+',0 0 80px '+roomColor;
+digitSub.textContent='Digit unlocked!';
+digitReveal.classList.add('show');
+spawnParticles(roomColor);
+setTimeout(()=>{digitReveal.classList.remove('show');resolve()},1800);
+}catch(e){digitReveal.classList.remove('show');resolve()}
+});
+}
+function showDoor(label,color,callback){
+try{
+doorLock.style.borderColor=color;doorLock.style.boxShadow='0 0 15px '+color;
+doorLabel.textContent=label;doorLabel.style.textShadow='0 0 20px '+color;
+doorLeft.classList.remove('open-left');doorRight.classList.remove('open-right');
+doorOverlay.classList.add('show');
+setTimeout(()=>{doorLeft.classList.add('open-left');doorRight.classList.add('open-right')},400);
+setTimeout(()=>{doorOverlay.classList.remove('show');doorLeft.classList.remove('open-left');doorRight.classList.remove('open-right');if(callback)callback()},1800);
+}catch(e){doorOverlay.classList.remove('show');if(callback)callback()}
+}
+function showPass(callback){
+passLaptop.classList.add('show');
+G.dismissPass=()=>{passLaptop.classList.remove('show');if(callback)callback()};
+}
+
+// ===== TIMER =====
+function startTimer(){
+state.timerStart=Date.now();
+state.timerInterval=setInterval(updateTimer,500);
+document.addEventListener('visibilitychange',handleVis);
+}
+function updateTimer(){
+if(state.timerPaused)return;
+const ms=Date.now()-state.timerStart+state.timerElapsed;
+const s=Math.floor(ms/1000);
+const m=Math.floor(s/60);
+timerDisplay.textContent=String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function handleVis(){
+if(document.hidden){state.timerElapsed+=Date.now()-state.timerStart;state.timerPaused=true}
+else{state.timerStart=Date.now();state.timerPaused=false}
+}
+function getTimeString(){
+const ms=Date.now()-state.timerStart+state.timerElapsed;
+const s=Math.floor(ms/1000);const m=Math.floor(s/60);
+return String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+
+// ===== SCANNER =====
+G.openScanner=function(){
+const room=state.currentRoom;
+const pi=state.currentPuzzle;
+if(room<0)return;
+let puzzle;
+if(room>=4){/* final lock */
+const fl=FINAL_LOCK;
+const txt=state.puzzleWrongs>=2?fl.strongScanner:fl.scanner;
+scannerTitle.textContent=state.puzzleWrongs>=2?'🔍 Strong Scan':'📡 Scanner';
+scannerBox.className='scanner-box'+(state.puzzleWrongs>=2?' strong':'');
+scannerBody.textContent=txt;
+scannerOverlay.classList.add('show');
+if(!state.scannerUsed)state.scannerUsed=true;
+if(!state.roomScannerUsed)state.roomScannerUsed=true;
+return;
+}
+puzzle=ROOMS[room].puzzles[pi];
+if(!puzzle)return;
+state.scannerUsed=true;
+state.roomScannerUsed=true;
+const isStrong=state.puzzleWrongs>=2;
+scannerTitle.textContent=isStrong?'🔍 Strong Scan':'📡 Scanner';
+scannerBox.className='scanner-box'+(isStrong?' strong':'');
+scannerBody.textContent=isStrong?(puzzle.strongScanner||puzzle.scanner):puzzle.scanner;
+scannerOverlay.classList.add('show');
+// Apply strong scanner effects
+if(isStrong&&puzzle.strongDim&&state._dimCallback){state._dimCallback()}
+if(isStrong&&puzzle.lockPositions&&state._lockCallback){state._lockCallback()}
+};
+G.closeScanner=function(){scannerOverlay.classList.remove('show')};
+
+// ===== EMERGENCY SKIP =====
+function setupEmergencySkip(){
+const rl=roomLabel;
+let holdStart=0;let holdTimeout=null;let confirmed=false;
+rl.addEventListener('pointerdown',()=>{
+holdStart=Date.now();confirmed=false;
+holdTimeout=setTimeout(()=>{
+if(!confirmed){confirmed=true;rl.textContent='Hold again to reveal';
+holdTimeout=setTimeout(()=>{rl.textContent=ROOMS[state.currentRoom]?.emoji+' '+ROOMS[state.currentRoom]?.name||'';confirmed=false},2000)}
+else{skipCurrentRoom();confirmed=false}
+},5000);
+});
+rl.addEventListener('pointerup',()=>{clearTimeout(holdTimeout)});
+rl.addEventListener('pointercancel',()=>{clearTimeout(holdTimeout)});
+// Shift+S
+document.addEventListener('keydown',e=>{
+if(e.shiftKey&&e.key==='S'){
+if(!state.shiftSTimer)state.shiftSTimer=Date.now();
+else if(Date.now()-state.shiftSTimer>2000){skipCurrentRoom();state.shiftSTimer=null}
+}else{state.shiftSTimer=null}
+});
+}
+function skipCurrentRoom(){
+try{
+if(state.currentRoom<0||state.currentRoom>=4)return;
+const room=ROOMS[state.currentRoom];
+state.roomCodes[state.currentRoom]=room.code.join('-');
+buildVault();
+state.currentPuzzle=3;
+showCodeEntry(state.currentRoom);
+}catch(e){}
+}
+
+// ===== GAME START =====
+G.startGame=function(){
+resetState();setScreen('gameScreen');buildVault();startTimer();
+setColor('#3498db');
+roomLabel.textContent='Tutorial';roomIndicator.textContent='';
+missionLine.textContent='Learn the controls before entering Room 1.';
+buildDots(1,0);
+scannerBtn.classList.add('hidden');
+renderTutorial();
+setupEmergencySkip();
+};
+
+// ===== TUTORIAL =====
+function renderTutorial(){
+puzzleArea.innerHTML='';
+const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;width:100%;max-width:500px;';
+const title=document.createElement('div');title.className='puzzle-title';title.textContent='🔐 Tutorial Lock';
+const inst=document.createElement('div');inst.className='puzzle-instruction';inst.textContent='Tap a term, then tap its match.';
+wrap.appendChild(title);wrap.appendChild(inst);
+const pairs=[{term:'Sun',match:'☀️ Hot'},{term:'Ice',match:'❄️ Cold'}];
+const cont=document.createElement('div');cont.className='match-container';
+const leftCol=document.createElement('div');leftCol.className='match-col';
+const leftH=document.createElement('div');leftH.className='match-header';leftH.textContent='Terms';leftCol.appendChild(leftH);
+const rightCol=document.createElement('div');rightCol.className='match-col';
+const rightH=document.createElement('div');rightH.className='match-header';rightH.textContent='Matches';rightCol.appendChild(rightH);
+let selectedTerm=null;let matched=0;
+pairs.forEach((p,i)=>{
+const tc=document.createElement('div');tc.className='match-card';tc.textContent=p.term;tc.dataset.idx=i;
+tc.addEventListener('click',()=>{
+if(tc.classList.contains('matched'))return;
+leftCol.querySelectorAll('.match-card').forEach(c=>c.classList.remove('selected'));
+tc.classList.add('selected');selectedTerm=i;
+});
+leftCol.appendChild(tc);
+});
+const shuffled=[...pairs].sort(()=>Math.random()-.5);
+shuffled.forEach((p)=>{
+const oi=pairs.indexOf(p);
+const mc=document.createElement('div');mc.className='match-card';mc.textContent=p.match;mc.dataset.idx=oi;
+mc.addEventListener('click',()=>{
+if(mc.classList.contains('matched')||selectedTerm===null)return;
+if(selectedTerm===oi){
+mc.classList.add('matched');
+leftCol.querySelector(`.match-card[data-idx="${oi}"]`).classList.add('matched');
+selectedTerm=null;matched++;
+if(matched===pairs.length){setTimeout(()=>endTutorial(),500)}
+}else{
+mc.classList.add('wrong');setTimeout(()=>mc.classList.remove('wrong'),400);
+}
+});
+rightCol.appendChild(mc);
+});
+cont.appendChild(leftCol);cont.appendChild(rightCol);wrap.appendChild(cont);
+const skipBtn=document.createElement('button');skipBtn.className='retry-btn';skipBtn.textContent='Skip Tutorial';
+skipBtn.style.marginTop='20px';
+skipBtn.addEventListener('click',()=>endTutorial());
+wrap.appendChild(skipBtn);
+const note=document.createElement('div');note.className='tutorial-note';note.textContent='Tip: Tap a term on the left, then tap the matching card on the right.';
+wrap.appendChild(note);
+puzzleArea.appendChild(wrap);
+}
+function endTutorial(){
+scannerBtn.classList.remove('hidden');
+enterRoom(0);
+}
+
+// ===== ENTER ROOM =====
+function enterRoom(roomIdx){
+state.currentRoom=roomIdx;state.currentPuzzle=0;
+state.roomScannerUsed=false;state.roomFirstSecond=0;
+state.roomStartTime=Date.now();
+const room=ROOMS[roomIdx];
+setColor(room.color);
+roomBg.style.background='radial-gradient(ellipse at center,'+room.color+'15 0%,transparent 70%)';
+showDoor(room.emoji+' Room '+(roomIdx+1)+': '+room.name,room.color,()=>{
+roomLabel.textContent=room.emoji+' '+room.name;
+roomIndicator.textContent='Room '+(roomIdx+1)+' / 4';
+missionLine.textContent=room.mission;
+buildDots(3,0);
+renderPuzzle(roomIdx,0);
+});
+}
+
+// ===== RENDER PUZZLE =====
+function renderPuzzle(roomIdx,puzzleIdx){
+state.currentPuzzle=puzzleIdx;
+state.puzzleWrongs=0;
+state.scannerUsed=false;
+state._dimCallback=null;
+state._lockCallback=null;
+puzzleArea.innerHTML='';
+scannerBtn.className='scanner-btn pulse';
+const room=ROOMS[roomIdx];
+const puzzle=room.puzzles[puzzleIdx];
+try{
+switch(puzzle.type){
+case'match':renderMatch(puzzle,room);break;
+case'sequence':renderSequence(puzzle,room);break;
+case'visual':renderVisual(puzzle,room);break;
+case'scanner':renderSystemScanner(puzzle,room);break;
+case'quickfire':renderQuickFire(puzzle,room);break;
+case'mystery':renderMystery(puzzle,room);break;
+case'diagnostic':renderDiagnostic(puzzle,room);break;
+}
+}catch(e){
+puzzleArea.innerHTML='<div style="text-align:center;color:#ccc"><p>Something went wrong — click to retry this puzzle</p><button class="retry-btn" onclick="G.retryPuzzle()">Retry</button></div>';
+}
+}
+
+G.retryPuzzle=function(){try{renderPuzzle(state.currentRoom,state.currentPuzzle)}catch(e){}};
+
+// ===== PUZZLE SOLVED =====
+function puzzleSolved(puzzle,room){
+const pi=state.currentPuzzle;const ri=state.currentRoom;
+const attempts=state.puzzleWrongs;
+let xpAmt=0,label='';
+if(attempts===0){xpAmt=100;label='+100 CLEAN SOLVE';state.firstTries++;updateStreak(true);state.roomFirstSecond++}
+else if(attempts===1){xpAmt=50;label='+50 NICE';updateStreak(false);state.roomFirstSecond++}
+else if(attempts===2){xpAmt=25;label='+25';updateStreak(false)}
+else{label='No bonus';updateStreak(false)}
+state.totalSolved++;
+if(state.scannerUsed&&attempts>0){
+if(!state.badges.includes('comeback'))state.badges.push('comeback');
+}
+updateXP(xpAmt,label);
+showFeedback(true,false);
+showDigitReveal(puzzle.digit,room.color).then(()=>{
+buildDots(3,pi+1);
+if(pi<2){
+showPass(()=>renderPuzzle(ri,pi+1));
+}else{
+// Room complete
+const elapsed=Date.now()-state.roomStartTime;
+state.roomTimes[ri]=elapsed;
+if(state.roomFirstSecond>=3)if(!state.badges.includes('cleanRoom_'+ri)){state.badges.push('cleanRoom_'+ri)}
+if(!state.roomScannerUsed)if(!state.badges.includes('noScanner_'+ri)){state.badges.push('noScanner_'+ri)}
+if(elapsed<180000)if(!state.badges.includes('speedRun_'+ri)){state.badges.push('speedRun_'+ri)}
+// Room bonus
+if(state.roomFirstSecond>=3){updateXP(200,'+200 CLEAN ROOM')}
+state.roomCodes[ri]=room.code.join('-');
+buildVault();
+showPass(()=>showCodeEntry(ri));
+}
+});
+}
+
+// ===== CODE ENTRY =====
+function showCodeEntry(roomIdx){
+const room=ROOMS[roomIdx];
+puzzleArea.innerHTML='';
+missionLine.textContent='Enter the 3-digit exit code for '+room.name;
+const wrap=document.createElement('div');wrap.className='code-entry';
+const title=document.createElement('div');title.className='puzzle-title';title.textContent='🔒 Enter Exit Code';
+wrap.appendChild(title);
+const display=document.createElement('div');display.className='code-display';
+const slots=[];
+for(let i=0;i<3;i++){
+const s=document.createElement('div');s.className='code-digit-slot';s.textContent='';
+slots.push(s);display.appendChild(s);
+}
+wrap.appendChild(display);
+const msg=document.createElement('div');msg.className='room-complete-msg hidden';msg.id='codeMsg';
+wrap.appendChild(msg);
+let entered=[];
+const numpad=document.createElement('div');numpad.className='code-numpad';
+for(let n=1;n<=9;n++){
+const b=document.createElement('button');b.className='numpad-btn';b.textContent=n;
+b.addEventListener('click',()=>enterDigit(n));numpad.appendChild(b);
+}
+const clrB=document.createElement('button');clrB.className='numpad-btn action';clrB.textContent='CLR';
+clrB.addEventListener('click',()=>{entered=[];slots.forEach(s=>{s.textContent='';s.className='code-digit-slot'})});
+numpad.appendChild(clrB);
+const zeroB=document.createElement('button');zeroB.className='numpad-btn';zeroB.textContent='0';
+zeroB.addEventListener('click',()=>enterDigit(0));numpad.appendChild(zeroB);
+const delB=document.createElement('button');delB.className='numpad-btn action';delB.textContent='⌫';
+delB.addEventListener('click',()=>{if(entered.length>0){entered.pop();slots[entered.length].textContent='';slots[entered.length].className='code-digit-slot'}});
+numpad.appendChild(delB);
+wrap.appendChild(numpad);
+puzzleArea.appendChild(wrap);
+function enterDigit(n){
+if(entered.length>=3)return;
+entered.push(n);
+const idx=entered.length-1;
+slots[idx].textContent=n;slots[idx].classList.add('filled');
+if(entered.length===3){
+const correct=entered.every((d,i)=>d===room.code[i]);
+if(correct){
+slots.forEach(s=>s.classList.add('correct'));
+showFeedback(true);
+const cm=document.getElementById('codeMsg');
+cm.textContent=room.completeMsg;cm.classList.remove('hidden');
+numpad.style.pointerEvents='none';
+setTimeout(()=>{
+if(roomIdx<3)enterRoom(roomIdx+1);
+else enterFinalLock();
+},1500);
+}else{
+slots.forEach(s=>s.classList.add('wrong'));
+showFeedback(false,true);
+setTimeout(()=>{entered=[];slots.forEach(s=>{s.textContent='';s.className='code-digit-slot'})},700);
+}
+}
+}
+}
+
+// ===== FINAL LOCK =====
+function enterFinalLock(){
+state.currentRoom=4;
+setColor('#8e44ad');
+showDoor('🔐 FINAL LOCK','#8e44ad',()=>{
+roomLabel.textContent='🔐 FINAL LOCK';
+roomIndicator.textContent='';
+missionLine.textContent='THIS IS IT! — Arrange the master sequence.';
+buildDots(0,0);
+state.puzzleWrongs=0;state.scannerUsed=false;
+state._dimCallback=null;state._lockCallback=null;
+renderFinalLock();
+});
+}
+function renderFinalLock(){
+puzzleArea.innerHTML='';
+const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;width:100%;max-width:550px;gap:16px;';
+const title=document.createElement('div');title.className='puzzle-title';
+title.style.color='#8e44ad';title.textContent='🔐 Master Sequence';
+wrap.appendChild(title);
+const inst=document.createElement('div');inst.className='puzzle-instruction';inst.textContent='Place the 4 steps in order: What caused pellagra and what fixed it?';
+wrap.appendChild(inst);
+const slotsDiv=document.createElement('div');slotsDiv.className='final-slots';
+const bankDiv=document.createElement('div');bankDiv.className='final-bank';
+const slotData=[null,null,null,null];
+const placed=new Set();
+const lockedSlots=new Set();
+const cards=[...FINAL_LOCK.cards];
+const shuffled=cards.map((c,i)=>({...c,origIdx:i})).sort(()=>Math.random()-.5);
+function buildUI(){
+slotsDiv.innerHTML='';bankDiv.innerHTML='';
+for(let i=0;i<4;i++){
+const slot=document.createElement('div');slot.className='final-slot';
+slot.style.borderColor=FINAL_LOCK.cards[i].color+'60';
+const num=document.createElement('div');num.className='slot-num';num.textContent=(i+1);num.style.color=FINAL_LOCK.cards[i].color;
+const emoji=document.createElement('div');emoji.className='slot-emoji';emoji.textContent=FINAL_LOCK.cards[i].emoji;
+slot.appendChild(num);slot.appendChild(emoji);
+if(slotData[i]!==null){
+slot.classList.add('filled');slot.style.borderColor=FINAL_LOCK.cards[slotData[i]].color;
+const txt=document.createElement('div');txt.className='slot-text';txt.textContent=FINAL_LOCK.cards[slotData[i]].text;
+txt.style.color=FINAL_LOCK.cards[slotData[i]].color;
+slot.appendChild(txt);
+if(!lockedSlots.has(i)){
+slot.addEventListener('click',()=>{
+placed.delete(slotData[i]);slotData[i]=null;buildUI();
+});
+}else{
+slot.style.opacity='.85';slot.style.cursor='default';
+}
+}else{
+slot.addEventListener('click',()=>{
+if(window._selectedFinalCard!==undefined&&!placed.has(window._selectedFinalCard)){
+slotData[i]=window._selectedFinalCard;placed.add(window._selectedFinalCard);
+window._selectedFinalCard=undefined;buildUI();
+}
+});
+}
+slotsDiv.appendChild(slot);
+}
+shuffled.forEach(c=>{
+const card=document.createElement('div');card.className='final-card';
+card.style.borderColor=c.color;card.style.color=c.color;
+card.textContent=c.emoji+' '+c.text;
+if(placed.has(c.origIdx)){card.classList.add('used')}
+card.addEventListener('click',()=>{
+bankDiv.querySelectorAll('.final-card').forEach(fc=>fc.style.boxShadow='');
+card.style.boxShadow='0 0 15px '+c.color;
+window._selectedFinalCard=c.origIdx;
+});
+bankDiv.appendChild(card);
+});
+}
+buildUI();
+wrap.appendChild(slotsDiv);wrap.appendChild(bankDiv);
+const checkBtn=document.createElement('button');checkBtn.className='check-btn';
+checkBtn.style.background='#8e44ad';checkBtn.style.boxShadow='0 0 15px #8e44ad';
+checkBtn.textContent='Check Sequence';
+checkBtn.addEventListener('click',()=>{
+if(slotData.includes(null))return;
+const correct=slotData.every((v,i)=>v===i);
+if(correct){
+showFeedback(true);
+updateXP(500,'+500 ESCAPED!');
+setTimeout(()=>showEscapeAnimation(),600);
+}else{
+state.puzzleWrongs++;
+showFeedback(false,state.puzzleWrongs>=2);
+if(state.puzzleWrongs>=3){
+// Auto reveal
+setTimeout(()=>{
+for(let i=0;i<4;i++){slotData[i]=i;placed.add(i)}
+buildUI();
+const ol=document.createElement('div');ol.className='override-label';ol.textContent='Final override engaged — escape sequence activated.';
+wrap.appendChild(ol);
+setTimeout(()=>{showFeedback(true);updateXP(500,'+500 ESCAPED!');setTimeout(()=>showEscapeAnimation(),600)},1000);
+},500);
+}else if(state.puzzleWrongs>=2){
+// Lock positions 0 and 3
+slotData[0]=0;placed.add(0);slotData[3]=3;placed.add(3);
+lockedSlots.add(0);lockedSlots.add(3);
+buildUI();
+}
+}
+});
+wrap.appendChild(checkBtn);
+// Strong scanner callback
+state._lockCallback=()=>{
+if(slotData[0]===null){slotData[0]=0;placed.add(0)}
+if(slotData[3]===null){slotData[3]=3;placed.add(3)}
+lockedSlots.add(0);lockedSlots.add(3);
+buildUI();
+};
+puzzleArea.appendChild(wrap);
+}
+
+// ===== ESCAPE ANIMATION =====
+function showEscapeAnimation(){
+try{
+// Confetti
+for(let i=0;i<50;i++){
+const c=document.createElement('div');c.className='confetti';
+c.style.left=Math.random()*100+'vw';
+c.style.top='-10px';
+c.style.width=(6+Math.random()*8)+'px';
+c.style.height=(6+Math.random()*8)+'px';
+c.style.background=['#e74c3c','#f39c12','#2ecc71','#3498db','#8e44ad','#f1c40f'][Math.floor(Math.random()*6)];
+c.style.borderRadius=Math.random()>.5?'50%':'2px';
+c.style.animation='confettiFall '+(2+Math.random()*2)+'s linear forwards';
+c.style.animationDelay=Math.random()*1.5+'s';
+document.body.appendChild(c);
+c.addEventListener('animationend',()=>c.remove());
+}
+}catch(e){}
+setTimeout(()=>showReport(),3000);
+}
+
+// ===== REPORT =====
+function showReport(){
+clearInterval(state.timerInterval);
+document.removeEventListener('visibilitychange',handleVis);
+setScreen('reportScreen');
+const rc=document.getElementById('reportContainer');rc.innerHTML='';
+const timeStr=getTimeString();
+const starCount=state.firstTries>=6?3:state.firstTries>=3?2:1;
+const stars='⭐'.repeat(starCount)+'☆'.repeat(3-starCount);
+rc.innerHTML=`
+<div class="report-header">ESCAPED!</div>
+<div class="report-stars">${stars}</div>
+<div class="report-row"><span class="rl">Total Time</span><span class="rv">${timeStr}</span></div>
+<div class="report-row"><span class="rl">Rooms Cleared</span><span class="rv">4 / 4</span></div>
+<div class="report-row"><span class="rl">Puzzles Solved First Try</span><span class="rv">${state.firstTries} / 12</span></div>
+<div class="report-row"><span class="rl">Crew Score</span><span class="rv">${state.xp} XP</span></div>
+<div class="report-row"><span class="rl">Star Rating</span><span class="rv">${stars}</span></div>
+<div style="width:100%;margin-top:8px">
+<div style="font-size:.9rem;color:#888;margin-bottom:6px">Badges Earned:</div>
+<div class="report-badges" id="badgesList"></div>
+</div>
+<div class="report-btns">
+<button class="report-btn secondary" onclick="copyReport()">📋 Copy Report</button>
+<button class="report-btn primary" onclick="G.startGame()">🔄 Play Again</button>
+</div>`;
+// Badges
+const bl=document.getElementById('badgesList');
+const cleanRooms=state.badges.filter(b=>b.startsWith('cleanRoom_')).length;
+const noScanRooms=state.badges.filter(b=>b.startsWith('noScanner_')).length;
+const speedRooms=state.badges.filter(b=>b.startsWith('speedRun_')).length;
+if(cleanRooms>0)bl.innerHTML+=`<div class="badge">🧹 Clean Room ×${cleanRooms}</div>`;
+if(state.badges.includes('comeback'))bl.innerHTML+=`<div class="badge">🔄 Comeback</div>`;
+if(noScanRooms>0)bl.innerHTML+=`<div class="badge">🚫 No Scanner ×${noScanRooms}</div>`;
+if(speedRooms>0)bl.innerHTML+=`<div class="badge">⚡ Speed Run ×${speedRooms}</div>`;
+if(bl.innerHTML==='')bl.innerHTML='<div class="badge" style="opacity:.5">None yet — try again!</div>';
+}
+window.copyReport=function(){
+try{
+const timeStr=getTimeString();
+const starCount=state.firstTries>=6?3:state.firstTries>=3?2:1;
+const text=`Escape Room Report — Pellagra & Niacin\nTime\t${timeStr}\nRooms\t4/4\nFirst Try\t${state.firstTries}/12\nXP\t${state.xp}\nStars\t${starCount}/3`;
+navigator.clipboard.writeText(text).then(()=>{
+const btn=document.querySelector('.report-btn.secondary');if(btn){btn.textContent='✔ Copied!';setTimeout(()=>{btn.textContent='📋 Copy Report'},2000)}
+});
+}catch(e){}
+};
+
+// ===== MATCH LOCK RENDERER =====
+function renderMatch(puzzle,room){
+const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;width:100%;';
+const title=document.createElement('div');title.className='puzzle-title';title.textContent=puzzle.title;
+wrap.appendChild(title);
+const inst=document.createElement('div');inst.className='puzzle-instruction';inst.textContent='Tap a term, then tap its match.';
+wrap.appendChild(inst);
+const cont=document.createElement('div');cont.className='match-container';
+const leftCol=document.createElement('div');leftCol.className='match-col';
+const leftH=document.createElement('div');leftH.className='match-header';leftH.textContent='Terms';leftCol.appendChild(leftH);
+const rightCol=document.createElement('div');rightCol.className='match-col';
+const rightH=document.createElement('div');rightH.className='match-header';rightH.textContent='Match To';rightCol.appendChild(rightH);
+let selectedTerm=null;let matched=0;
+const pairs=puzzle.pairs;
+pairs.forEach((p,i)=>{
+const tc=document.createElement('div');tc.className='match-card';tc.textContent=p.term;tc.dataset.idx=i;
+tc.addEventListener('click',()=>{
+if(tc.classList.contains('matched'))return;
+leftCol.querySelectorAll('.match-card').forEach(c=>c.classList.remove('selected'));
+tc.classList.add('selected');selectedTerm=i;
+});
+leftCol.appendChild(tc);
+});
+const shuffledR=[...pairs.map((p,i)=>i)].sort(()=>Math.random()-.5);
+shuffledR.forEach(oi=>{
+const mc=document.createElement('div');mc.className='match-card';mc.textContent=pairs[oi].match;mc.dataset.idx=oi;
+mc.addEventListener('click',()=>{
+if(mc.classList.contains('matched')||selectedTerm===null)return;
+if(selectedTerm===oi){
+mc.classList.add('matched');
+leftCol.querySelector(`.match-card[data-idx="${oi}"]`).classList.add('matched');
+showFeedback(true);spawnParticles(room.color);
+selectedTerm=null;matched++;
+if(matched===pairs.length){setTimeout(()=>puzzleSolved(puzzle,room),500)}
+}else{
+state.puzzleWrongs++;
+mc.classList.add('wrong');setTimeout(()=>mc.classList.remove('wrong'),400);
+showFeedback(false,state.puzzleWrongs>=2);
+checkAutoReveal(puzzle,room,()=>{
+// Auto-reveal all remaining
+pairs.forEach((p,i)=>{
+const lc=leftCol.querySelector(`.match-card[data-idx="${i}"]`);
+const rc=rightCol.querySelector(`.match-card[data-idx="${i}"]`);
+if(lc&&!lc.classList.contains('matched'))lc.classList.add('matched');
+if(rc&&!rc.classList.contains('matched'))rc.classList.add('matched');
+});
+matched=pairs.length;
+const ol=document.createElement('div');ol.className='override-label';ol.textContent='Lock override triggered — scanner locked on.';
+wrap.appendChild(ol);
+setTimeout(()=>puzzleSolved(puzzle,room),1200);
+});
+}
+});
+rightCol.appendChild(mc);
+});
+// Strong scanner dim callback
+state._dimCallback=()=>{
+// Dim matched ones (already done), narrow to 2 remaining
+};
+cont.appendChild(leftCol);cont.appendChild(rightCol);wrap.appendChild(cont);
+puzzleArea.appendChild(wrap);
+}
+
+// ===== SEQUENCE LOCK RENDERER =====
+function renderSequence(puzzle,room){
+const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;width:100%;';
+const title=document.createElement('div');title.className='puzzle-title';title.textContent=puzzle.title;
+wrap.appendChild(title);
+const inst=document.createElement('div');inst.className='puzzle-instruction';inst.textContent='Tap cards to swap their positions. Then press Check Order.';
+wrap.appendChild(inst);
+const cont=document.createElement('div');cont.className='sequence-container';
+const cards=[...puzzle.cards.map((c,i)=>({...c,origIdx:i}))];
+// Shuffle
+for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]]}
+const lockedPositions=new Set();
+let selectedIdx=null;
+function buildSeq(){
+cont.innerHTML='';
+cards.forEach((c,i)=>{
+const slot=document.createElement('div');slot.className='seq-slot';
+const num=document.createElement('div');num.className='seq-num';num.textContent=(i+1);
+const card=document.createElement('div');card.className='seq-card';
+if(lockedPositions.has(i)){card.classList.add('locked');card.style.borderColor=room.color;card.style.boxShadow='0 0 10px '+room.color+'60'}
+card.textContent=c.icon+' '+c.label;
+if(!lockedPositions.has(i)){
+card.addEventListener('click',()=>{
+if(selectedIdx===null){selectedIdx=i;card.classList.add('selected')}
+else if(selectedIdx===i){selectedIdx=null;card.classList.remove('selected')}
+else{[cards[selectedIdx],cards[i]]=[cards[i],cards[selectedIdx]];selectedIdx=null;buildSeq()}
+});
+}
+slot.appendChild(num);slot.appendChild(card);cont.appendChild(slot);
+});
+}
+buildSeq();
+wrap.appendChild(cont);
+const checkBtn=document.createElement('button');checkBtn.className='check-btn';checkBtn.textContent='Check Order';
+checkBtn.addEventListener('click',()=>{
+const correct=cards.every((c,i)=>c.origIdx===i);
+if(correct){
+showFeedback(true);
+cards.forEach((c,i)=>{cont.children[i].querySelector('.seq-card').classList.add('locked')});
+setTimeout(()=>puzzleSolved(puzzle,room),500);
+}else{
+state.puzzleWrongs++;
+showFeedback(false,state.puzzleWrongs>=2);
+// Highlight wrong ones
+cards.forEach((c,i)=>{
+if(c.origIdx!==i)cont.children[i].querySelector('.seq-card').classList.add('wrong');
+});
+setTimeout(()=>{cont.querySelectorAll('.seq-card.wrong').forEach(c=>c.classList.remove('wrong'))},600);
+checkAutoReveal(puzzle,room,()=>{
+for(let i=0;i<cards.length;i++){
+const ci=cards.findIndex(c=>c.origIdx===i);
+if(ci!==i){[cards[i],cards[ci]]=[cards[ci],cards[i]]}
+}
+buildSeq();
+cards.forEach((c,i)=>{cont.children[i].querySelector('.seq-card').classList.add('locked')});
+const ol=document.createElement('div');ol.className='override-label';ol.textContent='Override found — sequence restored.';
+wrap.appendChild(ol);
+setTimeout(()=>puzzleSolved(puzzle,room),1200);
+});
+if(state.puzzleWrongs>=2&&puzzle.lockPositions){
+puzzle.lockPositions.forEach(p=>{
+const ci=cards.findIndex(c=>c.origIdx===p);
+if(ci!==p){[cards[ci],cards[p]]=[cards[p],cards[ci]]}
+lockedPositions.add(p);
+});
+buildSeq();
+}
+}
+});
+wrap.appendChild(checkBtn);
+// Lock callback for strong scanner
+state._lockCallback=()=>{
+if(puzzle.lockPositions){
+puzzle.lockPositions.forEach(p=>{
+const ci=cards.findIndex(c=>c.origIdx===p);
+if(ci!==p){[cards[ci],cards[p]]=[cards[p],cards[ci]]}
+lockedPositions.add(p);
+});
+buildSeq();
+}
+};
+puzzleArea.appendChild(wrap);
+}
+
+// ===== VISUAL RECALL =====
+function renderVisual(puzzle,room){
+const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;width:100%;';
+const title=document.createElement('div');title.className='puzzle-title';title.textContent=puzzle.title;
+wrap.appendChild(title);
+// Filth Party scene
+const scene=document.createElement('div');scene.className='vr-scene';
+scene.style.borderColor=room.color+'40';
+scene.innerHTML=`
+<div style="text-align:center;font-size:1.1rem;font-weight:700;color:${room.accent};margin-bottom:10px;text-shadow:0 0 10px ${room.accent}">THE FILTH PARTY</div>
+<div style="display:flex;justify-content:space-around;align-items:flex-end;min-height:100px;padding:0 10px">
+<div style="text-align:center">
+<div style="font-size:2.2rem">🧑‍⚕️</div>
+<div style="font-size:.7rem;color:#aaa;margin-top:4px">Goldberger</div>
+<div style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#8B4513,#A0522D);margin:4px auto;border:1px solid #666"></div>
+</div>
+<div style="width:40%;height:4px;background:linear-gradient(90deg,#444,#666,#444);border-radius:2px;margin-bottom:30px;position:relative">
+<div style="position:absolute;top:-16px;left:10%;font-size:.6rem;color:#888">Skin Sample</div>
+<div style="position:absolute;top:-16px;right:10%;font-size:.6rem;color:#888">Blood Sample</div>
+</div>
+<div style="display:flex;gap:16px">
+${[1,2,3].map(()=>`<div style="text-align:center"><div style="font-size:1.8rem">🧑</div><div style="font-size:.65rem;color:var(--green);margin-top:2px">✅ HEALTHY</div><div style="font-size:.6rem;color:#888">Day 30</div></div>`).join('')}
+</div>
+</div>
+<div style="position:absolute;bottom:8px;right:12px;font-size:.6rem;color:#555">Experiment Complete</div>`;
+wrap.appendChild(scene);
+const cardsDiv=document.createElement('div');cardsDiv.className='answer-cards';
+puzzle.options.forEach((opt,i)=>{
+const card=document.createElement('div');card.className='answer-card';
+card.textContent=opt.label;card.dataset.idx=i;
+card.addEventListener('click',()=>{
+if(card.classList.contains('dimmed'))return;
+if(opt.correct){
+card.classList.add('correct-reveal');
+showFeedback(true);spawnParticles(room.color);
+setTimeout(()=>puzzleSolved(puzzle,room),600);
+}else{
+state.puzzleWrongs++;
+card.classList.add('wrong-reveal');
+showFeedback(false,state.puzzleWrongs>=2);
+setTimeout(()=>{card.classList.remove('wrong-reveal')},500);
+checkAutoReveal(puzzle,room,()=>{
+const correctCard=cardsDiv.querySelector(`.answer-card:nth-child(${puzzle.options.findIndex(o=>o.correct)+1})`);
+correctCard.classList.add('correct-reveal');
+const ol=document.createElement('div');ol.className='override-label';ol.textContent='Scanner locked on — answer identified.';
+wrap.appendChild(ol);
+setTimeout(()=>puzzleSolved(puzzle,room),1200);
+});
+if(state.puzzleWrongs>=2&&puzzle.strongDim){
+puzzle.strongDim.forEach(di=>{cardsDiv.children[di].classList.add('dimmed')});
+}
+}
+});
+cardsDiv.appendChild(card);
+});
+state._dimCallback=()=>{
+if(puzzle.strongDim)puzzle.strongDim.forEach(di=>{cardsDiv.children[di].classList.add('dimmed')});
+};
+wrap.appendChild(cardsDiv);
+puzzleArea.appendChild(wrap);
+}
+
+// ===== SYSTEM SCANNER PUZZLE =====
+function renderSystemScanner(puzzle,room){
+const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;width:100%;';
+const title=document.createElement('div');title.className='puzzle-title';title.textContent=puzzle.title;
+wrap.appendChild(title);
+const gc=document.createElement('div');gc.className='gauge-container';
+puzzle.gauges.forEach(g=>{
+const gauge=document.createElement('div');gauge.className='gauge';
+const label=document.createElement('div');label.className='gauge-label';label.textContent=g.label;
+const outer=document.createElement('div');outer.className='gauge-bar-outer';
+const inner=document.createElement('div');inner.className='gauge-bar-inner';
+inner.style.height='0%';inner.style.background=`linear-gradient(0deg,${g.color},${g.color}88)`;
+if(g.flash)inner.style.animation='scanPulse 1s infinite';
+const zone=document.createElement('div');zone.className='gauge-zone';zone.style.background=g.color;
+outer.appendChild(inner);outer.appendChild(zone);
+const val=document.createElement('div');val.className='gauge-value';val.textContent=g.value+'%';
+gauge.appendChild(label);gauge.appendChild(outer);gauge.appendChild(val);
+gc.appendChild(gauge);
+setTimeout(()=>{inner.style.height=g.value+'%'},100);
+});
+wrap.appendChild(gc);
+if(puzzle.warningLabel){
+const wl=document.createElement('div');wl.style.cssText='font-size:.85rem;color:var(--red);text-align:center;margin-bottom:12px;';
+wl.textContent=puzzle.warningLabel;wrap.appendChild(wl);
+}
+const cardsDiv=document.createElement('div');cardsDiv.className='answer-cards';
+puzzle.options.forEach((opt,i)=>{
+const card=document.createElement('div');card.className='answer-card';card.textContent=opt.label;
+card.addEventListener('click',()=>{
+if(card.classList.contains('dimmed'))return;
+if(opt.correct){
+card.classList.add('correct-reveal');showFeedback(true);spawnParticles(room.color);
+setTimeout(()=>puzzleSolved(puzzle,room),600);
+}else{
+state.puzzleWrongs++;card.classList.add('wrong-reveal');
+showFeedback(false,state.puzzleWrongs>=2);
+setTimeout(()=>{card.classList.remove('wrong-reveal')},500);
+checkAutoReveal(puzzle,room,()=>{
+const ci=puzzle.options.findIndex(o=>o.correct);
+cardsDiv.children[ci].classList.add('correct-reveal');
+const ol=document.createElement('div');ol.className='override-label';ol.textContent='Scanner locked on — answer identified.';
+wrap.appendChild(ol);
+setTimeout(()=>puzzleSolved(puzzle,room),1200);
+});
+if(state.puzzleWrongs>=2&&puzzle.strongDim){
+puzzle.strongDim.forEach(di=>{cardsDiv.children[di].classList.add('dimmed')});
+}
+}
+});
+cardsDiv.appendChild(card);
+});
+state._dimCallback=()=>{
+if(puzzle.strongDim)puzzle.strongDim.forEach(di=>{cardsDiv.children[di].classList.add('dimmed')});
+};
+wrap.appendChild(cardsDiv);
+puzzleArea.appendChild(wrap);
+}
+
+// ===== QUICK FIRE =====
+function renderQuickFire(puzzle,room){
+const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;width:100%;max-width:500px;';
+const title=document.createElement('div');title.className='puzzle-title';title.textContent=puzzle.title;
+wrap.appendChild(title);
+const progress=document.createElement('div');progress.className='qf-progress';
+const question=document.createElement('div');question.className='qf-question';
+const btns=document.createElement('div');btns.className='qf-buttons';
+const trueBtn=document.createElement('button');trueBtn.className='qf-btn true-btn';trueBtn.textContent='✅ TRUE';
+const falseBtn=document.createElement('button');falseBtn.className='qf-btn false-btn';falseBtn.textContent='❌ FALSE';
+btns.appendChild(trueBtn);btns.appendChild(falseBtn);
+wrap.appendChild(progress);wrap.appendChild(question);wrap.appendChild(btns);
+puzzleArea.appendChild(wrap);
+let currentQ=0;let correctCount=0;let missedQs=[];
+let questions=[...puzzle.questions];let isRetry=false;let retryWrongs={};
+function showQuestion(){
+if(currentQ>=questions.length){
+if(correctCount>=puzzle.threshold){
+showFeedback(true);spawnParticles(room.color);
+setTimeout(()=>puzzleSolved(puzzle,room),600);
+}else{
+isRetry=true;
+const missed=missedQs.map(i=>questions[i]);
+questions=missed;missedQs=[];currentQ=0;
+retryWrongs={};
+showQuestion();
+}
+return;
+}
+progress.textContent=`Question ${currentQ+1} / ${questions.length}${isRetry?' (retry)':''}`;
+question.textContent=questions[currentQ].text;
+trueBtn.className='qf-btn true-btn';falseBtn.className='qf-btn false-btn';
+trueBtn.disabled=false;falseBtn.disabled=false;
+}
+function answer(val){
+trueBtn.disabled=true;falseBtn.disabled=true;
+const correct=questions[currentQ].answer===val;
+if(correct){
+correctCount++;
+(val?trueBtn:falseBtn).classList.add('flash-correct');
+showFeedback(true);
+}else{
+state.puzzleWrongs++;
+missedQs.push(currentQ);
+(val?trueBtn:falseBtn).classList.add('flash-wrong');
+showFeedback(false,state.puzzleWrongs>=2);
+if(isRetry){
+const key=questions[currentQ].text;
+retryWrongs[key]=(retryWrongs[key]||0)+1;
+if(retryWrongs[key]>=3){
+correctCount++;missedQs.pop();
+const ol=document.createElement('div');ol.className='override-label';ol.textContent='Override found — answer locked in.';
+wrap.appendChild(ol);
+}
+}
+}
+setTimeout(()=>{currentQ++;showQuestion()},500);
+}
+trueBtn.addEventListener('click',()=>answer(true));
+falseBtn.addEventListener('click',()=>answer(false));
+showQuestion();
+}
+
+// ===== MYSTERY INPUT =====
+function renderMystery(puzzle,room){
+const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;width:100%;';
+const title=document.createElement('div');title.className='puzzle-title';title.textContent=puzzle.title;
+wrap.appendChild(title);
+const chainDiv=document.createElement('div');chainDiv.className='chain-container';
+puzzle.chain.forEach((step,i)=>{
+if(i>0){const arr=document.createElement('span');arr.className='chain-arrow';arr.textContent='→';chainDiv.appendChild(arr)}
+const box=document.createElement('div');box.className='chain-box';
+if(i===puzzle.mysteryIndex){box.classList.add('mystery');box.textContent='???';box.id='mysteryBox'}
+else{box.textContent=step}
+chainDiv.appendChild(box);
+});
+wrap.appendChild(chainDiv);
+const cardsDiv=document.createElement('div');cardsDiv.className='answer-cards';
+puzzle.options.forEach((opt,i)=>{
+const card=document.createElement('div');card.className='answer-card';card.textContent=opt.label;
+card.addEventListener('click',()=>{
+if(card.classList.contains('dimmed'))return;
+if(opt.correct){
+card.classList.add('correct-reveal');
+document.getElementById('mysteryBox').textContent=opt.label;
+document.getElementById('mysteryBox').classList.remove('mystery');
+document.getElementById('mysteryBox').style.borderColor='var(--green)';
+document.getElementById('mysteryBox').style.boxShadow='0 0 15px var(--green)';
+showFeedback(true);spawnParticles(room.color);
+setTimeout(()=>puzzleSolved(puzzle,room),600);
+}else{
+state.puzzleWrongs++;card.classList.add('wrong-reveal');
+showFeedback(false,state.puzzleWrongs>=2);
+setTimeout(()=>card.classList.remove('wrong-reveal'),500);
+checkAutoReveal(puzzle,room,()=>{
+const ci=puzzle.options.findIndex(o=>o.correct);
+cardsDiv.children[ci].classList.add('correct-reveal');
+document.getElementById('mysteryBox').textContent=puzzle.options[ci].label;
+document.getElementById('mysteryBox').classList.remove('mystery');
+const ol=document.createElement('div');ol.className='override-label';ol.textContent='Scanner locked on — missing piece found.';
+wrap.appendChild(ol);
+setTimeout(()=>puzzleSolved(puzzle,room),1200);
+});
+if(state.puzzleWrongs>=2&&puzzle.strongDim){
+puzzle.strongDim.forEach(di=>{cardsDiv.children[di].classList.add('dimmed')});
+}
+}
+});
+cardsDiv.appendChild(card);
+});
+state._dimCallback=()=>{
+if(puzzle.strongDim)puzzle.strongDim.forEach(di=>{cardsDiv.children[di].classList.add('dimmed')});
+};
+wrap.appendChild(cardsDiv);
+puzzleArea.appendChild(wrap);
+}
+
+// ===== DIAGNOSTIC PANEL =====
+function renderDiagnostic(puzzle,room){
+const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;width:100%;';
+const title=document.createElement('div');title.className='puzzle-title';title.textContent=puzzle.title;
+wrap.appendChild(title);
+const panel=document.createElement('div');panel.className='diag-panel';
+const slotsDiv=document.createElement('div');slotsDiv.className='diag-slots';
+const slotData=[null,null];
+const usedParts=new Set();
+puzzle.slots.forEach((s,i)=>{
+const slot=document.createElement('div');slot.className='diag-slot';slot.dataset.idx=i;
+const label=document.createElement('div');label.className='diag-slot-label';label.textContent=s.label;
+const hint=document.createElement('div');hint.style.cssText='font-size:.7rem;color:#666;margin-top:2px';hint.textContent=s.hint;
+slot.appendChild(label);slot.appendChild(hint);
+slot.addEventListener('click',()=>{
+if(slotData[i]!==null){usedParts.delete(slotData[i]);slotData[i]=null;buildDiag()}
+});
+slotsDiv.appendChild(slot);
+});
+panel.appendChild(slotsDiv);
+const bankDiv=document.createElement('div');bankDiv.className='diag-bank';
+panel.appendChild(bankDiv);
+const actBtn=document.createElement('button');actBtn.className='activate-btn';actBtn.textContent='⚡ Activate';actBtn.disabled=true;
+panel.appendChild(actBtn);
+function buildDiag(){
+// Update slots
+slotsDiv.querySelectorAll('.diag-slot').forEach((slot,i)=>{
+slot.className='diag-slot';
+const existingChip=slot.querySelector('.chip-in-slot');
+if(existingChip)existingChip.remove();
+if(slotData[i]!==null){
+slot.classList.add('filled');
+const chip=document.createElement('div');chip.className='chip-in-slot';
+chip.textContent=puzzle.parts[slotData[i]].icon+' '+puzzle.parts[slotData[i]].label;
+slot.appendChild(chip);
+}
+});
+// Update bank
+bankDiv.innerHTML='';
+puzzle.parts.forEach((p,i)=>{
+const chip=document.createElement('div');chip.className='diag-chip';
+if(usedParts.has(i))chip.classList.add('used');
+if(state.puzzleWrongs>=2&&puzzle.strongDim&&puzzle.strongDim.includes(i)){chip.classList.add('dimmed');chip.style.opacity='.2';chip.style.pointerEvents='none'}
+chip.innerHTML=`<span>${p.icon}</span><span>${p.label}</span><span style="font-size:.7rem;color:#888;margin-left:4px">${p.info}</span>`;
+chip.addEventListener('click',()=>{
+if(usedParts.has(i))return;
+const emptySlot=slotData.indexOf(null);
+if(emptySlot===-1)return;
+slotData[emptySlot]=i;usedParts.add(i);buildDiag();
+});
+bankDiv.appendChild(chip);
+});
+actBtn.disabled=slotData.includes(null);
+}
+buildDiag();
+actBtn.addEventListener('click',()=>{
+const slot0Correct=puzzle.parts[slotData[0]]&&puzzle.parts[slotData[0]].slot===0;
+const slot1Correct=puzzle.parts[slotData[1]]&&puzzle.parts[slotData[1]].slot===1;
+if(slot0Correct&&slot1Correct){
+showFeedback(true);spawnParticles(room.color);
+slotsDiv.querySelectorAll('.diag-slot').forEach(s=>{s.style.borderColor='var(--green)';s.style.boxShadow='0 0 15px var(--green)'});
+setTimeout(()=>puzzleSolved(puzzle,room),600);
+}else{
+state.puzzleWrongs++;
+showFeedback(false,state.puzzleWrongs>=2);
+slotsDiv.querySelectorAll('.diag-slot').forEach(s=>{s.style.borderColor='var(--red)';s.style.boxShadow='0 0 10px var(--red)'});
+if(state.puzzleWrongs<3){
+setTimeout(()=>{
+slotData[0]=null;slotData[1]=null;usedParts.clear();
+slotsDiv.querySelectorAll('.diag-slot').forEach(s=>{s.style.borderColor='';s.style.boxShadow=''});
+buildDiag();
+},700);
+}
+checkAutoReveal(puzzle,room,()=>{
+// Find correct indices
+const c0=puzzle.parts.findIndex(p=>p.slot===0);
+const c1=puzzle.parts.findIndex(p=>p.slot===1);
+slotData[0]=c0;slotData[1]=c1;usedParts.add(c0);usedParts.add(c1);
+buildDiag();
+slotsDiv.querySelectorAll('.diag-slot').forEach(s=>{s.style.borderColor='var(--green)';s.style.boxShadow='0 0 15px var(--green)'});
+const ol=document.createElement('div');ol.className='override-label';ol.textContent='Lock override triggered — components identified.';
+wrap.appendChild(ol);
+setTimeout(()=>puzzleSolved(puzzle,room),1200);
+});
+}
+});
+state._dimCallback=()=>{
+if(puzzle.strongDim){buildDiag()}
+};
+wrap.appendChild(panel);
+puzzleArea.appendChild(wrap);
+}
+
+// ===== AUTO REVEAL CHECK =====
+function checkAutoReveal(puzzle,room,revealFn){
+if(state.puzzleWrongs>=3){setTimeout(revealFn,500)}
+}
+
+}catch(e){
+document.body.innerHTML='<div style="padding:40px;color:#fff;text-align:center;font-family:sans-serif"><h2>Something went wrong</h2><p>'+e.message+'</p><button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;font-size:1rem;cursor:pointer">Reload</button></div>';
+}
+</script>
+</body>
+</html>
