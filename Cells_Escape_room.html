@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mr. Jawad's Escape Room Simulations — Cell Structure & Function</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#1a1a2e;--bg2:#16213e;--text:#e0e0e0;--text-dim:#888;
+--r1:#00CED1;--r1a:#FFD700;--r1bg:rgba(0,206,209,.08);
+--r2:#FF4500;--r2a:#00FFFF;--r2bg:rgba(255,69,0,.08);
+--r3:#39FF14;--r3a:#9B59B6;--r3bg:rgba(57,255,20,.08);
+--correct:#2ecc71;--wrong:#e74c3c;
+--glow-spread:15px;--transition:.3s ease;
+}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text)}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;-webkit-tap-highlight-color:transparent}
+.game-container{width:100%;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden}
+
+/* TOP BAR */
+.top-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:rgba(0,0,0,.4);border-bottom:2px solid rgba(255,255,255,.1);min-height:48px;z-index:10;flex-shrink:0}
+.top-bar .room-info{font-size:clamp(14px,2vw,18px);font-weight:700;display:flex;align-items:center;gap:8px}
+.top-bar .room-progress{font-size:clamp(12px,1.5vw,14px);color:var(--text-dim)}
+.top-bar .streak-icon{font-size:20px;display:none;animation:flicker 0.6s ease-in-out infinite alternate}
+.top-bar .puzzles-cleared{margin-left:auto;font-size:clamp(13px,1.8vw,16px);font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(255,255,255,.1);white-space:nowrap}
+
+/* MISSION LINE */
+.mission-line{text-align:center;padding:6px 16px;font-size:clamp(13px,1.6vw,16px);color:var(--text-dim);font-style:italic;min-height:32px;flex-shrink:0}
+
+/* MAIN AREA */
+.main-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 16px;overflow-y:auto;position:relative}
+
+/* BOTTOM BAR */
+.bottom-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;min-height:56px;flex-shrink:0;position:relative;z-index:10}
+.scanner-btn{display:flex;align-items:center;gap:6px;padding:10px 18px;border-radius:12px;background:rgba(255,255,255,.1);color:var(--text);font-size:clamp(13px,1.6vw,15px);font-weight:600;border:2px solid rgba(255,255,255,.2);transition:var(--transition)}
+.scanner-btn:hover{background:rgba(255,255,255,.15)}
+.scanner-btn .scan-icon{font-size:18px}
+.scanner-btn.pulse{animation:scanPulse 1.5s ease-in-out infinite}
+.progress-dots{display:flex;gap:10px;position:absolute;left:50%;transform:translateX(-50%)}
+.progress-dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.3);transition:var(--transition)}
+.progress-dot.filled{border-color:currentColor;box-shadow:0 0 8px currentColor}
+
+/* CODE VAULT */
+.code-vault{position:fixed;bottom:72px;right:16px;background:rgba(0,0,0,.7);border:2px solid rgba(255,255,255,.15);border-radius:12px;padding:8px 12px;z-index:20;backdrop-filter:blur(4px)}
+.code-vault-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);text-align:center;margin-bottom:4px}
+.code-slots{display:flex;gap:6px}
+.code-slot{width:42px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-weight:700;font-size:16px;border:2px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);transition:var(--transition)}
+.code-slot.revealed{border-color:currentColor;box-shadow:0 0 10px currentColor;animation:slotReveal .5s ease}
+
+/* SCREENS */
+.screen{display:none;width:100%;height:100%;flex-direction:column}
+.screen.active{display:flex}
+
+/* START SCREEN */
+.start-screen{align-items:center;justify-content:center;text-align:center;gap:16px}
+.start-brand-line{font-size:clamp(11px,1.4vw,13px);text-transform:uppercase;letter-spacing:3px;color:var(--r1);font-weight:600;opacity:.9}
+.start-title{font-size:clamp(24px,4.5vw,40px);font-weight:800;color:#fff;text-shadow:0 0 30px rgba(0,206,209,.3);line-height:1.2}
+.start-divider{width:60px;height:2px;background:linear-gradient(90deg,transparent,var(--r1),transparent);margin:4px auto}
+.start-subtitle{font-size:clamp(14px,2vw,20px);color:var(--text-dim)}
+.start-btn{padding:16px 40px;font-size:clamp(16px,2.5vw,22px);font-weight:700;border-radius:16px;background:linear-gradient(135deg,var(--r1),#1a8a8c);color:#fff;box-shadow:0 0 20px rgba(0,206,209,.4);transition:var(--transition)}
+.start-btn:hover{transform:scale(1.05);box-shadow:0 0 30px rgba(0,206,209,.6)}
+.start-footer{font-size:10px;color:var(--text-dim);margin-top:8px;opacity:.5;letter-spacing:1px}
+
+/* PUZZLE AREA */
+.puzzle-area{width:100%;max-width:700px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:12px}
+.puzzle-instruction{font-size:clamp(13px,1.6vw,16px);color:var(--text-dim);text-align:center;min-height:24px}
+.puzzle-micro-progress{font-size:clamp(12px,1.4vw,14px);color:var(--text-dim);text-align:center}
+
+/* MATCH LOCK */
+.match-container{display:flex;gap:20px;width:100%;justify-content:center;align-items:center;flex-wrap:wrap}
+.match-side{display:flex;flex-direction:column;gap:10px;min-width:140px;flex:1;max-width:280px}
+.match-card{padding:14px 18px;border-radius:12px;font-size:clamp(14px,1.8vw,17px);text-align:center;cursor:pointer;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);transition:all .3s ease;min-height:48px;display:flex;align-items:center;justify-content:center;user-select:none;position:relative}
+.match-card:hover:not(.disabled):not(.matched){background:rgba(255,255,255,.1)}
+.match-card.selected{transform:scale(1.05);border-width:3px;box-shadow:0 0 var(--glow-spread) currentColor;background:rgba(255,255,255,.12)}
+.match-card.selected::after{content:'▶ SELECTED';position:absolute;top:-10px;right:-5px;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;color:#000;background:currentColor}
+.match-card.matched{opacity:.5;pointer-events:none;border-style:dashed}
+.match-card.correct-flash{border-color:var(--correct)!important;box-shadow:0 0 20px rgba(46,204,113,.5)!important;background:rgba(46,204,113,.15)!important}
+.match-card.wrong-flash{border-color:var(--wrong)!important;box-shadow:0 0 20px rgba(231,76,60,.5)!important;background:rgba(231,76,60,.15)!important}
+.match-card.disabled{opacity:.4;pointer-events:none}
+.match-arrow{font-size:28px;color:var(--text-dim);align-self:center;flex-shrink:0}
+.matched-area{display:flex;flex-direction:column;gap:6px;width:100%;max-width:400px;margin:0 auto}
+.matched-pair{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;font-size:clamp(12px,1.4vw,14px);opacity:.7}
+.matched-pair .mp-check{color:var(--correct);font-size:16px}
+
+/* SEQUENCE LOCK */
+.seq-prompt{font-size:clamp(15px,2vw,20px);font-weight:700;text-align:center;margin-bottom:8px}
+.seq-cards{display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px}
+.seq-card{padding:14px 18px;border-radius:12px;font-size:clamp(14px,1.8vw,17px);text-align:center;cursor:pointer;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);transition:all .3s ease;min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;user-select:none}
+.seq-card:hover:not(.locked):not(.disabled){background:rgba(255,255,255,.1)}
+.seq-card.locked{border-color:var(--correct);background:rgba(46,204,113,.12);pointer-events:none}
+.seq-card.wrong-flash{border-color:var(--wrong);box-shadow:0 0 15px rgba(231,76,60,.4);background:rgba(231,76,60,.12)}
+.seq-card.disabled{opacity:.35;pointer-events:none}
+.seq-placed{display:flex;flex-direction:column;gap:8px;width:100%;max-width:400px;margin-bottom:10px}
+.seq-slot{padding:12px;border-radius:10px;font-size:clamp(13px,1.6vw,16px);border:2px dashed rgba(255,255,255,.15);min-height:44px;display:flex;align-items:center;gap:8px;transition:var(--transition)}
+.seq-slot.filled{border-style:solid;border-color:var(--correct);background:rgba(46,204,113,.1)}
+.seq-slot .slot-num{font-weight:700;opacity:.6;font-size:14px;width:24px}
+
+/* SYSTEM SCANNER */
+.gauges-panel{display:flex;gap:16px;width:100%;max-width:500px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
+.gauge{flex:1;min-width:120px;max-width:160px;padding:12px;border-radius:12px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.3);text-align:center}
+.gauge-label{font-size:clamp(11px,1.3vw,13px);color:var(--text-dim);margin-bottom:6px}
+.gauge-bar{height:14px;border-radius:7px;background:rgba(255,255,255,.1);overflow:hidden;margin-bottom:4px}
+.gauge-fill{height:100%;border-radius:7px;transition:width .8s ease}
+.gauge-reading{font-size:clamp(13px,1.6vw,16px);font-weight:700}
+.scanner-question{font-size:clamp(16px,2.2vw,22px);font-weight:700;text-align:center;margin:8px 0}
+.answer-cards{display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px}
+.answer-card{padding:14px 18px;border-radius:12px;font-size:clamp(14px,1.8vw,17px);text-align:center;cursor:pointer;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);transition:all .3s ease;min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;user-select:none}
+.answer-card:hover:not(.disabled){background:rgba(255,255,255,.1)}
+.answer-card.correct-flash{border-color:var(--correct);box-shadow:0 0 20px rgba(46,204,113,.5);background:rgba(46,204,113,.15)}
+.answer-card.wrong-flash{border-color:var(--wrong);box-shadow:0 0 20px rgba(231,76,60,.5);background:rgba(231,76,60,.15)}
+.answer-card.disabled{opacity:.35;pointer-events:none}
+.answer-card.highlight{border-color:var(--correct);box-shadow:0 0 20px rgba(46,204,113,.4);animation:highlightPulse 1s ease-in-out infinite alternate}
+
+/* DIAGNOSTIC PANEL */
+.diag-env{font-size:clamp(14px,1.8vw,18px);font-weight:700;text-align:center;margin-bottom:8px;padding:10px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.3)}
+.diag-slots{display:flex;gap:16px;width:100%;max-width:500px;justify-content:center;margin-bottom:12px;flex-wrap:wrap}
+.diag-slot{flex:1;min-width:160px;padding:14px;border-radius:12px;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);text-align:center;transition:var(--transition)}
+.diag-slot .slot-label{font-size:clamp(11px,1.3vw,13px);color:var(--text-dim);margin-bottom:4px}
+.diag-slot .slot-value{font-size:clamp(15px,1.8vw,18px);font-weight:700;min-height:28px}
+.diag-slot.active{border-color:currentColor;box-shadow:0 0 10px currentColor}
+.diag-slot.locked{border-color:var(--correct);background:rgba(46,204,113,.1)}
+.diag-slot.dimmed{opacity:.4}
+.parts-bank{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:500px}
+.part-chip{padding:10px 16px;border-radius:10px;font-size:clamp(13px,1.6vw,15px);cursor:pointer;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);transition:all .3s ease;user-select:none;display:flex;align-items:center;gap:6px}
+.part-chip:hover:not(.disabled):not(.used){background:rgba(255,255,255,.1)}
+.part-chip.selected{transform:scale(1.05);border-width:3px;box-shadow:0 0 10px currentColor}
+.part-chip.used{opacity:.3;pointer-events:none}
+.part-chip.wrong-flash{border-color:var(--wrong);box-shadow:0 0 15px rgba(231,76,60,.4)}
+.diag-check-btn{padding:12px 28px;border-radius:10px;font-size:clamp(14px,1.8vw,17px);font-weight:700;background:rgba(255,255,255,.1);color:var(--text);border:2px solid rgba(255,255,255,.3);transition:var(--transition);margin-top:8px}
+.diag-check-btn:hover{background:rgba(255,255,255,.15)}
+
+/* MYSTERY INPUT */
+.chain-container{display:flex;align-items:center;gap:8px;width:100%;max-width:600px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+.chain-box{padding:12px 16px;border-radius:10px;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.3);font-size:clamp(12px,1.5vw,15px);text-align:center;flex:1;min-width:100px;max-width:180px}
+.chain-box.mystery{border-style:dashed;font-size:clamp(18px,2.5vw,24px);font-weight:700;color:var(--text-dim)}
+.chain-box.filled{border-style:solid;border-color:var(--correct);background:rgba(46,204,113,.1)}
+.chain-arrow{font-size:20px;color:var(--text-dim);flex-shrink:0}
+
+/* VISUAL RECALL */
+.visual-scene{width:100%;max-width:500px;height:clamp(180px,30vh,260px);border-radius:14px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.3);position:relative;overflow:hidden;margin-bottom:12px}
+.vr-pot{position:absolute;bottom:10%;left:50%;transform:translateX(-50%);width:60px;height:40px;background:linear-gradient(#8B4513,#A0522D);border-radius:0 0 8px 8px;border:2px solid #6B3410}
+.vr-pot-rim{position:absolute;bottom:calc(10% + 38px);left:50%;transform:translateX(-50%);width:72px;height:10px;background:#8B4513;border-radius:4px;border:2px solid #6B3410}
+.vr-stem{position:absolute;bottom:calc(10% + 48px);left:50%;width:4px;height:100px;background:#2d5a1e;transform-origin:bottom center;transform:translateX(-50%) rotate(15deg)}
+.vr-leaf-l{position:absolute;bottom:calc(10% + 100px);left:calc(50% - 50px);width:40px;height:20px;background:linear-gradient(90deg,#1a8c1a,#2d5a1e);border-radius:50%;transform:rotate(-15deg)}
+.vr-leaf-r{position:absolute;bottom:calc(10% + 120px);left:calc(50% + 5px);width:35px;height:18px;background:#2d8a2d;border-radius:50%;transform:rotate(10deg)}
+.vr-sun{position:absolute;top:15%;right:10%;width:50px;height:50px;background:radial-gradient(#FFD700,#FFA500);border-radius:50%;box-shadow:0 0 30px rgba(255,215,0,.5)}
+.vr-sunlight-arrow{position:absolute;top:28%;right:calc(10% + 55px);font-size:11px;color:#FFD700;letter-spacing:1px}
+.vr-cells-left{position:absolute;bottom:calc(10% + 55px);left:calc(50% - 55px);display:flex;flex-direction:column;gap:3px}
+.vr-cell-long{width:12px;height:32px;background:rgba(57,255,20,.3);border:1px solid rgba(57,255,20,.5);border-radius:3px}
+.vr-cells-right{position:absolute;bottom:calc(10% + 70px);left:calc(50% + 15px);display:flex;flex-direction:column;gap:3px}
+.vr-cell-short{width:12px;height:14px;background:rgba(57,255,20,.4);border:1px solid rgba(57,255,20,.6);border-radius:3px;position:relative}
+.vr-chloro{width:4px;height:4px;background:#0a5c0a;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.vr-label{position:absolute;font-size:10px;color:var(--text-dim);background:rgba(0,0,0,.5);padding:2px 5px;border-radius:3px;pointer-events:none}
+.vr-shadow{position:absolute;bottom:0;left:0;width:45%;height:100%;background:linear-gradient(90deg,rgba(155,89,182,.15),transparent);pointer-events:none}
+
+/* QUICK FIRE (unused but guard exists) */
+
+/* CODE ENTRY */
+.code-entry-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.code-entry-overlay.active{display:flex}
+.code-input-row{display:flex;gap:12px}
+.code-digit-input{width:60px;height:72px;text-align:center;font-size:32px;font-weight:700;border-radius:12px;border:3px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:var(--text);outline:none;transition:var(--transition)}
+.code-digit-input:focus{border-color:currentColor;box-shadow:0 0 15px currentColor}
+.code-submit-btn{padding:14px 36px;border-radius:12px;font-size:18px;font-weight:700;background:rgba(255,255,255,.1);color:var(--text);border:2px solid rgba(255,255,255,.3);transition:var(--transition)}
+.code-submit-btn:hover{background:rgba(255,255,255,.15)}
+.code-entry-label{font-size:clamp(16px,2.5vw,22px);font-weight:700}
+.code-feedback{font-size:14px;min-height:24px;text-align:center}
+
+/* SCANNER OVERLAY */
+.scanner-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:90;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:20px}
+.scanner-overlay.active{display:flex}
+.scanner-text{font-size:clamp(14px,1.8vw,18px);text-align:center;max-width:500px;line-height:1.5;padding:16px;border-radius:12px;border:2px solid rgba(255,255,255,.15);background:rgba(0,0,0,.4)}
+.scanner-dismiss{padding:10px 24px;border-radius:8px;font-size:14px;background:rgba(255,255,255,.08);color:var(--text-dim);border:1px solid rgba(255,255,255,.15)}
+
+/* DIGIT REVEAL */
+.digit-reveal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:95;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.digit-reveal-overlay.active{display:flex}
+.digit-reveal-num{font-size:clamp(60px,15vw,120px);font-weight:800;animation:digitPop .6s ease-out}
+.digit-reveal-label{font-size:clamp(14px,2vw,18px);color:var(--text-dim)}
+
+/* DOOR TRANSITION */
+.door-overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.door-panel{width:300px;height:400px;border-radius:16px;border:4px solid;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:rgba(0,0,0,.9);animation:doorAnim 1.2s ease-in-out forwards}
+.door-panel .door-icon{font-size:48px}
+.door-panel .door-label{font-size:clamp(18px,3vw,28px);font-weight:800;text-transform:uppercase}
+.door-panel .door-lock{font-size:28px;animation:lockPulse .4s ease .1s}
+.door-final .door-panel{animation:doorAnim 1.8s ease-in-out forwards}
+
+/* PASS THE LAPTOP */
+.pass-overlay{display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.92);align-items:center;justify-content:center;flex-direction:column;gap:20px}
+.pass-overlay.active{display:flex}
+.pass-text{font-size:clamp(28px,6vw,52px);font-weight:900;text-transform:uppercase;letter-spacing:4px;animation:passTextPulse 1s ease-in-out infinite alternate}
+.pass-ready-btn{padding:16px 40px;font-size:clamp(16px,2.5vw,22px);font-weight:700;border-radius:14px;color:#fff;border:3px solid rgba(255,255,255,.3);transition:var(--transition)}
+.pass-ready-btn:hover{transform:scale(1.05)}
+
+/* SCAN THE ROOM */
+.scan-room-overlay{display:none;position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.9);align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px}
+.scan-room-overlay.active{display:flex}
+.scan-room-frame{width:90%;max-width:500px;padding:20px;border-radius:16px;border:3px solid;text-align:center;font-size:clamp(14px,1.8vw,18px);line-height:1.6;background:rgba(0,0,0,.5)}
+.scan-room-title{font-size:clamp(14px,2vw,18px);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:2px}
+.scan-room-visual{margin:12px auto;max-width:300px}
+.rescan-btn{display:none;position:fixed;top:56px;right:16px;z-index:25;padding:8px 14px;border-radius:8px;font-size:12px;background:rgba(0,0,0,.6);color:var(--text-dim);border:1px solid rgba(255,255,255,.15);cursor:pointer}
+.rescan-btn.visible{display:block}
+
+/* ESCAPE REPORT */
+.report-screen{display:none;position:fixed;inset:0;z-index:250;background:var(--bg);overflow-y:auto;padding:20px;flex-direction:column;align-items:center}
+.report-screen.active{display:flex}
+.report-header{font-size:clamp(28px,5vw,48px);font-weight:900;background:linear-gradient(135deg,var(--r1),var(--r1a));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;animation:reportGlow 2s ease-in-out infinite alternate}
+.report-card{width:100%;max-width:500px;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.15);border-radius:16px;padding:20px;margin-bottom:16px}
+.report-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:clamp(14px,1.8vw,17px)}
+.report-row:last-child{border-bottom:none}
+.report-row .label{color:var(--text-dim)}
+.report-row .value{font-weight:700}
+.report-stars{font-size:clamp(28px,5vw,44px);text-align:center;margin:12px 0}
+.report-star{opacity:.2;transition:opacity .5s ease}
+.report-star.earned{opacity:1}
+.report-badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0}
+.report-badge{padding:8px 14px;border-radius:8px;font-size:clamp(12px,1.4vw,14px);background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.3);color:var(--r1a)}
+.report-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.report-btn{padding:12px 28px;border-radius:12px;font-size:16px;font-weight:600;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:var(--text);transition:var(--transition)}
+.report-btn:hover{background:rgba(255,255,255,.12)}
+.report-brand{font-size:11px;color:var(--text-dim);margin-top:16px;opacity:.5}
+
+/* FINAL LOCK */
+.final-lock-area{width:100%;max-width:600px}
+.fl-pairs{display:flex;gap:20px;width:100%;justify-content:center;flex-wrap:wrap}
+.fl-side{display:flex;flex-direction:column;gap:10px;flex:1;min-width:160px;max-width:250px}
+.fl-card{padding:12px 16px;border-radius:10px;font-size:clamp(13px,1.6vw,16px);cursor:pointer;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);transition:all .3s ease;min-height:48px;display:flex;align-items:center;justify-content:center;gap:6px;text-align:center;user-select:none}
+.fl-card:hover:not(.matched):not(.disabled){background:rgba(255,255,255,.1)}
+.fl-card.selected{transform:scale(1.05);border-width:3px;box-shadow:0 0 var(--glow-spread) currentColor}
+.fl-card.matched{pointer-events:none;opacity:.7}
+.fl-card.correct-flash{border-color:var(--correct);box-shadow:0 0 20px rgba(46,204,113,.5)}
+.fl-card.wrong-flash{border-color:var(--wrong);box-shadow:0 0 20px rgba(231,76,60,.5)}
+
+/* ESCAPED ANIM */
+.escaped-overlay{display:none;position:fixed;inset:0;z-index:240;background:rgba(0,0,0,.95);align-items:center;justify-content:center;flex-direction:column}
+.escaped-overlay.active{display:flex}
+.escaped-text{font-size:clamp(40px,10vw,80px);font-weight:900;animation:escapedPop 1s ease-out;background:linear-gradient(135deg,var(--r1a),var(--r1),var(--r3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.escaped-emojis{font-size:clamp(30px,6vw,50px);margin-top:12px;animation:escapedEmojis 2s ease-in-out}
+
+/* KEYFRAMES */
+@keyframes scanPulse{0%,100%{box-shadow:0 0 5px currentColor}50%{box-shadow:0 0 20px currentColor}}
+@keyframes flicker{0%{opacity:1;transform:scale(1)}100%{opacity:.7;transform:scale(1.1)}}
+@keyframes digitPop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+@keyframes doorAnim{0%{opacity:0;transform:scale(.8)}25%{opacity:1;transform:scale(1)}55%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(-120vw)}}
+@keyframes lockPulse{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
+@keyframes passTextPulse{0%{opacity:.7;transform:scale(.98)}100%{opacity:1;transform:scale(1.02)}}
+@keyframes slotReveal{0%{transform:scale(.5);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes highlightPulse{0%{box-shadow:0 0 10px rgba(46,204,113,.3)}100%{box-shadow:0 0 25px rgba(46,204,113,.6)}}
+@keyframes reportGlow{0%{filter:brightness(1)}100%{filter:brightness(1.3)}}
+@keyframes escapedPop{0%{transform:scale(0) rotate(-10deg);opacity:0}70%{transform:scale(1.15) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes escapedEmojis{0%{opacity:0;transform:translateY(30px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes particleBurst{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--px),var(--py)) scale(0)}}
+@keyframes confettiFall{0%{opacity:1;transform:translateY(0) rotate(0deg)}100%{opacity:0;transform:translateY(100vh) rotate(720deg)}}
+@keyframes pulseOnce{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+
+/* FEEDBACK ICONS */
+.fb-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:16px;font-weight:700;margin-right:6px;flex-shrink:0}
+.fb-icon.correct{background:rgba(46,204,113,.2);color:var(--correct)}
+.fb-icon.wrong{background:rgba(231,76,60,.2);color:var(--wrong)}
+
+/* ROOM BACKGROUNDS */
+.room-bg-1{background:linear-gradient(135deg,rgba(0,206,209,.06) 0%,var(--bg) 50%,rgba(255,215,0,.04) 100%)}
+.room-bg-2{background:linear-gradient(135deg,rgba(255,69,0,.06) 0%,var(--bg) 50%,rgba(0,255,255,.04) 100%)}
+.room-bg-3{background:linear-gradient(135deg,rgba(57,255,20,.06) 0%,var(--bg) 50%,rgba(155,89,182,.04) 100%)}
+</style>
+</head>
+<body>
+<div class="game-container" id="game">
+<!-- Start Screen -->
+<div class="screen start-screen active" id="startScreen">
+<div style="font-size:clamp(36px,7vw,52px)">🧬⚡🔬</div>
+<div class="start-brand-line">Mr. Jawad's Escape Room Simulations</div>
+<div class="start-title">Cell Structure & Function</div>
+<div class="start-divider"></div>
+<div class="start-subtitle">Unit Review</div>
+<button class="start-btn" onclick="startGame()">BEGIN ESCAPE</button>
+<div class="start-footer">DESIGNED BY MR. JAWAD</div>
+</div>
+
+<!-- Game Screen -->
+<div class="screen" id="gameScreen">
+<div class="top-bar">
+<div>
+<div class="room-info" id="roomInfo">🧬 The Bio Vault</div>
+<div class="room-progress" id="roomProgress">Room 1 of 3</div>
+</div>
+<div class="streak-icon" id="streakIcon">🔥</div>
+<div class="puzzles-cleared" id="puzzlesCleared">Puzzles Cleared: 0/6</div>
+</div>
+<div class="mission-line" id="missionLine"></div>
+<div class="main-area" id="mainArea"></div>
+<div class="bottom-bar">
+<button class="scanner-btn" id="scannerBtn" onclick="openRescan()" style="visibility:hidden"><span class="scan-icon">🔍</span>RESCAN</button>
+<div class="progress-dots" id="progressDots"></div>
+</div>
+</div>
+
+<!-- Code Vault -->
+<div class="code-vault" id="codeVault" style="display:none">
+<div class="code-vault-title">Code Vault</div>
+<div class="code-slots">
+<div class="code-slot" id="vaultSlot0" style="color:var(--r1)">??</div>
+<div class="code-slot" id="vaultSlot1" style="color:var(--r2)">??</div>
+<div class="code-slot" id="vaultSlot2" style="color:var(--r3)">??</div>
+</div>
+</div>
+
+<!-- Code Entry Overlay -->
+<div class="code-entry-overlay" id="codeEntry">
+<div class="code-entry-label" id="codeEntryLabel">Enter Exit Code</div>
+<div id="codeDigitHint" style="text-align:center;margin-bottom:8px"></div>
+<div class="code-input-row">
+<input class="code-digit-input" id="codeD1" type="tel" maxlength="1" inputmode="numeric">
+<input class="code-digit-input" id="codeD2" type="tel" maxlength="1" inputmode="numeric">
+</div>
+<div class="code-feedback" id="codeFeedback"></div>
+<button class="code-submit-btn" onclick="submitCode()">UNLOCK</button>
+</div>
+
+<!-- Scanner Overlay -->
+<div class="scanner-overlay" id="scannerOverlay">
+<div class="scanner-text" id="scannerText"></div>
+<button class="scanner-dismiss" onclick="closeScanner()">Dismiss</button>
+</div>
+
+<!-- Digit Reveal Overlay -->
+<div class="digit-reveal-overlay" id="digitReveal">
+<div class="digit-reveal-num" id="digitNum"></div>
+<div class="digit-reveal-label" id="digitLabel">Code Digit Unlocked</div>
+</div>
+
+<!-- Scan the Room Overlay -->
+<div class="scan-room-overlay" id="scanRoomOverlay"></div>
+
+<!-- Pass the Laptop -->
+<div class="pass-overlay" id="passOverlay"></div>
+
+<!-- Escaped Overlay -->
+<div class="escaped-overlay" id="escapedOverlay">
+<div class="escaped-text">ESCAPED!</div>
+<div class="escaped-emojis">🧬 ⚡ 🔬</div>
+</div>
+
+<!-- Escape Report -->
+<div class="report-screen" id="reportScreen"></div>
+
+<!-- Rescan Button -->
+<button class="rescan-btn" id="rescanBtn" onclick="openRescan()">🔍 RESCAN</button>
+</div>
+
+<script>
+"use strict";
+// ========== STATE ==========
+const state = {
+  screen: 'start', room: 0, puzzleIndex: 0, puzzlesSolved: 0,
+  roomDigits: [[null,null],[null,null],[null,null]],
+  roomCodes: ['47','29','51'],
+  vaultCodes: [null,null,null],
+  firstTrySolves: 0, streak: 0, maxStreak: 0,
+  wrongCountThisPuzzle: 0, scannerActive: false, overrideTriggered: false,
+  puzzleSolving: false, startTime: 0, badges: [],
+  roomFirstTryCount: [0,0,0], roomScannerUsed: [false,false,false],
+  roomPuzzleAttempts: [[0,0],[0,0],[0,0]],
+  scannerUsedThisPuzzle: false, solvedAfterScanner: false,
+  finalLockWrong: 0, finalOverride: false,
+  emergencyHoldStart: 0, shiftSStart: 0,
+  currentScanPreview: null
+};
+
+// ========== CONTENT ==========
+const rooms = [
+  {
+    name: 'The Bio Vault', emoji: '🧬', color: '#00CED1', accent: '#FFD700', bgClass: 'room-bg-1',
+    mission: 'Unlock the specimen vault — identify the cell structures inside.',
+    completionMsg: 'Vault unsealed — specimens identified. Move to the next sector.',
+    puzzles: [
+      {
+        type: 'match', digit: 4,
+        pairs: [
+          { term: 'Cell membrane', correct: 'Holds cell together', distractors: ['Controls cell division','Makes energy'] },
+          { term: 'Nucleus', correct: 'Controls cell division', distractors: ['Stores water','Captures sunlight'] },
+          { term: 'Organelle', correct: 'Tiny part, specific job', distractors: ['Rigid outer layer','Copies itself'] }
+        ],
+        scannerText: 'Cross-referencing Cells Are Everywhere — cell diagram detected. The outside barrier and the center control each had a different job.',
+        strongScanner: [['Holds cell together','Controls cell division'],['Controls cell division','Captures sunlight'],['Tiny part, specific job','Rigid outer layer']],
+        scanPreview: {title:'SCANNING ROOM...', desc:'Cell diagram detected — cell membrane on the outside, nucleus in the center, organelles scattered inside.'}
+      },
+      {
+        type: 'sequence', digit: 7,
+        cards: [
+          { label: 'Nucleus copied DNA', icon: '🧬', pos: 0 },
+          { label: 'Cells kept dividing', icon: '🔄', pos: 1 },
+          { label: 'Still alive 70+ years', icon: '♾️', pos: 2 }
+        ],
+        scannerText: 'Cross-referencing Cells Are Everywhere — Immortal Woman file detected. One part of her cells triggered the whole chain.',
+        strongScanner: ['Nucleus copied DNA','Cells kept dividing'],
+        scanPreview: {title:'SCANNING ROOM...', desc:'Dividing cell sequence detected — one cell splitting into two, nucleus glowing at center of each.'}
+      }
+    ]
+  },
+  {
+    name: 'The Control Room', emoji: '⚡', color: '#FF4500', accent: '#00FFFF', bgClass: 'room-bg-2',
+    mission: 'Stabilize the system — calibrate the scanner and activate the right cells.',
+    completionMsg: 'System stable — all cells operational. One more sector to clear.',
+    puzzles: [
+      {
+        type: 'systemscanner', digit: 2,
+        gauges: [
+          { label: 'Growth Signal', reading: 'HIGH', fill: 90, color: '#FF4500' },
+          { label: 'Checkpoint', reading: 'ON', fill: 75, color: '#2ecc71' },
+          { label: 'Error Rate', reading: '???', fill: 0, color: '#888' }
+        ],
+        question: 'Signal overload — diagnose the error.',
+        answers: [
+          { text: 'More errors happen', icon: '⚠️', correct: true },
+          { text: 'Fewer cells are made', icon: '🔽', correct: false },
+          { text: 'Checkpoint gets stronger', icon: '🛡️', correct: false }
+        ],
+        scannerText: 'Cross-referencing Cell Division — gauge data detected. When Growth Signal spiked, the error count shifted.',
+        strongScanner: ['More errors happen','Checkpoint gets stronger'],
+        scanPreview: {title:'SCANNING ROOM...', desc:'Cell Division gauge panel detected — Growth Signal, Checkpoint, and Repair Crew dials with readings visible.'}
+      },
+      {
+        type: 'diagnostic', digit: 9,
+        env: 'ANIMAL CELL — DESERT ☀️🏜️',
+        slots: [
+          { label: 'Energy Source', correct: 'Mitochondria', icon: '⚡' },
+          { label: 'Water Storage', correct: 'Vacuole', icon: '💧' }
+        ],
+        parts: [
+          { name: 'Mitochondria', icon: '⚡' },
+          { name: 'Chloroplast', icon: '🌿' },
+          { name: 'Cell Wall', icon: '🧱' },
+          { name: 'Vacuole', icon: '💧' },
+          { name: 'Nucleus', icon: '🧬' }
+        ],
+        scannerText: 'Cross-referencing Build a Cell That Survives — desert environment detected. Two organelles kept energy and water from draining.',
+        strongScanner: [['Mitochondria','Chloroplast'],['Vacuole','Cell Wall']],
+        scanPreview: {title:'SCANNING ROOM...', desc:'Build a Cell sim detected — desert environment with organelle icons visible.'}
+      }
+    ]
+  },
+  {
+    name: 'The Recovery Lab', emoji: '🔬', color: '#39FF14', accent: '#9B59B6', bgClass: 'room-bg-3',
+    mission: 'Complete the recovery sequence — diagnose the missing repairs.',
+    completionMsg: 'Recovery complete — all systems restored. One lock remains.',
+    puzzles: [
+      {
+        type: 'mystery', digit: 5,
+        chain: ['UV damages skin cell DNA', '???', 'Skin peels then heals'],
+        answers: [
+          { text: 'Cell division replaces them', icon: '🔄', correct: true },
+          { text: 'Chloroplasts repair the DNA', icon: '🌿', correct: false },
+          { text: 'Mitochondria block the UV', icon: '⚡', correct: false }
+        ],
+        scannerText: 'Cross-referencing Cell Science: Expect the Unexpected — sunburn recovery file detected. After UV wrecked the DNA, one process rebuilt the cells.',
+        strongScanner: ['Cell division replaces them','Mitochondria block the UV'],
+        scanPreview: {title:'SCANNING ROOM...', desc:'Sunburn recovery sequence — red skin → cells destroyed → new cells growing.'}
+      },
+      {
+        type: 'visualrecall', digit: 1,
+        question: 'Shaded cells — what happened?',
+        answers: [
+          { text: 'They grew longer', icon: '📏', correct: true },
+          { text: 'They shrank', icon: '🔹', correct: false },
+          { text: 'They turned yellow', icon: '🟡', correct: false }
+        ],
+        scannerText: 'Cross-referencing Cell Science: Expect the Unexpected — plant growth file detected. Shaded side cells looked different from lit side cells.',
+        strongScanner: ['They grew longer','They shrank'],
+        scanPreview: {title:'SCANNING ROOM...', desc:'Plant bending toward light — chloroplasts visible on lit side, elongated cells on shaded side.'}
+      }
+    ]
+  }
+];
+
+const finalLock = {
+  pairs: [
+    { room: 0, color: '#00CED1', emoji: '🧬', term: 'Cell membrane', match: 'Holds cell together' },
+    { room: 1, color: '#FF4500', emoji: '⚡', term: 'Checkpoint ON', match: 'Catches errors before cells split' },
+    { room: 2, color: '#39FF14', emoji: '🔬', term: 'Mitochondria', match: 'Makes energy' }
+  ],
+  scannerText: 'Cross-referencing all rooms — teal term held the cell together, red-orange term kept division safe, green term powered the cell.'
+};
+
+// ========== UTILITIES ==========
+function $(id) { return document.getElementById(id); }
+function closeAllOverlays() {
+  try {
+    ['codeEntry','scannerOverlay','digitReveal','scanRoomOverlay','passOverlay','escapedOverlay'].forEach(id => {
+      const el = $(id);
+      if (el) { el.classList.remove('active'); el.style.display = 'none'; }
+    });
+    $('rescanBtn').classList.remove('visible');
+  } catch(e) { console.error('closeAllOverlays:', e); }
+}
+function closeScanner() {
+  try { $('scannerOverlay').classList.remove('active'); $('scannerOverlay').style.display = 'none'; state.scannerActive = false; } catch(e) {}
+}
+function safeTimeout(fn, ms) { return setTimeout(() => { try { fn(); } catch(e) { console.error('safeTimeout:', e); } }, ms); }
+
+function spawnParticles(x, y, color, count) {
+  try {
+    // Pause ambient scanner pulse during celebration
+    const sb = $('scannerBtn'); if (sb) sb.classList.remove('pulse');
+    for (let i = 0; i < Math.min(count, 12); i++) {
+      const p = document.createElement('div');
+      const angle = (Math.PI * 2 * i) / count;
+      const dist = 40 + Math.random() * 60;
+      p.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:${6+Math.random()*6}px;height:${6+Math.random()*6}px;background:${color};border-radius:${Math.random()>.5?'50%':'2px'};pointer-events:none;z-index:300;--px:${Math.cos(angle)*dist}px;--py:${Math.sin(angle)*dist}px;animation:particleBurst .6s ease-out forwards`;
+      document.body.appendChild(p);
+      p.addEventListener('animationend', () => p.remove());
+      safeTimeout(() => { if (p.parentNode) p.remove(); }, 1000);
+    }
+    safeTimeout(() => { if (sb) sb.classList.add('pulse'); }, 800);
+  } catch(e) {}
+}
+
+function spawnConfetti() {
+  try {
+    const colors = ['#00CED1','#FFD700','#FF4500','#00FFFF','#39FF14','#9B59B6'];
+    for (let i = 0; i < 30; i++) {
+      const c = document.createElement('div');
+      c.style.cssText = `position:fixed;left:${Math.random()*100}vw;top:-20px;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;background:${colors[i%colors.length]};border-radius:${Math.random()>.5?'50%':'2px'};pointer-events:none;z-index:300;animation:confettiFall ${2+Math.random()*2}s ease-out ${Math.random()*.5}s forwards`;
+      document.body.appendChild(c);
+      c.addEventListener('animationend', () => c.remove());
+      safeTimeout(() => { if (c.parentNode) c.remove(); }, 6000);
+    }
+  } catch(e) {}
+}
+
+function updatePuzzlesCleared() {
+  try { $('puzzlesCleared').textContent = `Puzzles Cleared: ${state.puzzlesSolved}/6`; $('puzzlesCleared').style.animation = 'none'; void $('puzzlesCleared').offsetWidth; $('puzzlesCleared').style.animation = 'pulseOnce .4s ease'; } catch(e) {}
+}
+
+function updateStreak(firstTry) {
+  try {
+    if (firstTry) { state.streak++; } else { state.streak = 0; }
+    if (state.streak > state.maxStreak) state.maxStreak = state.streak;
+    $('streakIcon').style.display = state.streak >= 2 ? 'block' : 'none';
+  } catch(e) {}
+}
+
+function updateProgressDots() {
+  try {
+    const dots = $('progressDots');
+    dots.innerHTML = '';
+    const room = rooms[state.room];
+    const color = room.color;
+    for (let i = 0; i < 2; i++) {
+      const d = document.createElement('div');
+      d.className = 'progress-dot' + (i < state.puzzleIndex ? ' filled' : '');
+      d.style.color = color;
+      if (i < state.puzzleIndex) d.style.background = color;
+      dots.appendChild(d);
+    }
+  } catch(e) {}
+}
+
+function updateVault() {
+  try {
+    state.vaultCodes.forEach((code, i) => {
+      const slot = $('vaultSlot' + i);
+      if (code) { slot.textContent = code; slot.classList.add('revealed'); }
+    });
+  } catch(e) {}
+}
+
+function getRoomColor() { return rooms[state.room] ? rooms[state.room].color : '#fff'; }
+
+// ========== GAME START ==========
+function startGame() {
+  try {
+    $('startScreen').classList.remove('active');
+    $('gameScreen').classList.add('active');
+    $('codeVault').style.display = 'block';
+    state.startTime = Date.now();
+    showTutorial();
+  } catch(e) { console.error('startGame:', e); }
+}
+
+// ========== TUTORIAL ==========
+function showTutorial() {
+  try {
+    const ma = $('mainArea');
+    $('roomInfo').innerHTML = '📖 Tutorial Lock';
+    $('roomProgress').textContent = 'Practice Round';
+    $('missionLine').textContent = 'Tap a word on the left, then tap its match on the right.';
+    $('progressDots').innerHTML = '';
+    $('scannerBtn').style.visibility = 'hidden';
+
+    const pairs = [{term:'Sun ☀️',match:'Hot 🔥',distractor:'Wet 💧'},{term:'Ice 🧊',match:'Cold ❄️',distractor:'Fast 💨'}];
+    let currentPair = 0, selected = null;
+
+    function renderTutPair() {
+      const p = pairs[currentPair];
+      if (!p) { finishTutorial(); return; }
+      ma.innerHTML = `
+        <div class="puzzle-area">
+          <div class="puzzle-instruction">👆 Tap a word on the LEFT, then tap its match on the RIGHT</div>
+          <div class="puzzle-micro-progress">Pair ${currentPair+1} of ${pairs.length}</div>
+          <div class="match-container">
+            <div class="match-side"><div class="match-card tut-term" data-side="term" style="border-color:var(--r1);color:var(--r1)">${p.term}</div></div>
+            <div class="match-arrow">→</div>
+            <div class="match-side">
+              ${[p.match,p.distractor].sort(()=>Math.random()-.5).map(m=>`<div class="match-card tut-match" data-val="${m}" data-correct="${m===p.match}" style="color:var(--r1)">${m}</div>`).join('')}
+            </div>
+          </div>
+          <div style="margin-top:20px"><button onclick="finishTutorial()" style="padding:10px 24px;border-radius:8px;background:rgba(255,255,255,.08);color:var(--text-dim);border:1px solid rgba(255,255,255,.15);cursor:pointer;font-size:14px">Skip Tutorial →</button></div>
+        </div>`;
+      selected = null;
+      // Attach events
+      const termCard = ma.querySelector('.tut-term');
+      const matchCards = ma.querySelectorAll('.tut-match');
+      termCard.addEventListener('click', () => {
+        if (termCard.classList.contains('matched')) return;
+        selected = 'term';
+        termCard.classList.add('selected');
+        termCard.style.boxShadow = `0 0 15px var(--r1)`;
+      });
+      matchCards.forEach(mc => {
+        mc.addEventListener('click', () => {
+          if (!selected || mc.classList.contains('disabled')) return;
+          if (mc.dataset.correct === 'true') {
+            mc.classList.add('correct-flash');
+            termCard.classList.add('correct-flash');
+            safeTimeout(() => { currentPair++; renderTutPair(); }, 600);
+          } else {
+            mc.classList.add('wrong-flash');
+            safeTimeout(() => { mc.classList.remove('wrong-flash'); mc.classList.add('disabled'); }, 500);
+            selected = null;
+            termCard.classList.remove('selected');
+            termCard.style.boxShadow = '';
+          }
+        });
+      });
+    }
+    renderTutPair();
+  } catch(e) { console.error('showTutorial:', e); }
+}
+
+function finishTutorial() {
+  try { state.room = 0; state.puzzleIndex = 0; showDoorTransition(0, false); } catch(e) { loadRoom(0); }
+}
+
+// ========== DOOR TRANSITION ==========
+function showDoorTransition(roomIdx, isFinal) {
+  try {
+    closeAllOverlays();
+    const room = isFinal ? null : rooms[roomIdx];
+    const color = isFinal ? '#FFD700' : room.color;
+    const emoji = isFinal ? '🔒' : room.emoji;
+    const label = isFinal ? 'FINAL LOCK' : room.name.toUpperCase();
+    const dur = isFinal ? 1.8 : 1.2;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'door-overlay' + (isFinal ? ' door-final' : '');
+    overlay.innerHTML = `<div class="door-panel" style="border-color:${color};animation-duration:${dur}s">
+      <div class="door-lock">🔓</div>
+      <div class="door-icon">${emoji}</div>
+      <div class="door-label" style="color:${color}">${label}</div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('.door-panel').addEventListener('animationend', () => { if (overlay.parentNode) overlay.remove(); });
+    safeTimeout(() => { if (overlay.parentNode) overlay.remove(); }, (dur * 1000) + 500);
+
+    safeTimeout(() => {
+      if (isFinal) loadFinalLock();
+      else loadRoom(roomIdx);
+    }, dur * 500);
+  } catch(e) {
+    if (isFinal) loadFinalLock(); else loadRoom(roomIdx);
+  }
+}
+
+// ========== LOAD ROOM ==========
+function loadRoom(roomIdx) {
+  try {
+    state.room = roomIdx;
+    state.puzzleIndex = 0;
+    const room = rooms[roomIdx];
+    $('roomInfo').innerHTML = `${room.emoji} ${room.name}`;
+    $('roomProgress').textContent = `Room ${roomIdx+1} of 3`;
+    $('missionLine').textContent = room.mission;
+    $('mainArea').className = 'main-area ' + room.bgClass;
+    // Color-code UI elements
+    document.querySelectorAll('.code-digit-input').forEach(i => i.style.color = room.color);
+    $('scannerBtn').style.color = room.color;
+    $('scannerBtn').style.borderColor = room.color;
+    $('scannerBtn').classList.add('pulse');
+    state.currentScanPreview = null;
+    $('rescanBtn').classList.remove('visible');
+    updateProgressDots();
+    showScanPreview(roomIdx, 0);
+  } catch(e) { console.error('loadRoom:', e); }
+}
+
+// ========== SCAN THE ROOM PREVIEW ==========
+function showScanPreview(roomIdx, puzzIdx) {
+  try {
+    const puzzle = rooms[roomIdx].puzzles[puzzIdx];
+    const room = rooms[roomIdx];
+    const preview = puzzle.scanPreview;
+    if (!preview) { loadPuzzle(); return; }
+
+    const overlay = $('scanRoomOverlay');
+    overlay.innerHTML = `<div class="scan-room-frame" style="border-color:${room.color}">
+      <div class="scan-room-title" style="color:${room.color}">${preview.title}</div>
+      <div style="margin-top:8px;color:var(--text-dim);line-height:1.6">${preview.desc}</div>
+      <div style="margin-top:16px;font-size:24px">🔍</div>
+    </div>`;
+    overlay.classList.add('active');
+    overlay.style.display = 'flex';
+    state.currentScanPreview = { room: roomIdx, puzzle: puzzIdx };
+
+    // Store for rescan
+    safeTimeout(() => {
+      overlay.classList.remove('active');
+      overlay.style.display = 'none';
+      loadPuzzle();
+      // Show rescan button
+      $('rescanBtn').classList.add('visible');
+      $('scannerBtn').style.visibility = 'visible';
+    }, 4000);
+
+    // Safety: if it somehow doesn't close
+    safeTimeout(() => {
+      if (overlay.classList.contains('active')) {
+        overlay.classList.remove('active');
+        overlay.style.display = 'none';
+        loadPuzzle();
+      }
+    }, 6000);
+  } catch(e) { loadPuzzle(); }
+}
+
+function openRescan() {
+  try {
+    if (!state.currentScanPreview) return;
+    const { room: rIdx, puzzle: pIdx } = state.currentScanPreview;
+    const puzzle = rooms[rIdx].puzzles[pIdx];
+    const room = rooms[rIdx];
+    const preview = puzzle.scanPreview;
+    if (!preview) return;
+
+    const overlay = $('scanRoomOverlay');
+    overlay.innerHTML = `<div class="scan-room-frame" style="border-color:${room.color}">
+      <div class="scan-room-title" style="color:${room.color}">RESCANNING...</div>
+      <div style="margin-top:8px;color:var(--text-dim);line-height:1.6">${preview.desc}</div>
+    </div>
+    <button onclick="document.getElementById('scanRoomOverlay').classList.remove('active');document.getElementById('scanRoomOverlay').style.display='none'" style="margin-top:12px;padding:10px 24px;border-radius:8px;background:rgba(255,255,255,.08);color:var(--text-dim);border:1px solid rgba(255,255,255,.15);cursor:pointer;font-size:14px">Close</button>`;
+    overlay.classList.add('active');
+    overlay.style.display = 'flex';
+  } catch(e) {}
+}
+
+// ========== LOAD PUZZLE ==========
+function loadPuzzle() {
+  try {
+    state.puzzleSolving = false;
+    state.wrongCountThisPuzzle = 0;
+    state.overrideTriggered = false;
+    state.scannerUsedThisPuzzle = false;
+    state.solvedAfterScanner = false;
+    closeScanner();
+
+    const room = rooms[state.room];
+    const puzzle = room.puzzles[state.puzzleIndex];
+    updateProgressDots();
+
+    state.currentScanPreview = { room: state.room, puzzle: state.puzzleIndex };
+
+    switch (puzzle.type) {
+      case 'match': renderMatchLock(puzzle, room); break;
+      case 'sequence': renderSequenceLock(puzzle, room); break;
+      case 'systemscanner': renderSystemScanner(puzzle, room); break;
+      case 'diagnostic': renderDiagnosticPanel(puzzle, room); break;
+      case 'mystery': renderMysteryInput(puzzle, room); break;
+      case 'visualrecall': renderVisualRecall(puzzle, room); break;
+      default: console.error('Unknown puzzle type:', puzzle.type);
+    }
+  } catch(e) { console.error('loadPuzzle:', e); }
+}
+
+// ========== MATCH LOCK ==========
+function renderMatchLock(puzzle, room) {
+  try {
+    const ma = $('mainArea');
+    let currentPairIdx = 0, selectedTerm = false;
+    const completedPairs = [];
+
+    function renderPair() {
+      if (currentPairIdx >= puzzle.pairs.length) { puzzleSolved(puzzle, room); return; }
+      const pair = puzzle.pairs[currentPairIdx];
+      const options = [pair.correct, ...pair.distractors].sort(() => Math.random() - .5);
+      const dimmedOptions = []; // Track wrong guesses this pair
+
+      function draw() {
+        let matchedHTML = completedPairs.map(cp => `<div class="matched-pair" style="border-left:3px solid ${room.color};padding-left:8px"><span class="mp-check">✔</span> ${cp.term} → ${cp.match}</div>`).join('');
+
+        ma.innerHTML = `<div class="puzzle-area">
+          <div class="puzzle-instruction">👆 Tap a word on the LEFT, then tap its match on the RIGHT</div>
+          <div class="puzzle-micro-progress">Pair ${currentPairIdx+1} of ${puzzle.pairs.length}</div>
+          ${matchedHTML ? `<div class="matched-area">${matchedHTML}</div>` : ''}
+          <div class="match-container">
+            <div class="match-side"><div class="match-card ml-term" style="color:${room.color};border-color:${room.color}">${pair.term}</div></div>
+            <div class="match-arrow">→</div>
+            <div class="match-side" id="mlOptions">${options.map(o => {
+              const isDimmed = dimmedOptions.includes(o);
+              return `<div class="match-card ml-option${isDimmed ? ' disabled' : ''}" data-val="${o}" style="color:${room.color}">${o}${isDimmed ? ' <span class="fb-icon wrong">✖</span>' : ''}</div>`;
+            }).join('')}</div>
+          </div>
+        </div>`;
+
+        selectedTerm = false;
+        const termCard = ma.querySelector('.ml-term');
+        const optCards = ma.querySelectorAll('.ml-option:not(.disabled)');
+
+        termCard.addEventListener('click', () => {
+          selectedTerm = true;
+          termCard.classList.add('selected');
+          termCard.style.boxShadow = `0 0 15px ${room.color}`;
+          termCard.style.borderColor = room.color;
+          termCard.style.background = `rgba(255,255,255,.12)`;
+        });
+
+        optCards.forEach(oc => {
+          oc.addEventListener('click', () => {
+            if (!selectedTerm) return;
+            if (oc.dataset.val === pair.correct) {
+              // Correct
+              oc.classList.add('correct-flash');
+              termCard.classList.add('correct-flash');
+              completedPairs.push({ term: pair.term, match: pair.correct });
+              safeTimeout(() => { currentPairIdx++; renderPair(); }, 600);
+            } else {
+              // Wrong
+              oc.classList.add('wrong-flash');
+              state.wrongCountThisPuzzle++;
+              state.roomPuzzleAttempts[state.room][state.puzzleIndex]++;
+              dimmedOptions.push(oc.dataset.val);
+
+              safeTimeout(() => {
+                if (state.wrongCountThisPuzzle === 1 && !state.overrideTriggered) {
+                  showScannerAuto(puzzle, room);
+                  // Narrow options
+                  safeTimeout(() => { selectedTerm = false; termCard.classList.remove('selected'); termCard.style.boxShadow = ''; draw(); narrowMatchOptions(puzzle, currentPairIdx, room); }, 100);
+                } else if (state.wrongCountThisPuzzle >= 2 && !state.overrideTriggered) {
+                  triggerMatchOverride(puzzle, room, currentPairIdx, completedPairs);
+                } else {
+                  selectedTerm = false;
+                  termCard.classList.remove('selected');
+                  termCard.style.boxShadow = '';
+                  draw();
+                }
+              }, 500);
+            }
+          });
+        });
+      }
+      draw();
+    }
+    renderPair();
+  } catch(e) { console.error('renderMatchLock:', e); }
+}
+
+function narrowMatchOptions(puzzle, pairIdx, room) {
+  try {
+    const strong = puzzle.strongScanner[pairIdx];
+    if (!strong) return;
+    const opts = document.querySelectorAll('.ml-option:not(.disabled)');
+    opts.forEach(o => {
+      if (!strong.includes(o.dataset.val)) { o.classList.add('disabled'); }
+    });
+  } catch(e) {}
+}
+
+function triggerMatchOverride(puzzle, room, currentPairIdx, completedPairs) {
+  try {
+    state.overrideTriggered = true;
+    closeScanner();
+    // Auto-solve remaining pairs
+    let delay = 0;
+    for (let i = currentPairIdx; i < puzzle.pairs.length; i++) {
+      safeTimeout(((idx) => () => {
+        completedPairs.push({ term: puzzle.pairs[idx].term, match: puzzle.pairs[idx].correct });
+        const ma = $('mainArea');
+        let matchedHTML = completedPairs.map(cp => `<div class="matched-pair" style="border-left:3px solid ${room.color};padding-left:8px"><span class="mp-check">✔</span> ${cp.term} → ${cp.match}</div>`).join('');
+        ma.innerHTML = `<div class="puzzle-area">
+          <div style="font-size:16px;color:${room.accent};text-align:center;margin-bottom:12px">🔓 Lock override triggered</div>
+          <div class="matched-area">${matchedHTML}</div>
+        </div>`;
+      })(i), delay);
+      delay += 500;
+    }
+    safeTimeout(() => { puzzleSolved(puzzle, room); }, delay + 400);
+  } catch(e) { puzzleSolved(puzzle, room); }
+}
+
+// ========== SEQUENCE LOCK ==========
+function renderSequenceLock(puzzle, room) {
+  try {
+    const ma = $('mainArea');
+    let step = 0;
+    const placed = [];
+    const cards = [...puzzle.cards];
+    const shuffled = [...cards].sort(() => Math.random() - .5);
+    const wrongThisStep = [];
+
+    function draw() {
+      if (step >= cards.length) { puzzleSolved(puzzle, room); return; }
+      // Auto-place last card
+      if (step === cards.length - 1) {
+        const remaining = shuffled.filter(c => !placed.includes(c.label));
+        if (remaining.length === 1) {
+          placed.push(remaining[0].label);
+          step++;
+          safeTimeout(() => { puzzleSolved(puzzle, room); }, 400);
+          // Show final state
+          ma.innerHTML = `<div class="puzzle-area">
+            <div class="seq-placed">${placed.map((p,i) => {
+              const card = cards[i];
+              return `<div class="seq-slot filled" style="border-color:var(--correct)"><span class="slot-num">${i+1}.</span>${card.icon} ${card.label}</div>`;
+            }).join('')}</div>
+            <div style="text-align:center;color:var(--correct);font-weight:700">✔ Complete!</div>
+          </div>`;
+          return;
+        }
+      }
+
+      const prompts = ['What happened FIRST?', 'What happened NEXT?', 'What happened LAST?'];
+      const remaining = shuffled.filter(c => !placed.includes(c.label));
+
+      ma.innerHTML = `<div class="puzzle-area">
+        <div class="puzzle-micro-progress">Step ${step+1} of ${cards.length}</div>
+        <div class="seq-placed">${Array.from({length:cards.length}, (_,i) => {
+          if (i < placed.length) {
+            const card = cards.find(c => c.label === placed[i]);
+            return `<div class="seq-slot filled" style="border-color:var(--correct)"><span class="slot-num">${i+1}.</span>${card.icon} ${card.label}</div>`;
+          }
+          return `<div class="seq-slot"><span class="slot-num">${i+1}.</span><span style="color:var(--text-dim)">...</span></div>`;
+        }).join('')}</div>
+        <div class="seq-prompt" style="color:${room.color}">${prompts[step]}</div>
+        <div class="seq-cards">${remaining.map(c => {
+          const isDimmed = wrongThisStep.includes(c.label);
+          return `<div class="seq-card${isDimmed ? ' disabled' : ''}" data-label="${c.label}" style="color:${room.color}">${c.icon} ${c.label}${isDimmed ? ' <span class="fb-icon wrong">✖</span>' : ''}</div>`;
+        }).join('')}</div>
+      </div>`;
+
+      ma.querySelectorAll('.seq-card:not(.disabled)').forEach(sc => {
+        sc.addEventListener('click', () => {
+          const expected = cards[step].label;
+          if (sc.dataset.label === expected) {
+            sc.classList.add('locked');
+            placed.push(expected);
+            step++;
+            wrongThisStep.length = 0;
+            safeTimeout(draw, 400);
+          } else {
+            sc.classList.add('wrong-flash');
+            state.wrongCountThisPuzzle++;
+            state.roomPuzzleAttempts[state.room][state.puzzleIndex]++;
+            wrongThisStep.push(sc.dataset.label);
+
+            safeTimeout(() => {
+              if (state.wrongCountThisPuzzle === 1 && !state.overrideTriggered) {
+                showScannerAuto(puzzle, room);
+                safeTimeout(() => { draw(); narrowSequence(puzzle, step, room); }, 100);
+              } else if (state.wrongCountThisPuzzle >= 2 && !state.overrideTriggered) {
+                triggerSequenceOverride(puzzle, room, step, placed, cards);
+              } else {
+                draw();
+              }
+            }, 500);
+          }
+        });
+      });
+    }
+    draw();
+  } catch(e) { console.error('renderSequenceLock:', e); }
+}
+
+function narrowSequence(puzzle, step, room) {
+  try {
+    const strong = puzzle.strongScanner;
+    if (!strong || !Array.isArray(strong)) return;
+    const seqCards = document.querySelectorAll('.seq-card:not(.disabled)');
+    seqCards.forEach(sc => {
+      if (!strong.includes(sc.dataset.label)) sc.classList.add('disabled');
+    });
+  } catch(e) {}
+}
+
+function triggerSequenceOverride(puzzle, room, step, placed, cards) {
+  try {
+    state.overrideTriggered = true;
+    closeScanner();
+    let delay = 0;
+    for (let i = step; i < cards.length; i++) {
+      safeTimeout(((idx) => () => {
+        placed.push(cards[idx].label);
+        const ma = $('mainArea');
+        ma.innerHTML = `<div class="puzzle-area">
+          <div style="font-size:16px;color:${room.accent};text-align:center;margin-bottom:12px">🔓 Lock override triggered</div>
+          <div class="seq-placed">${Array.from({length:cards.length}, (_,j) => {
+            if (j < placed.length) {
+              const card = cards[j];
+              return `<div class="seq-slot filled" style="border-color:var(--correct)"><span class="slot-num">${j+1}.</span>${card.icon} ${card.label}</div>`;
+            }
+            return `<div class="seq-slot"><span class="slot-num">${j+1}.</span>...</div>`;
+          }).join('')}</div>
+        </div>`;
+      })(i), delay);
+      delay += 500;
+    }
+    safeTimeout(() => { puzzleSolved(puzzle, room); }, delay + 400);
+  } catch(e) { puzzleSolved(puzzle, room); }
+}
+
+// ========== SYSTEM SCANNER ==========
+function renderSystemScanner(puzzle, room) {
+  try {
+    const ma = $('mainArea');
+    const shuffled = [...puzzle.answers].sort(() => Math.random() - .5);
+    const dimmed = [];
+
+    function draw() {
+      ma.innerHTML = `<div class="puzzle-area">
+        <div class="gauges-panel">${puzzle.gauges.map(g => `
+          <div class="gauge" style="border-color:${room.color}">
+            <div class="gauge-label">${g.label}</div>
+            <div class="gauge-bar"><div class="gauge-fill" style="width:${g.fill}%;background:${g.color}"></div></div>
+            <div class="gauge-reading" style="color:${g.fill ? g.color : 'var(--text-dim)'}">${g.reading}</div>
+          </div>`).join('')}
+        </div>
+        <div class="scanner-question" style="color:${room.color}">${puzzle.question}</div>
+        <div class="answer-cards">${shuffled.map(a => {
+          const isDimmed = dimmed.includes(a.text);
+          return `<div class="answer-card${isDimmed ? ' disabled' : ''}" data-val="${a.text}" data-correct="${a.correct}" style="color:${room.color}">${a.icon} ${a.text}${isDimmed ? ' <span class="fb-icon wrong">✖</span>' : ''}</div>`;
+        }).join('')}</div>
+      </div>`;
+
+      ma.querySelectorAll('.answer-card:not(.disabled)').forEach(ac => {
+        ac.addEventListener('click', () => {
+          if (ac.dataset.correct === 'true') {
+            ac.classList.add('correct-flash');
+            ac.innerHTML = `<span class="fb-icon correct">✔</span> ${ac.dataset.val}`;
+            safeTimeout(() => { puzzleSolved(puzzle, room); }, 500);
+          } else {
+            ac.classList.add('wrong-flash');
+            ac.innerHTML = `<span class="fb-icon wrong">✖</span> ${ac.dataset.val}`;
+            state.wrongCountThisPuzzle++;
+            state.roomPuzzleAttempts[state.room][state.puzzleIndex]++;
+            dimmed.push(ac.dataset.val);
+
+            safeTimeout(() => {
+              if (state.wrongCountThisPuzzle === 1 && !state.overrideTriggered) {
+                showScannerAuto(puzzle, room);
+                safeTimeout(() => { draw(); narrowAnswerCards(puzzle, room); }, 100);
+              } else if (state.wrongCountThisPuzzle >= 2 && !state.overrideTriggered) {
+                triggerTapOverride(puzzle, room);
+              } else {
+                draw();
+              }
+            }, 500);
+          }
+        });
+      });
+    }
+    draw();
+  } catch(e) { console.error('renderSystemScanner:', e); }
+}
+
+// ========== DIAGNOSTIC PANEL ==========
+function renderDiagnosticPanel(puzzle, room) {
+  try {
+    const ma = $('mainArea');
+    let activeSlot = 0;
+    const filledSlots = [null, null];
+    const usedParts = [];
+    let selectedPart = null;
+    const dimmedParts = [[], []]; // Track wrong per slot
+
+    function draw() {
+      if (activeSlot >= puzzle.slots.length) { puzzleSolved(puzzle, room); return; }
+
+      ma.innerHTML = `<div class="puzzle-area">
+        <div class="diag-env" style="border-color:${room.color};color:${room.color}">${puzzle.env}</div>
+        <div class="puzzle-micro-progress">Slot ${activeSlot+1} of ${puzzle.slots.length}</div>
+        <div class="diag-slots">${puzzle.slots.map((s,i) => {
+          const isActive = i === activeSlot;
+          const isLocked = filledSlots[i] !== null;
+          return `<div class="diag-slot${isActive ? ' active' : ''}${isLocked ? ' locked' : ''}${!isActive && !isLocked ? ' dimmed' : ''}" style="color:${room.color}">
+            <div class="slot-label">${s.label}</div>
+            <div class="slot-value">${isLocked ? s.icon + ' ' + filledSlots[i] : (isActive ? '⬜ Empty' : '🔒')}</div>
+          </div>`;
+        }).join('')}</div>
+        <div class="parts-bank">${puzzle.parts.map(p => {
+          const isUsed = usedParts.includes(p.name);
+          const isDimmedForSlot = dimmedParts[activeSlot].includes(p.name);
+          return `<div class="part-chip${isUsed ? ' used' : ''}${isDimmedForSlot ? ' disabled' : ''}" data-name="${p.name}" style="color:${room.color}">${p.icon} ${p.name}${isDimmedForSlot ? ' <span class="fb-icon wrong">✖</span>' : ''}</div>`;
+        }).join('')}</div>
+        ${selectedPart ? `<button class="diag-check-btn" id="diagCheck" style="color:${room.color};border-color:${room.color}">Check ${selectedPart}</button>` : ''}
+      </div>`;
+
+      // Part chip events
+      ma.querySelectorAll('.part-chip:not(.used):not(.disabled)').forEach(pc => {
+        pc.addEventListener('click', () => {
+          selectedPart = pc.dataset.name;
+          draw();
+        });
+      });
+
+      // Check button
+      const checkBtn = $('diagCheck');
+      if (checkBtn) {
+        checkBtn.addEventListener('click', () => {
+          const slot = puzzle.slots[activeSlot];
+          if (selectedPart === slot.correct) {
+            filledSlots[activeSlot] = selectedPart;
+            usedParts.push(selectedPart);
+            activeSlot++;
+            selectedPart = null;
+            dimmedParts[activeSlot] = [];
+            safeTimeout(draw, 300);
+          } else {
+            state.wrongCountThisPuzzle++;
+            state.roomPuzzleAttempts[state.room][state.puzzleIndex]++;
+            dimmedParts[activeSlot].push(selectedPart);
+            selectedPart = null;
+
+
+            safeTimeout(() => {
+              if (state.wrongCountThisPuzzle === 1 && !state.overrideTriggered) {
+                showScannerAuto(puzzle, room);
+                safeTimeout(() => { draw(); narrowDiagnostic(puzzle, activeSlot, room); }, 100);
+              } else if (state.wrongCountThisPuzzle >= 2 && !state.overrideTriggered) {
+                triggerDiagOverride(puzzle, room, activeSlot, filledSlots, usedParts);
+              } else {
+                draw();
+              }
+            }, 500);
+          }
+        });
+      }
+    }
+    draw();
+  } catch(e) { console.error('renderDiagnosticPanel:', e); }
+}
+
+function narrowDiagnostic(puzzle, slotIdx, room) {
+  try {
+    const strong = puzzle.strongScanner[slotIdx];
+    if (!strong) return;
+    document.querySelectorAll('.part-chip:not(.used):not(.disabled)').forEach(pc => {
+      if (!strong.includes(pc.dataset.name)) pc.classList.add('disabled');
+    });
+  } catch(e) {}
+}
+
+function triggerDiagOverride(puzzle, room, activeSlot, filledSlots, usedParts) {
+  try {
+    state.overrideTriggered = true;
+    closeScanner();
+    let delay = 0;
+    for (let i = activeSlot; i < puzzle.slots.length; i++) {
+      safeTimeout(((idx) => () => {
+        filledSlots[idx] = puzzle.slots[idx].correct;
+        usedParts.push(puzzle.slots[idx].correct);
+        const ma = $('mainArea');
+        ma.innerHTML = `<div class="puzzle-area">
+          <div style="font-size:16px;color:${room.accent};text-align:center;margin-bottom:12px">🔓 Lock override triggered</div>
+          <div class="diag-env" style="border-color:${room.color};color:${room.color}">${puzzle.env}</div>
+          <div class="diag-slots">${puzzle.slots.map((s,j) => {
+            const isLocked = filledSlots[j] !== null;
+            return `<div class="diag-slot${isLocked ? ' locked' : ''}" style="color:${room.color}">
+              <div class="slot-label">${s.label}</div>
+              <div class="slot-value">${isLocked ? s.icon + ' ' + filledSlots[j] : '...'}</div>
+            </div>`;
+          }).join('')}</div>
+        </div>`;
+      })(i), delay);
+      delay += 500;
+    }
+    safeTimeout(() => { puzzleSolved(puzzle, room); }, delay + 400);
+  } catch(e) { puzzleSolved(puzzle, room); }
+}
+
+// ========== MYSTERY INPUT ==========
+function renderMysteryInput(puzzle, room) {
+  try {
+    const ma = $('mainArea');
+    const shuffled = [...puzzle.answers].sort(() => Math.random() - .5);
+    const dimmed = [];
+
+    function draw() {
+      ma.innerHTML = `<div class="puzzle-area">
+        <div class="chain-container">${puzzle.chain.map((c,i) => {
+          let html = '';
+          if (i > 0) html += '<div class="chain-arrow">→</div>';
+          if (c === '???') {
+            html += `<div class="chain-box mystery" style="border-color:${room.color}" id="mysteryBox">???</div>`;
+          } else {
+            html += `<div class="chain-box" style="border-color:${room.color}">${c}</div>`;
+          }
+          return html;
+        }).join('')}</div>
+        <div class="answer-cards">${shuffled.map(a => {
+          const isDimmed = dimmed.includes(a.text);
+          return `<div class="answer-card${isDimmed ? ' disabled' : ''}" data-val="${a.text}" data-correct="${a.correct}" style="color:${room.color}">${a.icon} ${a.text}${isDimmed ? ' <span class="fb-icon wrong">✖</span>' : ''}</div>`;
+        }).join('')}</div>
+      </div>`;
+
+      ma.querySelectorAll('.answer-card:not(.disabled)').forEach(ac => {
+        ac.addEventListener('click', () => {
+          if (ac.dataset.correct === 'true') {
+            ac.classList.add('correct-flash');
+            const mb = $('mysteryBox');
+            if (mb) { mb.textContent = ac.dataset.val; mb.classList.remove('mystery'); mb.classList.add('filled'); }
+            safeTimeout(() => { puzzleSolved(puzzle, room); }, 600);
+          } else {
+            ac.classList.add('wrong-flash');
+            state.wrongCountThisPuzzle++;
+            state.roomPuzzleAttempts[state.room][state.puzzleIndex]++;
+            dimmed.push(ac.dataset.val);
+
+            safeTimeout(() => {
+              if (state.wrongCountThisPuzzle === 1 && !state.overrideTriggered) {
+                showScannerAuto(puzzle, room);
+                safeTimeout(() => { draw(); narrowAnswerCards(puzzle, room); }, 100);
+              } else if (state.wrongCountThisPuzzle >= 2 && !state.overrideTriggered) {
+                triggerTapOverride(puzzle, room);
+              } else {
+                draw();
+              }
+            }, 500);
+          }
+        });
+      });
+    }
+    draw();
+  } catch(e) { console.error('renderMysteryInput:', e); }
+}
+
+// ========== VISUAL RECALL ==========
+function renderVisualRecall(puzzle, room) {
+  try {
+    const ma = $('mainArea');
+    const shuffled = [...puzzle.answers].sort(() => Math.random() - .5);
+    const dimmed = [];
+
+    function draw() {
+      ma.innerHTML = `<div class="puzzle-area">
+        <div class="visual-scene" style="border-color:${room.color}">
+          <div class="vr-shadow"></div>
+          <div class="vr-sun"></div>
+          <div class="vr-sunlight-arrow">← SUNLIGHT</div>
+          <div class="vr-pot"></div>
+          <div class="vr-pot-rim"></div>
+          <div class="vr-stem"></div>
+          <div class="vr-leaf-l"></div>
+          <div class="vr-leaf-r"></div>
+          <div class="vr-cells-left">
+            <div class="vr-cell-long"></div><div class="vr-cell-long"></div><div class="vr-cell-long"></div>
+          </div>
+          <div class="vr-cells-right">
+            <div class="vr-cell-short"><div class="vr-chloro"></div></div>
+            <div class="vr-cell-short"><div class="vr-chloro"></div></div>
+            <div class="vr-cell-short"><div class="vr-chloro"></div></div>
+          </div>
+          <div class="vr-label" style="bottom:calc(10% + 90px);left:calc(50% - 80px)">ELONGATED<br>CELLS</div>
+          <div class="vr-label" style="bottom:calc(10% + 90px);left:calc(50% + 35px)">NORMAL<br>CELLS</div>
+          <div class="vr-label" style="bottom:5%;left:5%">SHADED SIDE</div>
+          <div class="vr-label" style="bottom:5%;right:5%">LIT SIDE</div>
+        </div>
+        <div class="scanner-question" style="color:${room.color}">${puzzle.question}</div>
+        <div class="answer-cards">${shuffled.map(a => {
+          const isDimmed = dimmed.includes(a.text);
+          return `<div class="answer-card${isDimmed ? ' disabled' : ''}" data-val="${a.text}" data-correct="${a.correct}" style="color:${room.color}">${a.icon} ${a.text}${isDimmed ? ' <span class="fb-icon wrong">✖</span>' : ''}</div>`;
+        }).join('')}</div>
+      </div>`;
+
+      ma.querySelectorAll('.answer-card:not(.disabled)').forEach(ac => {
+        ac.addEventListener('click', () => {
+          if (ac.dataset.correct === 'true') {
+            ac.classList.add('correct-flash');
+            ac.innerHTML = `<span class="fb-icon correct">✔</span> ${ac.dataset.val}`;
+            safeTimeout(() => { puzzleSolved(puzzle, room); }, 500);
+          } else {
+            ac.classList.add('wrong-flash');
+            ac.innerHTML = `<span class="fb-icon wrong">✖</span> ${ac.dataset.val}`;
+            state.wrongCountThisPuzzle++;
+            state.roomPuzzleAttempts[state.room][state.puzzleIndex]++;
+            dimmed.push(ac.dataset.val);
+
+            safeTimeout(() => {
+              if (state.wrongCountThisPuzzle === 1 && !state.overrideTriggered) {
+                showScannerAuto(puzzle, room);
+                safeTimeout(() => { draw(); narrowAnswerCards(puzzle, room); }, 100);
+              } else if (state.wrongCountThisPuzzle >= 2 && !state.overrideTriggered) {
+                triggerTapOverride(puzzle, room);
+              } else {
+                draw();
+              }
+            }, 500);
+          }
+        });
+      });
+    }
+    draw();
+  } catch(e) { console.error('renderVisualRecall:', e); }
+}
+
+// ========== SHARED: NARROW ANSWER CARDS / TAP OVERRIDE ==========
+function narrowAnswerCards(puzzle, room) {
+  try {
+    const strong = puzzle.strongScanner;
+    if (!strong || !Array.isArray(strong)) return;
+    document.querySelectorAll('.answer-card:not(.disabled)').forEach(ac => {
+      if (!strong.includes(ac.dataset.val)) ac.classList.add('disabled');
+    });
+  } catch(e) {}
+}
+
+function triggerTapOverride(puzzle, room) {
+  try {
+    state.overrideTriggered = true;
+    closeScanner();
+    const correctAnswer = puzzle.answers.find(a => a.correct);
+    if (!correctAnswer) return;
+    document.querySelectorAll('.answer-card').forEach(ac => {
+      if (ac.dataset.val === correctAnswer.text) {
+        ac.classList.add('highlight');
+        ac.innerHTML = `<span style="color:${room.accent}">🔓</span> ${correctAnswer.icon} ${correctAnswer.text} <span style="font-size:12px;color:${room.accent}">— Scanner locked on</span>`;
+        ac.classList.remove('disabled');
+        // Re-add click
+        ac.replaceWith(ac.cloneNode(true));
+        const newAc = document.querySelector(`.answer-card[data-val="${correctAnswer.text}"]`);
+        if (newAc) {
+          newAc.classList.add('highlight');
+          newAc.addEventListener('click', () => {
+            newAc.classList.add('correct-flash');
+            if (puzzle.type === 'mystery') {
+              const mb = $('mysteryBox');
+              if (mb) { mb.textContent = correctAnswer.text; mb.classList.remove('mystery'); mb.classList.add('filled'); }
+            }
+            safeTimeout(() => { puzzleSolved(puzzle, room); }, 500);
+          });
+        }
+      } else {
+        ac.classList.add('disabled');
+      }
+    });
+  } catch(e) { puzzleSolved(puzzle, room); }
+}
+
+// ========== SCANNER SYSTEM ==========
+function showScannerAuto(puzzle, room) {
+  try {
+    state.scannerUsedThisPuzzle = true;
+    state.roomScannerUsed[state.room] = true;
+    const overlay = $('scannerOverlay');
+    $('scannerText').innerHTML = `<div style="color:${room.color};font-weight:700;margin-bottom:8px">🔍 SCANNER ACTIVATED</div>${puzzle.scannerText}`;
+    overlay.classList.add('active');
+    overlay.style.display = 'flex';
+    state.scannerActive = true;
+  } catch(e) {}
+}
+
+// ========== PUZZLE SOLVED ==========
+function puzzleSolved(puzzle, room) {
+  try {
+    if (state.puzzleSolving) return;
+    state.puzzleSolving = true;
+    closeScanner();
+    closeAllOverlays();
+
+    const firstTry = state.wrongCountThisPuzzle === 0;
+    if (firstTry) { state.firstTrySolves++; state.roomFirstTryCount[state.room]++; }
+    if (state.scannerUsedThisPuzzle && !firstTry) {
+      state.solvedAfterScanner = true;
+      if (!state.badges.includes('Comeback')) state.badges.push('Comeback');
+    }
+    if (state.scannerUsedThisPuzzle && state.wrongCountThisPuzzle <= 1) {
+      if (!state.badges.includes('Deep Scan')) state.badges.push('Deep Scan');
+    }
+    state.roomPuzzleAttempts[state.room][state.puzzleIndex] = state.wrongCountThisPuzzle;
+
+    updateStreak(firstTry);
+    state.puzzlesSolved++;
+    updatePuzzlesCleared();
+
+    // Store digit
+    state.roomDigits[state.room][state.puzzleIndex] = puzzle.digit;
+
+    // Show digit reveal
+    const digitOverlay = $('digitReveal');
+    $('digitNum').textContent = puzzle.digit;
+    $('digitNum').style.color = room.color;
+    $('digitNum').style.textShadow = `0 0 30px ${room.color}`;
+    $('digitLabel').textContent = 'Code Digit Unlocked';
+    digitOverlay.classList.add('active');
+    digitOverlay.style.display = 'flex';
+
+    // Particles
+    spawnParticles(window.innerWidth / 2, window.innerHeight / 2, room.color, 10);
+
+    safeTimeout(() => {
+      digitOverlay.classList.remove('active');
+      digitOverlay.style.display = 'none';
+      $('rescanBtn').classList.remove('visible');
+
+      state.puzzleIndex++;
+      updateProgressDots();
+
+      if (state.puzzleIndex >= 2) {
+        // Room complete — check badges
+        checkRoomBadges(state.room);
+        // Open code entry
+        const code = state.roomCodes[state.room];
+        state.vaultCodes[state.room] = code;
+        updateVault();
+        showCodeEntry(room);
+      } else {
+        // Show scan preview for next puzzle
+        showScanPreview(state.room, state.puzzleIndex);
+      }
+    }, 1500);
+
+    // Safety
+    safeTimeout(() => {
+      if (digitOverlay.classList.contains('active')) {
+        digitOverlay.classList.remove('active');
+        digitOverlay.style.display = 'none';
+      }
+    }, 3000);
+  } catch(e) { console.error('puzzleSolved:', e); state.puzzleSolving = false; }
+}
+
+function checkRoomBadges(roomIdx) {
+  try {
+    const attempts = state.roomPuzzleAttempts[roomIdx];
+    if (attempts[0] <= 1 && attempts[1] <= 1) {
+      if (!state.badges.includes('Clean Room')) state.badges.push('Clean Room');
+    }
+    if (!state.roomScannerUsed[roomIdx]) {
+      if (!state.badges.includes('No Scanner')) state.badges.push('No Scanner');
+    }
+  } catch(e) {}
+}
+
+// ========== CODE ENTRY ==========
+function showCodeEntry(room) {
+  try {
+    closeAllOverlays();
+    const overlay = $('codeEntry');
+    const d1 = state.roomDigits[state.room][0];
+    const d2 = state.roomDigits[state.room][1];
+    $('codeEntryLabel').innerHTML = `Enter ${room.name} Exit Code`;
+    $('codeEntryLabel').style.color = room.color;
+    // Show the unlocked digits so students know what to type
+    $('codeDigitHint').innerHTML = `<span style="font-size:clamp(14px,2vw,18px);color:var(--text-dim)">Your unlocked digits:</span><br><span style="font-size:clamp(32px,6vw,48px);font-weight:800;color:${room.color};text-shadow:0 0 20px ${room.color};letter-spacing:12px">${d1} ${d2}</span>`;
+    $('codeDigitHint').style.display = 'block';
+    $('codeD1').value = '';
+    $('codeD2').value = '';
+    $('codeFeedback').textContent = '';
+    $('codeD1').style.borderColor = room.color;
+    $('codeD2').style.borderColor = room.color;
+    overlay.classList.add('active');
+    overlay.style.display = 'flex';
+    safeTimeout(() => $('codeD1').focus(), 100);
+
+    // Auto-advance on input
+    let autoSubmitTimer = null;
+    $('codeD1').oninput = function() { if (this.value.length >= 1) $('codeD2').focus(); };
+    $('codeD2').oninput = function() { if (autoSubmitTimer) clearTimeout(autoSubmitTimer); if (this.value.length >= 1) autoSubmitTimer = safeTimeout(submitCode, 300); };
+  } catch(e) { console.error('showCodeEntry:', e); }
+}
+
+function submitCode() {
+  try {
+    const entered = $('codeD1').value + $('codeD2').value;
+    const expected = state.roomCodes[state.room];
+    if (entered === expected) {
+      $('codeFeedback').innerHTML = '<span style="color:var(--correct)">✔ Code accepted!</span>';
+      safeTimeout(() => {
+        closeAllOverlays();
+        $('codeEntry').classList.remove('active');
+        $('codeEntry').style.display = 'none';
+
+        const room = rooms[state.room];
+        // Show completion message briefly
+        $('missionLine').textContent = room.completionMsg;
+
+        if (state.room < 2) {
+          // Pass the laptop
+          safeTimeout(() => showPassTheLaptop(state.room + 1), 600);
+        } else {
+          // Go to final lock
+          safeTimeout(() => showDoorTransition(0, true), 600);
+        }
+      }, 600);
+    } else {
+      $('codeFeedback').innerHTML = '<span style="color:var(--wrong)">✖ Wrong code — try again</span>';
+      $('codeD1').value = '';
+      $('codeD2').value = '';
+      $('codeD1').focus();
+    }
+  } catch(e) { console.error('submitCode:', e); }
+}
+
+// ========== PASS THE LAPTOP ==========
+function showPassTheLaptop(nextRoomIdx) {
+  try {
+    closeAllOverlays();
+    const nextRoom = rooms[nextRoomIdx];
+    const overlay = $('passOverlay');
+    overlay.innerHTML = `
+      <div class="pass-text" style="color:${nextRoom.color}">PASS THE LAPTOP</div>
+      <button class="pass-ready-btn" style="background:${nextRoom.color};color:#000" onclick="document.getElementById('passOverlay').classList.remove('active');document.getElementById('passOverlay').style.display='none';showDoorTransition(${nextRoomIdx},false)">Ready</button>`;
+    overlay.classList.add('active');
+    overlay.style.display = 'flex';
+  } catch(e) { showDoorTransition(nextRoomIdx, false); }
+}
+
+// ========== FINAL LOCK ==========
+function loadFinalLock() {
+  try {
+    closeAllOverlays();
+    $('roomInfo').innerHTML = '🔒 Final Lock';
+    $('roomProgress').textContent = 'Final Challenge';
+    $('missionLine').textContent = 'This is it! Match each term to its function.';
+    $('mainArea').className = 'main-area';
+    $('progressDots').innerHTML = '';
+    $('scannerBtn').style.visibility = 'hidden';
+    $('rescanBtn').classList.remove('visible');
+
+    const ma = $('mainArea');
+    const terms = [...finalLock.pairs];
+    const matches = [...finalLock.pairs].sort(() => Math.random() - .5);
+    const matched = new Set();
+    let selectedTerm = null;
+    state.finalLockWrong = 0;
+    state.finalOverride = false;
+
+    function draw() {
+      if (matched.size >= 3) { triggerEscape(); return; }
+
+      ma.innerHTML = `<div class="final-lock-area">
+        <div style="text-align:center;font-size:clamp(14px,2vw,18px);color:var(--text-dim);margin-bottom:16px">Match each term to its function</div>
+        <div class="fl-pairs">
+          <div class="fl-side">${terms.map(t => {
+            const isMatched = matched.has(t.term);
+            return `<div class="fl-card${isMatched ? ' matched' : ''}" data-term="${t.term}" style="color:${t.color};border-color:${t.color}">${t.emoji} ${t.term}</div>`;
+          }).join('')}</div>
+          <div class="fl-side">${matches.map(m => {
+            const isMatched = matched.has(m.term);
+            return `<div class="fl-card${isMatched ? ' matched' : ''}" data-match="${m.match}" data-forterm="${m.term}" style="color:${isMatched ? m.color : 'var(--text)'}">${m.match}</div>`;
+          }).join('')}</div>
+        </div>
+      </div>`;
+
+      selectedTerm = null;
+
+      ma.querySelectorAll('.fl-card[data-term]:not(.matched)').forEach(tc => {
+        tc.addEventListener('click', () => {
+          // Deselect all terms
+          ma.querySelectorAll('.fl-card[data-term]').forEach(t => t.classList.remove('selected'));
+          tc.classList.add('selected');
+          selectedTerm = tc.dataset.term;
+          // If scanner was used, narrow to 2 match options
+          if (state.finalLockWrong >= 1 && !state.finalOverride) {
+            try {
+              const correctPair = finalLock.pairs.find(p => p.term === selectedTerm);
+              const unmatchedCards = ma.querySelectorAll('.fl-card[data-match]:not(.matched)');
+              // Find one card that is NOT the correct match and NOT already matched
+              let dimmed = false;
+              unmatchedCards.forEach(mc => {
+                mc.classList.remove('disabled');
+                mc.style.opacity = '';
+              });
+              unmatchedCards.forEach(mc => {
+                if (!dimmed && mc.dataset.match !== correctPair.match) {
+                  // Also make sure we don't dim the only wrong option — leave 2 visible
+                  const visibleCount = ma.querySelectorAll('.fl-card[data-match]:not(.matched)').length;
+                  if (visibleCount > 2) {
+                    mc.classList.add('disabled');
+                    mc.style.opacity = '0.3';
+                    dimmed = true;
+                  }
+                }
+              });
+            } catch(e) {}
+          }
+        });
+      });
+
+      ma.querySelectorAll('.fl-card[data-match]:not(.matched)').forEach(mc => {
+        mc.addEventListener('click', () => {
+          if (!selectedTerm) return;
+          const pair = finalLock.pairs.find(p => p.term === selectedTerm);
+          if (pair && mc.dataset.match === pair.match) {
+            // Correct
+            mc.classList.add('correct-flash');
+            mc.style.color = pair.color;
+            matched.add(pair.term);
+            safeTimeout(draw, 500);
+          } else {
+            // Wrong
+            mc.classList.add('wrong-flash');
+            state.finalLockWrong++;
+
+            safeTimeout(() => {
+              mc.classList.remove('wrong-flash');
+              if (state.finalLockWrong === 1 && !state.finalOverride) {
+                showFinalScanner();
+              } else if (state.finalLockWrong >= 2 && !state.finalOverride) {
+                triggerFinalOverride(matched, draw);
+              }
+            }, 500);
+          }
+        });
+      });
+    }
+
+    // Brief "This is it!" flash
+    ma.innerHTML = `<div style="text-align:center;font-size:clamp(20px,4vw,32px);font-weight:700;color:var(--r1a)">This is it!</div>`;
+    safeTimeout(draw, 500);
+  } catch(e) { console.error('loadFinalLock:', e); }
+}
+
+function showFinalScanner() {
+  try {
+    const overlay = $('scannerOverlay');
+    $('scannerText').innerHTML = `<div style="color:var(--r1a);font-weight:700;margin-bottom:8px">🔍 SCANNER ACTIVATED</div>${finalLock.scannerText}`;
+    overlay.classList.add('active');
+    overlay.style.display = 'flex';
+    state.scannerActive = true;
+  } catch(e) {}
+}
+
+function triggerFinalOverride(matched, draw) {
+  try {
+    state.finalOverride = true;
+    closeScanner();
+    let delay = 0;
+    finalLock.pairs.forEach(p => {
+      if (!matched.has(p.term)) {
+        safeTimeout(() => { matched.add(p.term); draw(); }, delay);
+        delay += 500;
+      }
+    });
+    safeTimeout(() => { if (matched.size >= 3) triggerEscape(); }, delay + 300);
+  } catch(e) { triggerEscape(); }
+}
+
+// ========== ESCAPE ==========
+function triggerEscape() {
+  try {
+    closeAllOverlays();
+    const overlay = $('escapedOverlay');
+    overlay.classList.add('active');
+    overlay.style.display = 'flex';
+    spawnConfetti();
+
+    safeTimeout(() => {
+      overlay.classList.remove('active');
+      overlay.style.display = 'none';
+      showEscapeReport();
+    }, 3000);
+
+    safeTimeout(() => {
+      if (overlay.classList.contains('active')) {
+        overlay.classList.remove('active');
+        overlay.style.display = 'none';
+        showEscapeReport();
+      }
+    }, 5000);
+  } catch(e) { showEscapeReport(); }
+}
+
+// ========== ESCAPE REPORT ==========
+function showEscapeReport() {
+  try {
+    closeAllOverlays();
+    $('gameScreen').classList.remove('active');
+    $('codeVault').style.display = 'none';
+
+    const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+    let stars = 1;
+    if (state.firstTrySolves >= 4) stars = 3;
+    else if (state.firstTrySolves >= 2) stars = 2;
+
+    const report = $('reportScreen');
+    report.innerHTML = `
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--r1);margin-bottom:4px">Mr. Jawad's Escape Room Simulations</div>
+      <div class="report-header">ESCAPED!</div>
+      <div class="report-stars">${'⭐'.repeat(3).split('').map((s,i) => `<span class="report-star" data-earned="${i < stars}">${s}</span>`).join('')}</div>
+      <div class="report-card">
+        <div class="report-row"><span class="label">Rooms Cleared</span><span class="value">3 / 3</span></div>
+        <div class="report-row"><span class="label">Puzzles Cleared</span><span class="value">${state.puzzlesSolved} / 6</span></div>
+        <div class="report-row"><span class="label">First-Try Solves</span><span class="value">${state.firstTrySolves} / 6</span></div>
+        <div class="report-row"><span class="label">Star Rating</span><span class="value">${'⭐'.repeat(stars)}</span></div>
+        <div class="report-row"><span class="label">Time</span><span class="value">${timeStr}</span></div>
+      </div>
+      ${state.badges.length ? `<div style="text-align:center;font-weight:700;margin-bottom:4px">Badges Earned</div><div class="report-badges">${state.badges.map(b => {
+        const icons = {'Clean Room':'🏅','Comeback':'🔄','No Scanner':'🚫','Deep Scan':'🔍'};
+        return `<div class="report-badge">${icons[b]||'🏆'} ${b}</div>`;
+      }).join('')}</div>` : ''}
+      <div class="report-btns">
+        <button class="report-btn" onclick="copyReport()">📋 Copy Report</button>
+        <button class="report-btn" onclick="location.reload()">🔄 Play Again</button>
+      </div>
+      <div class="report-brand">Mr. Jawad's Escape Room Simulations</div>`;
+    report.classList.add('active');
+    report.style.display = 'flex';
+
+    // Animate stars
+    const starEls = report.querySelectorAll('.report-star[data-earned="true"]');
+    starEls.forEach((s, i) => {
+      safeTimeout(() => { s.classList.add('earned'); }, 300 * (i + 1));
+    });
+  } catch(e) { console.error('showEscapeReport:', e); }
+}
+
+function copyReport() {
+  try {
+    const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    let stars = 1;
+    if (state.firstTrySolves >= 4) stars = 3;
+    else if (state.firstTrySolves >= 2) stars = 2;
+
+    const text = `Mr. Jawad's Escape Room Simulations — Cell Structure & Function\nRooms Cleared\t3/3\nPuzzles Cleared\t${state.puzzlesSolved}/6\nFirst-Try Solves\t${state.firstTrySolves}/6\nStar Rating\t${'⭐'.repeat(stars)}\nBadges\t${state.badges.join(', ') || 'None'}\nTime\t${mins}:${secs.toString().padStart(2, '0')}`;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.report-btn');
+      if (btn) { btn.textContent = '✔ Copied!'; safeTimeout(() => { btn.textContent = '📋 Copy Report'; }, 2000); }
+    }).catch(() => {});
+  } catch(e) {}
+}
+
+// ========== EMERGENCY SKIP ==========
+// Shift+S hold for 2 seconds
+document.addEventListener('keydown', (e) => {
+  try {
+    if (e.key === 'S' && e.shiftKey) {
+      if (!state.shiftSStart) state.shiftSStart = Date.now();
+    }
+  } catch(e2) {}
+});
+document.addEventListener('keyup', (e) => {
+  try {
+    if (e.key === 'S' || e.key === 's') {
+      if (state.shiftSStart && (Date.now() - state.shiftSStart) >= 2000) {
+        emergencySkip();
+      }
+      state.shiftSStart = 0;
+    }
+  } catch(e2) {}
+});
+
+// Long press on room title (5 sec)
+let longPressTimer = null;
+document.addEventListener('pointerdown', (e) => {
+  try {
+    const ri = $('roomInfo');
+    if (ri && ri.contains(e.target)) {
+      longPressTimer = safeTimeout(() => { emergencySkip(); }, 5000);
+    }
+  } catch(e2) {}
+});
+document.addEventListener('pointerup', () => { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } });
+document.addEventListener('pointercancel', () => { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } });
+
+function emergencySkip() {
+  try {
+    // Detect if on final lock
+    const ri = $('roomInfo');
+    if (ri && ri.textContent.includes('Final Lock')) {
+      showEscapeReport();
+      return;
+    }
+
+    // Room skip
+    if (state.room >= 0 && state.room < 3) {
+      const room = rooms[state.room];
+      // Reveal both digits
+      state.roomDigits[state.room] = [room.puzzles[0].digit, room.puzzles[1].digit];
+      // Mark puzzles solved
+      state.puzzlesSolved = Math.max(state.puzzlesSolved, (state.room + 1) * 2);
+      updatePuzzlesCleared();
+      // Store vault code
+      state.vaultCodes[state.room] = state.roomCodes[state.room];
+      updateVault();
+
+      closeAllOverlays();
+
+      if (state.room < 2) {
+        showPassTheLaptop(state.room + 1);
+      } else {
+        safeTimeout(() => showDoorTransition(0, true), 300);
+      }
+    }
+  } catch(e) { console.error('emergencySkip:', e); }
+}
+</script>
+</body>
+</html>
