@@ -1,0 +1,2830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biology Regents Study Planner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  </style>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const { useState, useEffect, useMemo } = React;
+// ═══════════════════════════════════════════════════════════════
+// DATA CONSTANTS — from Content Blueprint (single source of truth)
+// ═══════════════════════════════════════════════════════════════
+
+const RAW_TO_SCALED = [[0, 0], [1, 5], [2, 9], [3, 13], [4, 17], [5, 21], [6, 25], [7, 29], [8, 32], [9, 36], [10, 39], [11, 42], [12, 45], [13, 47], [14, 50], [15, 53], [16, 55], [17, 57], [18, 59], [19, 61], [20, 63], [21, 65], [22, 67], [23, 68], [24, 70], [25, 71], [26, 72], [27, 74], [28, 75], [29, 76], [30, 77], [31, 78], [32, 79], [33, 80], [34, 81], [35, 82], [36, 83], [37, 84], [38, 85], [39, 86], [40, 87], [41, 88], [42, 90], [43, 91], [44, 93], [45, 94], [46, 96], [47, 98], [48, 100]];
+const scaledToRaw = scaled => {
+  if (scaled <= 0) return 0;
+  if (scaled >= 100) return 48;
+  for (let i = RAW_TO_SCALED.length - 1; i >= 0; i--) {
+    if (RAW_TO_SCALED[i][1] <= scaled) return RAW_TO_SCALED[i][0];
+  }
+  return 0;
+};
+const TOPICS = [{
+  id: 0,
+  name: "Structure & Function",
+  shortName: "Structure & Function",
+  icon: "🧬",
+  weight: 14.6,
+  range: [9, 20],
+  learnability: 0.58,
+  halfLife: 8,
+  pes: [{
+    code: "HS-LS1-1",
+    desc: "DNA → protein → cell function"
+  }, {
+    code: "HS-LS1-2",
+    desc: "Interacting body systems"
+  }, {
+    code: "HS-LS1-3",
+    desc: "Feedback mechanisms & homeostasis"
+  }],
+  studyFocus: "feedback mechanisms, DNA → protein",
+  teacherFocus: "HS-LS1-1 through HS-LS1-3"
+}, {
+  id: 1,
+  name: "Matter & Energy",
+  shortName: "Matter & Energy",
+  icon: "⚡",
+  weight: 12.6,
+  range: [9, 16],
+  learnability: 0.52,
+  halfLife: 9,
+  pes: [{
+    code: "HS-LS1-5",
+    desc: "Photosynthesis inputs/outputs"
+  }, {
+    code: "HS-LS1-6",
+    desc: "Matter rearrangement in cells"
+  }, {
+    code: "HS-LS1-7",
+    desc: "Cellular respiration"
+  }, {
+    code: "HS-LS2-3",
+    desc: "Matter/energy transfer in ecosystems"
+  }, {
+    code: "HS-LS2-4",
+    desc: "Energy flow & matter cycling"
+  }, {
+    code: "HS-LS2-5",
+    desc: "Matter cycling models"
+  }],
+  studyFocus: "photosynthesis, cellular respiration",
+  teacherFocus: "HS-LS1-5 through HS-LS2-5"
+}, {
+  id: 2,
+  name: "Ecosystems",
+  shortName: "Ecosystems",
+  icon: "🌿",
+  weight: 20.7,
+  range: [14, 27],
+  learnability: 0.62,
+  halfLife: 10,
+  pes: [{
+    code: "HS-LS2-1",
+    desc: "Carrying capacity"
+  }, {
+    code: "HS-LS2-2",
+    desc: "Ecosystem changes, biodiversity"
+  }, {
+    code: "HS-LS2-6",
+    desc: "Disturbance → ecological change"
+  }, {
+    code: "HS-LS2-7",
+    desc: "Biodiversity & stability solutions"
+  }, {
+    code: "HS-LS2-8",
+    desc: "Group behaviors in ecosystems"
+  }],
+  studyFocus: "food webs, carrying capacity, biodiversity",
+  teacherFocus: "HS-LS2-1 through HS-LS2-8"
+}, {
+  id: 3,
+  name: "Inheritance",
+  shortName: "Inheritance",
+  icon: "🧪",
+  weight: 20.7,
+  range: [14, 27],
+  learnability: 0.68,
+  halfLife: 9,
+  pes: [{
+    code: "HS-LS1-4",
+    desc: "Mitosis → cell differentiation"
+  }, {
+    code: "HS-LS1-8",
+    desc: "Human reproductive systems"
+  }, {
+    code: "HS-LS3-1",
+    desc: "DNA structure, chromosomes, traits"
+  }, {
+    code: "HS-LS3-2",
+    desc: "DNA → trait variation"
+  }, {
+    code: "HS-LS3-3",
+    desc: "DNA changes → variation"
+  }],
+  studyFocus: "Punnett squares, DNA replication, mitosis",
+  teacherFocus: "HS-LS3-1 through HS-LS3-3"
+}, {
+  id: 4,
+  name: "Evolution",
+  shortName: "Evolution",
+  icon: "🦴",
+  weight: 19.2,
+  range: [14, 24],
+  learnability: 0.60,
+  halfLife: 9,
+  pes: [{
+    code: "HS-LS4-1",
+    desc: "Common ancestor evidence"
+  }, {
+    code: "HS-LS4-2",
+    desc: "Natural selection → adaptation"
+  }, {
+    code: "HS-LS4-3",
+    desc: "Natural selection patterns"
+  }, {
+    code: "HS-LS4-4",
+    desc: "Adaptation in populations"
+  }, {
+    code: "HS-LS4-5",
+    desc: "Environmental change → evolution"
+  }],
+  studyFocus: "natural selection, fossil evidence, adaptation",
+  teacherFocus: "HS-LS4-1 through HS-LS4-5"
+}, {
+  id: 5,
+  name: "Earth's Systems",
+  shortName: "Earth's Systems",
+  icon: "🌍",
+  weight: 5.6,
+  range: [2, 9],
+  learnability: 0.55,
+  halfLife: 5,
+  pes: [{
+    code: "HS-ESS2-6",
+    desc: "Carbon cycling"
+  }, {
+    code: "HS-ESS2-7",
+    desc: "Coevolution of life & atmosphere"
+  }],
+  studyFocus: "carbon cycle, atmosphere changes",
+  teacherFocus: "HS-ESS2-6 through HS-ESS2-7"
+}, {
+  id: 6,
+  name: "Engineering",
+  shortName: "Engineering",
+  icon: "⚙️",
+  weight: 6.6,
+  range: [2, 11],
+  learnability: 0.65,
+  halfLife: 5,
+  pes: [{
+    code: "HS-ETS1-1",
+    desc: "Define problems: criteria, constraints"
+  }, {
+    code: "HS-ETS1-2",
+    desc: "Design solutions using models"
+  }, {
+    code: "HS-ETS1-3",
+    desc: "Evaluate solutions: trade-offs"
+  }, {
+    code: "HS-ETS1-4",
+    desc: "Compare solutions mathematically"
+  }],
+  studyFocus: "trade-offs, criteria/constraints format",
+  teacherFocus: "HS-ETS1-1 through HS-ETS1-4"
+}];
+const TOTAL_POINTS = 48;
+const PASSING_RAW = 21;
+const DIFFICULTY_MULTIPLIERS = {
+  easier: 1.12,
+  typical: 1.00,
+  harder: 0.88
+};
+const CLASS_SPREAD_MULTIPLIERS = {
+  tight: 0.9,
+  typical: 1.0,
+  wide: 0.8
+};
+const LEARNING_RATE_TEACHER = 0.045;
+const LEARNING_RATE_STUDENT = 0.035;
+const CROSSING_THRESHOLD = 12;
+const MASTERY_FLOOR = 10;
+const MASTERY_CAP = 95;
+const CONFIDENCE_MASTERY = {
+  gotit: 75,
+  okay: 50,
+  lost: 25
+};
+const RANK_SPREADS = {
+  low: [55, 47, 39, 31, 23, 17, 12],
+  mid: [70, 62, 54, 46, 38, 30, 22],
+  high: [85, 78, 71, 64, 57, 50, 43]
+};
+const QUICK_ESTIMATE = {
+  low: {
+    mastery: 35,
+    bubblePct: 0.30
+  },
+  medium: {
+    mastery: 55,
+    bubblePct: 0.40
+  },
+  high: {
+    mastery: 75,
+    bubblePct: 0.15
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CORE ENGINE FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+
+function pointsInTopic(weight) {
+  return weight / 100 * TOTAL_POINTS;
+}
+function diminishingFactor(dTotal, halfLife) {
+  return 1 / (1 + dTotal / halfLife);
+}
+function simulateMasteryGain(startMastery, days, topicIdx, diffSetting, isTeacher, classSpread) {
+  const topic = TOPICS[topicIdx];
+  let mastery = Math.max(MASTERY_FLOOR, Math.min(MASTERY_CAP, startMastery));
+  const diffMult = DIFFICULTY_MULTIPLIERS[diffSetting] || 1.0;
+  const learnability = topic.learnability * diffMult;
+  const learningRate = isTeacher ? LEARNING_RATE_TEACHER : LEARNING_RATE_STUDENT;
+  let hl = topic.halfLife;
+  if (isTeacher) {
+    const spreadMult = CLASS_SPREAD_MULTIPLIERS[classSpread] || 1.0;
+    hl = hl * spreadMult;
+  }
+  for (let d = 0; d < days; d++) {
+    const df = diminishingFactor(d, hl);
+    mastery = mastery + (100 - mastery) * learnability * learningRate * df;
+  }
+  return Math.min(MASTERY_CAP, mastery);
+}
+function projectedPoints(mastery, weight) {
+  return mastery / 100 * pointsInTopic(weight);
+}
+function totalProjected(masteries, weights) {
+  let sum = 0;
+  for (let i = 0; i < 7; i++) {
+    sum += projectedPoints(masteries[i], weights[i]);
+  }
+  return sum;
+}
+function computeMarginalGain(currentMastery, dTotal, topicIdx, diffSetting, isTeacher, classSpread, weight) {
+  const topic = TOPICS[topicIdx];
+  const diffMult = DIFFICULTY_MULTIPLIERS[diffSetting] || 1.0;
+  const learnability = topic.learnability * diffMult;
+  const learningRate = isTeacher ? LEARNING_RATE_TEACHER : LEARNING_RATE_STUDENT;
+  let hl = topic.halfLife;
+  if (isTeacher) {
+    const spreadMult = CLASS_SPREAD_MULTIPLIERS[classSpread] || 1.0;
+    hl = hl * spreadMult;
+  }
+  const df = diminishingFactor(dTotal, hl);
+  const newMastery = Math.min(MASTERY_CAP, currentMastery + (100 - currentMastery) * learnability * learningRate * df);
+  const oldPts = projectedPoints(currentMastery, weight);
+  const newPts = projectedPoints(newMastery, weight);
+  return {
+    gain: newPts - oldPts,
+    newMastery
+  };
+}
+function computeBubbleWeights(bubbleCounts) {
+  const maxBubble = Math.max(...bubbleCounts);
+  if (maxBubble === 0) return bubbleCounts.map(() => 1.0);
+  return bubbleCounts.map(b => b === 0 ? 0.1 : b / maxBubble);
+}
+function computeOptimalAllocation(startingMasteries, totalDays, diffSettings, isTeacher, classSpread, weights, bubbleCounts) {
+  const masteries = [...startingMasteries];
+  const daysPerTopic = [0, 0, 0, 0, 0, 0, 0];
+  const bubbleWeights = isTeacher ? computeBubbleWeights(bubbleCounts) : null;
+  for (let day = 0; day < totalDays; day++) {
+    let bestTopic = -1;
+    let bestScore = -Infinity;
+    for (let i = 0; i < 7; i++) {
+      const {
+        gain
+      } = computeMarginalGain(masteries[i], daysPerTopic[i], i, diffSettings[i], isTeacher, classSpread, weights[i]);
+      let priorityScore = gain;
+      if (isTeacher && bubbleWeights) {
+        priorityScore *= bubbleWeights[i];
+      }
+      if (priorityScore > bestScore) {
+        bestScore = priorityScore;
+        bestTopic = i;
+      }
+    }
+    if (bestTopic >= 0) {
+      const {
+        newMastery
+      } = computeMarginalGain(masteries[bestTopic], daysPerTopic[bestTopic], bestTopic, diffSettings[bestTopic], isTeacher, classSpread, weights[bestTopic]);
+      masteries[bestTopic] = newMastery;
+      daysPerTopic[bestTopic]++;
+    }
+  }
+  return {
+    optimalDays: daysPerTopic,
+    optimalMasteries: masteries
+  };
+}
+function computeCurrentMasteries(startingMasteries, daysPerTopic, diffSettings, isTeacher, classSpread) {
+  return startingMasteries.map((sm, i) => simulateMasteryGain(sm, daysPerTopic[i], i, diffSettings[i], isTeacher, classSpread));
+}
+function computePlanStrength(startingMasteries, currentMasteries, optimalMasteries, weights) {
+  const startPts = totalProjected(startingMasteries, weights);
+  const userPts = totalProjected(currentMasteries, weights);
+  const optPts = totalProjected(optimalMasteries, weights);
+  const userGain = userPts - startPts;
+  const optGain = optPts - startPts;
+  if (optGain <= 0) return 100;
+  const strength = Math.min(100, userGain / optGain * 100);
+  return Math.max(0, strength);
+}
+function computeCrossings(startingMasteries, currentMasteries, bubbleCounts) {
+  let total = 0;
+  for (let i = 0; i < 7; i++) {
+    const gain = currentMasteries[i] - startingMasteries[i];
+    const crossings = bubbleCounts[i] * Math.min(gain / CROSSING_THRESHOLD, 1.0);
+    total += crossings;
+  }
+  return Math.round(total);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STYLE CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+
+const COLORS = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  border: "#E2E5EA",
+  text: "#1A1D23",
+  textMuted: "#6B7280",
+  textLight: "#9CA3AF",
+  primary: "#2563EB",
+  primaryHover: "#1D4ED8",
+  primaryLight: "#DBEAFE",
+  green: "#059669",
+  greenLight: "#D1FAE5",
+  greenBg: "#ECFDF5",
+  yellow: "#D97706",
+  yellowLight: "#FEF3C7",
+  yellowBg: "#FFFBEB",
+  red: "#DC2626",
+  redLight: "#FEE2E2",
+  redBg: "#FEF2F2",
+  focus: "#7C3AED",
+  focusLight: "#EDE9FE",
+  reinforce: "#0891B2",
+  reinforceLight: "#CFFAFE",
+  boost: "#F59E0B",
+  boostLight: "#FEF3C7"
+};
+
+// ═══════════════════════════════════════════════════════════════
+// UTILITY COMPONENTS
+// ═══════════════════════════════════════════════════════════════
+
+function StepDots({
+  current
+}) {
+  const labels = ["Calibrate", "Allocate", "Plan"];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      marginBottom: 28
+    }
+  }, labels.map((label, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 32,
+      height: 32,
+      borderRadius: "50%",
+      background: i <= current ? COLORS.primary : COLORS.border,
+      color: i <= current ? "#fff" : COLORS.textMuted,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 13,
+      fontWeight: 600,
+      transition: "all 0.3s"
+    }
+  }, i + 1), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: i === current ? 600 : 400,
+      color: i === current ? COLORS.text : COLORS.textMuted
+    }
+  }, label), i < 2 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 32,
+      height: 2,
+      background: i < current ? COLORS.primary : COLORS.border,
+      borderRadius: 1
+    }
+  }))));
+}
+function Card({
+  children,
+  style,
+  maxWidth
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: COLORS.card,
+      borderRadius: 16,
+      border: `1px solid ${COLORS.border}`,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+      padding: 28,
+      maxWidth: maxWidth || "100%",
+      margin: "0 auto",
+      ...style
+    }
+  }, children);
+}
+function Btn({
+  children,
+  onClick,
+  disabled,
+  variant = "primary",
+  style
+}) {
+  const base = {
+    padding: "14px 28px",
+    borderRadius: 12,
+    border: "none",
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontSize: 15,
+    fontWeight: 600,
+    minHeight: 48,
+    width: "100%",
+    transition: "all 0.2s",
+    opacity: disabled ? 0.5 : 1,
+    fontFamily: "'Inter', system-ui, sans-serif"
+  };
+  const variants = {
+    primary: {
+      background: COLORS.primary,
+      color: "#fff"
+    },
+    secondary: {
+      background: COLORS.bg,
+      color: COLORS.text,
+      border: `1px solid ${COLORS.border}`
+    },
+    ghost: {
+      background: "transparent",
+      color: COLORS.primary,
+      border: `1px solid ${COLORS.primary}`
+    }
+  };
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: onClick,
+    disabled: disabled,
+    style: {
+      ...base,
+      ...variants[variant],
+      ...style
+    }
+  }, children);
+}
+function Stepper({
+  value,
+  onChange,
+  min = 0,
+  max = 99,
+  disabled
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 0,
+      background: COLORS.bg,
+      borderRadius: 10,
+      border: `1px solid ${COLORS.border}`
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onChange(Math.max(min, value - 1)),
+    disabled: disabled || value <= min,
+    style: {
+      width: 44,
+      height: 44,
+      border: "none",
+      background: "transparent",
+      cursor: disabled || value <= min ? "not-allowed" : "pointer",
+      fontSize: 20,
+      fontWeight: 600,
+      color: disabled || value <= min ? COLORS.textLight : COLORS.text,
+      borderRadius: "10px 0 0 10px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "\u2212"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 44,
+      textAlign: "center",
+      fontSize: 18,
+      fontWeight: 700,
+      color: COLORS.text,
+      padding: "0 4px",
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, value), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onChange(Math.min(max, value + 1)),
+    disabled: disabled || value >= max,
+    style: {
+      width: 44,
+      height: 44,
+      border: "none",
+      background: "transparent",
+      cursor: disabled || value >= max ? "not-allowed" : "pointer",
+      fontSize: 20,
+      fontWeight: 600,
+      color: disabled || value >= max ? COLORS.textLight : COLORS.primary,
+      borderRadius: "0 10px 10px 0",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "+"));
+}
+function ProgressBar({
+  value,
+  max = 100,
+  color = COLORS.primary,
+  height = 8
+}) {
+  const pct = Math.min(100, Math.max(0, value / max * 100));
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "100%",
+      height,
+      background: COLORS.bg,
+      borderRadius: height / 2,
+      overflow: "hidden"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: `${pct}%`,
+      height: "100%",
+      background: color,
+      borderRadius: height / 2,
+      transition: "width 0.4s ease"
+    }
+  }));
+}
+function Badge({
+  children,
+  color,
+  bg
+}) {
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "inline-flex",
+      alignItems: "center",
+      padding: "3px 10px",
+      borderRadius: 6,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: 0.3,
+      color: color,
+      background: bg,
+      textTransform: "uppercase"
+    }
+  }, children);
+}
+function SegmentedControl({
+  options,
+  value,
+  onChange,
+  size = "normal"
+}) {
+  const pad = size === "small" ? "6px 12px" : "10px 16px";
+  const fs = size === "small" ? 12 : 13;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      background: COLORS.bg,
+      borderRadius: 10,
+      border: `1px solid ${COLORS.border}`,
+      overflow: "hidden"
+    }
+  }, options.map(opt => /*#__PURE__*/React.createElement("button", {
+    key: opt.value,
+    onClick: () => onChange(opt.value),
+    style: {
+      padding: pad,
+      border: "none",
+      cursor: "pointer",
+      background: value === opt.value ? COLORS.primary : "transparent",
+      color: value === opt.value ? "#fff" : COLORS.textMuted,
+      fontSize: fs,
+      fontWeight: 600,
+      flex: 1,
+      transition: "all 0.2s",
+      minHeight: 44,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, opt.label)));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN: MODE SELECTION
+// ═══════════════════════════════════════════════════════════════
+
+function ModeSelection({
+  onSelect
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: COLORS.bg,
+      padding: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      maxWidth: 500,
+      width: "100%"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 42,
+      marginBottom: 8
+    }
+  }, "\uD83D\uDD2C"), /*#__PURE__*/React.createElement("h1", {
+    style: {
+      fontSize: 28,
+      fontWeight: 800,
+      color: COLORS.text,
+      marginBottom: 8,
+      lineHeight: 1.2
+    }
+  }, "Biology Regents Study Planner"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 16,
+      color: COLORS.textMuted,
+      marginBottom: 36
+    }
+  }, "Find where your next 21 points are hiding."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 14
+    }
+  }, [{
+    mode: "teacher",
+    icon: "🍎",
+    label: "I'm a teacher",
+    sub: "Plan instructional days for your class"
+  }, {
+    mode: "student",
+    icon: "📚",
+    label: "I'm a student",
+    sub: "Build a personal study plan"
+  }].map(({
+    mode,
+    icon,
+    label,
+    sub
+  }) => /*#__PURE__*/React.createElement("button", {
+    key: mode,
+    onClick: () => onSelect(mode),
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 16,
+      padding: "20px 24px",
+      background: COLORS.card,
+      border: `2px solid ${COLORS.border}`,
+      borderRadius: 14,
+      cursor: "pointer",
+      textAlign: "left",
+      transition: "all 0.2s",
+      fontFamily: "'Inter', system-ui, sans-serif"
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.borderColor = COLORS.primary;
+      e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.12)";
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.borderColor = COLORS.border;
+      e.currentTarget.style.boxShadow = "none";
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 32
+    }
+  }, icon), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 17,
+      fontWeight: 700,
+      color: COLORS.text
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: COLORS.textMuted,
+      marginTop: 2
+    }
+  }, sub)))))));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN: TEACHER CALIBRATION
+// ═══════════════════════════════════════════════════════════════
+
+function TeacherCalibration({
+  onComplete,
+  onBack
+}) {
+  const [classSize, setClassSize] = useState(28);
+  const [useQuickEstimate, setUseQuickEstimate] = useState(false);
+  const [topicData, setTopicData] = useState(TOPICS.map(() => ({
+    average: 50,
+    bubbleCount: 8,
+    quickLevel: "medium"
+  })));
+  const [classSpread, setClassSpread] = useState("typical");
+  const [showStandards, setShowStandards] = useState(false);
+  const updateTopic = (idx, field, val) => {
+    setTopicData(prev => {
+      const next = [...prev];
+      next[idx] = {
+        ...next[idx],
+        [field]: val
+      };
+      return next;
+    });
+  };
+  const handleComplete = () => {
+    let masteries, bubbleCounts;
+    if (useQuickEstimate) {
+      masteries = topicData.map(t => QUICK_ESTIMATE[t.quickLevel].mastery);
+      bubbleCounts = topicData.map(t => Math.round(classSize * QUICK_ESTIMATE[t.quickLevel].bubblePct));
+    } else {
+      masteries = topicData.map(t => Math.max(MASTERY_FLOOR, Math.min(100, t.average)));
+      bubbleCounts = topicData.map(t => Math.min(classSize, Math.max(0, t.bubbleCount)));
+    }
+    onComplete({
+      masteries,
+      bubbleCounts,
+      classSize,
+      classSpread
+    });
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: COLORS.bg,
+      padding: "40px 24px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 620,
+      margin: "0 auto"
+    }
+  }, /*#__PURE__*/React.createElement(StepDots, {
+    current: 0
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "none",
+      border: "none",
+      color: COLORS.textMuted,
+      cursor: "pointer",
+      fontSize: 13,
+      marginBottom: 16,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "\u2190 Back"), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontSize: 20,
+      fontWeight: 700,
+      marginBottom: 4
+    }
+  }, "\uD83C\uDF4E Class Data"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: COLORS.textMuted,
+      marginBottom: 24
+    }
+  }, "Enter your class averages per topic from recent assessments."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: COLORS.text,
+      display: "block",
+      marginBottom: 6
+    }
+  }, "How many students?"), /*#__PURE__*/React.createElement(Stepper, {
+    value: classSize,
+    onChange: v => setClassSize(v),
+    min: 5,
+    max: 200
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setUseQuickEstimate(false),
+    style: {
+      padding: "8px 16px",
+      borderRadius: 8,
+      border: `1px solid ${!useQuickEstimate ? COLORS.primary : COLORS.border}`,
+      background: !useQuickEstimate ? COLORS.primaryLight : "transparent",
+      color: !useQuickEstimate ? COLORS.primary : COLORS.textMuted,
+      fontWeight: 600,
+      fontSize: 13,
+      cursor: "pointer",
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "I have assessment data"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setUseQuickEstimate(true),
+    style: {
+      padding: "8px 16px",
+      borderRadius: 8,
+      border: `1px solid ${useQuickEstimate ? COLORS.primary : COLORS.border}`,
+      background: useQuickEstimate ? COLORS.primaryLight : "transparent",
+      color: useQuickEstimate ? COLORS.primary : COLORS.textMuted,
+      fontWeight: 600,
+      fontSize: 13,
+      cursor: "pointer",
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "Quick estimate")), useQuickEstimate && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.yellow,
+      marginBottom: 16,
+      fontStyle: "italic"
+    }
+  }, "Rough estimates \u2014 for a better plan, use assessment data."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, TOPICS.map((topic, idx) => /*#__PURE__*/React.createElement("div", {
+    key: idx,
+    style: {
+      padding: 16,
+      background: COLORS.bg,
+      borderRadius: 12,
+      border: `1px solid ${COLORS.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 20
+    }
+  }, topic.icon), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 14,
+      fontWeight: 600
+    }
+  }, topic.shortName), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: COLORS.textMuted
+    }
+  }, "\xB7 ", topic.weight, "% of test")), useQuickEstimate ? /*#__PURE__*/React.createElement(SegmentedControl, {
+    size: "small",
+    options: [{
+      value: "low",
+      label: "Low"
+    }, {
+      value: "medium",
+      label: "Medium"
+    }, {
+      value: "high",
+      label: "High"
+    }],
+    value: topicData[idx].quickLevel,
+    onChange: v => updateTopic(idx, "quickLevel", v)
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 12,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 140
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 11,
+      color: COLORS.textMuted,
+      display: "block",
+      marginBottom: 4
+    }
+  }, "Class avg % correct"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: 0,
+    max: 100,
+    value: topicData[idx].average,
+    onChange: e => updateTopic(idx, "average", Math.max(0, Math.min(100, parseInt(e.target.value) || 0))),
+    style: {
+      width: "100%",
+      padding: "8px 12px",
+      borderRadius: 8,
+      border: `1px solid ${COLORS.border}`,
+      fontSize: 14,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 140
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 11,
+      color: COLORS.textMuted,
+      display: "block",
+      marginBottom: 4
+    }
+  }, "Bubble students (score 55\u201363)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: 0,
+    max: classSize,
+    value: topicData[idx].bubbleCount,
+    onChange: e => updateTopic(idx, "bubbleCount", Math.max(0, Math.min(classSize, parseInt(e.target.value) || 0))),
+    style: {
+      width: "100%",
+      padding: "8px 12px",
+      borderRadius: 8,
+      border: `1px solid ${COLORS.border}`,
+      fontSize: 14,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  })))))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowStandards(!showStandards),
+    style: {
+      background: "none",
+      border: "none",
+      color: COLORS.primary,
+      cursor: "pointer",
+      fontSize: 13,
+      marginTop: 16,
+      fontWeight: 500,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, showStandards ? "▾" : "▸", " Which standards go with which topic?"), showStandards && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12,
+      padding: 16,
+      background: COLORS.bg,
+      borderRadius: 10,
+      fontSize: 12
+    }
+  }, TOPICS.map((t, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      marginBottom: 4
+    }
+  }, t.icon, " ", t.name), t.pes.map((pe, j) => /*#__PURE__*/React.createElement("div", {
+    key: j,
+    style: {
+      color: COLORS.textMuted,
+      paddingLeft: 12,
+      marginBottom: 2
+    }
+  }, pe.code, ": ", pe.desc))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 24
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      display: "block",
+      marginBottom: 8
+    }
+  }, "How similar are your students' ability levels?"), /*#__PURE__*/React.createElement(SegmentedControl, {
+    options: [{
+      value: "tight",
+      label: "Pretty similar"
+    }, {
+      value: "typical",
+      label: "Typical mix"
+    }, {
+      value: "wide",
+      label: "Very different"
+    }],
+    value: classSpread,
+    onChange: setClassSpread
+  }), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: COLORS.textMuted,
+      marginTop: 4
+    }
+  }, classSpread === "tight" ? "Most students perform at a similar level — whole-class instruction is efficient" : classSpread === "wide" ? "Big range between your strongest and weakest students" : "A normal mix of abilities")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 28
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    onClick: handleComplete
+  }, "Set Your Timeline \u2192")))));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN: STUDENT CALIBRATION
+// ═══════════════════════════════════════════════════════════════
+
+function StudentCalibration({
+  onComplete,
+  onBack
+}) {
+  const [path, setPath] = useState("a");
+  // Path A state
+  const [scoreType, setScoreType] = useState("raw");
+  const [score, setScore] = useState("");
+  const [confidence, setConfidence] = useState(TOPICS.map(() => "okay"));
+  // Path B state
+  const [ranking, setRanking] = useState([0, 1, 2, 3, 4, 5, 6]);
+  const [abilityLevel, setAbilityLevel] = useState("mid");
+  const [dragIdx, setDragIdx] = useState(null);
+  const [showStandards, setShowStandards] = useState(false);
+  const handleComplete = () => {
+    let masteries;
+    if (path === "a") {
+      let rawScore;
+      const numScore = parseInt(score) || 0;
+      if (scoreType === "raw") {
+        rawScore = Math.min(48, Math.max(0, numScore));
+      } else {
+        rawScore = scaledToRaw(Math.min(100, Math.max(0, numScore)));
+      }
+      const reportedPct = rawScore / 48 * 100;
+      const rawMasteries = confidence.map(c => CONFIDENCE_MASTERY[c]);
+      const weightedAvg = rawMasteries.reduce((sum, m, i) => sum + m * (TOPICS[i].weight / 100), 0);
+      if (weightedAvg > 0) {
+        const scaleFactor = reportedPct / weightedAvg;
+        masteries = rawMasteries.map(m => {
+          const adjusted = m * scaleFactor;
+          return Math.max(MASTERY_FLOOR, Math.min(MASTERY_CAP, adjusted));
+        });
+      } else {
+        masteries = rawMasteries.map(() => MASTERY_FLOOR);
+      }
+      const allSame = confidence.every(c => c === confidence[0]);
+      onComplete({
+        masteries,
+        allSameConfidence: allSame
+      });
+    } else {
+      const spread = RANK_SPREADS[abilityLevel];
+      masteries = Array(7).fill(0);
+      ranking.forEach((topicIdx, rank) => {
+        masteries[topicIdx] = spread[rank];
+      });
+      onComplete({
+        masteries,
+        isRank: true
+      });
+    }
+  };
+  const moveRank = (fromIdx, toIdx) => {
+    const next = [...ranking];
+    const [item] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, item);
+    setRanking(next);
+  };
+  const hasScore = score !== "" && !isNaN(parseInt(score)) && parseInt(score) >= 0;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: COLORS.bg,
+      padding: "40px 24px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 620,
+      margin: "0 auto"
+    }
+  }, /*#__PURE__*/React.createElement(StepDots, {
+    current: 0
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "none",
+      border: "none",
+      color: COLORS.textMuted,
+      cursor: "pointer",
+      fontSize: 13,
+      marginBottom: 16,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "\u2190 Back"), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontSize: 20,
+      fontWeight: 700,
+      marginBottom: 16
+    }
+  }, "\uD83D\uDCDA Your Starting Point"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setPath("a"),
+    style: {
+      padding: "10px 16px",
+      borderRadius: 8,
+      border: `1px solid ${path === "a" ? COLORS.primary : COLORS.border}`,
+      background: path === "a" ? COLORS.primaryLight : "transparent",
+      color: path === "a" ? COLORS.primary : COLORS.textMuted,
+      fontWeight: 600,
+      fontSize: 13,
+      cursor: "pointer",
+      flex: 1,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "I have practice test results"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setPath("b"),
+    style: {
+      padding: "10px 16px",
+      borderRadius: 8,
+      border: `1px solid ${path === "b" ? COLORS.primary : COLORS.border}`,
+      background: path === "b" ? COLORS.primaryLight : "transparent",
+      color: path === "b" ? COLORS.primary : COLORS.textMuted,
+      fontWeight: 600,
+      fontSize: 13,
+      cursor: "pointer",
+      flex: 1,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "I don't have my scores")), path === "a" ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      display: "block",
+      marginBottom: 8
+    }
+  }, "Score type"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 16
+    }
+  }, [{
+    v: "raw",
+    l: "Raw (out of 48)"
+  }, {
+    v: "scaled",
+    l: "Scaled (out of 100)"
+  }].map(opt => /*#__PURE__*/React.createElement("label", {
+    key: opt.v,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      cursor: "pointer",
+      fontSize: 14
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "radio",
+    name: "scoreType",
+    checked: scoreType === opt.v,
+    onChange: () => setScoreType(opt.v),
+    style: {
+      width: 18,
+      height: 18,
+      accentColor: COLORS.primary
+    }
+  }), opt.l)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      display: "block",
+      marginBottom: 6
+    }
+  }, "What was your score?"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: 0,
+    max: scoreType === "raw" ? 48 : 100,
+    value: score,
+    onChange: e => setScore(e.target.value),
+    placeholder: scoreType === "raw" ? "e.g., 18" : "e.g., 59",
+    style: {
+      width: "100%",
+      padding: "10px 14px",
+      borderRadius: 8,
+      border: `1px solid ${COLORS.border}`,
+      fontSize: 15,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }), scoreType === "raw" && parseInt(score) > 48 && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.yellow,
+      marginTop: 4
+    }
+  }, "Capped at 48 (max raw score)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      display: "block",
+      marginBottom: 8
+    }
+  }, "How do you feel about each topic?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 10
+    }
+  }, TOPICS.map((topic, idx) => /*#__PURE__*/React.createElement("div", {
+    key: idx,
+    style: {
+      padding: 12,
+      background: COLORS.bg,
+      borderRadius: 10,
+      border: `1px solid ${COLORS.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18
+    }
+  }, topic.icon), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, topic.shortName)), /*#__PURE__*/React.createElement(SegmentedControl, {
+    size: "small",
+    options: [{
+      value: "gotit",
+      label: "Got it"
+    }, {
+      value: "okay",
+      label: "Okay"
+    }, {
+      value: "lost",
+      label: "Lost"
+    }],
+    value: confidence[idx],
+    onChange: v => {
+      const next = [...confidence];
+      next[idx] = v;
+      setConfidence(next);
+    }
+  })))))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: COLORS.textMuted,
+      marginBottom: 16
+    }
+  }, "Drag these topics from your strongest (top) to weakest (bottom)."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 6,
+      marginBottom: 20
+    }
+  }, ranking.map((topicIdx, rank) => {
+    const topic = TOPICS[topicIdx];
+    return /*#__PURE__*/React.createElement("div", {
+      key: topicIdx,
+      draggable: true,
+      onDragStart: () => setDragIdx(rank),
+      onDragOver: e => e.preventDefault(),
+      onDrop: () => {
+        if (dragIdx !== null) moveRank(dragIdx, rank);
+        setDragIdx(null);
+      },
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 16px",
+        background: COLORS.card,
+        border: `1px solid ${dragIdx === rank ? COLORS.primary : COLORS.border}`,
+        borderRadius: 10,
+        cursor: "grab",
+        transition: "all 0.2s"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: COLORS.textMuted,
+        width: 20
+      }
+    }, rank + 1), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 18
+      }
+    }, topic.icon), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 14,
+        fontWeight: 500
+      }
+    }, topic.shortName), /*#__PURE__*/React.createElement("span", {
+      style: {
+        marginLeft: "auto",
+        fontSize: 12,
+        color: COLORS.textLight
+      }
+    }, "\u283F"));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      display: "block",
+      marginBottom: 8
+    }
+  }, "How do you think you'd score overall?"), /*#__PURE__*/React.createElement(SegmentedControl, {
+    options: [{
+      value: "low",
+      label: "Probably failing"
+    }, {
+      value: "mid",
+      label: "Around passing"
+    }, {
+      value: "high",
+      label: "Probably above 75"
+    }],
+    value: abilityLevel,
+    onChange: setAbilityLevel
+  })), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.textMuted,
+      fontStyle: "italic"
+    }
+  }, "This is a rough guess. Take a practice test for a better plan.")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowStandards(!showStandards),
+    style: {
+      background: "none",
+      border: "none",
+      color: COLORS.primary,
+      cursor: "pointer",
+      fontSize: 13,
+      marginTop: 16,
+      fontWeight: 500,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, showStandards ? "▾" : "▸", " Which topics cover what?"), showStandards && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12,
+      padding: 16,
+      background: COLORS.bg,
+      borderRadius: 10,
+      fontSize: 12
+    }
+  }, TOPICS.map((t, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      marginBottom: 2
+    }
+  }, t.icon, " ", t.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: COLORS.textMuted,
+      paddingLeft: 12
+    }
+  }, t.pes.map(pe => pe.desc).join(" · "))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 28
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    onClick: handleComplete,
+    disabled: path === "a" && !hasScore
+  }, "Set Your Timeline \u2192")))));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN: TIMELINE
+// ═══════════════════════════════════════════════════════════════
+
+function TimelineScreen({
+  isTeacher,
+  startingMasteries,
+  weights,
+  onComplete,
+  onBack,
+  extraFlags = {}
+}) {
+  const [days, setDays] = useState(14);
+  const startingScore = useMemo(() => Math.round(totalProjected(startingMasteries, weights)), [startingMasteries, weights]);
+  const timeMessage = days < 5 ? "Every session counts" : days <= 10 ? "Tight window — we'll make each day count" : days <= 20 ? "Good planning window" : "Strong runway";
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: COLORS.bg,
+      padding: "40px 24px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 500,
+      margin: "0 auto"
+    }
+  }, /*#__PURE__*/React.createElement(StepDots, {
+    current: 0
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "none",
+      border: "none",
+      color: COLORS.textMuted,
+      cursor: "pointer",
+      fontSize: 13,
+      marginBottom: 16,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "\u2190 Back"), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontSize: 20,
+      fontWeight: 700,
+      marginBottom: 4
+    }
+  }, isTeacher ? "⏰ Instructional Days" : "⏰ Study Days"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: COLORS.textMuted,
+      marginBottom: 24
+    }
+  }, isTeacher ? "Each day = 1 class period of focused instruction" : "Each day = 1 focused study session (~45–60 minutes)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 16,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 14,
+      fontWeight: 600
+    }
+  }, "Days until the Biology Regents")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "center",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement(Stepper, {
+    value: days,
+    onChange: setDays,
+    min: 1,
+    max: 60
+  })), /*#__PURE__*/React.createElement("p", {
+    style: {
+      textAlign: "center",
+      fontSize: 13,
+      color: COLORS.primary,
+      fontWeight: 500
+    }
+  }, timeMessage), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 24,
+      padding: 16,
+      background: COLORS.primaryLight,
+      borderRadius: 12,
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: COLORS.textMuted,
+      marginBottom: 4
+    }
+  }, "Your starting point"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 28,
+      fontWeight: 800,
+      color: COLORS.text,
+      margin: 0
+    }
+  }, startingScore, " / 48"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: startingScore >= PASSING_RAW ? COLORS.green : COLORS.red,
+      fontWeight: 600,
+      margin: 0
+    }
+  }, startingScore >= PASSING_RAW ? `✓ ${startingScore - PASSING_RAW} correct answers above passing` : `Need ${PASSING_RAW - startingScore} more correct answers to pass`), extraFlags.sameConfidence && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.yellow,
+      marginTop: 8
+    }
+  }, "For a more personalized plan, try to differentiate \u2014 which topics feel hardest? If you're truly equal, this plan focuses on the highest-weight, most learnable topics first."), extraFlags.highRankScore && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.green,
+      marginTop: 8
+    }
+  }, "You may not need this tool \u2014 but here's how to optimize your time anyway.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 28
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => onComplete(days)
+  }, "See Your Plan Strength \u2192")))));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PLAN STRENGTH GAUGE COMPONENT
+// ═══════════════════════════════════════════════════════════════
+
+function PlanStrengthGauge({
+  strength
+}) {
+  const color = strength < 40 ? COLORS.red : strength < 65 ? COLORS.yellow : COLORS.green;
+  const bgColor = strength < 40 ? COLORS.redLight : strength < 65 ? COLORS.yellowLight : COLORS.greenLight;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "baseline",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: COLORS.textMuted
+    }
+  }, "Plan Strength"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 28,
+      fontWeight: 800,
+      color
+    }
+  }, Math.round(strength), "%")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "100%",
+      height: 12,
+      background: COLORS.bg,
+      borderRadius: 6,
+      overflow: "hidden",
+      position: "relative"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: "40%",
+      height: "100%",
+      background: COLORS.redLight,
+      borderRadius: "6px 0 0 6px"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      left: "40%",
+      top: 0,
+      width: "25%",
+      height: "100%",
+      background: COLORS.yellowLight
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      left: "65%",
+      top: 0,
+      width: "35%",
+      height: "100%",
+      background: COLORS.greenLight,
+      borderRadius: "0 6px 6px 0"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: `${Math.min(100, strength)}%`,
+      height: "100%",
+      background: color,
+      borderRadius: 6,
+      transition: "width 0.5s ease, background 0.3s"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: COLORS.textMuted,
+      marginTop: 4,
+      textAlign: "right"
+    }
+  }, "Stronger plan \u2192"));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOPIC CARD COMPONENT (for Allocation)
+// ═══════════════════════════════════════════════════════════════
+
+function TopicCard({
+  idx,
+  topic,
+  isBiggestBoost,
+  startM,
+  curM,
+  mg,
+  days,
+  maxAdd,
+  onChangeDays,
+  isTeacher,
+  bubbleCount,
+  optimalDay,
+  showGhostChips,
+  diffSetting,
+  onChangeDiff,
+  daysRemaining
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 18,
+      background: COLORS.card,
+      borderRadius: 14,
+      border: `1px solid ${isBiggestBoost ? COLORS.boost : COLORS.border}`,
+      boxShadow: isBiggestBoost ? `0 0 0 2px ${COLORS.boostLight}` : "0 1px 3px rgba(0,0,0,0.04)",
+      transition: "all 0.2s"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 22
+    }
+  }, topic.icon), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700
+    }
+  }, topic.shortName), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: COLORS.textMuted
+    }
+  }, topic.weight, "% of test"), isBiggestBoost && /*#__PURE__*/React.createElement(Badge, {
+    color: COLORS.boost,
+    bg: COLORS.boostLight
+  }, "\u2605 Biggest Boost")), isTeacher && bubbleCount > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: COLORS.focus,
+      fontWeight: 500
+    }
+  }, bubbleCount, " bubble students")), /*#__PURE__*/React.createElement(Stepper, {
+    value: days,
+    onChange: onChangeDays,
+    min: 0,
+    max: days + maxAdd
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement(ProgressBar, {
+    value: curM,
+    color: isBiggestBoost ? COLORS.boost : COLORS.primary
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: COLORS.text,
+      minWidth: 90,
+      textAlign: "right"
+    }
+  }, Math.round(startM), "% \u2192 ", Math.round(curM), "%")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: daysRemaining > 0 ? COLORS.primary : COLORS.textMuted
+    }
+  }, "Next day: +", mg.toFixed(2), " pts"), showGhostChips && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: COLORS.textLight,
+      fontStyle: "italic"
+    }
+  }, "Model: ", optimalDay, "d"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setExpanded(!expanded),
+    style: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      fontSize: 11,
+      color: COLORS.textMuted,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, expanded ? "▾ Settings" : "▸ Settings")), expanded && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 10,
+      paddingTop: 10,
+      borderTop: `1px solid ${COLORS.border}`
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      display: "block",
+      marginBottom: 6
+    }
+  }, isTeacher ? "Difficulty for your class" : "Your strength in this topic"), /*#__PURE__*/React.createElement(SegmentedControl, {
+    size: "small",
+    options: isTeacher ? [{
+      value: "easier",
+      label: "Easier"
+    }, {
+      value: "typical",
+      label: "Typical"
+    }, {
+      value: "harder",
+      label: "Harder"
+    }] : [{
+      value: "easier",
+      label: "Strong"
+    }, {
+      value: "typical",
+      label: "Average"
+    }, {
+      value: "harder",
+      label: "Weak"
+    }],
+    value: diffSetting,
+    onChange: onChangeDiff
+  })));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN: ALLOCATION
+// ═══════════════════════════════════════════════════════════════
+
+function AllocationScreen({
+  isTeacher,
+  startingMasteries,
+  totalBudget,
+  weights,
+  bubbleCounts,
+  classSpread,
+  classSize,
+  onGenerate,
+  onBack,
+  extraFlags
+}) {
+  const [daysPerTopic, setDaysPerTopic] = useState([0, 0, 0, 0, 0, 0, 0]);
+  const [diffSettings, setDiffSettings] = useState(TOPICS.map(() => "typical"));
+  const [rebalanceNudgeFired, setRebalanceNudgeFired] = useState(false);
+  const [showModelPlan, setShowModelPlan] = useState(false);
+
+  // Check if all mastery near max
+  const allAced = startingMasteries.every(m => m >= 95);
+  const allBubbleZero = isTeacher && bubbleCounts && bubbleCounts.every(b => b === 0);
+  const daysUsed = daysPerTopic.reduce((a, b) => a + b, 0);
+  const daysRemaining = totalBudget - daysUsed;
+  const currentMasteries = useMemo(() => computeCurrentMasteries(startingMasteries, daysPerTopic, diffSettings, isTeacher, classSpread), [startingMasteries, daysPerTopic, diffSettings, isTeacher, classSpread]);
+  const {
+    optimalDays,
+    optimalMasteries
+  } = useMemo(() => computeOptimalAllocation(startingMasteries, totalBudget, diffSettings, isTeacher, classSpread, weights, bubbleCounts || []), [startingMasteries, totalBudget, diffSettings, isTeacher, classSpread, weights, bubbleCounts]);
+  const planStrength = useMemo(() => computePlanStrength(startingMasteries, currentMasteries, optimalMasteries, weights), [startingMasteries, currentMasteries, optimalMasteries, weights]);
+  const startingTotal = useMemo(() => totalProjected(startingMasteries, weights), [startingMasteries, weights]);
+  const currentTotal = useMemo(() => totalProjected(currentMasteries, weights), [currentMasteries, weights]);
+  const projectedRaw = Math.round(currentTotal);
+  const marginalGains = useMemo(() => TOPICS.map((_, i) => {
+    const {
+      gain
+    } = computeMarginalGain(currentMasteries[i], daysPerTopic[i], i, diffSettings[i], isTeacher, classSpread, weights[i]);
+    return gain;
+  }), [currentMasteries, daysPerTopic, diffSettings, isTeacher, classSpread, weights]);
+  const biggestBoostIdx = useMemo(() => {
+    let bestIdx = 0,
+      bestVal = -1;
+    marginalGains.forEach((g, i) => {
+      if (g > bestVal && daysRemaining > 0) {
+        bestVal = g;
+        bestIdx = i;
+      }
+    });
+    return bestIdx;
+  }, [marginalGains, daysRemaining]);
+  const showGhostChips = daysUsed >= totalBudget * 0.75;
+  const updateDays = (idx, val) => {
+    setDaysPerTopic(prev => {
+      const next = [...prev];
+      next[idx] = val;
+      return next;
+    });
+  };
+  const applyModelPlan = () => {
+    setDaysPerTopic([...optimalDays]);
+    setShowModelPlan(true);
+  };
+  const resetPlan = () => {
+    setDaysPerTopic([0, 0, 0, 0, 0, 0, 0]);
+    setShowModelPlan(false);
+    setRebalanceNudgeFired(false);
+  };
+
+  // Track rebalance nudge firing via useEffect
+  useEffect(() => {
+    if (daysRemaining === 0 && planStrength < 80 && !rebalanceNudgeFired && !showModelPlan && daysUsed > 0) {
+      setRebalanceNudgeFired(true);
+    }
+  }, [daysRemaining, planStrength, rebalanceNudgeFired, showModelPlan, daysUsed]);
+
+  // Feedback message logic
+  let feedbackMsg = "";
+  let feedbackColor = COLORS.primary;
+  if (showModelPlan) {
+    feedbackMsg = "This is the model's suggestion. Adjust anything where you know better.";
+    feedbackColor = COLORS.primary;
+  } else if (daysUsed === 0) {
+    feedbackMsg = "Start with the ★ Biggest Boost topic — that's where each day helps most.";
+  } else if (daysRemaining === 0 && planStrength >= 90) {
+    feedbackMsg = "🎯 Great plan! Your days are well-targeted.";
+    feedbackColor = COLORS.green;
+  } else if (daysRemaining === 0 && planStrength < 80 && rebalanceNudgeFired) {
+    // Find swap suggestion
+    let bestFrom = -1,
+      bestTo = -1,
+      bestSwapGain = 0;
+    for (let from = 0; from < 7; from++) {
+      if (daysPerTopic[from] === 0) continue;
+      for (let to = 0; to < 7; to++) {
+        if (from === to) continue;
+        const testDays = [...daysPerTopic];
+        testDays[from]--;
+        testDays[to]++;
+        const testMasteries = computeCurrentMasteries(startingMasteries, testDays, diffSettings, isTeacher, classSpread);
+        const testPts = totalProjected(testMasteries, weights);
+        const gain = testPts - currentTotal;
+        if (gain > bestSwapGain) {
+          bestSwapGain = gain;
+          bestFrom = from;
+          bestTo = to;
+        }
+      }
+    }
+    if (bestFrom >= 0) {
+      feedbackMsg = `Moving 1 day from ${TOPICS[bestFrom].shortName} → ${TOPICS[bestTo].shortName} gains +${bestSwapGain.toFixed(1)} more points.`;
+      feedbackColor = COLORS.yellow;
+    } else {
+      feedbackMsg = "The model suggests a different balance — check the hints on each card.";
+      feedbackColor = COLORS.yellow;
+    }
+  } else if (daysRemaining === 0 && planStrength < 90) {
+    feedbackMsg = "The model suggests a different balance — check the hints on each card.";
+    feedbackColor = COLORS.yellow;
+  } else if (planStrength < 50) {
+    feedbackMsg = `Your biggest opportunity is ${TOPICS[biggestBoostIdx].shortName}. Try adding days there.`;
+  } else if (planStrength < 80) {
+    feedbackMsg = "Getting better! Follow the ★ to keep climbing.";
+  } else {
+    feedbackMsg = "Almost there! Check which topic still has the highest next-day gain.";
+  }
+
+  // Check for even split
+  const isEvenSplit = daysUsed > 0 && daysPerTopic.filter(d => d > 0).length >= 5 && Math.max(...daysPerTopic) - Math.min(...daysPerTopic.filter(d => d > 0)) <= 1;
+  if (isEvenSplit && daysUsed >= totalBudget * 0.5) {
+    feedbackMsg = `Spreading thin feels safe, but your FOCUS topics can absorb way more. Try going bold on ${TOPICS[biggestBoostIdx].shortName}.`;
+    feedbackColor = COLORS.yellow;
+  }
+
+  // Zero-day warning for heavy topics
+  const zeroHeavyTopics = TOPICS.filter((t, i) => t.weight >= 15 && daysPerTopic[i] === 0 && daysUsed > 0);
+  const zeroHeavyMsg = zeroHeavyTopics.length > 0 ? `${zeroHeavyTopics[0].icon} ${zeroHeavyTopics[0].shortName} is ${zeroHeavyTopics[0].weight}% of the test — even one day helps.` : null;
+  const crossings = isTeacher ? computeCrossings(startingMasteries, currentMasteries, bubbleCounts || TOPICS.map(() => 0)) : 0;
+
+  // Student confidence tier
+  let confidenceTier = "";
+  if (!isTeacher) {
+    if (projectedRaw >= 25) confidenceTier = "Strong chance of passing";else if (projectedRaw >= 21) confidenceTier = "On track to pass — keep going";else if (projectedRaw >= 18) confidenceTier = "Close — your plan can get you there";else confidenceTier = "You have work to do — follow the plan closely";
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: COLORS.bg,
+      padding: "40px 24px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 1200,
+      margin: "0 auto"
+    }
+  }, /*#__PURE__*/React.createElement(StepDots, {
+    current: 1
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "none",
+      border: "none",
+      color: COLORS.textMuted,
+      cursor: "pointer",
+      fontSize: 13,
+      marginBottom: 16,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "\u2190 Back"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 28,
+      alignItems: "flex-start"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: "0 0 60%",
+      display: "flex",
+      flexDirection: "column",
+      gap: 12
+    }
+  }, TOPICS.map((topic, idx) => /*#__PURE__*/React.createElement(TopicCard, {
+    key: idx,
+    idx: idx,
+    topic: topic,
+    isBiggestBoost: idx === biggestBoostIdx && daysRemaining > 0,
+    startM: startingMasteries[idx],
+    curM: currentMasteries[idx],
+    mg: marginalGains[idx],
+    days: daysPerTopic[idx],
+    maxAdd: daysRemaining,
+    onChangeDays: v => updateDays(idx, v),
+    isTeacher: isTeacher,
+    bubbleCount: bubbleCounts ? bubbleCounts[idx] : 0,
+    optimalDay: optimalDays[idx],
+    showGhostChips: showGhostChips,
+    diffSetting: diffSettings[idx],
+    onChangeDiff: v => {
+      const next = [...diffSettings];
+      next[idx] = v;
+      setDiffSettings(next);
+    },
+    daysRemaining: daysRemaining
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: "0 0 37%",
+      position: "sticky",
+      top: 24
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement(PlanStrengthGauge, {
+    strength: planStrength
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      padding: "12px 0",
+      borderTop: `1px solid ${COLORS.border}`,
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: COLORS.textMuted,
+      marginBottom: 4
+    }
+  }, "Days remaining"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 32,
+      fontWeight: 800,
+      color: daysRemaining === 0 ? COLORS.green : COLORS.text
+    }
+  }, daysRemaining)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      padding: "12px 0",
+      borderTop: `1px solid ${COLORS.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: COLORS.textMuted,
+      marginBottom: 4
+    }
+  }, "Projected score"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 32,
+      fontWeight: 800,
+      color: COLORS.text
+    }
+  }, projectedRaw, " / 48"), isTeacher ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: COLORS.green,
+      fontWeight: 600,
+      marginTop: 4
+    }
+  }, "Est. students reaching 65: +", crossings) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 600,
+      marginTop: 4,
+      color: projectedRaw >= PASSING_RAW ? COLORS.green : COLORS.red
+    }
+  }, projectedRaw >= PASSING_RAW ? `✓ ${projectedRaw - PASSING_RAW} correct answers above passing` : `${PASSING_RAW - projectedRaw} more correct answers to pass`), !isTeacher && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 8,
+      padding: "6px 12px",
+      borderRadius: 8,
+      fontSize: 12,
+      fontWeight: 600,
+      background: projectedRaw >= 21 ? COLORS.greenBg : projectedRaw >= 18 ? COLORS.yellowBg : COLORS.redBg,
+      color: projectedRaw >= 21 ? COLORS.green : projectedRaw >= 18 ? COLORS.yellow : COLORS.red
+    }
+  }, confidenceTier))), allAced && /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 12,
+      padding: 16,
+      background: COLORS.greenBg
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 14,
+      fontWeight: 600,
+      color: COLORS.green,
+      margin: 0
+    }
+  }, "\uD83C\uDF89 You're projected to ace it. Go celebrate!")), allBubbleZero && /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 12,
+      padding: 12
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.textMuted,
+      margin: 0
+    }
+  }, "No bubble students identified. Optimizing for overall class score.")), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 12,
+      padding: 16
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: feedbackColor,
+      fontWeight: 500,
+      lineHeight: 1.5,
+      margin: 0
+    }
+  }, feedbackMsg), zeroHeavyMsg && !isEvenSplit && daysUsed > 3 && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.yellow,
+      marginTop: 8,
+      marginBottom: 0
+    }
+  }, zeroHeavyMsg)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    onClick: applyModelPlan,
+    variant: "ghost",
+    style: {
+      fontSize: 13
+    }
+  }, "Show Model Plan"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: resetPlan,
+    variant: "secondary",
+    style: {
+      fontSize: 13
+    }
+  }, "Reset"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => onGenerate({
+      daysPerTopic,
+      currentMasteries,
+      optimalDays,
+      planStrength,
+      projectedRaw,
+      startingTotal: Math.round(startingTotal),
+      crossings,
+      diffSettings
+    }),
+    disabled: daysUsed === 0
+  }, "Get My Plan"), daysUsed === 0 && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.textMuted,
+      textAlign: "center"
+    }
+  }, "Add at least one ", isTeacher ? "instructional" : "study", " day to see your plan."))))));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN: REPORT
+// ═══════════════════════════════════════════════════════════════
+
+function ReportScreen({
+  isTeacher,
+  startingMasteries,
+  allocationData,
+  totalBudget,
+  weights,
+  bubbleCounts,
+  classSize,
+  onBack
+}) {
+  const {
+    daysPerTopic,
+    currentMasteries,
+    optimalDays,
+    planStrength,
+    projectedRaw,
+    startingTotal,
+    crossings,
+    diffSettings
+  } = allocationData;
+  const startRaw = startingTotal;
+  const gained = projectedRaw - startRaw;
+
+  // Determine FOCUS / REINFORCE tiers
+  const sortedTopics = TOPICS.map((t, i) => ({
+    ...t,
+    idx: i,
+    days: daysPerTopic[i],
+    optDays: optimalDays[i],
+    startM: startingMasteries[i],
+    endM: currentMasteries[i]
+  })).sort((a, b) => b.days - a.days);
+  const totalDaysUsed = daysPerTopic.reduce((a, b) => a + b, 0);
+  const focusThreshold = totalDaysUsed * 0.25;
+  const tieredTopics = sortedTopics.map((t, rank) => {
+    const isFocus = t.days > 0 && (rank < 2 || t.days >= focusThreshold);
+    return {
+      ...t,
+      tier: isFocus ? "FOCUS" : "REINFORCE"
+    };
+  });
+
+  // Override: topics >= 15% weight must be at least REINFORCE (they already are by default)
+
+  const lowBudget = totalBudget <= 3;
+  const maxTopicDays = Math.max(...daysPerTopic);
+  const collapseLowBudget = lowBudget && maxTopicDays <= 1;
+  const focusTopics = tieredTopics.filter(t => t.tier === "FOCUS" && t.days > 0);
+  const reinforceTopics = tieredTopics.filter(t => t.tier === "REINFORCE");
+  const displayTopics = collapseLowBudget ? tieredTopics.filter(t => t.days > 0) : tieredTopics;
+
+  // Generate WHY text — plain language, no jargon
+  function whyText(t) {
+    if (t.tier === "FOCUS") {
+      if (isTeacher && bubbleCounts && bubbleCounts[t.idx] > 0) {
+        return `Big topic (${t.weight}% of the test) and ${bubbleCounts[t.idx]} students close to passing — this is where days matter most`;
+      }
+      if (!isTeacher) {
+        const gap = Math.round(t.endM - t.startM);
+        return gap > 0 ? `Worth ${t.weight}% of the test and your score can jump ${gap} percentage points here` : `Worth ${t.weight}% of the test — a high-value topic for you`;
+      }
+      return `${t.weight}% of the test with the most room to grow — highest return per day`;
+    }
+    if (t.days === 0) {
+      const pts = pointsInTopic(t.weight).toFixed(1);
+      return `Small topic (~${pts} questions) — your time is better spent on FOCUS topics`;
+    }
+    if (t.startM >= 50) {
+      return `You're already solid here — a quick review keeps those points locked in`;
+    }
+    return `A little time here protects easy points you'd otherwise miss`;
+  }
+
+  // Generate weekly overview
+  function generateWeekly() {
+    if (totalBudget < 3) return null;
+    const weeks = [];
+
+    // Build schedule from focus topics, interleaving
+    // Interleave: no more than 3 consecutive days on one topic
+    const schedule = [];
+    const remaining = {};
+    focusTopics.forEach(t => {
+      remaining[t.idx] = t.days;
+    });
+    let lastTopic = -1;
+    let consecutive = 0;
+    const totalFocusDays = focusTopics.reduce((s, t) => s + t.days, 0);
+    for (let d = 0; d < totalFocusDays; d++) {
+      // Pick topic with most remaining days, avoiding >3 consecutive
+      let best = null;
+      let bestDays = -1;
+      for (const t of focusTopics) {
+        if (remaining[t.idx] <= 0) continue;
+        if (t.idx === lastTopic && consecutive >= 3) continue;
+        if (remaining[t.idx] > bestDays) {
+          bestDays = remaining[t.idx];
+          best = t;
+        }
+      }
+      if (!best) {
+        // Force pick
+        for (const t of focusTopics) {
+          if (remaining[t.idx] > 0) {
+            best = t;
+            break;
+          }
+        }
+      }
+      if (!best) break;
+      schedule.push(best);
+      remaining[best.idx]--;
+      if (best.idx === lastTopic) consecutive++;else {
+        lastTopic = best.idx;
+        consecutive = 1;
+      }
+    }
+
+    // Group into weeks of 5
+    for (let w = 0; w < Math.ceil(schedule.length / 5); w++) {
+      const weekDays = schedule.slice(w * 5, (w + 1) * 5);
+      const topicCounts = {};
+      weekDays.forEach(t => {
+        topicCounts[t.idx] = (topicCounts[t.idx] || 0) + 1;
+      });
+      weeks.push({
+        weekNum: w + 1,
+        startDay: w * 5 + 1,
+        endDay: Math.min((w + 1) * 5, schedule.length),
+        topics: Object.entries(topicCounts).map(([idx, count]) => ({
+          topic: TOPICS[parseInt(idx)],
+          days: count
+        }))
+      });
+    }
+    return weeks;
+  }
+  const weeks = generateWeekly();
+
+  // Download handler
+  const handleDownload = () => {
+    const html = generateDownloadHTML();
+    const blob = new Blob([html], {
+      type: "text/html"
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `biology-regents-${isTeacher ? "instructional" : "study"}-plan.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  function generateDownloadHTML() {
+    return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${isTeacher ? "Biology Regents Instructional Plan" : "Biology Regents Study Plan"}</title>
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; max-width: 650px; margin: 40px auto; padding: 0 24px; color: #1A1D23; background: #F7F8FA; }
+  .card { background: #fff; border-radius: 14px; padding: 24px; margin-bottom: 20px; border: 1px solid #E2E5EA; }
+  .stats { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; text-align: center; }
+  .stat-item { flex: 1; min-width: 80px; }
+  .stat-value { font-size: 24px; font-weight: 800; }
+  .stat-label { font-size: 12px; color: #6B7280; }
+  .topic { padding: 12px 14px; margin-bottom: 8px; border-radius: 10px; }
+  .topic-focus { background: #EDE9FE; border: 1px solid #DDD6FE; }
+  .topic-reinforce { background: #F9FAFB; border: 1px solid #E2E5EA; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-right: 6px; }
+  .focus-badge { background: #EDE9FE; color: #7C3AED; }
+  .reinforce-badge { background: #CFFAFE; color: #0891B2; }
+  .topic-name { font-weight: 700; font-size: 14px; }
+  .topic-days { font-weight: 700; color: #2563EB; float: right; }
+  .topic-why { font-size: 12px; color: #6B7280; margin-top: 4px; }
+  .week { padding: 10px 14px; margin-bottom: 8px; background: #F9FAFB; border-radius: 10px; }
+  .disclosure { font-size: 12px; color: #9CA3AF; margin-top: 24px; text-align: center; }
+  h1 { text-align: center; font-size: 22px; }
+  h2 { margin: 0 0 16px; font-size: 16px; }
+</style></head><body>
+<h1>${isTeacher ? "Your Biology Regents Instructional Plan" : "Your Biology Regents Study Plan"}</h1>
+
+<div class="card">
+  <div class="stats">
+    <div class="stat-item"><div class="stat-value">${startRaw}/48</div><div class="stat-label">Starting</div></div>
+    <div class="stat-item"><div class="stat-value">${projectedRaw}/48</div><div class="stat-label">Projected</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:${gained > 0 ? '#059669' : '#1A1D23'}">${gained > 0 ? '+' : ''}${gained}</div><div class="stat-label">${isTeacher ? "Points Gained" : "Correct Answers"}</div></div>
+    ${isTeacher ? `<div class="stat-item"><div class="stat-value">+${crossings}</div><div class="stat-label">Est. Passing</div></div>` : ""}
+    <div class="stat-item"><div class="stat-value">${totalBudget}</div><div class="stat-label">${isTeacher ? "Days Planned" : "Study Days"}</div></div>
+  </div>
+  ${!isTeacher && projectedRaw >= PASSING_RAW ? `<p style="text-align:center;color:#059669;font-weight:600;margin-top:12px;">✓ Projected above passing</p>` : ""}
+  ${!isTeacher && projectedRaw < PASSING_RAW ? `<p style="text-align:center;color:#DC2626;font-weight:600;margin-top:12px;">${PASSING_RAW - projectedRaw} more correct answers needed</p>` : ""}
+</div>
+
+<div class="card">
+  <h2>Where to Spend Your Time</h2>
+  ${displayTopics.map(t => `
+    <div class="topic ${t.tier === "FOCUS" ? "topic-focus" : "topic-reinforce"}">
+      <div><span class="badge ${t.tier === "FOCUS" ? "focus-badge" : "reinforce-badge"}">${t.tier}</span> <span class="topic-name">${t.icon} ${t.shortName}</span><span class="topic-days">${t.days} day${t.days !== 1 ? "s" : ""}</span></div>
+      <div class="topic-why">${whyText(t)}</div>
+    </div>
+  `).join("")}
+</div>
+
+${weeks && weeks.length > 0 ? `
+<div class="card">
+  <h2>Week-by-Week Schedule</h2>
+  ${weeks.map(w => `
+    <div class="week">
+      <strong>Week ${w.weekNum}</strong> <span style="color:#6B7280">· Days ${w.startDay}–${w.endDay}</span><br>
+      ${w.topics.map(wt => `${wt.topic.icon} ${wt.topic.shortName} — ${wt.days} day${wt.days !== 1 ? "s" : ""}`).join("<br>")}
+    </div>
+  `).join("")}
+  ${reinforceTopics.length > 0 ? `<p style="font-size:12px;color:#6B7280;">Also review: ${reinforceTopics.map(t => t.icon + " " + t.shortName).join(", ")} — weave into ${isTeacher ? "warm-ups and homework" : "practice sets"}.</p>` : ""}
+</div>
+` : ""}
+
+<p class="disclosure">${isTeacher ? "This plan is a strategic estimate based on your class data. Use alongside your professional judgment." : "This plan is a strategic estimate based on your data. Use alongside your teacher's guidance."}</p>
+</body></html>`;
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: COLORS.bg,
+      padding: "40px 24px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 740,
+      margin: "0 auto"
+    }
+  }, /*#__PURE__*/React.createElement(StepDots, {
+    current: 2
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "none",
+      border: "none",
+      color: COLORS.textMuted,
+      cursor: "pointer",
+      fontSize: 13,
+      marginBottom: 16,
+      fontFamily: "'Inter', system-ui, sans-serif"
+    }
+  }, "\u2190 Back to allocation"), /*#__PURE__*/React.createElement("h1", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      textAlign: "center",
+      marginBottom: 24
+    }
+  }, isTeacher ? "Your Biology Regents Instructional Plan" : "Your Biology Regents Study Plan"), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "center",
+      gap: 24,
+      flexWrap: "wrap",
+      textAlign: "center"
+    }
+  }, [{
+    label: "Starting",
+    value: `${startRaw}/48`
+  }, {
+    label: "Projected",
+    value: `${projectedRaw}/48`
+  }, {
+    label: isTeacher ? "Points Gained" : "Correct Answers",
+    value: gained > 0 ? `+${gained}` : `${gained}`
+  }, ...(isTeacher ? [{
+    label: "Est. Passing",
+    value: `+${crossings}`
+  }] : []), {
+    label: isTeacher ? "Days Planned" : "Study Days",
+    value: `${totalBudget}`
+  }].map((stat, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      flex: "0 0 auto",
+      minWidth: 80
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 26,
+      fontWeight: 800,
+      color: COLORS.text
+    }
+  }, stat.value), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: COLORS.textMuted
+    }
+  }, stat.label)))), !isTeacher && projectedRaw < PASSING_RAW && /*#__PURE__*/React.createElement("p", {
+    style: {
+      textAlign: "center",
+      color: COLORS.red,
+      fontWeight: 600,
+      fontSize: 14,
+      marginTop: 16
+    }
+  }, PASSING_RAW - projectedRaw, " more correct answers needed \u2014 add more study days or review your allocation"), !isTeacher && projectedRaw >= PASSING_RAW && /*#__PURE__*/React.createElement("p", {
+    style: {
+      textAlign: "center",
+      color: COLORS.green,
+      fontWeight: 600,
+      fontSize: 14,
+      marginTop: 16
+    }
+  }, "\u2713 You're projected above passing")), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      marginBottom: 16
+    }
+  }, "Where to Spend Your Time"), collapseLowBudget && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: COLORS.yellow,
+      fontWeight: 600,
+      marginBottom: 12
+    }
+  }, "With only ", totalBudget, " days, focus exclusively on these topics."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 8
+    }
+  }, displayTopics.map(t => /*#__PURE__*/React.createElement("div", {
+    key: t.idx,
+    style: {
+      padding: "14px 16px",
+      borderRadius: 10,
+      background: t.tier === "FOCUS" ? COLORS.focusLight : COLORS.bg,
+      border: `1px solid ${t.tier === "FOCUS" ? "#DDD6FE" : COLORS.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement(Badge, {
+    color: t.tier === "FOCUS" ? COLORS.focus : COLORS.reinforce,
+    bg: t.tier === "FOCUS" ? COLORS.focusLight : COLORS.reinforceLight
+  }, t.tier), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18
+    }
+  }, t.icon), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      flex: 1
+    }
+  }, t.shortName), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: COLORS.primary
+    }
+  }, t.days, " day", t.days !== 1 ? "s" : "")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: COLORS.textMuted,
+      lineHeight: 1.4
+    }
+  }, whyText(t)), t.days > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      height: 4,
+      background: t.tier === "FOCUS" ? "#DDD6FE" : COLORS.border,
+      borderRadius: 2,
+      overflow: "hidden"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: `${Math.round(t.endM)}%`,
+      height: "100%",
+      background: t.tier === "FOCUS" ? COLORS.focus : COLORS.reinforce,
+      borderRadius: 2,
+      transition: "width 0.3s"
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: COLORS.textMuted,
+      whiteSpace: "nowrap"
+    }
+  }, Math.round(t.startM), "% \u2192 ", Math.round(t.endM), "%")))))), weeks && weeks.length > 0 && !lowBudget && /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      marginBottom: 16
+    }
+  }, "Your Week-by-Week Schedule"), weeks.map(w => /*#__PURE__*/React.createElement("div", {
+    key: w.weekNum,
+    style: {
+      marginBottom: 14,
+      padding: "10px 14px",
+      background: COLORS.bg,
+      borderRadius: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: COLORS.text,
+      marginBottom: 6
+    }
+  }, "Week ", w.weekNum, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 400,
+      color: COLORS.textMuted
+    }
+  }, " \xB7 Days ", w.startDay, "\u2013", w.endDay)), w.topics.map((wt, j) => /*#__PURE__*/React.createElement("div", {
+    key: j,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      fontSize: 13,
+      color: COLORS.text,
+      marginBottom: 2
+    }
+  }, /*#__PURE__*/React.createElement("span", null, wt.topic.icon), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 500
+    }
+  }, wt.topic.shortName), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: COLORS.textMuted
+    }
+  }, "\u2014 ", wt.days, " day", wt.days !== 1 ? "s" : ""))))), reinforceTopics.length > 0 && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.textMuted,
+      marginTop: 4,
+      paddingLeft: 4
+    }
+  }, "Also review: ", reinforceTopics.map(t => `${t.icon} ${t.shortName}`).join(", "), " \u2014 weave into ", isTeacher ? "warm-ups and homework" : "practice sets", ".")), lowBudget && focusTopics.length > 0 && /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 14,
+      fontWeight: 600,
+      color: COLORS.text,
+      marginBottom: 8
+    }
+  }, "Every day counts \u2014 start here:"), focusTopics.map(t => /*#__PURE__*/React.createElement("div", {
+    key: t.idx,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      fontSize: 13,
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", null, t.icon), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 600
+    }
+  }, t.shortName), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: COLORS.textMuted
+    }
+  }, "\u2014 ", t.days, " day", t.days !== 1 ? "s" : "")))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: COLORS.textLight,
+      textAlign: "center",
+      marginBottom: 20
+    }
+  }, isTeacher ? "This plan is a strategic estimate based on your class data. Use alongside your professional judgment." : "This plan is a strategic estimate based on your data. Use alongside your teacher's guidance."), /*#__PURE__*/React.createElement(Btn, {
+    onClick: handleDownload,
+    style: {
+      maxWidth: 300,
+      margin: "0 auto",
+      display: "block"
+    }
+  }, "Download My Plan")));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════════
+
+function BiologyRegentsPlanner() {
+  const [screen, setScreen] = useState("mode"); // mode, calibrate, timeline, allocate, report
+  const [mode, setMode] = useState(null);
+  const [calibrationData, setCalibrationData] = useState(null);
+  const [totalBudget, setTotalBudget] = useState(14);
+  const [allocationData, setAllocationData] = useState(null);
+  const [extraFlags, setExtraFlags] = useState({});
+  const isTeacher = mode === "teacher";
+  const weights = TOPICS.map(t => t.weight);
+  const handleModeSelect = m => {
+    setMode(m);
+    setScreen("calibrate");
+  };
+  const handleCalibrationComplete = data => {
+    setCalibrationData(data);
+    if (data.allSameConfidence) {
+      setExtraFlags(prev => ({
+        ...prev,
+        sameConfidence: true
+      }));
+    }
+    if (data.isRank) {
+      // Check if projected > 25
+      const proj = Math.round(totalProjected(data.masteries, weights));
+      if (proj > 25) {
+        setExtraFlags(prev => ({
+          ...prev,
+          highRankScore: true
+        }));
+      }
+    }
+    setScreen("timeline");
+  };
+  const handleTimelineComplete = days => {
+    setTotalBudget(days);
+    // Check all mastery at 100
+    if (calibrationData && calibrationData.masteries.every(m => m >= 95)) {
+      setExtraFlags(prev => ({
+        ...prev,
+        aceIt: true
+      }));
+    }
+    setScreen("allocate");
+  };
+  const handleGenerate = data => {
+    setAllocationData(data);
+    setScreen("report");
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+      color: COLORS.text,
+      WebkitFontSmoothing: "antialiased"
+    }
+  }, screen === "mode" && /*#__PURE__*/React.createElement(ModeSelection, {
+    onSelect: handleModeSelect
+  }), screen === "calibrate" && mode === "teacher" && /*#__PURE__*/React.createElement(TeacherCalibration, {
+    onComplete: handleCalibrationComplete,
+    onBack: () => {
+      setScreen("mode");
+      setMode(null);
+    }
+  }), screen === "calibrate" && mode === "student" && /*#__PURE__*/React.createElement(StudentCalibration, {
+    onComplete: handleCalibrationComplete,
+    onBack: () => {
+      setScreen("mode");
+      setMode(null);
+    }
+  }), screen === "timeline" && calibrationData && /*#__PURE__*/React.createElement(TimelineScreen, {
+    isTeacher: isTeacher,
+    startingMasteries: calibrationData.masteries,
+    weights: weights,
+    onComplete: handleTimelineComplete,
+    onBack: () => setScreen("calibrate"),
+    extraFlags: extraFlags
+  }), screen === "allocate" && calibrationData && /*#__PURE__*/React.createElement(AllocationScreen, {
+    isTeacher: isTeacher,
+    startingMasteries: calibrationData.masteries,
+    totalBudget: totalBudget,
+    weights: weights,
+    bubbleCounts: calibrationData.bubbleCounts,
+    classSpread: calibrationData.classSpread,
+    classSize: calibrationData.classSize,
+    onGenerate: handleGenerate,
+    onBack: () => setScreen("timeline"),
+    extraFlags: extraFlags
+  }), screen === "report" && calibrationData && allocationData && /*#__PURE__*/React.createElement(ReportScreen, {
+    isTeacher: isTeacher,
+    startingMasteries: calibrationData.masteries,
+    allocationData: allocationData,
+    totalBudget: totalBudget,
+    weights: weights,
+    bubbleCounts: calibrationData.bubbleCounts,
+    classSize: calibrationData.classSize,
+    onBack: () => setScreen("allocate")
+  }));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(BiologyRegentsPlanner));
+</script>
+</body>
+</html>
