@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prairie Dogs &amp; Owls — Tutorial</title>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
+  * { font-family: 'Nunito', sans-serif; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(to bottom, #f0f9ff, #ecfdf5); }
+  .fade-in { animation: fadeIn 0.35s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .bar-chart-bar { transition: height 0.4s ease; }
+  .progress-fill { transition: width 0.7s ease-out; }
+  button { cursor: pointer; }
+  button:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<div id="app" style="max-width:448px;margin:0 auto;padding:24px 16px"></div>
+
+<script>
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+const S = {
+  section: 'landing',
+  skippedToQuestion: false,
+  tutorialStep: 0,
+  showTutorialCelebration: false,
+  practiceIndex: 0,
+  practiceAnswer: null,
+  showPracticeFeedback: false,
+  practiceCorrect: [false, false, false],
+  showPracticeCelebration: false,
+  evidenceStep: 0,
+  showEvidenceCelebration: false,
+  hintsRevealed: 0,
+  selectedAnswer: null,
+  showFeedback: false,
+  mainComplete: false,
+  attempts: 0,
+  evidenceCheckAnswer: null,
+  showEvidenceCheckFeedback: false,
+};
+
+function setState(updates) {
+  Object.assign(S, updates);
+  render();
+}
+
+// ══════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════
+function anchor(type) {
+  const cfg = {
+    A: { emoji: '🏠', label: 'The Rule', bg: '#f3e8ff', border: '#a78bfa', text: '#6b21a8' },
+    B: { emoji: '📉', label: 'The Data', bg: '#dbeafe', border: '#60a5fa', text: '#1e40af' },
+    C: { emoji: '❌', label: 'Eliminate', bg: '#fff7ed', border: '#fb923c', text: '#9a3412' },
+  }[type];
+  return `<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:9999px;font-size:14px;font-weight:900;background:${cfg.bg};color:${cfg.text};border:2px solid ${cfg.border}"><span style="font-size:18px">${cfg.emoji}</span>${cfg.label}</span>`;
+}
+
+function progressBar(value) {
+  return `<div style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:#9ca3af;font-weight:700;margin-bottom:4px"><span>Progress</span><span>${value}%</span></div>
+    <div style="width:100%;background:#e5e7eb;border-radius:9999px;height:12px;overflow:hidden">
+      <div class="progress-fill" style="height:100%;border-radius:9999px;width:${value}%;background:linear-gradient(90deg,#7c3aed,#3b82f6,#10b981)"></div>
+    </div>
+  </div>`;
+}
+
+function celebration(text, sub, btnText, onClick) {
+  return `<div class="fade-in" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 0;text-align:center">
+    <div style="font-size:60px;margin-bottom:16px">🎉</div>
+    <p style="font-size:24px;font-weight:900;color:#15803d;margin:0 0 8px">${text}</p>
+    ${sub ? `<p style="font-size:16px;color:#6b7280;margin:0 0 20px">${sub}</p>` : ''}
+    <button onclick="${onClick}" style="padding:12px 32px;background:#16a34a;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:18px">${btnText} ▸</button>
+  </div>`;
+}
+
+function visualBox(color, inner) {
+  const colors = { purple:'border:#d8b4fe;background:#faf5ff', blue:'border:#93c5fd;background:#eff6ff', orange:'border:#fdba74;background:#fff7ed', green:'border:#86efac;background:#f0fdf4' };
+  const c = colors[color];
+  return `<div style="${c};border-width:2px;border-style:solid;border-radius:12px;padding:20px;margin:12px 0">${inner}</div>`;
+}
+
+function skipButton() {
+  return `<button onclick="setState({skippedToQuestion:true,section:'question'})" style="width:100%;margin-top:20px;padding:12px;background:#fff;border:2px dashed #d1d5db;border-radius:12px;font-weight:700;font-size:14px;color:#9ca3af">⚡ I'm Ready — Skip to Question</button>`;
+}
+
+function getProgress() {
+  if (S.section === 'landing') return 0;
+  if (S.mainComplete) return 100;
+  if (S.skippedToQuestion) return 80;
+  if (S.showEvidenceCelebration) return 80;
+  if (S.showPracticeCelebration) return 45;
+  if (S.showTutorialCelebration) return 20;
+  if (S.section === 'tutorial') return Math.round((S.tutorialStep / 3) * 20);
+  if (S.section === 'practice') return 20 + Math.round((S.practiceCorrect.filter(Boolean).length / 3) * 25);
+  if (S.section === 'evidence') return 45 + Math.round((S.evidenceStep / 3) * 35);
+  if (S.section === 'question') return 80;
+  return 0;
+}
+
+// ══════════════════════════════════════
+// LANDING
+// ══════════════════════════════════════
+function renderLanding() {
+  return `<div class="fade-in" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;text-align:center;padding:0 16px">
+    <div style="font-size:72px;margin-bottom:20px">🐾🦉🏠</div>
+    <h1 style="font-size:24px;font-weight:900;color:#111827;margin:0 0 8px">Prairie Dogs &amp; Owls</h1>
+    <p style="font-size:16px;color:#6b7280;margin:0 0 32px">What happens when burrows disappear?</p>
+    <div style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:12px">
+      <button onclick="setState({section:'tutorial'})" style="width:100%;padding:16px;background:#7c3aed;color:#fff;border:none;border-radius:16px;font-weight:700;font-size:18px;box-shadow:0 4px 12px rgba(124,58,237,0.3)">📖 Start Tutorial</button>
+      <button onclick="setState({skippedToQuestion:true,section:'question'})" style="width:100%;padding:16px;background:#2563eb;color:#fff;border:none;border-radius:16px;font-weight:700;font-size:18px;box-shadow:0 4px 12px rgba(37,99,235,0.3)">⚡ I'm Ready — Go to Question</button>
+      <p style="font-size:12px;color:#9ca3af;margin-top:4px">You can always come back if you need help.</p>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════
+// TUTORIAL
+// ══════════════════════════════════════
+function renderTutorial() {
+  if (S.showTutorialCelebration) return celebration('Nice!', "Let's practice.", 'Keep Going', "setState({showTutorialCelebration:false,section:'practice'})");
+
+  const steps = [
+    // Step 1
+    `<h2 style="font-size:20px;font-weight:900;color:#111827;margin:0 0 12px">🐾 Prairie dogs help others</h2>
+    ${visualBox('blue', `<div style="text-align:center">
+      <p style="font-size:18px;font-weight:900;color:#1e3a5f;margin:0 0 16px">Prairie dogs dig burrows.</p>
+      <div style="font-size:48px;margin-bottom:16px">🐕 → 🕳️🕳️🕳️</div>
+      <p style="font-size:18px;font-weight:900;color:#1e3a5f;margin:0 0 16px">Other animals move in!</p>
+      <div style="display:flex;justify-content:center;gap:24px;font-size:40px">
+        <div style="text-align:center"><span>🦉</span><br><span style="font-size:12px;font-weight:700;color:#1d4ed8">Owl</span></div>
+        <div style="text-align:center"><span>🐍</span><br><span style="font-size:12px;font-weight:700;color:#1d4ed8">Snake</span></div>
+        <div style="text-align:center"><span>🐛</span><br><span style="font-size:12px;font-weight:700;color:#1d4ed8">Bug</span></div>
+      </div>
+    </div>`)}`,
+
+    // Step 2
+    `<h2 style="font-size:20px;font-weight:900;color:#111827;margin:0 0 12px">🏠 The Big Rule</h2>
+    <div style="margin-bottom:12px">${anchor('A')}</div>
+    ${visualBox('purple', `<div style="text-align:center">
+      <div style="display:inline-block;background:#e9d5ff;border:2px solid #7c3aed;border-radius:12px;padding:16px 20px;margin-bottom:16px">
+        <p style="font-weight:900;color:#581c87;font-size:20px;margin:0">Fewer homes = fewer owls</p>
+      </div>
+      <div style="display:flex;justify-content:center;gap:24px">
+        <div style="text-align:center;background:#f0fdf4;border-radius:12px;padding:12px;border:1px solid #86efac">
+          <div style="font-size:36px;line-height:1.2">🏠🏠🏠🏠</div>
+          <div style="font-size:36px;line-height:1.2">🦉🦉🦉🦉</div>
+          <p style="font-size:14px;font-weight:900;color:#15803d;margin:8px 0 0">4 homes → 4 owls</p>
+        </div>
+        <div style="text-align:center;background:#fef2f2;border-radius:12px;padding:12px;border:1px solid #fca5a5">
+          <div style="font-size:36px;line-height:1.2">🏠</div>
+          <div style="font-size:36px;line-height:1.2">🦉</div>
+          <p style="font-size:14px;font-weight:900;color:#dc2626;margin:8px 0 0">1 home → 1 owl</p>
+        </div>
+      </div>
+    </div>`)}`,
+
+    // Step 3
+    `<h2 style="font-size:20px;font-weight:900;color:#111827;margin:0 0 12px">📉 What the data shows</h2>
+    <div style="margin-bottom:12px">${anchor('B')}</div>
+    ${visualBox('blue', `<div style="text-align:center">
+      <p style="font-size:16px;font-weight:900;color:#1e3a5f;margin:0 0 16px">From 1990 to 1996:</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="background:#fff;border-radius:12px;padding:12px;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:20px">🐕 Burrows used</span>
+          <span style="font-size:20px;font-weight:900;color:#dc2626">📉 Down</span>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:12px;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:20px">🏠 Empty burrows</span>
+          <span style="font-size:20px;font-weight:900;color:#dc2626">📉 Down</span>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:12px;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:20px">🦉 Owls</span>
+          <span style="font-size:20px;font-weight:900;color:#dc2626">📉 Down</span>
+        </div>
+      </div>
+      <div style="background:#fef9c3;border-radius:8px;padding:8px 12px;border:1px solid #fde68a;margin-top:16px">
+        <p style="font-size:14px;font-weight:900;color:#854d0e;margin:0">Everything went down!</p>
+      </div>
+    </div>`)}`,
+  ];
+
+  const btnLabel = S.tutorialStep < 2 ? 'Next' : "Let's Practice!";
+  return `<div class="fade-in">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-size:12px;font-weight:700;color:#9ca3af">LEARN</span>
+      <span style="font-size:12px;color:#9ca3af">Step ${S.tutorialStep + 1} / 3</span>
+    </div>
+    ${steps[S.tutorialStep]}
+    <button onclick="advanceTutorial()" style="width:100%;margin-top:16px;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:16px">${btnLabel} ▸</button>
+    ${skipButton()}
+  </div>`;
+}
+
+function advanceTutorial() {
+  if (S.tutorialStep < 2) setState({ tutorialStep: S.tutorialStep + 1 });
+  else setState({ showTutorialCelebration: true });
+}
+
+// ══════════════════════════════════════
+// PRACTICE
+// ══════════════════════════════════════
+const practiceData = [
+  {
+    visual: `<div style="text-align:center;margin-bottom:16px"><div style="font-size:40px">🌳🌳🌳 → 🌳</div><p style="font-size:18px;font-weight:900;color:#1f2937;margin:8px 0 0">Trees disappear.</p><p style="font-size:18px;font-weight:900;color:#1f2937;margin:4px 0 0">What happens to bird nests?</p></div>`,
+    choices: [{ text: '⬆️ More nests', emoji: '🐦🐦🐦' }, { text: '⬇️ Fewer nests', emoji: '🐦' }],
+    correctIndex: 1, anchor: 'A',
+    feedback: `<div style="text-align:center;margin-top:12px"><div style="font-size:28px">🌳 = 🐦 home</div><p style="font-size:14px;font-weight:700;color:#166534">Fewer trees → fewer nests!</p></div>`,
+  },
+  {
+    visual: `<div style="text-align:center;margin-bottom:16px"><div style="font-size:40px">💧💧💧 → 🏜️</div><p style="font-size:18px;font-weight:900;color:#1f2937;margin:8px 0 0">Ponds dry up.</p><p style="font-size:18px;font-weight:900;color:#1f2937;margin:4px 0 0">What happens to frogs?</p></div>`,
+    choices: [{ text: '⬆️ More frogs', emoji: '🐸🐸🐸' }, { text: '⬇️ Fewer frogs', emoji: '🐸' }],
+    correctIndex: 1, anchor: 'C',
+    feedback: `<div style="text-align:center;margin-top:12px"><div style="font-size:28px">💧 = 🐸 home</div><p style="font-size:14px;font-weight:700;color:#166534">No water → no frogs!</p></div>`,
+  },
+  {
+    visual: `<div style="text-align:center;margin-bottom:16px"><div style="font-size:40px">🕳️🕳️🕳️ → 🕳️</div><p style="font-size:18px;font-weight:900;color:#1f2937;margin:8px 0 0">Burrows disappear.</p><p style="font-size:18px;font-weight:900;color:#1f2937;margin:4px 0 0">What happens to owls?</p></div>`,
+    choices: [{ text: '⬆️ More owls', emoji: '🦉🦉🦉' }, { text: '⬇️ Fewer owls', emoji: '🦉' }],
+    correctIndex: 1, anchor: 'A',
+    feedback: `<div style="text-align:center;margin-top:12px"><div style="font-size:28px">🕳️ = 🦉 home</div><p style="font-size:14px;font-weight:700;color:#166534">Fewer burrows → fewer owls!</p></div>`,
+  },
+];
+
+function renderPractice() {
+  if (S.showPracticeCelebration) return celebration('3 for 3!', 'Now let\'s look at the real data.', 'Keep Going', "setState({showPracticeCelebration:false,section:'evidence'})");
+
+  const q = practiceData[S.practiceIndex];
+  const isCorrect = S.practiceAnswer === q.correctIndex;
+
+  let choicesHTML = q.choices.map((c, i) => {
+    let bg = '#fff', border = '#e5e7eb';
+    if (S.showPracticeFeedback && S.practiceAnswer === i) {
+      if (isCorrect && i === q.correctIndex) { bg = '#f0fdf4'; border = '#22c55e'; }
+      else { bg = '#fef2f2'; border = '#f87171'; }
+    }
+    return `<button onclick="handlePracticeAnswer(${i})" style="width:100%;padding:16px;background:${bg};border:2px solid ${border};border-radius:12px;font-weight:700;font-size:18px;text-align:left;display:flex;align-items:center;justify-content:space-between">
+      <span>${c.text}</span><span style="font-size:24px">${c.emoji}</span>
+    </button>`;
+  }).join('');
+
+  let feedbackHTML = '';
+  if (S.showPracticeFeedback) {
+    const icon = isCorrect ? '✅' : '❌';
+    const label = isCorrect ? 'Yes!' : 'Not quite!';
+    const fbBg = isCorrect ? '#f0fdf4' : '#fef2f2';
+    const fbBorder = isCorrect ? '#86efac' : '#fca5a5';
+    const btnBg = isCorrect ? '#16a34a' : '#f97316';
+    const btnLabel = isCorrect ? 'Next ▸' : 'Try Again ↻';
+    const btnAction = isCorrect ? 'handlePracticeNext()' : 'handlePracticeRetry()';
+
+    feedbackHTML = `<div style="border-radius:12px;padding:16px;background:${fbBg};border:2px solid ${fbBorder};margin-top:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:24px">${icon}</span>
+        <span style="font-weight:700;font-size:16px">${label}</span>
+        ${isCorrect ? anchor(q.anchor) : ''}
+      </div>
+      ${isCorrect ? q.feedback : ''}
+      <button onclick="${btnAction}" style="width:100%;margin-top:12px;padding:12px;background:${btnBg};color:#fff;border:none;border-radius:12px;font-weight:700;font-size:16px">${btnLabel}</button>
+    </div>`;
+  }
+
+  return `<div class="fade-in">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <span style="font-size:12px;font-weight:700;color:#9ca3af">PRACTICE</span>
+      <span style="font-size:12px;color:#9ca3af">${S.practiceCorrect.filter(Boolean).length} / 3 correct</span>
+    </div>
+    ${q.visual}
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">${choicesHTML}</div>
+    ${feedbackHTML}
+    ${skipButton()}
+  </div>`;
+}
+
+function handlePracticeAnswer(i) {
+  if (S.showPracticeFeedback) return;
+  setState({ practiceAnswer: i, showPracticeFeedback: true });
+}
+
+function handlePracticeNext() {
+  const updated = [...S.practiceCorrect];
+  updated[S.practiceIndex] = true;
+  if (updated.every(Boolean)) {
+    setState({ practiceCorrect: updated, showPracticeCelebration: true, practiceAnswer: null, showPracticeFeedback: false });
+    return;
+  }
+  let next = updated.findIndex((v, i) => !v && i > S.practiceIndex);
+  if (next === -1) next = updated.findIndex(v => !v);
+  setState({ practiceCorrect: updated, practiceIndex: next, practiceAnswer: null, showPracticeFeedback: false });
+}
+
+function handlePracticeRetry() {
+  setState({ practiceAnswer: null, showPracticeFeedback: false });
+}
+
+// ══════════════════════════════════════
+// EVIDENCE
+// ══════════════════════════════════════
+function renderEvidence() {
+  if (S.showEvidenceCelebration) return celebration("You're ready!", 'Time for the real question.', 'Keep Going', "setState({showEvidenceCelebration:false,section:'question'})");
+
+  const steps = [
+    // Step 1: Bar chart
+    () => {
+      const bars = [
+        { h: 100, y: "'90" }, { h: 80, y: "'91" }, { h: 65, y: "'92" },
+        { h: 50, y: "'93" }, { h: 35, y: "'94" }, { h: 22, y: "'95" }, { h: 12, y: "'96" },
+      ];
+      const barHTML = bars.map(b => `<div style="display:flex;flex-direction:column;align-items:center">
+        <div style="width:32px;border-radius:4px 4px 0 0;background:#3b82f6;height:${b.h * 0.7}px"></div>
+        <span style="font-size:10px;font-weight:700;color:#1e40af;margin-top:4px">${b.y}</span>
+      </div>`).join('');
+
+      return `<h2 style="font-size:20px;font-weight:900;margin:0 0 8px">📉 Burrows went down</h2>
+        <div style="margin-bottom:12px">${anchor('B')}</div>
+        <div style="background:#dbeafe;border-radius:12px;padding:20px;box-shadow:0 0 0 4px #60a5fa">
+          <p style="font-size:14px;font-weight:700;color:#1e40af;text-align:center;margin:0 0 12px">Number of burrows each year:</p>
+          <div style="display:flex;align-items:flex-end;justify-content:center;gap:8px">${barHTML}</div>
+          <div style="text-align:center;margin-top:12px"><span style="background:#bfdbfe;padding:4px 12px;border-radius:9999px;font-size:14px;font-weight:900;color:#1e3a5f">📉 Getting smaller!</span></div>
+        </div>`;
+    },
+
+    // Step 2: Both down
+    () => `<h2 style="font-size:20px;font-weight:900;margin:0 0 8px">🦉 Owls went down too!</h2>
+      <div style="margin-bottom:12px">${anchor('A')}</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="background:#eff6ff;border-radius:12px;padding:16px;border:2px solid #93c5fd">
+          <p style="font-weight:700;color:#1e40af;margin:0 0 8px">🕳️ Burrows:</p>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:24px">📊</span>
+            <div style="flex:1;background:#bfdbfe;border-radius:9999px;height:16px;overflow:hidden"><div style="height:100%;background:#3b82f6;border-radius:9999px;width:15%"></div></div>
+            <span style="font-size:18px;font-weight:900;color:#dc2626">📉</span>
+          </div>
+        </div>
+        <div style="background:#fef2f2;border-radius:12px;padding:16px;border:2px solid #fca5a5">
+          <p style="font-weight:700;color:#991b1b;margin:0 0 8px">🦉 Owls:</p>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:24px">📊</span>
+            <div style="flex:1;background:#fecaca;border-radius:9999px;height:16px;overflow:hidden"><div style="height:100%;background:#ef4444;border-radius:9999px;width:5%"></div></div>
+            <span style="font-size:18px;font-weight:900;color:#dc2626">📉</span>
+          </div>
+        </div>
+        <div style="background:#f3e8ff;border:2px solid #a78bfa;border-radius:12px;padding:12px;text-align:center">
+          ${anchor('A')}
+          <p style="font-size:16px;font-weight:900;color:#581c87;margin:8px 0 0">Burrows down → Owls down</p>
+        </div>
+      </div>`,
+
+    // Step 3: Quick check
+    () => {
+      const opts = [
+        { text: '📉 Burrows down, 📉 Owls down', correct: true },
+        { text: '📉 Burrows down, 📈 Owls up', correct: false },
+      ];
+      const optsHTML = opts.map((o, i) => {
+        let bg = '#fff', border = '#e5e7eb';
+        if (S.showEvidenceCheckFeedback && S.evidenceCheckAnswer === i) {
+          if (o.correct) { bg = '#f0fdf4'; border = '#22c55e'; }
+          else { bg = '#fef2f2'; border = '#f87171'; }
+        }
+        return `<button onclick="handleEvidenceCheck(${i})" style="width:100%;padding:16px;background:${bg};border:2px solid ${border};border-radius:12px;font-weight:700;font-size:16px;text-align:left">${o.text}</button>`;
+      }).join('');
+
+      let fbHTML = '';
+      if (S.showEvidenceCheckFeedback) {
+        if (S.evidenceCheckAnswer === 0) {
+          fbHTML = `<div style="border-radius:12px;padding:16px;background:#f0fdf4;border:2px solid #86efac;margin-top:12px;display:flex;align-items:center;gap:8px">
+            <span style="font-size:22px">✅</span><span style="font-size:16px;font-weight:700;color:#166534">Yes! Both went down.</span>
+          </div>`;
+        } else {
+          fbHTML = `<div style="border-radius:12px;padding:16px;background:#fef2f2;border:2px solid #fca5a5;margin-top:12px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:22px">❌</span><span style="font-size:16px;font-weight:700;color:#b91c1c">Owls went down too!</span></div>
+            <button onclick="setState({evidenceCheckAnswer:null,showEvidenceCheckFeedback:false})" style="padding:8px 20px;background:#f97316;color:#fff;border:none;border-radius:8px;font-weight:700">Try Again ↻</button>
+          </div>`;
+        }
+      }
+
+      return `<h2 style="font-size:20px;font-weight:900;margin:0 0 8px">✅ Quick Check</h2>
+        <div style="margin-bottom:12px">${anchor('B')}</div>
+        <p style="font-size:16px;font-weight:700;color:#374151;margin:0 0 16px">What happened from 1990 to 1996?</p>
+        <div style="display:flex;flex-direction:column;gap:12px">${optsHTML}</div>
+        ${fbHTML}`;
+    },
+  ];
+
+  const stepHTML = steps[S.evidenceStep]();
+
+  let navBtn = '';
+  if (S.evidenceStep < 2) {
+    navBtn = `<button onclick="handleEvidenceNext()" style="width:100%;margin-top:16px;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:16px">Next ▸</button>`;
+  } else if (S.showEvidenceCheckFeedback && S.evidenceCheckAnswer === 0) {
+    navBtn = `<button onclick="handleEvidenceNext()" style="width:100%;margin-top:16px;padding:12px;background:#16a34a;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:16px">Go to the Question! ✨</button>`;
+  }
+
+  return `<div class="fade-in">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-size:12px;font-weight:700;color:#9ca3af">EVIDENCE</span>
+      <span style="font-size:12px;color:#9ca3af">Step ${S.evidenceStep + 1} / 3</span>
+    </div>
+    ${stepHTML}
+    ${navBtn}
+    ${skipButton()}
+  </div>`;
+}
+
+function handleEvidenceCheck(i) {
+  if (S.showEvidenceCheckFeedback) return;
+  setState({ evidenceCheckAnswer: i, showEvidenceCheckFeedback: true });
+}
+
+function handleEvidenceNext() {
+  if (S.evidenceStep < 2) setState({ evidenceStep: S.evidenceStep + 1, evidenceCheckAnswer: null, showEvidenceCheckFeedback: false });
+  else setState({ showEvidenceCelebration: true });
+}
+
+// ══════════════════════════════════════
+// QUESTION + HINTS
+// ══════════════════════════════════════
+const answerChoices = [
+  "(1) As the number of prairie dog burrows decreased, the number of burrowing owls the area could support increased.",
+  "(2) As the number of burrowing owls increased, the number of prairie dogs the area could support decreased.",
+  "(3) As the number of prairie dog burrows decreased, the number of burrowing owls the area could support decreased.",
+  "(4) As the number of burrowing owls increased, the number of total burrows the area could support decreased.",
+];
+
+const hintsData = [
+  { type: 'Look', anchor: 'B',
+    visual: visualBox('blue', `${anchor('B')}<div style="text-align:center;margin-top:8px"><p style="font-size:18px;font-weight:900;margin:0">🕳️ Burrows → 📉</p><p style="font-size:18px;font-weight:900;margin:4px 0">🦉 Owls → 📉</p><p style="font-size:14px;color:#6b7280;margin:4px 0 0">Both went down.</p></div>`) },
+  { type: 'Rule', anchor: 'A',
+    visual: visualBox('purple', `${anchor('A')}<div style="background:#e9d5ff;border-radius:8px;padding:12px 16px;margin-top:8px;text-align:center"><p style="font-weight:900;color:#581c87;font-size:18px;margin:0">🏠 Fewer homes = fewer owls</p></div>`) },
+  { type: 'Eliminate', anchor: 'C',
+    visual: visualBox('orange', `${anchor('C')}<div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;background:#f3f4f6;border-radius:8px;padding:8px;opacity:0.5"><span style="font-size:20px">✖️</span><span style="font-size:14px;text-decoration:line-through;color:#9ca3af">(1) says owls went UP — wrong</span></div>
+      <div style="display:flex;align-items:center;gap:8px;background:#f3f4f6;border-radius:8px;padding:8px;opacity:0.5"><span style="font-size:20px">✖️</span><span style="font-size:14px;text-decoration:line-through;color:#9ca3af">(2) wrong topic</span></div>
+      <div style="display:flex;align-items:center;gap:8px;background:#f3f4f6;border-radius:8px;padding:8px;opacity:0.5"><span style="font-size:20px">✖️</span><span style="font-size:14px;text-decoration:line-through;color:#9ca3af">(4) wrong topic</span></div>
+      <div style="background:#dcfce7;border-radius:8px;padding:8px;border:2px solid #4ade80"><p style="font-weight:900;color:#166534;font-size:14px;margin:0">Only (3) is about owls going down!</p></div>
+    </div>`) },
+  { type: 'Answer', anchor: 'B',
+    visual: visualBox('green', `<div style="text-align:center"><p style="font-size:18px;font-weight:900;color:#166534;margin:0">The data shows:</p><div style="font-size:28px;margin:8px 0">🕳️📉 → 🦉📉</div><p style="font-size:18px;font-weight:900;color:#166534;margin:0">Answer (3) says this!</p><div style="font-size:28px;margin-top:8px">✅ Pick (3)</div></div>`) },
+];
+
+function renderQuestion() {
+  if (S.mainComplete) {
+    return `<div class="fade-in" style="text-align:center;padding:32px 0">
+      <div style="font-size:72px;margin-bottom:16px">🎉</div>
+      <h2 style="font-size:24px;font-weight:900;color:#15803d;margin:0 0 12px">You got it!</h2>
+      ${visualBox('green', `${anchor('A')}<div style="margin-top:12px"><div style="font-size:28px">🕳️📉 → 🦉📉</div><p style="font-size:16px;font-weight:700;color:#166534;margin:8px 0 0">Fewer burrows → fewer owls</p></div>`)}
+      <div style="display:flex;justify-content:center;gap:12px;margin-top:20px">${anchor('A')}${anchor('B')}${anchor('C')}</div>
+      <p style="font-size:14px;color:#6b7280;margin-top:16px">Great thinking! 🌟</p>
+    </div>`;
+  }
+
+  // Header
+  let header = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px">${anchor('A')}<span style="font-size:12px;font-weight:700;color:#6b7280">REAL QUESTION</span></div>
+    ${S.skippedToQuestion ? '<button onclick="setState({skippedToQuestion:false,section:\'tutorial\',tutorialStep:0})" style="font-size:12px;color:#7c3aed;font-weight:700;background:none;border:none;text-decoration:underline">🏠 Back to Tutorial</button>' : ''}
+  </div>`;
+
+  // Question
+  let questionBox = `<div style="background:#f9fafb;border:2px solid #d1d5db;border-radius:12px;padding:16px;margin-bottom:16px">
+    <p style="font-size:14px;color:#111827;font-weight:500;line-height:1.6;margin:0">How did the number of prairie dog burrows affect the carrying capacity of burrowing owls in the area?</p>
+  </div>`;
+
+  // Choices
+  let choicesHTML = answerChoices.map((c, i) => {
+    let bg = '#fff', border = '#e5e7eb';
+    if (S.selectedAnswer === i && !S.showFeedback) { bg = '#faf5ff'; border = '#7c3aed'; }
+    if (S.showFeedback && S.selectedAnswer === i) {
+      if (i === 2) { bg = '#f0fdf4'; border = '#22c55e'; }
+      else { bg = '#fef2f2'; border = '#f87171'; }
+    }
+    return `<button onclick="if(!S.showFeedback)setState({selectedAnswer:${i}})" style="width:100%;padding:12px;background:${bg};border:2px solid ${border};border-radius:12px;text-align:left;font-size:14px">${c}</button>`;
+  }).join('');
+
+  // Check button
+  let checkBtn = '';
+  if (S.selectedAnswer !== null && !S.showFeedback) {
+    checkBtn = `<button onclick="handleMainAnswer()" style="width:100%;margin-top:8px;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:16px">Check My Answer</button>`;
+  }
+
+  // Wrong feedback
+  let wrongFB = '';
+  if (S.showFeedback && S.selectedAnswer !== 2) {
+    wrongFB = `<div style="background:#fff7ed;border:2px solid #fdba74;border-radius:12px;padding:16px;margin-top:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:20px">❌</span><span style="font-weight:700;font-size:16px;color:#9a3412">Not quite!</span></div>
+      <p style="font-size:14px;color:#c2410c;margin:0 0 12px">Use the hints below to help you.</p>
+      <button onclick="setState({selectedAnswer:null,showFeedback:false})" style="width:100%;padding:12px;background:#f97316;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:16px">Try Again ↻</button>
+      ${S.skippedToQuestion ? '<button onclick="setState({skippedToQuestion:false,section:\'tutorial\',tutorialStep:0})" style="width:100%;margin-top:8px;padding:12px;background:#f3e8ff;color:#6b21a8;border:none;border-radius:12px;font-weight:700">Go back to the tutorial?</button>' : ''}
+    </div>`;
+  }
+
+  // Hints
+  let hintsHTML = hintsData.map((h, i) => {
+    if (i < S.hintsRevealed) {
+      return `<div style="background:#fefce8;border:2px solid #fde68a;border-radius:12px;padding:16px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+          <span style="font-size:14px;font-weight:700;color:#854d0e">Hint ${i + 1}: ${h.type}</span>
+          ${anchor(h.anchor)}
+        </div>
+        ${h.visual}
+      </div>`;
+    } else if (i === S.hintsRevealed) {
+      return `<button onclick="setState({hintsRevealed:${S.hintsRevealed + 1}})" style="width:100%;padding:12px;background:#fef9c3;border:2px solid #fde68a;border-radius:12px;font-weight:700;font-size:16px;color:#854d0e;margin-bottom:8px">💡 Show Hint ${i + 1}</button>`;
+    } else {
+      return `<div style="width:100%;padding:12px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:12px;font-weight:700;font-size:16px;color:#9ca3af;text-align:center;margin-bottom:8px">🔒 Hint ${i + 1}</div>`;
+    }
+  }).join('');
+
+  return `<div class="fade-in">
+    ${header}
+    ${questionBox}
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">${choicesHTML}</div>
+    ${checkBtn}
+    ${wrongFB}
+    <div style="margin-top:20px;border-top:2px solid #e5e7eb;padding-top:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:20px">💡</span>
+        <span style="font-size:16px;font-weight:700;color:#6b7280">Need help? (${S.hintsRevealed} / 4)</span>
+      </div>
+      ${hintsHTML}
+    </div>
+  </div>`;
+}
+
+function handleMainAnswer() {
+  S.showFeedback = true;
+  S.attempts++;
+  if (S.selectedAnswer === 2) S.mainComplete = true;
+  else if (S.hintsRevealed < 4) S.hintsRevealed++;
+  render();
+}
+
+// ══════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════
+function render() {
+  const app = document.getElementById('app');
+  let html = '';
+
+  if (S.section !== 'landing') html += progressBar(getProgress());
+
+  switch (S.section) {
+    case 'landing': html += renderLanding(); break;
+    case 'tutorial': html += renderTutorial(); break;
+    case 'practice': html += renderPractice(); break;
+    case 'evidence': html += renderEvidence(); break;
+    case 'question': html += renderQuestion(); break;
+  }
+
+  app.innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>
