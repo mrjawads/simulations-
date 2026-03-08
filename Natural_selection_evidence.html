@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations Simulation Evidence Evaluation — Observation vs. Inference in Evolution</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#0d1b2a 0%,#1b2838 40%,#162040 100%);color:#e0e0e0;min-height:100vh;overflow-x:hidden;user-select:none;display:flex;justify-content:center;}
+#app{width:100%;max-width:1100px;margin:0 auto;padding:10px 16px;}
+h1{text-align:center;font-size:1em;padding:10px 16px;background:linear-gradient(90deg,#1565C0,#7B1FA2,#C2185B);border-radius:12px;margin-bottom:10px;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,0.5);line-height:1.3;letter-spacing:0.3px;box-shadow:0 4px 20px rgba(21,101,192,0.3);}
+/* HUD */
+#hud{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px;}
+.hud-box{background:linear-gradient(145deg,#1a3050,#22405a);border-radius:12px;padding:10px 8px;text-align:center;border:1px solid rgba(66,165,245,0.2);box-shadow:0 4px 12px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.05);}
+.hud-label{font-size:0.65em;color:#64B5F6;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;}
+.hud-value{font-size:1.6em;font-weight:800;color:#fff;text-shadow:0 0 10px rgba(255,255,255,0.15);}
+#progress-bar-wrap{grid-column:1/-1;background:#0d1b2a;border-radius:10px;height:22px;overflow:hidden;border:1px solid rgba(66,165,245,0.2);box-shadow:inset 0 2px 4px rgba(0,0,0,0.4);}
+#progress-bar{height:100%;background:linear-gradient(90deg,#43A047,#66BB6A,#81C784);border-radius:10px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1);width:0%;display:flex;align-items:center;justify-content:center;font-size:0.7em;font-weight:bold;color:#1b5e20;box-shadow:0 0 12px rgba(76,175,80,0.3);}
+#progress-msg{text-align:center;font-size:0.8em;color:#81C784;margin-bottom:8px;min-height:1.2em;font-weight:600;}
+/* Evidence Selector */
+#selector{display:flex;gap:10px;justify-content:center;margin-bottom:10px;flex-wrap:wrap;}
+.ev-btn{width:130px;padding:12px 8px;border-radius:14px;border:2px solid rgba(255,255,255,0.1);background:linear-gradient(145deg,#1a3050,#22405a);cursor:pointer;text-align:center;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+.ev-btn::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,0.05),transparent);border-radius:12px;pointer-events:none;}
+.ev-btn:hover:not(.disabled){border-color:#64B5F6;transform:translateY(-3px);box-shadow:0 8px 25px rgba(100,181,246,0.25);}
+.ev-btn.active{border-color:#FFD54F;box-shadow:0 0 25px rgba(255,213,79,0.35),inset 0 0 15px rgba(255,213,79,0.1);}
+.ev-btn.disabled{opacity:0.35;cursor:default;pointer-events:none;}
+.ev-btn.completed::after{content:'✓';position:absolute;top:6px;right:8px;color:#4CAF50;font-size:1.2em;font-weight:bold;text-shadow:0 0 6px rgba(76,175,80,0.5);}
+.ev-icon{font-size:2.4em;display:block;margin-bottom:4px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));}
+.ev-name{font-size:0.8em;color:#b0bec5;font-weight:600;}
+.ev-btn.pulse .ev-icon{animation:pulse 1.5s infinite ease-in-out;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.18);}}
+/* Status */
+#status{text-align:center;font-size:0.85em;color:#90caf9;margin-bottom:8px;min-height:1.5em;font-weight:600;letter-spacing:0.3px;}
+/* Arena */
+#arena-wrap{position:relative;min-height:400px;background:linear-gradient(160deg,#0a1425,#121e35,#0d1a2e);border-radius:20px;border:2px solid rgba(66,165,245,0.15);margin-bottom:10px;display:flex;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 0 60px rgba(0,0,0,0.2);}
+#bin-left,#bin-right{width:180px;min-height:100%;display:flex;flex-direction:column;align-items:center;padding:12px 8px;transition:all 0.4s;}
+#bin-left{background:linear-gradient(180deg,rgba(30,136,229,0.12),rgba(30,136,229,0.03));border-right:1px solid rgba(30,136,229,0.2);}
+#bin-right{background:linear-gradient(180deg,rgba(156,39,176,0.12),rgba(156,39,176,0.03));border-left:1px solid rgba(156,39,176,0.2);}
+.bin-header{display:flex;flex-direction:column;align-items:center;margin-bottom:8px;}
+.bin-icon{font-size:2.2em;margin-bottom:4px;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.4));}
+.bin-label{font-size:0.65em;font-weight:800;text-align:center;text-transform:uppercase;letter-spacing:0.8px;line-height:1.3;}
+#bin-left .bin-label{color:#64B5F6;}
+#bin-right .bin-label{color:#CE93D8;}
+.bin-drop-zone{width:160px;min-height:80px;border:2px dashed rgba(255,255,255,0.12);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:5px;align-items:center;transition:all 0.3s;background:rgba(0,0,0,0.1);}
+.bin-drop-zone.glow-blue{border-color:#42A5F5;box-shadow:0 0 18px rgba(66,165,245,0.25);background:rgba(30,136,229,0.08);}
+.bin-drop-zone.glow-purple{border-color:#AB47BC;box-shadow:0 0 18px rgba(171,71,188,0.25);background:rgba(156,39,176,0.08);}
+.bin-drop-zone.wrong{animation:shake 0.5s;}
+@keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-8px);}40%{transform:translateX(8px);}60%{transform:translateX(-5px);}80%{transform:translateX(5px);}}
+/* Sorted chip in bin */
+.sorted-chip{padding:5px 8px;border-radius:8px;font-size:0.68em;font-weight:bold;text-align:center;width:100%;border:2px solid #4CAF50;background:rgba(76,175,80,0.12);color:#C8E6C9;animation:chipLand 0.3s;position:relative;}
+@keyframes chipLand{from{opacity:0;transform:scale(0.7);}to{opacity:1;transform:scale(1);}}
+.sorted-chip .confirm-icon{position:absolute;top:-6px;right:-6px;font-size:0.9em;background:#111;border-radius:50%;padding:1px 3px;}
+/* Tier buttons */
+.tier-btns{display:flex;gap:4px;justify-content:center;width:100%;animation:fadeIn 0.3s;}
+.tier-btn{padding:4px 6px;border-radius:8px;border:2px solid transparent;cursor:pointer;font-size:0.62em;font-weight:bold;transition:all 0.2s;flex:1;text-align:center;line-height:1.2;}
+.tier-btn:hover{transform:scale(1.05);}
+.tier-btn.backed{background:rgba(255,235,59,0.15);border-color:#FDD835;color:#FFF176;}
+.tier-btn.debatable{background:rgba(255,152,0,0.15);border-color:#FB8C00;color:#FFB74D;}
+.tier-btn.assumed{background:rgba(244,67,54,0.15);border-color:#E53935;color:#ef9a9a;}
+.tier-btn.correct{border-color:#4CAF50 !important;box-shadow:0 0 10px rgba(76,175,80,0.4);background:rgba(76,175,80,0.2) !important;}
+.tier-btn.wrong-tier{border-color:#f44336 !important;animation:shake 0.4s;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+/* Does Not Show overlay */
+#dns-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:30;display:none;align-items:center;justify-content:center;flex-direction:column;backdrop-filter:blur(3px);border-radius:18px;}
+#dns-overlay.show{display:flex;}
+#dns-card{background:linear-gradient(145deg,#37474F,#263238);border:3px solid #ef5350;border-radius:16px;padding:24px 32px;text-align:center;max-width:400px;box-shadow:0 8px 30px rgba(244,67,54,0.3);}
+#dns-card .dns-icon{font-size:3em;margin-bottom:8px;}
+#dns-card .dns-title{font-size:1em;color:#ef9a9a;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+#dns-card .dns-text{font-size:0.95em;color:#fff;line-height:1.5;}
+/* Claim Chips */
+#chip-area{display:flex;gap:10px;justify-content:center;padding:8px;min-height:60px;align-items:center;flex-wrap:wrap;}
+.claim-chip{padding:10px 16px;border-radius:12px;font-size:0.82em;font-weight:bold;cursor:grab;transition:all 0.2s;position:relative;max-width:210px;text-align:center;letter-spacing:0.2px;background:linear-gradient(145deg,#37474F,#455A64);color:#fff;border:2px solid rgba(255,255,255,0.2);box-shadow:0 3px 12px rgba(0,0,0,0.3);}
+.claim-chip:active{cursor:grabbing;transform:scale(1.06);}
+.claim-chip.sorted{opacity:0.2;pointer-events:none;transform:scale(0.7);}
+.claim-chip.hint-glow{box-shadow:0 0 22px rgba(255,235,59,0.5);border-color:#FFEB3B !important;}
+.correction{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:0.65em;color:#ff8a80;white-space:nowrap;animation:fadeIn 0.3s;font-weight:600;}
+#arena-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;position:relative;}
+#evidence-visual{width:100%;flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:180px;}
+#visual-canvas{position:relative;width:100%;height:100%;}
+/* Particles */
+.particle{position:absolute;border-radius:50%;pointer-events:none;animation:particleBurst 0.9s forwards;}
+@keyframes particleBurst{0%{opacity:1;transform:translate(0,0) scale(1);}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0);}}
+.ambient{position:absolute;border-radius:50%;opacity:0.2;animation:float 5s infinite ease-in-out;pointer-events:none;}
+@keyframes float{0%,100%{transform:translateY(0) scale(1);opacity:0.2;}50%{transform:translateY(-25px) scale(1.4);opacity:0.5;}}
+.bg-orb{position:absolute;border-radius:50%;pointer-events:none;filter:blur(40px);opacity:0.06;animation:orbFloat 8s infinite ease-in-out;}
+@keyframes orbFloat{0%,100%{transform:translate(0,0);}50%{transform:translate(20px,-15px);}}
+/* Power-up & Random event */
+#powerup{position:absolute;top:10px;right:10px;background:linear-gradient(135deg,#FFD54F,#FFA000);color:#333;padding:6px 14px;border-radius:10px;font-size:0.75em;font-weight:bold;display:none;box-shadow:0 4px 15px rgba(255,213,79,0.4);z-index:10;animation:glow 1.5s infinite alternate;}
+@keyframes glow{from{box-shadow:0 4px 15px rgba(255,213,79,0.4);}to{box-shadow:0 4px 25px rgba(255,213,79,0.7);}}
+#random-event{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#E040FB,#AA00FF);color:#fff;padding:6px 16px;border-radius:10px;font-size:0.75em;font-weight:bold;display:none;box-shadow:0 4px 15px rgba(224,64,251,0.4);z-index:10;}
+#feedback{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2em;font-weight:bold;pointer-events:none;opacity:0;transition:opacity 0.3s;z-index:20;text-shadow:0 4px 15px rgba(0,0,0,0.6);}
+#feedback.show{opacity:1;}
+/* Buttons */
+#btn-area{display:flex;gap:12px;justify-content:center;margin-bottom:10px;flex-wrap:wrap;}
+.game-btn{padding:10px 24px;border:none;border-radius:12px;font-size:0.9em;font-weight:bold;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 12px rgba(0,0,0,0.3);letter-spacing:0.3px;}
+.game-btn:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,0.4);}
+#btn-next{background:linear-gradient(135deg,#43A047,#2E7D32);color:#fff;display:none;}
+#btn-reset{background:linear-gradient(135deg,#e53935,#b71c1c);color:#fff;}
+#btn-new{background:linear-gradient(135deg,#1e88e5,#1565C0);color:#fff;}
+/* Data Table */
+#table-area{margin-top:8px;background:linear-gradient(145deg,#0d1b2a,#132238);border-radius:14px;padding:12px;border:1px solid rgba(66,165,245,0.1);}
+#table-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+#table-header h3{font-size:0.95em;color:#64B5F6;font-weight:700;}
+#btn-copy{padding:6px 16px;background:linear-gradient(135deg,#455A64,#37474F);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:0.8em;transition:all 0.2s;font-weight:600;}
+#btn-copy:hover{background:linear-gradient(135deg,#607D8B,#455A64);transform:translateY(-1px);}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:0.75em;border-radius:10px;overflow:hidden;}
+th{background:linear-gradient(135deg,#1565C0,#1976D2);color:#fff;padding:8px 4px;text-align:center;font-size:0.8em;font-weight:700;letter-spacing:0.3px;}
+td{padding:6px 4px;text-align:center;border-bottom:1px solid rgba(66,165,245,0.1);background:#0d1b2a;font-size:0.85em;}
+tr:nth-child(even) td{background:#111f35;}
+tr:last-child td{border-bottom:none;}
+tr.highlight td{background:rgba(255,213,79,0.12) !important;animation:rowGlow 2s;}
+@keyframes rowGlow{0%{background:rgba(255,213,79,0.35) !important;}100%{background:rgba(255,213,79,0.12) !important;}}
+/* Completion */
+#completion{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100;align-items:center;justify-content:center;flex-direction:column;backdrop-filter:blur(4px);}
+#completion.show{display:flex;}
+#completion h2{font-size:2.2em;color:#FFD54F;margin-bottom:12px;text-shadow:0 0 30px rgba(255,213,79,0.4);}
+#completion p{color:#b0bec5;font-size:1.05em;margin-bottom:18px;}
+#completion .game-btn{font-size:1.05em;padding:14px 34px;}
+.evo-label{position:absolute;background:rgba(0,0,0,0.75);color:#fff;padding:3px 10px;border-radius:8px;font-size:0.7em;font-weight:bold;white-space:nowrap;pointer-events:none;backdrop-filter:blur(2px);border:1px solid rgba(255,255,255,0.1);}
+.evo-element{position:absolute;transition:all 0.5s;pointer-events:none;}
+#start-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;}
+#start-screen h2{font-size:1.5em;color:#FFD54F;margin-bottom:10px;text-shadow:0 0 15px rgba(255,213,79,0.3);}
+#start-screen p{font-size:0.9em;color:#b0bec5;margin-bottom:16px;max-width:500px;line-height:1.5;}
+#btn-start{padding:16px 48px;background:linear-gradient(135deg,#43A047,#2E7D32);color:#fff;border:none;border-radius:16px;font-size:1.15em;font-weight:bold;cursor:pointer;box-shadow:0 6px 20px rgba(76,175,80,0.35);transition:all 0.2s;}
+#btn-start:hover{transform:scale(1.06);}
+#level-badge{position:absolute;top:10px;left:10px;background:linear-gradient(135deg,#455A64,#37474F);color:#fff;padding:5px 12px;border-radius:10px;font-size:0.75em;font-weight:bold;z-index:10;border:1px solid rgba(255,255,255,0.1);box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+@media(max-width:900px){#bin-left,#bin-right{width:150px;}.bin-drop-zone{width:135px;}.claim-chip{font-size:0.75em;padding:8px 10px;max-width:170px;}}
+@media(max-width:600px){#hud{grid-template-columns:repeat(3,1fr);}#arena-wrap{min-height:320px;flex-direction:column;}#bin-left,#bin-right{width:100%;min-height:auto;flex-direction:row;justify-content:center;gap:8px;padding:8px;}.bin-drop-zone{width:auto;flex:1;flex-direction:row;min-height:50px;}#arena-center{min-height:200px;}}
+</style>
+</head>
+<body>
+<div id="app">
+<h1>Mr. Jawad's Simulations Simulation Evidence Evaluation — Observation vs. Inference in Evolution</h1>
+<div id="hud">
+<div class="hud-box"><div class="hud-label">Score</div><div class="hud-value" id="score">0</div></div>
+<div class="hud-box"><div class="hud-label">Round</div><div class="hud-value" id="round-display">0/8</div></div>
+<div class="hud-box"><div class="hud-label">Streak</div><div class="hud-value" id="streak">0</div></div>
+<div class="hud-box"><div class="hud-label">Accuracy</div><div class="hud-value" id="accuracy">100%</div></div>
+<div class="hud-box"><div class="hud-label">Rank</div><div class="hud-value" id="rank">Novice</div></div>
+<div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+</div>
+<div id="progress-msg"></div>
+<div id="selector">
+<div class="ev-btn pulse" data-type="fossil" onclick="selectEvidence('fossil')"><span class="ev-icon">🪨</span><span class="ev-name">Fossil</span></div>
+<div class="ev-btn pulse" data-type="dna" onclick="selectEvidence('dna')"><span class="ev-icon">🧬</span><span class="ev-name">DNA</span></div>
+<div class="ev-btn pulse" data-type="bone" onclick="selectEvidence('bone')"><span class="ev-icon">🦴</span><span class="ev-name">Bone</span></div>
+<div class="ev-btn pulse" data-type="embryo" onclick="selectEvidence('embryo')"><span class="ev-icon">🥚</span><span class="ev-name">Embryo</span></div>
+</div>
+<div id="status">Pick evidence to examine</div>
+<div id="arena-wrap">
+<div id="level-badge">Novice</div>
+<div id="powerup">🔍 Hint Lens Active</div>
+<div id="random-event">⚡ Harder Case</div>
+<div id="feedback"></div>
+<div id="dns-overlay"><div id="dns-card"><div class="dns-icon">⛔</div><div class="dns-title">Does Not Show</div><div class="dns-text" id="dns-text"></div></div></div>
+<div class="bg-orb" style="width:200px;height:200px;background:#1e88e5;top:20%;left:10%;"></div>
+<div class="bg-orb" style="width:150px;height:150px;background:#AB47BC;top:40%;right:10%;animation-delay:3s;"></div>
+<div class="bg-orb" style="width:180px;height:180px;background:#7B1FA2;bottom:10%;left:40%;animation-delay:5s;"></div>
+<div id="bin-left">
+<div class="bin-header"><div class="bin-icon">👁️</div><div class="bin-label">Can See It</div></div>
+<div class="bin-drop-zone" id="zone-obs" data-bin="obs"></div>
+</div>
+<div id="arena-center">
+<div id="evidence-visual"><div id="visual-canvas">
+<div id="start-screen"><h2>🔬 Evidence Expert</h2><p>Sort claims — what you CAN SEE vs. what is a POSSIBLE INTERPRETATION. Then rate each interpretation's strength.</p><button id="btn-start" onclick="startGame()">Start Sorting</button></div>
+</div></div>
+<div id="chip-area"></div>
+</div>
+<div id="bin-right">
+<div class="bin-header"><div class="bin-icon">🔍</div><div class="bin-label">Possible<br>Interpretation</div></div>
+<div class="bin-drop-zone" id="zone-inf" data-bin="inf"></div>
+</div>
+</div>
+<div id="btn-area">
+<button class="game-btn" id="btn-next" onclick="nextRound()">Next Round →</button>
+<button class="game-btn" id="btn-reset" onclick="resetGame()">Reset</button>
+<button class="game-btn" id="btn-new" onclick="newRun()">New Run</button>
+</div>
+<div id="table-area">
+<div id="table-header"><h3>📊 Data Table</h3><button id="btn-copy" onclick="copyTable()">📋 Copy Table</button></div>
+<table>
+<thead><tr><th>Round</th><th>Evidence</th><th>"Can See It"</th><th>"Possible Interpretation" + Tier</th></tr></thead>
+<tbody id="data-body"></tbody>
+</table>
+</div>
+</div>
+<div id="completion">
+<h2 id="comp-title">🏆 Evidence Expert!</h2>
+<p id="comp-msg">Required rounds complete.</p>
+<button class="game-btn" id="btn-continue" onclick="closeCompletion()" style="background:linear-gradient(135deg,#FFD54F,#FFA000);color:#333;">Continue for Extra Credit →</button>
+<button class="game-btn" onclick="closeCompletion()" style="background:linear-gradient(135deg,#546E7A,#37474F);color:#fff;margin-top:10px;">View Data Table</button>
+</div>
+
+<script>
+// ===== ROUND CONTENT =====
+const ROUNDS = [
+  { // R1 Fossil
+    evType:'fossil',name:'Fossil',
+    chips:[
+      {text:'Fossil has measurable features',bin:'obs',tier:null},
+      {text:'Ancestor of later animals',bin:'inf',tier:'debatable'},
+      {text:'Built for both environments',bin:'inf',tier:'debatable'}
+    ],
+    dnsText:'Cannot tell you which interpretation is correct'
+  },
+  { // R2 DNA
+    evType:'dna',name:'DNA',
+    chips:[
+      {text:'DNA is 98% similar',bin:'obs',tier:null},
+      {text:'Shared ancestry',bin:'inf',tier:'backed'},
+      {text:'Similar needs, similar code',bin:'inf',tier:'debatable'}
+    ],
+    dnsText:'Cannot tell you WHY the DNA is similar'
+  },
+  { // R3 Bone Structure
+    evType:'bone',name:'Bone Structure',
+    chips:[
+      {text:'Same bone pattern',bin:'obs',tier:null},
+      {text:'Inherited from ancestor',bin:'inf',tier:'debatable'},
+      {text:'Similar jobs, similar tools',bin:'inf',tier:'debatable'}
+    ],
+    dnsText:'Cannot tell you which explanation is correct'
+  },
+  { // R4 Embryo
+    evType:'embryo',name:'Embryo',
+    chips:[
+      {text:'Embryos look similar early',bin:'obs',tier:null},
+      {text:'Shared ancestor',bin:'inf',tier:'assumed'},
+      {text:'Similar development needs',bin:'inf',tier:'debatable'}
+    ],
+    dnsText:'Cannot tell you why early stages look similar'
+  },
+  { // R5 Tricky: sounds observed but is interpretation
+    evType:'fossil',name:'Fossil (Tricky)',
+    chips:[
+      {text:'Rock layer is 375 million years old',bin:'obs',tier:null},
+      {text:'Scientists found a transitional fossil',bin:'inf',tier:'debatable'},
+      {text:'Evolved to walk on land',bin:'inf',tier:'debatable'}
+    ],
+    dnsText:'Cannot tell you if a fossil is "transitional" — that label is interpretation'
+  },
+  { // R6 Two competing interps at different tiers
+    evType:'dna',name:'DNA (Competing)',
+    chips:[
+      {text:'Both species have gene X',bin:'obs',tier:null},
+      {text:'Gene X was inherited',bin:'inf',tier:'backed'},
+      {text:'Gene X proves they are identical',bin:'inf',tier:'assumed'}
+    ],
+    dnsText:'Cannot tell you how Gene X got there'
+  },
+  { // R7 Backed vs Assumed from same evidence
+    evType:'bone',name:'Bone (Gradient)',
+    chips:[
+      {text:'Bones have same shape',bin:'obs',tier:null},
+      {text:'Common body plan',bin:'inf',tier:'backed'},
+      {text:'Designed on purpose',bin:'inf',tier:'assumed'}
+    ],
+    dnsText:'Cannot tell you WHY bones match'
+  },
+  { // R8 Trick: IS observation despite sounding interpretive
+    evType:'embryo',name:'Embryo (Trick)',
+    chips:[
+      {text:'Embryo has gill-like folds',bin:'obs',tier:null},
+      {text:'Tail shrinks by week 9',bin:'obs',tier:null},
+      {text:'Fish ancestry explains gills',bin:'inf',tier:'debatable'}
+    ],
+    dnsText:'Cannot tell you why embryos change shape'
+  }
+];
+
+const EV_COLORS={fossil:'#5C6BC0',dna:'#66BB6A',bone:'#FFA726',embryo:'#AB47BC'};
+const EV_BG={fossil:'radial-gradient(ellipse at 30% 40%,rgba(92,107,194,0.15),transparent 70%)',dna:'radial-gradient(ellipse at 50% 50%,rgba(102,187,106,0.15),transparent 70%)',bone:'radial-gradient(ellipse at 60% 40%,rgba(255,167,38,0.15),transparent 70%)',embryo:'radial-gradient(ellipse at 40% 60%,rgba(171,71,188,0.15),transparent 70%)'};
+const TIER_EMOJI={backed:'🟡',debatable:'🟠',assumed:'🔴'};
+const TIER_LABEL={backed:'Backed by Data',debatable:'Debatable',assumed:'Assumed'};
+
+// ===== GAME STATE =====
+let S={round:0,score:0,streak:0,bestStreak:0,totalSorts:0,correctSorts:0,totalTiers:0,correctTiers:0,phase:'idle',roundData:[],completedTypes:{},gameStarted:false,requiredComplete:false,allComplete:false,chipsRemaining:0,pendingTier:null,currentRoundObs:[],currentRoundInf:[]};
+
+const $=id=>document.getElementById(id);
+const zoneObs=$('zone-obs'),zoneInf=$('zone-inf'),chipArea=$('chip-area'),
+  feedbackEl=$('feedback'),statusEl=$('status'),btnNext=$('btn-next'),
+  visualCanvas=$('visual-canvas'),progressBar=$('progress-bar'),progressMsg=$('progress-msg');
+
+function startGame(){S.gameStarted=true;$('start-screen').style.display='none';S.round=0;S.phase='select';updateHUD();updateSelectors();statusEl.textContent='Pick evidence to examine';progressMsg.textContent='Complete 5 rounds (all 8 = extra credit)';}
+
+function resetGame(){
+  S={round:0,score:0,streak:0,bestStreak:0,totalSorts:0,correctSorts:0,totalTiers:0,correctTiers:0,phase:'idle',roundData:[],completedTypes:{},gameStarted:true,requiredComplete:false,allComplete:false,chipsRemaining:0,pendingTier:null,currentRoundObs:[],currentRoundInf:[]};
+  $('data-body').innerHTML='';chipArea.innerHTML='';zoneObs.innerHTML='';zoneInf.innerHTML='';
+  zoneObs.className='bin-drop-zone';zoneInf.className='bin-drop-zone';
+  btnNext.style.display='none';$('powerup').style.display='none';$('random-event').style.display='none';
+  $('dns-overlay').classList.remove('show');
+  clearArena();updateHUD();updateSelectors();
+  statusEl.textContent='Pick evidence to examine';progressMsg.textContent='Complete 5 rounds (all 8 = extra credit)';
+  let w=$('arena-wrap');w.style.borderColor='rgba(66,165,245,0.15)';w.style.boxShadow='0 8px 32px rgba(0,0,0,0.4),inset 0 0 60px rgba(0,0,0,0.2)';
+}
+function newRun(){resetGame();}
+
+// ===== EVIDENCE SELECTION =====
+function selectEvidence(type){
+  if(S.phase!=='select'||!S.gameStarted)return;
+  if(S.round>=8){statusEl.textContent='All 8 rounds done!';return;}
+  // Forced order R1-4
+  if(S.round<4){
+    let forced=['fossil','dna','bone','embryo'][S.round];
+    if(type!==forced){statusEl.textContent='Round '+(S.round+1)+': Pick '+ROUNDS[S.round].name;return;}
+  }
+  // R5-8: free choice from all 4 types — map to the correct round
+  let roundIdx=S.round;
+  if(S.round>=4){
+    // Find the escalation round for this type
+    let escalationMap={fossil:4,dna:5,bone:6,embryo:7};
+    roundIdx=escalationMap[type];
+    if(roundIdx===undefined||S.roundData.some(r=>r.roundIdx===roundIdx)){
+      statusEl.textContent='Already completed that challenge. Pick another.';return;
+    }
+  }
+  S.round++;
+  S.currentRoundObs=[];S.currentRoundInf=[];S.pendingTier=null;
+  // Show escalation badge for R5+
+  if(S.round>=5){
+    $('random-event').textContent='⚡ Harder Case';
+    $('random-event').style.display='block';
+    setTimeout(()=>{$('random-event').style.display='none';},2000);
+  }
+  // Hint lens after 3 streak
+  if(S.streak>=3){
+    $('powerup').style.display='block';
+    setTimeout(()=>{$('powerup').style.display='none';},2000);
+  }
+  S.phase='sort';
+  statusEl.textContent='Sort all claims to bins';
+  loadRound(roundIdx);
+  updateHUD();updateSelectors();
+}
+
+function loadRound(roundIdx){
+  let rd=ROUNDS[roundIdx];
+  S._roundIdx=roundIdx;
+  // Render evidence visual
+  renderEvidence(rd.evType);
+  // Shuffle and create chips
+  let chips=[...rd.chips];
+  for(let i=chips.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[chips[i],chips[j]]=[chips[j],chips[i]];}
+  chipArea.innerHTML='';
+  S.chipsRemaining=chips.length;
+  chips.forEach((c,idx)=>{
+    let el=document.createElement('div');
+    el.className='claim-chip';
+    el.dataset.bin=c.bin;
+    el.dataset.tier=c.tier||'';
+    el.dataset.text=c.text;
+    el.dataset.idx=idx;
+    el.textContent=c.text;
+    if(S.streak>=3)el.classList.add('hint-glow');
+    el.draggable=true;
+    el.addEventListener('dragstart',onDragStart);
+    el.addEventListener('touchstart',onTouchStart,{passive:false});
+    el.addEventListener('touchmove',onTouchMove,{passive:false});
+    el.addEventListener('touchend',onTouchEnd);
+    chipArea.appendChild(el);
+  });
+  // Reset zones
+  zoneObs.innerHTML='';zoneInf.innerHTML='';
+  zoneObs.className='bin-drop-zone glow-blue';
+  zoneInf.className='bin-drop-zone glow-purple';
+  btnNext.style.display='none';
+}
+// Zone listeners - attach ONCE, not per round
+[zoneObs,zoneInf].forEach(z=>{
+  z.addEventListener('dragover',e=>e.preventDefault());
+  z.addEventListener('drop',onDrop);
+});
+
+// ===== DRAG AND DROP =====
+let draggedChip=null,touchClone=null,touchOX=0,touchOY=0;
+function onDragStart(e){
+  if(S.pendingTier)return e.preventDefault();
+  draggedChip=e.target.closest('.claim-chip');
+  e.dataTransfer.setData('text/plain','chip');
+}
+function onDrop(e){
+  e.preventDefault();
+  if(!draggedChip||S.pendingTier)return;
+  processSort(draggedChip,e.currentTarget.dataset.bin,e.currentTarget);
+}
+function onTouchStart(e){
+  if(S.pendingTier)return;
+  e.preventDefault();
+  draggedChip=e.target.closest('.claim-chip');
+  if(!draggedChip)return;
+  let t=e.touches[0],r=draggedChip.getBoundingClientRect();
+  touchOX=t.clientX-r.left;touchOY=t.clientY-r.top;
+  touchClone=draggedChip.cloneNode(true);
+  touchClone.style.cssText='position:fixed;z-index:1000;pointer-events:none;opacity:0.9;width:'+r.width+'px;left:'+(t.clientX-touchOX)+'px;top:'+(t.clientY-touchOY)+'px;';
+  document.body.appendChild(touchClone);
+  draggedChip.style.opacity='0.3';
+}
+function onTouchMove(e){
+  e.preventDefault();if(!touchClone)return;
+  let t=e.touches[0];
+  touchClone.style.left=(t.clientX-touchOX)+'px';
+  touchClone.style.top=(t.clientY-touchOY)+'px';
+  [zoneObs,zoneInf].forEach(z=>{
+    let r=z.getBoundingClientRect();
+    z.style.transform=(t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom)?'scale(1.05)':'scale(1)';
+  });
+}
+function onTouchEnd(e){
+  if(!touchClone||!draggedChip)return;
+  let t=e.changedTouches[0];
+  touchClone.remove();touchClone=null;
+  draggedChip.style.opacity='1';
+  [zoneObs,zoneInf].forEach(z=>{
+    let r=z.getBoundingClientRect();z.style.transform='scale(1)';
+    if(t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom){
+      processSort(draggedChip,z.dataset.bin,z);
+    }
+  });
+}
+
+function processSort(chipEl,targetBin,zoneEl){
+  let correctBin=chipEl.dataset.bin;
+  S.totalSorts++;
+  if(targetBin===correctBin){
+    S.correctSorts++;S.streak++;
+    if(S.streak>S.bestStreak)S.bestStreak=S.streak;
+    let pts=10+(S.streak>1?S.streak*2:0);
+    S.score+=pts;
+    chipEl.classList.add('sorted');
+    // Create sorted chip in bin
+    let sc=document.createElement('div');
+    sc.className='sorted-chip';
+    sc.textContent=chipEl.dataset.text;
+    // Add bin icon as confirmation (PATCH 2)
+    let icon=document.createElement('span');
+    icon.className='confirm-icon';
+    icon.textContent=targetBin==='obs'?'👁️':'🔍';
+    sc.appendChild(icon);
+    zoneEl.appendChild(sc);
+    spawnParticles(zoneEl,'#4CAF50',14);
+    showFeedback('✅ +'+pts,true);
+    // Track
+    if(targetBin==='obs'){
+      S.currentRoundObs.push(chipEl.dataset.text);
+      S.chipsRemaining--;
+      checkAllSorted();
+    } else {
+      // Interpretation — need tier tagging (PATCH 3)
+      let tier=chipEl.dataset.tier;
+      if(tier){
+        S.pendingTier={chip:sc,correctTier:tier,text:chipEl.dataset.text};
+        statusEl.textContent='Rate this interpretation\'s strength';
+        showTierButtons(sc,tier);
+      } else {
+        S.chipsRemaining--;
+        checkAllSorted();
+      }
+    }
+  } else {
+    S.streak=0;
+    zoneEl.classList.add('wrong');
+    setTimeout(()=>zoneEl.classList.remove('wrong'),500);
+    showFeedback('❌',false);
+    let lbl=document.createElement('div');
+    lbl.className='correction';
+    lbl.textContent=correctBin==='obs'?'→ 👁️ Can See It':'→ 🔍 Interpretation';
+    chipEl.style.position='relative';chipEl.appendChild(lbl);
+    setTimeout(()=>{try{lbl.remove();}catch(e){}},2000);
+  }
+  updateHUD();
+}
+
+// ===== TIER TAGGING =====
+function showTierButtons(sortedChipEl,correctTier){
+  let wrap=document.createElement('div');
+  wrap.className='tier-btns';
+  ['backed','debatable','assumed'].forEach(t=>{
+    let btn=document.createElement('div');
+    btn.className='tier-btn '+t;
+    btn.innerHTML=TIER_EMOJI[t]+'<br>'+TIER_LABEL[t];
+    btn.onclick=()=>handleTierPick(t,correctTier,btn,wrap,sortedChipEl);
+    wrap.appendChild(btn);
+  });
+  sortedChipEl.after(wrap);
+}
+
+function handleTierPick(picked,correct,btnEl,wrapEl,chipEl){
+  S.totalTiers++;
+  if(picked===correct){
+    S.correctTiers++;
+    S.score+=5;
+    btnEl.classList.add('correct');
+    chipEl.style.borderColor=picked==='backed'?'#FDD835':picked==='debatable'?'#FB8C00':'#E53935';
+    chipEl.innerHTML=TIER_EMOJI[picked]+' '+S.pendingTier.text+' <span class="confirm-icon">🔍</span>';
+    S.currentRoundInf.push(TIER_EMOJI[picked]+' '+S.pendingTier.text);
+    showFeedback(TIER_EMOJI[picked]+' +5',true);
+    setTimeout(()=>{
+      wrapEl.remove();
+      S.pendingTier=null;
+      S.chipsRemaining--;
+      checkAllSorted();
+    },600);
+  } else {
+    btnEl.classList.add('wrong-tier');
+    showFeedback('❌ Try again',false);
+    setTimeout(()=>btnEl.classList.remove('wrong-tier'),500);
+  }
+  updateHUD();
+}
+
+// ===== ROUND COMPLETION =====
+function checkAllSorted(){
+  if(S.chipsRemaining>0||S.pendingTier)return;
+  S.phase='dns';
+  statusEl.textContent='Round '+S.round+' sorted!';
+  // Show Does Not Show flash (PATCH 5)
+  let rd=ROUNDS[S._roundIdx];
+  $('dns-text').textContent=rd.dnsText;
+  setTimeout(()=>{$('dns-overlay').classList.add('show');},400);
+  setTimeout(()=>{
+    $('dns-overlay').classList.remove('show');
+    finishRound();
+  },3400);
+}
+
+function finishRound(){
+  let rd=ROUNDS[S._roundIdx];
+  let rowData={
+    round:S.round,
+    type:rd.name,
+    obs:S.currentRoundObs.join('; ')||'—',
+    inf:S.currentRoundInf.join('; ')||'—',
+    roundIdx:S._roundIdx
+  };
+  S.roundData.push(rowData);
+  addTableRow(rowData);
+  if(!S.completedTypes[rd.evType])S.completedTypes[rd.evType]=0;
+  S.completedTypes[rd.evType]++;
+  if(S.round===5&&!S.requiredComplete){
+    S.requiredComplete=true;
+    setTimeout(()=>{
+      $('comp-title').textContent='🏆 Evidence Expert!';
+      $('comp-msg').textContent='5 required rounds complete! Score: '+S.score;
+      $('btn-continue').style.display='inline-block';
+      $('completion').classList.add('show');
+    },500);
+  }
+  if(S.round===8){
+    S.allComplete=true;
+    setTimeout(()=>{
+      $('comp-title').textContent='🌟 Extra Credit Complete!';
+      $('comp-msg').textContent='All 8 rounds done! Final score: '+S.score;
+      $('btn-continue').style.display='none';
+      $('completion').classList.add('show');
+    },500);
+  }
+  btnNext.style.display=S.round<8?'inline-block':'none';
+  S.phase='review';
+  updateHUD();
+}
+
+function nextRound(){
+  if(S.round>=8)return;
+  S.phase='select';chipArea.innerHTML='';
+  zoneObs.innerHTML='';zoneObs.className='bin-drop-zone';
+  zoneInf.innerHTML='';zoneInf.className='bin-drop-zone';
+  btnNext.style.display='none';clearArena();updateSelectors();
+  statusEl.textContent='Pick evidence to examine';
+  let w=$('arena-wrap');w.style.borderColor='rgba(66,165,245,0.15)';
+}
+function closeCompletion(){$('completion').classList.remove('show');}
+
+// ===== RENDER EVIDENCE VISUALS =====
+function clearArena(){visualCanvas.innerHTML='';visualCanvas.style.background='';}
+function addStyle(css){let s=document.createElement('style');s.textContent=css;document.head.appendChild(s);}
+
+function renderEvidence(type){
+  clearArena();
+  visualCanvas.style.background=EV_BG[type]||'';
+  let w=$('arena-wrap');let c=EV_COLORS[type]||'#64B5F6';
+  w.style.borderColor=c+'40';w.style.boxShadow='inset 0 0 80px '+c+'10,0 0 30px '+c+'15';
+  switch(type){case 'fossil':renderFossil();break;case 'dna':renderDNA();break;case 'bone':renderBone();break;case 'embryo':renderEmbryo();break;}
+  for(let i=0;i<10;i++){let p=document.createElement('div');p.className='ambient';let sz=3+Math.random()*5;p.style.cssText='width:'+sz+'px;height:'+sz+'px;left:'+((Math.random()*85+5))+'%;top:'+((Math.random()*85+5))+'%;background:'+c+';animation-delay:'+(Math.random()*4)+'s;animation-duration:'+(4+Math.random()*4)+'s;';visualCanvas.appendChild(p);}
+}
+
+function renderFossil(){
+  visualCanvas.innerHTML=`<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+  <div style="position:relative;width:240px;height:230px;">
+  <div class="evo-element" style="width:240px;height:46px;top:0;left:0;background:linear-gradient(180deg,#6D4C41,#5D4037);border-radius:12px 12px 0 0;opacity:0;animation:ls 0.5s 0.1s forwards;"><span class="evo-label" style="top:12px;right:8px;">Rock age</span></div>
+  <div class="evo-element" style="width:240px;height:46px;top:46px;left:0;background:linear-gradient(180deg,#795548,#6D4C41);opacity:0;animation:ls 0.5s 0.25s forwards;"></div>
+  <div class="evo-element" style="width:240px;height:46px;top:92px;left:0;background:linear-gradient(180deg,#8D6E63,#795548);opacity:0;animation:ls 0.5s 0.4s forwards;"><span class="evo-label" style="top:12px;left:8px;">Sediment</span></div>
+  <div class="evo-element" style="width:240px;height:46px;top:138px;left:0;background:linear-gradient(180deg,#A1887F,#8D6E63);opacity:0;animation:ls 0.5s 0.55s forwards;"></div>
+  <div class="evo-element" style="width:240px;height:46px;top:184px;left:0;background:linear-gradient(180deg,#BCAAA4,#A1887F);border-radius:0 0 12px 12px;opacity:0;animation:ls 0.5s 0.7s forwards;"></div>
+  <div style="position:absolute;top:60px;left:50%;transform:translateX(-50%);z-index:5;opacity:0;animation:fr 0.8s 1s forwards;"><div style="font-size:4.5em;filter:drop-shadow(0 0 20px rgba(255,235,59,0.5));">🐚</div></div>
+  <div style="position:absolute;top:50px;left:50%;transform:translateX(-50%);width:120px;height:120px;border:3px solid rgba(255,235,59,0.25);border-radius:50%;z-index:4;opacity:0;animation:fadeIn 0.5s 1.3s forwards;box-shadow:inset 0 0 25px rgba(255,235,59,0.08);"></div>
+  <span class="evo-label" style="bottom:-26px;left:50%;transform:translateX(-50%);animation:fadeIn 0.5s 1.5s forwards;opacity:0;">Measurable features</span>
+  </div></div>`;
+  addStyle(`@keyframes ls{from{opacity:0;transform:translateX(-25px);}to{opacity:1;transform:translateX(0);}}@keyframes fr{0%{opacity:0;transform:translateX(-50%) scale(0.2) rotate(-30deg);}60%{transform:translateX(-50%) scale(1.1) rotate(5deg);}100%{opacity:1;transform:translateX(-50%) scale(1) rotate(0deg);}}`);
+}
+
+function renderDNA(){
+  let h='<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><div style="position:relative;width:200px;height:230px;">';
+  const cs=['#4CAF50','#2196F3','#FF9800','#E91E63'],ns=['A','T','G','C'];
+  for(let i=0;i<10;i++){let y=i*22,ph=i*0.7,x1=Math.sin(ph)*45+65,x2=Math.sin(ph+Math.PI)*45+65,c=cs[i%4],d=i*0.08;
+    h+=`<div class="evo-element" style="width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 30% 30%,${c},${c}88);top:${y}px;left:${x1}px;opacity:0;animation:hs 0.4s ${d}s forwards;box-shadow:0 0 10px ${c}80;z-index:2;display:flex;align-items:center;justify-content:center;font-size:0.45em;font-weight:bold;color:#fff;">${ns[i%4]}</div>`;
+    h+=`<div class="evo-element" style="width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 30% 30%,${cs[(i+2)%4]},${cs[(i+2)%4]}88);top:${y}px;left:${x2+55}px;opacity:0;animation:hs 0.4s ${d+0.04}s forwards;box-shadow:0 0 10px ${cs[(i+2)%4]}80;z-index:2;display:flex;align-items:center;justify-content:center;font-size:0.45em;font-weight:bold;color:#fff;">${ns[(i+2)%4]}</div>`;
+    let bx=Math.min(x1,x2+55)+16,bw=Math.abs(x2+55-x1)-16;
+    if(bw>0)h+=`<div class="evo-element" style="width:${bw}px;height:2px;background:linear-gradient(90deg,${c}50,${cs[(i+2)%4]}50);top:${y+7}px;left:${bx}px;opacity:0;animation:hs 0.3s ${d+0.06}s forwards;"></div>`;
+  }
+  h+=`<span class="evo-label" style="top:-2px;right:-35px;opacity:0;animation:fadeIn 0.5s 1s forwards;">Base pairs</span>`;
+  h+=`<span class="evo-label" style="top:100px;left:-45px;opacity:0;animation:fadeIn 0.5s 1.2s forwards;">Sequence</span>`;
+  h+=`<div style="position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#43A047,#2196F3);color:#fff;padding:4px 14px;border-radius:10px;font-size:0.8em;font-weight:bold;opacity:0;animation:fadeIn 0.5s 1.4s forwards;box-shadow:0 2px 10px rgba(76,175,80,0.3);">98% Match</div>`;
+  h+=`</div></div>`;
+  visualCanvas.innerHTML=h;
+  addStyle(`@keyframes hs{from{opacity:0;transform:scale(0.3) rotate(-90deg);}to{opacity:1;transform:scale(1) rotate(0);}}`);
+}
+
+function renderBone(){
+  visualCanvas.innerHTML=`<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:14px;">
+  <div style="text-align:center;opacity:0;animation:as 0.6s 0.1s forwards;">
+    <div style="font-size:1.8em;margin-bottom:4px;">🧑</div><div style="font-size:0.65em;color:#90caf9;font-weight:600;margin-bottom:4px;">Human Arm</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <div style="width:32px;height:50px;background:linear-gradient(180deg,#66BB6A,#388E3C);border-radius:9px;box-shadow:0 0 12px rgba(76,175,80,0.4);display:flex;align-items:center;justify-content:center;font-size:0.55em;color:#fff;font-weight:bold;">H</div>
+      <div style="display:flex;gap:3px;"><div style="width:14px;height:40px;background:linear-gradient(180deg,#42A5F5,#1565C0);border-radius:6px;box-shadow:0 0 10px rgba(33,150,243,0.4);display:flex;align-items:center;justify-content:center;font-size:0.45em;color:#fff;font-weight:bold;">R</div><div style="width:14px;height:40px;background:linear-gradient(180deg,#FFA726,#E65100);border-radius:6px;box-shadow:0 0 10px rgba(255,152,0,0.4);display:flex;align-items:center;justify-content:center;font-size:0.45em;color:#fff;font-weight:bold;">U</div></div>
+      <div style="display:flex;gap:2px;"><div style="width:9px;height:9px;background:#FFF176;border-radius:3px;box-shadow:0 0 6px rgba(249,168,37,0.4);"></div><div style="width:9px;height:9px;background:#FFF176;border-radius:3px;box-shadow:0 0 6px rgba(249,168,37,0.4);"></div><div style="width:9px;height:9px;background:#FFF176;border-radius:3px;box-shadow:0 0 6px rgba(249,168,37,0.4);"></div></div>
+      <div style="display:flex;gap:1px;"><div style="width:6px;height:18px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:3px;box-shadow:0 0 5px rgba(171,71,188,0.3);"></div><div style="width:6px;height:18px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:3px;box-shadow:0 0 5px rgba(171,71,188,0.3);"></div><div style="width:6px;height:18px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:3px;box-shadow:0 0 5px rgba(171,71,188,0.3);"></div><div style="width:6px;height:18px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:3px;box-shadow:0 0 5px rgba(171,71,188,0.3);"></div><div style="width:6px;height:18px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:3px;box-shadow:0 0 5px rgba(171,71,188,0.3);"></div></div>
+    </div></div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:5px;opacity:0;animation:fadeIn 0.6s 0.8s forwards;">
+    <div style="width:44px;height:2px;background:#66BB6A;border-radius:2px;box-shadow:0 0 6px #66BB6A80;"></div>
+    <div style="width:44px;height:2px;background:#42A5F5;border-radius:2px;box-shadow:0 0 6px #42A5F580;"></div>
+    <div style="width:44px;height:2px;background:#FFA726;border-radius:2px;box-shadow:0 0 6px #FFA72680;"></div>
+    <div style="font-size:0.7em;color:#FFD54F;font-weight:700;">= Same</div>
+  </div>
+  <div style="text-align:center;opacity:0;animation:as 0.6s 0.3s forwards;">
+    <div style="font-size:1.8em;margin-bottom:4px;">🐋</div><div style="font-size:0.65em;color:#90caf9;font-weight:600;margin-bottom:4px;">Whale Flipper</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <div style="width:24px;height:36px;background:linear-gradient(180deg,#66BB6A,#388E3C);border-radius:7px;box-shadow:0 0 10px rgba(76,175,80,0.4);"></div>
+      <div style="display:flex;gap:2px;"><div style="width:10px;height:28px;background:linear-gradient(180deg,#42A5F5,#1565C0);border-radius:5px;box-shadow:0 0 8px rgba(33,150,243,0.4);"></div><div style="width:10px;height:28px;background:linear-gradient(180deg,#FFA726,#E65100);border-radius:5px;box-shadow:0 0 8px rgba(255,152,0,0.4);"></div></div>
+      <div style="display:flex;gap:1px;"><div style="width:7px;height:7px;background:#FFF176;border-radius:2px;"></div><div style="width:7px;height:7px;background:#FFF176;border-radius:2px;"></div></div>
+      <div style="display:flex;gap:1px;"><div style="width:5px;height:12px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:2px;"></div><div style="width:5px;height:12px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:2px;"></div><div style="width:5px;height:12px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:2px;"></div><div style="width:5px;height:12px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:2px;"></div><div style="width:5px;height:12px;background:linear-gradient(180deg,#CE93D8,#7B1FA2);border-radius:2px;"></div></div>
+    </div></div></div>
+  <div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);display:flex;gap:8px;opacity:0;animation:fadeIn 0.5s 1.2s forwards;">
+    <span class="evo-label" style="position:static;"><span style="display:inline-block;width:8px;height:8px;background:#66BB6A;border-radius:2px;margin-right:3px;"></span>Humerus</span>
+    <span class="evo-label" style="position:static;"><span style="display:inline-block;width:8px;height:8px;background:#42A5F5;border-radius:2px;margin-right:3px;"></span>Radius</span>
+    <span class="evo-label" style="position:static;"><span style="display:inline-block;width:8px;height:8px;background:#CE93D8;border-radius:2px;margin-right:3px;"></span>Phalanges</span>
+  </div>`;
+  addStyle(`@keyframes as{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}`);
+}
+
+function renderEmbryo(){
+  visualCanvas.innerHTML=`<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:20px;">
+  <div style="text-align:center;opacity:0;animation:ef 0.6s 0.2s forwards;">
+    <div style="font-size:0.8em;color:#CE93D8;margin-bottom:6px;font-weight:700;">Human</div>
+    <div style="position:relative;width:90px;height:110px;">
+      <div style="width:90px;height:110px;background:radial-gradient(ellipse at 40% 35%,#E1BEE7,#CE93D8,#9C27B0);border-radius:55% 50% 45% 50%/65% 60% 40% 35%;box-shadow:0 0 25px rgba(206,147,216,0.4);"></div>
+      <div style="position:absolute;top:20px;left:25px;width:14px;height:14px;background:radial-gradient(circle at 35% 35%,#555,#222);border-radius:50%;"></div>
+      <div style="position:absolute;top:48px;left:6px;width:22px;height:6px;background:rgba(149,117,205,0.7);border-radius:3px;box-shadow:0 0 6px rgba(149,117,205,0.4);"></div>
+      <div style="position:absolute;top:56px;left:8px;width:18px;height:5px;background:rgba(149,117,205,0.5);border-radius:3px;"></div>
+      <div style="position:absolute;bottom:-2px;right:10px;width:9px;height:26px;background:linear-gradient(180deg,#BA68C8,#7B1FA2);border-radius:4px;transform-origin:top;box-shadow:0 0 8px rgba(186,104,200,0.5);animation:tw 2s infinite ease-in-out;"></div>
+    </div></div>
+  <div style="display:flex;flex-direction:column;gap:6px;align-items:center;opacity:0;animation:fadeIn 0.5s 1s forwards;">
+    <div style="background:linear-gradient(135deg,#43A047,#2E7D32);color:#fff;padding:3px 10px;border-radius:7px;font-size:0.65em;font-weight:700;">✓ Tail bud</div>
+    <div style="background:linear-gradient(135deg,#1976D2,#1565C0);color:#fff;padding:3px 10px;border-radius:7px;font-size:0.65em;font-weight:700;">✓ Gill slits</div>
+    <div style="background:linear-gradient(135deg,#F57C00,#E65100);color:#fff;padding:3px 10px;border-radius:7px;font-size:0.65em;font-weight:700;">✓ Eye spots</div>
+    <div style="font-size:0.6em;color:#FFD54F;font-weight:700;">SAME FEATURES</div>
+  </div>
+  <div style="text-align:center;opacity:0;animation:ef 0.6s 0.4s forwards;">
+    <div style="font-size:0.8em;color:#CE93D8;margin-bottom:6px;font-weight:700;">Fish</div>
+    <div style="position:relative;width:90px;height:110px;">
+      <div style="width:90px;height:110px;background:radial-gradient(ellipse at 40% 35%,#E1BEE7,#CE93D8,#9C27B0);border-radius:55% 50% 45% 50%/65% 60% 40% 35%;box-shadow:0 0 25px rgba(206,147,216,0.4);"></div>
+      <div style="position:absolute;top:20px;left:25px;width:14px;height:14px;background:radial-gradient(circle at 35% 35%,#555,#222);border-radius:50%;"></div>
+      <div style="position:absolute;top:48px;left:6px;width:22px;height:6px;background:rgba(149,117,205,0.7);border-radius:3px;"></div>
+      <div style="position:absolute;top:56px;left:8px;width:18px;height:5px;background:rgba(149,117,205,0.5);border-radius:3px;"></div>
+      <div style="position:absolute;bottom:-2px;right:10px;width:9px;height:26px;background:linear-gradient(180deg,#BA68C8,#7B1FA2);border-radius:4px;transform-origin:top;box-shadow:0 0 8px rgba(186,104,200,0.5);animation:tw 2s 0.3s infinite ease-in-out;"></div>
+    </div></div></div>`;
+  addStyle(`@keyframes ef{from{opacity:0;transform:scale(0.7);}to{opacity:1;transform:scale(1);}}@keyframes tw{0%,100%{transform:rotate(-5deg);}50%{transform:rotate(8deg);}}`);
+}
+
+// ===== UI HELPERS =====
+function updateHUD(){
+  $('score').textContent=S.score;
+  $('round-display').textContent=S.round+'/8';
+  $('streak').textContent=S.streak;
+  let acc=S.totalSorts>0?Math.round(S.correctSorts/S.totalSorts*100):100;
+  $('accuracy').textContent=acc+'%';
+  let pct=Math.min(S.round/8*100,100);
+  progressBar.style.width=pct+'%';progressBar.textContent=Math.round(pct)+'%';
+  let rank='Novice';if(S.round>=5)rank='Expert';if(S.round>=8)rank='Master';if(S.bestStreak>=6)rank='Streak King';
+  $('rank').textContent=rank;$('level-badge').textContent=rank;
+  if(S.round<5){progressMsg.textContent='Pick '+(5-S.round)+' more!';progressMsg.style.color='#81C784';}
+  else if(S.round<8){progressMsg.textContent='Required done! '+(8-S.round)+' extra credit left';progressMsg.style.color='#FFD54F';}
+  else{progressMsg.textContent='All 8 rounds complete!';progressMsg.style.color='#4FC3F7';}
+}
+
+function updateSelectors(){
+  document.querySelectorAll('.ev-btn').forEach(b=>{
+    let t=b.dataset.type;
+    b.classList.remove('active','disabled','pulse');
+    if(S.completedTypes[t])b.classList.add('completed');
+    if(S.phase==='select'&&S.round<8){
+      if(S.round<4){
+        let forced=['fossil','dna','bone','embryo'][S.round];
+        if(t!==forced)b.classList.add('disabled');else b.classList.add('pulse');
+      } else {
+        // R5-8: allow any not yet used for escalation
+        let escalationMap={fossil:4,dna:5,bone:6,embryo:7};
+        let ri=escalationMap[t];
+        if(S.roundData.some(r=>r.roundIdx===ri))b.classList.add('disabled');
+        else b.classList.add('pulse');
+      }
+    } else {
+      b.classList.add('disabled');
+    }
+  });
+}
+
+function showFeedback(text,good){
+  feedbackEl.textContent=text;feedbackEl.style.color=good?'#4CAF50':'#f44336';
+  feedbackEl.classList.add('show');setTimeout(()=>feedbackEl.classList.remove('show'),900);
+}
+
+function spawnParticles(el,color,count){
+  try{let r=el.getBoundingClientRect(),ar=$('arena-wrap').getBoundingClientRect(),cx=r.left+r.width/2-ar.left,cy=r.top+r.height/2-ar.top;
+  for(let i=0;i<(count||12);i++){let p=document.createElement('div');p.className='particle';let sz=4+Math.random()*7;p.style.cssText='width:'+sz+'px;height:'+sz+'px;background:'+color+';left:'+cx+'px;top:'+cy+'px;box-shadow:0 0 6px '+color+';';let a=Math.random()*Math.PI*2,d=25+Math.random()*45;p.style.setProperty('--dx',Math.cos(a)*d+'px');p.style.setProperty('--dy',Math.sin(a)*d+'px');$('arena-wrap').appendChild(p);setTimeout(()=>p.remove(),900);}}catch(e){}
+}
+
+function addTableRow(data){
+  let tr=document.createElement('tr');tr.className='highlight';
+  tr.innerHTML=`<td>${data.round}</td><td>${data.type}</td><td>${data.obs}</td><td>${data.inf}</td>`;
+  $('data-body').appendChild(tr);
+  setTimeout(()=>tr.classList.remove('highlight'),2000);
+}
+
+function copyTable(){
+  let rows=[['Round','Evidence Type','"Can See It" Claims','"Possible Interpretation" Claims + Tier']];
+  S.roundData.forEach(d=>rows.push([d.round,d.type,d.obs,d.inf]));
+  let text=rows.map(r=>r.join('\t')).join('\n');
+  try{navigator.clipboard.writeText(text).then(()=>{$('btn-copy').textContent='✅ Copied!';setTimeout(()=>{$('btn-copy').textContent='📋 Copy Table';},2000);});}
+  catch(e){let ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();$('btn-copy').textContent='✅ Copied!';setTimeout(()=>{$('btn-copy').textContent='📋 Copy Table';},2000);}
+}
+
+window.onerror=function(msg,url,line){console.error('Sim error:',msg,line);return true;};
+</script>
+</body>
+</html>
