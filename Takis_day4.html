@@ -1,0 +1,2141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulations — Capsaicin &amp; Sensory Receptors</title>
+<style>
+:root {
+  --bg1: #0F0A1A;
+  --bg2: #1A0F2E;
+  --neon: #39FF14;
+  --pink: #FF1493;
+  --gold: #FFD700;
+  --streak-orange: #FF6B35;
+  --text: #F0F0F0;
+  --text-dim: #8888AA;
+  --panel-bg: rgba(20,12,40,0.92);
+  --card-bg: rgba(30,20,55,0.95);
+  --correct-green: #00E676;
+  --wrong-red: #FF4444;
+  --hint-yellow: #FFF9C4;
+  --hint-orange: #FFE0B2;
+  --border-glow: rgba(57,255,20,0.3);
+  --node-dim: #2A2040;
+  --node-active: #39FF14;
+  --partial-yellow: #FFD700;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg1);color:var(--text);}
+body{display:flex;flex-direction:column;}
+/* ---- HEX BACKGROUND ---- */
+.hex-bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;background:linear-gradient(160deg,var(--bg1),var(--bg2));}
+.hex-bg::after{content:'';position:absolute;top:0;left:0;width:200%;height:200%;
+  background-image:radial-gradient(circle,rgba(57,255,20,0.03) 1px,transparent 1px);
+  background-size:40px 40px;animation:hexDrift 60s linear infinite;}
+@keyframes hexDrift{0%{transform:translate(0,0)}100%{transform:translate(-40px,-40px)}}
+/* ---- TOP BAR ---- */
+.top-bar{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:rgba(15,10,26,0.95);border-bottom:2px solid rgba(57,255,20,0.2);min-height:44px;flex-shrink:0;}
+.round-badge{font-size:15px;font-weight:700;color:var(--neon);text-transform:uppercase;letter-spacing:1px;}
+.score-display{font-size:18px;font-weight:700;color:var(--gold);position:relative;}
+.points-anim{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:16px;font-weight:700;color:var(--neon);animation:floatUp 1.2s ease-out forwards;pointer-events:none;}
+@keyframes floatUp{0%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}100%{opacity:0;transform:translateX(-50%) translateY(-40px) scale(1.3)}}
+.streak-display{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:700;}
+.streak-flame{font-size:22px;transition:transform 0.3s;}
+.streak-flame.bronze{filter:drop-shadow(0 0 4px #CD7F32);transform:scale(1.1);}
+.streak-flame.silver{filter:drop-shadow(0 0 6px #C0C0C0);transform:scale(1.2);}
+.streak-flame.gold{filter:drop-shadow(0 0 10px #FFD700);transform:scale(1.4);}
+.streak-count{color:var(--streak-orange);}
+/* ---- PATHWAY TRACKER ---- */
+.pathway-tracker{position:relative;z-index:10;display:flex;align-items:center;justify-content:center;gap:3px;padding:6px 12px;background:rgba(15,10,26,0.85);border-bottom:1px solid rgba(57,255,20,0.1);flex-shrink:0;}
+.path-node{width:30px;height:30px;border-radius:6px;background:var(--node-dim);border:2px solid rgba(100,80,150,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text-dim);transition:all 0.5s;position:relative;}
+.path-node.complete{background:rgba(0,230,118,0.2);border-color:var(--correct-green);color:var(--correct-green);animation:nodeGlow 0.6s ease-out;}
+.path-node.partial{background:rgba(255,215,0,0.15);border-color:var(--partial-yellow);color:var(--partial-yellow);}
+.path-node.current{border-color:var(--neon);box-shadow:0 0 10px rgba(57,255,20,0.3);animation:currentPulse 2s infinite;}
+.path-node .lock-icon{font-size:10px;}
+@keyframes nodeGlow{0%{box-shadow:0 0 20px rgba(0,230,118,0.8)}100%{box-shadow:0 0 4px rgba(0,230,118,0.2)}}
+@keyframes currentPulse{0%,100%{box-shadow:0 0 10px rgba(57,255,20,0.3)}50%{box-shadow:0 0 18px rgba(57,255,20,0.6)}}
+.path-line{width:12px;height:2px;background:rgba(100,80,150,0.2);transition:background 0.5s;}
+.path-line.lit{background:var(--correct-green);box-shadow:0 0 6px rgba(0,230,118,0.5);}
+/* ---- MAIN CONTENT AREA ---- */
+.main-area{flex:1;display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;position:relative;z-index:5;}
+.context-panel{display:flex;flex-direction:column;position:relative;padding:8px 12px;flex-shrink:0;}
+.focus-prompt{text-align:center;font-size:13px;color:var(--gold);padding:4px 10px;background:rgba(255,215,0,0.08);border-radius:8px;margin-bottom:6px;transition:opacity 0.5s;line-height:1.3;}
+.context-caption{text-align:center;font-size:12px;color:var(--text-dim);padding:3px 8px;background:rgba(30,20,55,0.6);border-radius:6px;margin-bottom:6px;line-height:1.3;}
+.arena-box{background:var(--card-bg);border-radius:12px;border:1px solid rgba(57,255,20,0.1);overflow:auto;position:relative;display:flex;align-items:center;justify-content:center;min-height:140px;max-height:40vh;}
+/* ---- INTERACTION ZONE ---- */
+.interaction-zone{position:relative;z-index:10;padding:10px 14px 8px;background:rgba(15,10,26,0.95);border-top:2px solid rgba(57,255,20,0.15);flex-shrink:0;min-height:100px;overflow-y:auto;-webkit-overflow-scrolling:touch;transition:opacity 0.3s;}
+.iz-prompt{font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px;text-align:center;line-height:1.3;}
+.options-row{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;}
+.option-card{padding:10px 14px;border-radius:10px;background:rgba(40,30,70,0.9);border:2px solid rgba(100,80,160,0.4);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;min-width:70px;min-height:48px;text-align:center;line-height:1.3;-webkit-tap-highlight-color:transparent;user-select:none;display:flex;align-items:center;justify-content:center;word-break:break-word;}
+.option-card:active{transform:scale(0.97);}
+.option-card.selected{border-color:var(--neon);box-shadow:0 0 12px rgba(57,255,20,0.3);}
+.option-card.correct{border-color:var(--correct-green);background:rgba(0,230,118,0.15);animation:correctFlash 0.5s;}
+.option-card.wrong{border-color:var(--wrong-red);background:rgba(255,68,68,0.15);animation:wrongFlash 0.5s;}
+.option-card.dimmed{opacity:0.35;pointer-events:none;text-decoration:line-through;}
+.option-card.ghost-glow{box-shadow:0 0 15px rgba(57,255,20,0.2);border-color:rgba(57,255,20,0.3);}
+@keyframes correctFlash{0%{box-shadow:0 0 30px rgba(0,230,118,0.8)}100%{box-shadow:0 0 4px rgba(0,230,118,0.2)}}
+@keyframes wrongFlash{0%{background:rgba(255,68,68,0.4)}100%{background:rgba(255,68,68,0.15)}}
+.lock-in-btn{display:block;margin:8px auto 0;padding:10px 28px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--neon),#20CC10);color:#000;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.2s;opacity:0.4;pointer-events:none;-webkit-tap-highlight-color:transparent;}
+.lock-in-btn.ready{opacity:1;pointer-events:auto;box-shadow:0 0 16px rgba(57,255,20,0.4);}
+.lock-in-btn.ready:active{transform:scale(0.97);}
+.try-again-btn{display:inline-block;margin:10px auto 0;padding:14px 28px;border:none;border-radius:10px;background:linear-gradient(135deg,#6C63FF,#8B5CF6);color:#fff;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;-webkit-tap-highlight-color:transparent;}
+.try-again-btn:active{transform:scale(0.97);}
+/* ---- COACHING BAR ---- */
+.coaching-bar{background:rgba(255,249,196,0.95);color:#333;padding:8px 12px;border-radius:8px;margin-top:6px;font-size:12px;line-height:1.3;text-align:center;animation:slideUp 0.3s ease-out;}
+@keyframes slideUp{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+/* ---- BOTTOM BAR ---- */
+.bottom-bar{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:5px 12px;background:rgba(15,10,26,0.95);border-top:1px solid rgba(57,255,20,0.1);flex-shrink:0;min-height:38px;}
+.bottom-bar button{padding:5px 10px;border:1px solid rgba(100,80,160,0.4);border-radius:8px;background:rgba(40,30,70,0.8);color:var(--text-dim);font-size:11px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.bottom-bar button:active{transform:scale(0.97);}
+.source-day{font-size:12px;font-weight:600;}
+.source-day .day-mon{color:#39FF14;}
+.source-day .day-tue{color:#00D4FF;}
+.source-day .day-wed{color:#8B5CF6;}
+.source-day .day-multi{color:#FFD700;}
+/* ---- HINT OVERLAY ---- */
+.hint-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.3s;}
+.hint-panel{background:#1A1030;border:2px solid var(--gold);border-radius:16px;padding:20px;max-width:380px;width:90%;max-height:80vh;overflow-y:auto;}
+.hint-panel h3{color:var(--gold);font-size:16px;margin-bottom:10px;}
+.hint-panel p{font-size:14px;line-height:1.5;color:var(--text);margin-bottom:12px;}
+.hint-panel button{padding:10px 24px;border:none;border-radius:8px;background:var(--gold);color:#000;font-weight:700;font-size:14px;cursor:pointer;display:block;margin:0 auto;}
+/* ---- VOCAB OVERLAY ---- */
+.vocab-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.3s;}
+.vocab-panel{background:#1A1030;border:2px solid var(--pink);border-radius:16px;padding:20px;max-width:380px;width:90%;max-height:80vh;overflow-y:auto;}
+.vocab-panel h3{color:var(--pink);font-size:16px;margin-bottom:12px;text-align:center;}
+.vocab-item{padding:10px;border-bottom:1px solid rgba(100,80,160,0.3);display:flex;gap:10px;align-items:flex-start;}
+.vocab-item:last-child{border-bottom:none;}
+.vocab-icon{font-size:20px;flex-shrink:0;width:28px;text-align:center;}
+.vocab-term{font-weight:700;color:var(--neon);}
+.vocab-def{font-size:13px;color:var(--text-dim);margin-top:2px;line-height:1.3;}
+.vocab-panel .close-btn{margin-top:12px;display:block;margin-left:auto;margin-right:auto;padding:8px 20px;border:1px solid var(--pink);border-radius:8px;background:transparent;color:var(--pink);font-weight:600;cursor:pointer;}
+/* ---- CELEBRATION OVERLAY ---- */
+.celebration-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);animation:fadeIn 0.3s;}
+.celebration-text{font-size:28px;font-weight:800;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,0.5);margin-bottom:8px;}
+.affirmation-text{font-size:22px;color:#fff;text-shadow:0 0 10px rgba(255,255,255,0.3);animation:fadeIn 0.5s;}
+.celebration-overlay .btn-row{display:flex;gap:12px;margin-top:16px;}
+.celebration-overlay .btn-row button{padding:12px 24px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;}
+.btn-keep{background:linear-gradient(135deg,var(--neon),#20CC10);color:#000;}
+.btn-score{background:linear-gradient(135deg,var(--gold),#FFA500);color:#000;}
+@keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+/* ---- SIGNAL BUFFERING ---- */
+.buffering-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:150;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);animation:fadeIn 0.3s;}
+.buffer-bar{width:200px;height:8px;background:rgba(100,80,160,0.3);border-radius:4px;overflow:hidden;margin-bottom:12px;}
+.buffer-fill{height:100%;background:var(--neon);border-radius:4px;animation:bufferFill 5s linear forwards;}
+@keyframes bufferFill{0%{width:0}100%{width:100%}}
+.buffer-text{font-size:14px;color:var(--gold);text-align:center;padding:0 20px;line-height:1.4;}
+/* ---- WELCOME SCREEN ---- */
+.welcome-screen{position:fixed;top:0;left:0;width:100%;height:100%;z-index:300;background:linear-gradient(160deg,var(--bg1),var(--bg2));display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+.welcome-screen h1{font-size:22px;color:var(--neon);text-align:center;margin-bottom:4px;text-shadow:0 0 20px rgba(57,255,20,0.3);}
+.welcome-screen h2{font-size:15px;color:var(--gold);text-align:center;margin-bottom:20px;font-weight:400;}
+.welcome-screen .hook{font-size:14px;color:var(--text);text-align:center;margin-bottom:24px;max-width:340px;line-height:1.5;background:var(--card-bg);padding:14px;border-radius:10px;border:1px solid rgba(57,255,20,0.15);}
+.welcome-screen label{display:block;color:var(--text-dim);font-size:13px;margin-bottom:4px;}
+.welcome-screen input{width:260px;padding:10px 14px;border:2px solid rgba(100,80,160,0.4);border-radius:8px;background:rgba(30,20,55,0.9);color:var(--text);font-size:15px;margin-bottom:12px;outline:none;}
+.welcome-screen input:focus{border-color:var(--neon);}
+.welcome-screen .start-btn{padding:14px 40px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--neon),#20CC10);color:#000;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 0 20px rgba(57,255,20,0.3);}
+.welcome-screen .start-btn:disabled{opacity:0.4;cursor:default;}
+/* ---- RECEIPT SCREEN ---- */
+.receipt-screen{position:fixed;top:0;left:0;width:100%;height:100%;z-index:250;background:linear-gradient(160deg,var(--bg1),var(--bg2));overflow-y:auto;padding:16px;}
+.receipt-inner{max-width:500px;margin:0 auto;}
+.receipt-header{text-align:center;margin-bottom:16px;}
+.receipt-header h2{color:var(--neon);font-size:18px;}
+.receipt-header h3{color:var(--gold);font-size:14px;font-weight:400;}
+.receipt-name{display:flex;align-items:center;gap:8px;margin-bottom:16px;justify-content:center;}
+.receipt-name input{padding:8px 12px;border:2px solid rgba(100,80,160,0.4);border-radius:8px;background:rgba(30,20,55,0.9);color:var(--text);font-size:15px;width:220px;outline:none;}
+.receipt-name input:disabled{opacity:0.7;}
+.receipt-name button{padding:8px 16px;border:none;border-radius:8px;background:var(--neon);color:#000;font-weight:700;font-size:13px;cursor:pointer;}
+.pathway-completion{display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:8px;}
+.pc-node{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.pc-node.g{background:rgba(0,230,118,0.2);border:2px solid var(--correct-green);color:var(--correct-green);}
+.pc-node.y{background:rgba(255,215,0,0.15);border:2px solid var(--partial-yellow);color:var(--partial-yellow);}
+.pc-node.x{background:var(--node-dim);border:2px solid rgba(100,80,150,0.3);color:var(--text-dim);}
+.signals-decoded{text-align:center;font-size:20px;font-weight:700;color:var(--gold);margin-bottom:16px;}
+.overall-pct{text-align:center;font-size:36px;font-weight:800;margin-bottom:4px;}
+.overall-pct.green{color:var(--correct-green);}
+.overall-pct.yellow{color:var(--gold);}
+.overall-pct.red{color:var(--wrong-red);}
+.mastery-label{text-align:center;font-size:14px;color:var(--text-dim);margin-bottom:4px;}
+.streak-record{text-align:center;font-size:13px;color:var(--streak-orange);margin-bottom:16px;}
+.detail-toggle{display:block;margin:0 auto 12px;padding:8px 20px;border:1px solid rgba(100,80,160,0.4);border-radius:8px;background:transparent;color:var(--text-dim);font-size:13px;cursor:pointer;}
+.detail-table{width:100%;border-collapse:collapse;margin-bottom:16px;display:none;}
+.detail-table.open{display:table;}
+.detail-table th{background:rgba(57,255,20,0.1);color:var(--neon);font-size:12px;padding:6px 4px;text-align:left;border-bottom:1px solid rgba(100,80,160,0.3);}
+.detail-table td{font-size:12px;padding:6px 4px;border-bottom:1px solid rgba(30,20,55,0.8);}
+.detail-table tr:nth-child(even) td{background:rgba(30,20,55,0.3);}
+.detail-table .bonus-row td{color:var(--gold);}
+.completion-badge{text-align:center;padding:10px;border-radius:8px;font-size:14px;font-weight:700;margin-bottom:12px;}
+.completion-badge.req{background:rgba(0,230,118,0.1);border:1px solid var(--correct-green);color:var(--correct-green);}
+.completion-badge.bonus{background:rgba(255,215,0,0.1);border:1px solid var(--gold);color:var(--gold);}
+.receipt-actions{display:flex;gap:10px;justify-content:center;margin-bottom:8px;}
+.receipt-actions button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;}
+.btn-print{background:var(--neon);color:#000;}
+.btn-startover{background:rgba(255,68,68,0.2);border:1px solid var(--wrong-red);color:var(--wrong-red);}
+.screenshot-note{text-align:center;font-size:13px;color:var(--text-dim);margin-bottom:12px;}
+.total-time{text-align:center;font-size:13px;color:var(--text-dim);margin-bottom:8px;}
+/* ---- CONFIRM DIALOG ---- */
+.confirm-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:280;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s;}
+.confirm-box{background:#1A1030;border:2px solid var(--wrong-red);border-radius:12px;padding:20px;max-width:300px;text-align:center;}
+.confirm-box p{margin-bottom:14px;font-size:14px;line-height:1.4;}
+.confirm-box .btn-row{display:flex;gap:10px;justify-content:center;}
+.confirm-box button{padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;}
+/* ---- PARTICLE LAYER ---- */
+#particle-layer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:190;overflow:hidden;}
+.particle{position:absolute;width:8px;height:8px;border-radius:50%;display:none;animation:particleFly 1.5s ease-out forwards;}
+@keyframes particleFly{
+  0%{opacity:1;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0.3)}
+}
+/* ---- ARENA INTERNALS ---- */
+.arena-diagram{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;position:relative;}
+.arena-diagram .label{position:absolute;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;pointer-events:none;}
+.arena-diagram .highlight-pulse{animation:highlightPulse 1.5s infinite;}
+@keyframes highlightPulse{0%,100%{box-shadow:0 0 6px rgba(255,215,0,0.3)}50%{box-shadow:0 0 16px rgba(255,215,0,0.7)}}
+/* Hotspot styles */
+.hotspot-target{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all 0.2s;}
+.hotspot-target:active{transform:scale(0.97);}
+.hotspot-correct{animation:correctFlash 0.5s;}
+.hotspot-wrong{animation:wrongFlash 0.5s;}
+.highlighted{border-color:var(--gold)!important;box-shadow:0 0 10px rgba(255,215,0,0.4)!important;}
+.locked{opacity:0.5;pointer-events:none;filter:grayscale(0.5);}
+.pulsing{animation:highlightPulse 1.5s infinite;}
+/* Step indicator */
+.step-indicator{text-align:center;font-size:12px;color:var(--gold);margin-bottom:6px;font-weight:700;}
+/* Sequence chain display */
+.chain-display{display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:10px;flex-wrap:wrap;}
+.chain-slot{padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;min-width:50px;text-align:center;}
+.chain-slot.filled{background:rgba(0,230,118,0.15);border:1px solid var(--correct-green);color:var(--correct-green);}
+.chain-slot.empty{background:rgba(100,80,160,0.2);border:1px dashed rgba(100,80,160,0.5);color:var(--text-dim);}
+.chain-arrow{color:var(--text-dim);font-size:14px;}
+/* Evidence matching */
+.evidence-row{display:flex;gap:8px;justify-content:center;margin-bottom:8px;flex-wrap:wrap;}
+.evidence-thumb{width:80px;height:60px;border-radius:8px;border:2px solid rgba(100,80,160,0.4);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;transition:all 0.2s;position:relative;background:var(--card-bg);}
+.evidence-thumb.active-highlight{border-color:var(--gold);box-shadow:0 0 10px rgba(255,215,0,0.3);animation:highlightPulse 1.5s infinite;}
+.evidence-thumb.matched{border-color:var(--correct-green);pointer-events:none;}
+.evidence-thumb .check-mark{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:var(--correct-green);color:#000;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.vocab-btn-row{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;}
+.vocab-match-btn{padding:10px 14px;border-radius:8px;border:2px solid rgba(100,80,160,0.4);background:var(--card-bg);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;min-height:48px;display:flex;align-items:center;justify-content:center;}
+.vocab-match-btn.used{opacity:0.3;pointer-events:none;}
+.vocab-match-btn.wrong-flash{border-color:var(--wrong-red);animation:wrongFlash 0.5s;}
+.vocab-match-btn.pulse-hint{border-color:var(--partial-yellow);box-shadow:0 0 8px rgba(255,215,0,0.3);}
+/* Brain response cards */
+.brain-card{display:flex;flex-direction:column;align-items:center;padding:10px 14px;border-radius:10px;border:2px solid rgba(100,80,160,0.4);background:var(--card-bg);cursor:pointer;min-width:90px;transition:all 0.2s;}
+.brain-card .brain-icon{font-size:28px;margin-bottom:4px;}
+.brain-card .bar-level{font-size:11px;color:var(--text-dim);margin-bottom:2px;}
+.brain-card .intensity-label{font-size:12px;font-weight:600;}
+/* Tile builder */
+.tile-pool{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:8px;}
+.tile{padding:10px 12px;border-radius:8px;border:2px solid rgba(100,80,160,0.4);background:var(--card-bg);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:4px;min-height:48px;}
+.tile:active{transform:scale(0.97);}
+.tile.placed{opacity:0.3;pointer-events:none;}
+.tile.bounce-back{animation:bounceBack 0.4s;}
+@keyframes bounceBack{0%{transform:translateX(20px)}50%{transform:translateX(-5px)}100%{transform:translateX(0)}}
+.placed-chain{display:flex;align-items:center;gap:4px;justify-content:center;margin-bottom:8px;flex-wrap:wrap;min-height:40px;}
+.placed-tile{padding:6px 10px;border-radius:6px;background:rgba(0,230,118,0.1);border:1px solid var(--correct-green);color:var(--correct-green);font-size:12px;font-weight:600;}
+.placed-arrow{color:var(--text-dim);font-size:14px;}
+/* Explanation tiles */
+.explain-card{padding:10px 14px;border-radius:10px;border:2px solid rgba(100,80,160,0.4);background:var(--card-bg);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;text-align:center;line-height:1.3;}
+/* Print */
+@media print{
+  .top-bar,.pathway-tracker,.bottom-bar,.main-area,.interaction-zone,.welcome-screen,.celebration-overlay,.hint-overlay,.vocab-overlay,.buffering-overlay,.confirm-overlay,#particle-layer,.hex-bg{display:none!important;}
+  .receipt-screen{position:static!important;background:#fff!important;color:#000!important;padding:10px!important;}
+  .receipt-screen *{color:#000!important;border-color:#999!important;}
+  .receipt-inner{max-width:100%!important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .detail-table{display:table!important;}
+  .detail-toggle,.btn-print,.btn-startover{display:none!important;}
+  .overall-pct.green{color:#00A050!important;}
+  .overall-pct.yellow{color:#CC9900!important;}
+  .overall-pct.red{color:#CC0000!important;}
+}
+/* ---- RESPONSIVE ---- */
+@media(max-height:700px){
+  .top-bar{padding:4px 10px;min-height:38px;}
+  .pathway-tracker{padding:4px 10px;}
+  .path-node{width:28px;height:28px;font-size:10px;}
+  .path-line{width:10px;}
+  .focus-prompt{font-size:12px;padding:3px 8px;margin-bottom:4px;}
+  .context-caption{font-size:11px;padding:2px 6px;margin-bottom:4px;}
+  .arena-box{max-height:35vh;}
+  .bottom-bar{padding:4px 10px;min-height:36px;}
+}
+@media(max-width:480px){
+  .top-bar{padding:4px 8px;min-height:38px;}
+  .round-badge{font-size:12px;}
+  .score-display{font-size:14px;}
+  .pathway-tracker{padding:4px 8px;}
+  .path-node{width:26px;height:26px;font-size:10px;}
+  .path-line{width:8px;}
+  .context-panel{padding:4px 8px;}
+  .focus-prompt{font-size:11px;padding:3px 6px;margin-bottom:4px;}
+  .context-caption{font-size:10px;padding:2px 6px;margin-bottom:4px;}
+  .interaction-zone{padding:8px 10px 6px;}
+  .iz-prompt{font-size:12px;margin-bottom:6px;}
+  .option-card{padding:8px 10px;font-size:12px;min-height:44px;}
+  .lock-in-btn{padding:8px 20px;font-size:14px;margin-top:6px;}
+  .bottom-bar{padding:4px 8px;min-height:34px;}
+  .bottom-bar button{padding:4px 8px;font-size:10px;}
+  .evidence-thumb{width:65px;height:50px;font-size:20px;}
+  .tile{padding:6px 8px;font-size:11px;min-height:44px;}
+  .coaching-bar{font-size:11px;padding:6px 8px;}
+  .try-again-btn{padding:10px 20px;font-size:13px;min-height:44px;}
+}
+</style>
+</head>
+<body>
+<div class="hex-bg"></div>
+<div id="particle-layer"></div>
+<!-- WELCOME SCREEN -->
+<div class="welcome-screen" id="welcomeScreen">
+  <h1 id="simTitle">Mr. Jawad's Simulations</h1>
+  <h2>Capsaicin &amp; Sensory Receptors — Thursday</h2>
+  <div class="hook">Harris's nervous system fired 8 distress signals. Decode all 8 to unlock the full chain — from chip to brain.</div>
+  <label for="studentNameInput">Your Name</label>
+  <input type="text" id="studentNameInput" placeholder="Enter your name" autocomplete="off">
+  <label for="teacherNameInput" style="margin-top:4px;">Your Teacher's Name <span style="font-size:11px;color:var(--text-dim);">(optional)</span></label>
+  <input type="text" id="teacherNameInput" placeholder="e.g. Mr. Jawad" autocomplete="off">
+  <button class="start-btn" id="startBtn" disabled>Decode the Signals</button>
+</div>
+<!-- TOP BAR -->
+<div class="top-bar" id="topBar" style="display:none;">
+  <div class="round-badge" id="roundBadge">Signal 1 of 8</div>
+  <div class="score-display" id="scoreDisplay">0</div>
+  <div class="streak-display">
+    <span class="streak-flame" id="streakFlame">&#x1F525;</span>
+    <span class="streak-count" id="streakCount">x0</span>
+  </div>
+</div>
+<!-- PATHWAY TRACKER -->
+<div class="pathway-tracker" id="pathwayTracker" style="display:none;"></div>
+<!-- MAIN AREA -->
+<div class="main-area" id="mainArea" style="display:none;">
+  <div class="context-panel">
+    <div class="focus-prompt" id="focusPrompt"></div>
+    <div class="context-caption" id="contextCaption"></div>
+    <div class="arena-box" id="arenaBox"></div>
+  </div>
+  <div class="interaction-zone" id="interactionZone"></div>
+</div>
+<!-- BOTTOM BAR -->
+<div class="bottom-bar" id="bottomBar" style="display:none;">
+  <button id="vocabBtn">&#x1F4D6; Vocab</button>
+  <button id="hintBtn">&#x1F4A1; Hint</button>
+  <span class="source-day" id="sourceDay"></span>
+  <button id="resetLevelBtn">Reset Level</button>
+</div>
+<!-- RECEIPT (built dynamically) -->
+<div class="receipt-screen" id="receiptScreen" style="display:none;"></div>
+<script>
+// ========== GLOBAL STATE ==========
+let teacherName = "Your teacher";
+const TOPIC = "Capsaicin & Sensory Receptors";
+let audioCtx = null;
+function getAudioContext(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+let affirmations = [];
+function buildAffirmations(){
+  affirmations = [
+    `${teacherName} is proud of you!`,
+    `${teacherName} knew you could do it!`,
+    `That's the kind of thinking ${teacherName} loves to see!`,
+    `${teacherName} says: you're getting it!`,
+    `Strong work — ${teacherName} sees your effort!`,
+    `${teacherName} is impressed right now!`,
+    `You're showing ${teacherName} what you can do!`,
+    `${teacherName} says: keep that energy!`
+  ];
+}
+let lastAffirmation = -1;
+function getAffirmation(){
+  if(affirmations.length===0) buildAffirmations();
+  let idx;
+  do { idx = Math.floor(Math.random()*affirmations.length); } while(idx===lastAffirmation && affirmations.length>1);
+  lastAffirmation = idx;
+  return affirmations[idx];
+}
+const gameState = {
+  studentName: "",
+  currentRound: 0,
+  score: 0,
+  streak: 0,
+  maxStreak: 0,
+  rounds: [],
+  requiredComplete: false,
+  bonusComplete: false,
+  totalStartTime: 0,
+  receiptRendered: false,
+  requiredCompleteShown: false,
+  bonusCompleteShown: false,
+  processing: false,
+};
+// ========== PARTICLE POOL ==========
+const PARTICLE_POOL = [];
+(function initParticles(){
+  const layer = document.getElementById('particle-layer');
+  for(let i=0;i<15;i++){
+    const p = document.createElement('div');
+    p.className='particle';
+    p.style.display='none';
+    layer.appendChild(p);
+    PARTICLE_POOL.push(p);
+  }
+})();
+let particleIdx = 0;
+function spawnParticle(x,y,color){
+  const p = PARTICLE_POOL[particleIdx % 15];
+  particleIdx++;
+  p.style.display='block';
+  p.style.left=x+'px';
+  p.style.top=y+'px';
+  p.style.background=color||'var(--gold)';
+  p.style.setProperty('--dx',(Math.random()*120-60)+'px');
+  p.style.setProperty('--dy',(Math.random()*-100-30)+'px');
+  p.style.animation='none';
+  p.offsetHeight;
+  p.style.animation='particleFly 1.5s ease-out forwards';
+  setTimeout(()=>{p.style.display='none';},1600);
+}
+function burstParticles(x,y,count,color){
+  for(let i=0;i<Math.min(count,15);i++){
+    setTimeout(()=>spawnParticle(x+Math.random()*40-20,y+Math.random()*40-20,color),i*50);
+  }
+}
+// ========== SOUND ==========
+function playCorrectSound(){
+  try{
+    const ctx=getAudioContext();
+    [523,659,784].forEach((f,i)=>{
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=f;o.type='sine';
+      g.gain.setValueAtTime(0.08,ctx.currentTime+i*0.08);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.08+0.3);
+      o.start(ctx.currentTime+i*0.08);o.stop(ctx.currentTime+i*0.08+0.3);
+    });
+  }catch(e){}
+}
+function playWrongSound(){
+  try{
+    const ctx=getAudioContext();
+    const o=ctx.createOscillator();const g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=200;o.type='sawtooth';
+    g.gain.setValueAtTime(0.06,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.25);
+    o.start(ctx.currentTime);o.stop(ctx.currentTime+0.25);
+  }catch(e){}
+}
+// ========== OVERLAY MANAGEMENT ==========
+function closeAllOverlays(){
+  document.querySelectorAll('.celebration-overlay,.hint-overlay,.vocab-overlay,.buffering-overlay,.confirm-overlay').forEach(el=>el.remove());
+}
+// ========== UNIVERSAL FAIL-OUT CHECK ==========
+function checkFailOut(rs,idx,threshold){
+  threshold = threshold || 5;
+  if(rs.wrongAttempts >= threshold && rs.hintsUsed >= 2 && !rs.completed){
+    rs.failedOut=true;rs.score=50;rs.completed=true;
+    rs.timeEnd=Date.now();
+    updateStreak(false);
+    gameState.processing=false;
+    showCelebration("Let's move on — you'll see this idea again.",null,2000);
+    setTimeout(()=>{completeRound(idx);},2200);
+    return true;
+  }
+  return false;
+}
+// ========== TRACK ATTEMPT ==========
+function trackAttempt(rs){
+  rs.attempts=(rs.attempts||0)+1;
+}
+// ========== ESCAPE HTML ==========
+function escHtml(s){
+  const d=document.createElement('div');d.textContent=s;return d.innerHTML;
+}
+// ========== VOCAB ==========
+const vocabData = [
+  {icon:'&#x1F336;&#xFE0F;',term:'CAPSAICIN',def:'Chemical in peppers causing burn feeling'},
+  {icon:'&#x1F511;',term:'RECEPTOR',def:'Protein that detects a stimulus'},
+  {icon:'&#x26A1;',term:'NEURON',def:'Nerve cell that carries signals'},
+  {icon:'&#x1F446;',term:'STIMULUS',def:'Trigger that activates a receptor'}
+];
+function showVocab(){
+  closeAllOverlays();
+  const ov=document.createElement('div');ov.className='vocab-overlay';
+  let html='<div class="vocab-panel"><h3>Key Vocabulary</h3>';
+  vocabData.forEach(v=>{
+    html+=`<div class="vocab-item"><div class="vocab-icon">${v.icon}</div><div><div class="vocab-term">${v.term}</div><div class="vocab-def">${v.def}</div></div></div>`;
+  });
+  html+='<button class="close-btn" onclick="this.closest(\'.vocab-overlay\').remove()">Close</button></div>';
+  ov.innerHTML=html;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+// ========== HINT SYSTEM ==========
+function showHint(){
+  const rd = ROUNDS[gameState.currentRound];
+  if(!rd) return;
+  const rs = gameState.rounds[gameState.currentRound];
+  if(!rs) return;
+  // Show hint 1 if available
+  if(rs.hintsUsed < 1 && rd.hintLadder.hint1){
+    rs.hintsUsed = Math.max(rs.hintsUsed,1);
+    showHintPanel('Hint', rd.hintLadder.hint1.text);
+  } else if(rd.hintLadder.stepByStep){
+    rs.hintsUsed = Math.max(rs.hintsUsed,2);
+    showStepByStep(rd.hintLadder.stepByStep.panels);
+  }
+}
+function showHintPanel(title,text){
+  closeAllOverlays();
+  const ov=document.createElement('div');ov.className='hint-overlay';
+  ov.innerHTML=`<div class="hint-panel"><h3>${title}</h3><p>${text}</p><button onclick="this.closest('.hint-overlay').remove()">Got It</button></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+function showStepByStep(panels){
+  closeAllOverlays();
+  let step=0;
+  const ov=document.createElement('div');ov.className='hint-overlay';
+  function render(){
+    const p=panels[step];
+    ov.innerHTML=`<div class="hint-panel"><h3>Step ${step+1} of ${panels.length}</h3><p>${p.text}</p><button id="sbsNext">${step<panels.length-1?'Next':'Got It'}</button></div>`;
+    ov.querySelector('#sbsNext').addEventListener('click',()=>{
+      step++;
+      if(step>=panels.length){ov.remove();}else{render();}
+    });
+  }
+  render();
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+// ========== SIGNAL BUFFERING ==========
+function showBuffering(text,duration,cb){
+  closeAllOverlays();
+  const ov=document.createElement('div');ov.className='buffering-overlay';
+  ov.innerHTML=`<div class="buffer-bar"><div class="buffer-fill" style="animation-duration:${duration}ms"></div></div><div class="buffer-text">${text}</div>`;
+  document.body.appendChild(ov);
+  setTimeout(()=>{ov.remove();if(cb)cb();},duration);
+}
+// ========== CELEBRATION ==========
+let celebrationTimeout = null;
+function showCelebration(text,affirmation,duration,buttons){
+  closeAllOverlays();
+  if(celebrationTimeout){clearTimeout(celebrationTimeout);celebrationTimeout=null;}
+  const ov=document.createElement('div');ov.className='celebration-overlay';
+  let html=`<div class="celebration-text">${text}</div>`;
+  if(affirmation) html+=`<div class="affirmation-text">${affirmation}</div>`;
+  if(buttons){
+    html+='<div class="btn-row">';
+    buttons.forEach(b=>{html+=`<button class="${b.cls}" data-action="${b.action}">${b.label}</button>`;});
+    html+='</div>';
+  }
+  ov.innerHTML=html;
+  document.body.appendChild(ov);
+  burstParticles(window.innerWidth/2,window.innerHeight/2,10,'var(--gold)');
+  playCorrectSound();
+  if(buttons){
+    let btnClicked=false;
+    ov.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        if(btnClicked)return;
+        btnClicked=true;
+        if(celebrationTimeout){clearTimeout(celebrationTimeout);celebrationTimeout=null;}
+        ov.remove();
+        const act=btn.dataset.action;
+        if(act==='keepGoing') advanceRound();
+        else if(act==='seeScore') showReceipt();
+      });
+    });
+    celebrationTimeout=setTimeout(()=>{if(ov.parentNode){ov.remove();if(!btnClicked){btnClicked=true;advanceRound();}}},15000);
+  } else {
+    celebrationTimeout=setTimeout(()=>{if(ov.parentNode)ov.remove();},duration||2000);
+  }
+}
+// ========== POINTS ANIMATION ==========
+function animatePoints(pts){
+  const sd=document.getElementById('scoreDisplay');
+  const el=document.createElement('span');el.className='points-anim';el.textContent='+'+pts;
+  sd.appendChild(el);
+  setTimeout(()=>el.remove(),1300);
+}
+// ========== STREAK ==========
+function updateStreak(correct){
+  if(correct){
+    gameState.streak++;
+    if(gameState.streak>gameState.maxStreak) gameState.maxStreak=gameState.streak;
+  } else {
+    gameState.streak=0;
+  }
+  const flame=document.getElementById('streakFlame');
+  const cnt=document.getElementById('streakCount');
+  cnt.textContent='x'+gameState.streak;
+  flame.className='streak-flame';
+  if(gameState.streak>=8) flame.classList.add('gold');
+  else if(gameState.streak>=5) flame.classList.add('silver');
+  else if(gameState.streak>=3) flame.classList.add('bronze');
+}
+// ========== PATHWAY TRACKER ==========
+function buildPathway(){
+  const pt=document.getElementById('pathwayTracker');
+  pt.innerHTML='';
+  for(let i=0;i<8;i++){
+    if(i>0){
+      const line=document.createElement('div');line.className='path-line';line.id='pathLine'+(i-1);
+      pt.appendChild(line);
+    }
+    const node=document.createElement('div');node.className='path-node';node.id='pathNode'+i;
+    node.innerHTML=`<span class="lock-icon">&#x1F512;</span>`;
+    pt.appendChild(node);
+  }
+  updatePathway();
+}
+function updatePathway(){
+  for(let i=0;i<8;i++){
+    const node=document.getElementById('pathNode'+i);
+    const rs=gameState.rounds[i];
+    if(!node)continue;
+    node.className='path-node';
+    if(rs && rs.completed){
+      node.classList.add(rs.score>=60?'complete':'partial');
+      node.innerHTML=`<span>${i+1}</span>`;
+      if(i>0){const ln=document.getElementById('pathLine'+(i-1));if(ln)ln.classList.add('lit');}
+    } else if(i===gameState.currentRound){
+      node.classList.add('current');
+      node.innerHTML=`<span>${i+1}</span>`;
+    }
+  }
+}
+// ========== SCORING ==========
+function scoreForRound(rs){
+  if(rs.failedOut) return 50;
+  if(rs.hintsUsed===0) return 100;
+  if(rs.hintsUsed===1) return 85;
+  return 60; // hintsUsed >= 2 (step-by-step used)
+}
+function calcOverall(){
+  let reqScores=[];
+  let bonusCount=0;
+  gameState.rounds.forEach((rs,i)=>{
+    if(!rs.completed) return;
+    if(ROUNDS[i].required) reqScores.push(rs.score);
+    else bonusCount++;
+  });
+  if(reqScores.length===0) return 0;
+  const avg=reqScores.reduce((a,b)=>a+b,0)/reqScores.length;
+  return Math.min(100, Math.round(avg + bonusCount*5));
+}
+// ========== ROUND DATA ==========
+const ROUNDS = [
+  // ROUND 1: The Trigger
+  {
+    name: "The Trigger",
+    sourceDay: "Monday",
+    sourceDayClass: "day-mon",
+    required: true,
+    focusPrompt: "Remember the moment from Monday when something first touched Harris's receptor.",
+    contextCaption: "From Monday: This diagram shows the moment capsaicin from the chip reached Harris's tongue.",
+    buildArena: function(box){
+      box.innerHTML = `
+        <div class="arena-diagram" style="background:linear-gradient(180deg,#1a0f2e 0%,#12081f 100%);">
+          <svg viewBox="0 0 360 220" style="width:100%;max-width:400px;height:auto;">
+            <defs>
+              <linearGradient id="tongueG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e8838f"/><stop offset="100%" stop-color="#c45a6a"/></linearGradient>
+              <linearGradient id="membraneG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#553388"/><stop offset="100%" stop-color="#3a2266"/></linearGradient>
+              <radialGradient id="capsG"><stop offset="0%" stop-color="#FF6655"/><stop offset="80%" stop-color="#DD2222"/><stop offset="100%" stop-color="#AA1111"/></radialGradient>
+            </defs>
+            <!-- Tongue body -->
+            <ellipse cx="180" cy="195" rx="155" ry="35" fill="url(#tongueG)" opacity="0.85"/>
+            <ellipse cx="180" cy="190" rx="145" ry="28" fill="url(#tongueG)"/>
+            <!-- Taste bud bumps -->
+            <ellipse cx="110" cy="178" rx="12" ry="6" fill="#d4747f"/><ellipse cx="150" cy="175" rx="10" ry="5" fill="#d4747f"/>
+            <ellipse cx="200" cy="176" rx="11" ry="5" fill="#d4747f"/><ellipse cx="250" cy="179" rx="10" ry="5" fill="#d4747f"/>
+            <!-- Cell membrane band -->
+            <rect x="100" y="145" width="160" height="22" rx="4" fill="url(#membraneG)" opacity="0.9"/>
+            <!-- Membrane phospholipid circles -->
+            <g opacity="0.4">
+              <circle cx="110" cy="148" r="3" fill="#7755aa"/><circle cx="120" cy="148" r="3" fill="#7755aa"/>
+              <circle cx="130" cy="148" r="3" fill="#7755aa"/><circle cx="140" cy="148" r="3" fill="#7755aa"/>
+              <circle cx="150" cy="148" r="3" fill="#7755aa"/><circle cx="160" cy="148" r="3" fill="#7755aa"/>
+              <circle cx="170" cy="148" r="3" fill="#7755aa"/><circle cx="180" cy="148" r="3" fill="#7755aa"/>
+              <circle cx="190" cy="148" r="3" fill="#7755aa"/><circle cx="200" cy="148" r="3" fill="#7755aa"/>
+              <circle cx="210" cy="148" r="3" fill="#7755aa"/><circle cx="220" cy="148" r="3" fill="#7755aa"/>
+              <circle cx="230" cy="148" r="3" fill="#7755aa"/><circle cx="240" cy="148" r="3" fill="#7755aa"/>
+              <circle cx="250" cy="148" r="3" fill="#7755aa"/>
+            </g>
+            <text x="180" y="162" text-anchor="middle" fill="#9977cc" font-size="7" font-weight="600" opacity="0.7">CELL MEMBRANE</text>
+            <!-- Receptor protein embedded in membrane -->
+            <g>
+              <path d="M180 130 L168 148 Q162 162 172 164 L188 164 Q198 162 192 148 Z" fill="#8B5CF6" stroke="#B794F6" stroke-width="2"/>
+              <!-- Keyhole detail -->
+              <circle cx="180" cy="140" r="4" fill="#1a0f2e"/><rect x="178" y="140" width="4" height="8" fill="#1a0f2e"/>
+              <text x="180" y="125" text-anchor="middle" fill="#B794F6" font-size="11" font-weight="700">RECEPTOR</text>
+            </g>
+            <!-- Capsaicin molecule with chemical structure detail -->
+            <g id="r1capsaicin">
+              <circle cx="95" cy="78" r="16" fill="url(#capsG)" stroke="#FF7766" stroke-width="2.5"/>
+              <!-- Bond arms on molecule -->
+              <line x1="79" y1="72" x2="72" y2="65" stroke="#FF9988" stroke-width="2" opacity="0.7"/>
+              <line x1="82" y1="90" x2="76" y2="98" stroke="#FF9988" stroke-width="2" opacity="0.7"/>
+              <line x1="111" y1="74" x2="118" y2="66" stroke="#FF9988" stroke-width="2" opacity="0.7"/>
+              <circle cx="72" cy="65" r="3" fill="#FFAA88" opacity="0.6"/>
+              <circle cx="118" cy="66" r="3" fill="#FFAA88" opacity="0.6"/>
+            </g>
+            <text x="95" y="56" text-anchor="middle" fill="#FF6666" font-size="12" font-weight="700" id="r1capLabel">CAPSAICIN
+            </text>
+            <text x="95" y="105" text-anchor="middle" fill="#FF9988" font-size="8" opacity="0.7">(chemical molecule)</text>
+            <!-- Taki chip with detail -->
+            <g opacity="0.85">
+              <rect x="10" y="18" width="42" height="26" rx="4" fill="#FF6B35" stroke="#FF8855" stroke-width="1"/>
+              <rect x="14" y="22" width="34" height="18" rx="2" fill="#CC4400" opacity="0.4"/>
+              <text x="31" y="35" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">TAKI</text>
+            </g>
+            <!-- Dashed arrow from chip to molecule -->
+            <path d="M52 31 Q70 50 80 68" fill="none" stroke="#FF6B35" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>
+            <!-- Arrow pointing capsaicin toward receptor -->
+            <path d="M110 85 Q140 100 165 125" fill="none" stroke="rgba(255,100,100,0.3)" stroke-width="1.5" stroke-dasharray="3,3"/>
+            <text x="150" y="108" fill="rgba(255,100,100,0.4)" font-size="7" transform="rotate(-40,150,108)">approaching</text>
+            <!-- Label: STIMULUS -->
+            <rect x="20" y="100" width="55" height="18" rx="4" fill="rgba(255,215,0,0.12)" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+            <text x="47" y="113" text-anchor="middle" fill="#FFD700" font-size="8" font-weight="700">STIMULUS</text>
+            <!-- TONGUE SURFACE label -->
+            <text x="180" y="210" text-anchor="middle" fill="#aa5566" font-size="9" font-weight="600">TONGUE SURFACE</text>
+          </svg>
+        </div>`;
+    },
+    doPhase: {
+      mechanic: 'pickTheMatch',
+      prompt: 'What was the trigger that started Harris\'s signal chain?',
+      options: [
+        {id:'a',text:'Capsaicin — the chemical from the chip',correct:true},
+        {id:'b',text:'Actual heat — a flame or burn',correct:false,feedback:'There was no actual flame — look at what\'s touching the receptor.'},
+        {id:'c',text:'The chip bag — the packaging',correct:false,feedback:'The bag didn\'t touch anything inside his body — look at the red molecule.'}
+      ]
+    },
+    provePhase: {
+      question: 'What type of thing is capsaicin in this pathway?',
+      options: [
+        {id:'a',text:'A stimulus',correct:true},
+        {id:'b',text:'A receptor',correct:false,feedback:'A receptor detects things — capsaicin is the thing being detected.'},
+        {id:'c',text:'A neuron',correct:false,feedback:'A neuron carries the signal — capsaicin is what started the signal.'}
+      ]
+    },
+    hintLadder: {
+      hint1:{text:'Look at the context visual — the red molecule labeled CAPSAICIN is touching the receptor. That\'s what started everything on Monday.'},
+      stepByStep:{panels:[
+        {text:'This red molecule is capsaicin. It came from the chip and touched Harris\'s receptor.'},
+        {text:'Tap the option that names this molecule.'}
+      ]}
+    }
+  },
+  // ROUND 2: The Evidence Match
+  {
+    name: "The Evidence Match",
+    sourceDay: "Tuesday",
+    sourceDayClass: "day-tue",
+    required: true,
+    focusPrompt: "Remember the evidence board from Tuesday — each piece of evidence matched one vocabulary term.",
+    contextCaption: "From Tuesday: These three evidence items each connect to one of your vocabulary words.",
+    buildArena: function(box){
+      box.innerHTML = `
+        <div class="arena-diagram" style="background:linear-gradient(180deg,#1a1a2e,#16213e);padding:6px;">
+          <div style="display:flex;gap:10px;align-items:flex-start;justify-content:center;flex-wrap:wrap;">
+            <!-- Evidence A: Capsaicin molecule -->
+            <div style="text-align:center;">
+              <div style="width:95px;height:80px;border-radius:10px;background:rgba(255,68,68,0.1);border:2px solid rgba(255,68,68,0.5);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;" id="evA">
+                <svg viewBox="0 0 70 60" width="70" height="60">
+                  <defs><radialGradient id="capMol"><stop offset="0%" stop-color="#FF6655"/><stop offset="100%" stop-color="#CC2222"/></radialGradient></defs>
+                  <circle cx="35" cy="28" r="14" fill="url(#capMol)" stroke="#FF7766" stroke-width="1.5"/>
+                  <line x1="21" y1="22" x2="14" y2="15" stroke="#FF9988" stroke-width="2"/><circle cx="14" cy="15" r="3" fill="#FFAA88"/>
+                  <line x1="49" y1="22" x2="56" y2="15" stroke="#FF9988" stroke-width="2"/><circle cx="56" cy="15" r="3" fill="#FFAA88"/>
+                  <line x1="28" y1="40" x2="22" y2="50" stroke="#FF9988" stroke-width="2"/><circle cx="22" cy="50" r="2.5" fill="#FFAA88"/>
+                  <line x1="42" y1="40" x2="48" y2="50" stroke="#FF9988" stroke-width="2"/><circle cx="48" cy="50" r="2.5" fill="#FFAA88"/>
+                  <text x="35" y="32" text-anchor="middle" fill="#fff" font-size="7" font-weight="700">C</text>
+                </svg>
+              </div>
+              <div style="font-size:11px;color:#FF6666;margin-top:4px;font-weight:700;">EVIDENCE A</div>
+              <div style="font-size:8px;color:#FF9988;opacity:0.7;">molecule shape</div>
+            </div>
+            <!-- Evidence B: Receptor protein -->
+            <div style="text-align:center;">
+              <div style="width:95px;height:80px;border-radius:10px;background:rgba(139,92,246,0.1);border:2px solid rgba(139,92,246,0.5);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;" id="evB">
+                <svg viewBox="0 0 70 60" width="70" height="60">
+                  <defs><linearGradient id="recG2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#A78BFA"/><stop offset="100%" stop-color="#7C3AED"/></linearGradient></defs>
+                  <!-- Membrane strip -->
+                  <rect x="5" y="42" width="60" height="8" rx="2" fill="#3a2266" opacity="0.6"/>
+                  <!-- Receptor body -->
+                  <path d="M35 10 L23 38 Q18 48 28 48 L42 48 Q52 48 47 38 Z" fill="url(#recG2)" stroke="#B794F6" stroke-width="1.5"/>
+                  <!-- Keyhole -->
+                  <circle cx="35" cy="24" r="5" fill="#1a1a2e"/><rect x="33" y="24" width="4" height="10" rx="1" fill="#1a1a2e"/>
+                  <!-- Channel flaps -->
+                  <rect x="30" y="42" width="4" height="10" fill="#7C3AED" opacity="0.5"/><rect x="36" y="42" width="4" height="10" fill="#7C3AED" opacity="0.5"/>
+                </svg>
+              </div>
+              <div style="font-size:11px;color:#B794F6;margin-top:4px;font-weight:700;">EVIDENCE B</div>
+              <div style="font-size:7px;color:#666;"><sup>TRPV1 — science name</sup></div>
+            </div>
+            <!-- Evidence C: Neuron -->
+            <div style="text-align:center;">
+              <div style="width:95px;height:80px;border-radius:10px;background:rgba(0,212,255,0.1);border:2px solid rgba(0,212,255,0.5);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;" id="evC">
+                <svg viewBox="0 0 80 55" width="80" height="55">
+                  <!-- Cell body -->
+                  <ellipse cx="15" cy="28" rx="10" ry="12" fill="#0099CC" stroke="#00D4FF" stroke-width="1.5"/>
+                  <circle cx="15" cy="26" r="4" fill="#006688" opacity="0.6"/>
+                  <!-- Dendrites -->
+                  <line x1="8" y1="18" x2="2" y2="10" stroke="#00BBDD" stroke-width="1.5"/><line x1="2" y1="10" x2="0" y2="5" stroke="#00BBDD" stroke-width="1"/>
+                  <line x1="15" y1="16" x2="15" y2="6" stroke="#00BBDD" stroke-width="1.5"/><line x1="15" y1="6" x2="11" y2="2" stroke="#00BBDD" stroke-width="1"/>
+                  <line x1="22" y1="18" x2="28" y2="10" stroke="#00BBDD" stroke-width="1.5"/>
+                  <!-- Axon -->
+                  <line x1="25" y1="28" x2="60" y2="28" stroke="#00D4FF" stroke-width="3"/>
+                  <!-- Myelin sheaths -->
+                  <rect x="30" y="24" width="8" height="8" rx="3" fill="#005577" stroke="#00AACC" stroke-width="0.5"/>
+                  <rect x="42" y="24" width="8" height="8" rx="3" fill="#005577" stroke="#00AACC" stroke-width="0.5"/>
+                  <rect x="54" y="24" width="8" height="8" rx="3" fill="#005577" stroke="#00AACC" stroke-width="0.5"/>
+                  <!-- Axon terminals -->
+                  <line x1="63" y1="22" x2="70" y2="16" stroke="#00D4FF" stroke-width="1.5"/><circle cx="70" cy="16" r="3" fill="#00D4FF"/>
+                  <line x1="63" y1="28" x2="72" y2="28" stroke="#00D4FF" stroke-width="1.5"/><circle cx="72" cy="28" r="3" fill="#00D4FF"/>
+                  <line x1="63" y1="34" x2="70" y2="40" stroke="#00D4FF" stroke-width="1.5"/><circle cx="70" cy="40" r="3" fill="#00D4FF"/>
+                  <!-- Signal pulse -->
+                  <circle cx="38" cy="28" r="3" fill="#39FF14" opacity="0.7"/>
+                </svg>
+              </div>
+              <div style="font-size:11px;color:#00D4FF;margin-top:4px;font-weight:700;">EVIDENCE C</div>
+              <div style="font-size:8px;color:#00AACC;opacity:0.7;">signal carrier</div>
+            </div>
+          </div>
+        </div>`;
+    },
+    doPhase: {
+      mechanic: 'coachClickMatch',
+      prompt: 'Tap each evidence item, then tap its matching vocabulary term.',
+      matches: [
+        {evId:'evA',evLabel:'A',term:'Capsaicin',wrongFeedback:'Look at the shape — that\'s a molecule, not a cell or protein. Which word names this molecule?'},
+        {evId:'evB',evLabel:'B',term:'Receptor',wrongFeedback:'That keyhole shape detects things — which word means \'the protein that detects\'?'},
+        {evId:'evC',evLabel:'C',term:'Neuron',wrongFeedback:'That long cell with branches carries signals — which word is that?'}
+      ]
+    },
+    provePhase: {
+      question: 'Which evidence item shows the receptor?',
+      options: [
+        {id:'a',text:'Evidence A — the red molecule',correct:false,feedback:'That red shape is a molecule — capsaicin. The receptor is the protein that detects it. Find the keyhole shape.'},
+        {id:'b',text:'Evidence B — the keyhole protein',correct:true},
+        {id:'c',text:'Evidence C — the branching cell',correct:false,feedback:'That branching cell is the neuron — it carries the signal. The receptor is the keyhole shape on the tongue.'}
+      ]
+    },
+    hintLadder: {
+      hint1:{text:'Look at Evidence B in the context visual — that keyhole-shaped protein sitting on the tongue surface. That\'s the word you need from Tuesday\'s evidence board.'},
+      stepByStep:{panels:[
+        {text:'Evidence A (red molecule) = Capsaicin. Evidence B (keyhole protein) = Receptor. Evidence C (branching cell) = Neuron.'},
+        {text:'Match each evidence to its vocabulary word. Tap to confirm.'}
+      ]}
+    }
+  },
+  // ROUND 3: The Variable Prediction
+  {
+    name: "The Variable Prediction",
+    sourceDay: "Wednesday",
+    sourceDayClass: "day-wed",
+    required: true,
+    focusPrompt: "Remember your lab from Wednesday — what happened when you changed the receptor setting?",
+    contextCaption: "From Wednesday: This lab setup shows High capsaicin with the receptor setting unknown.",
+    buildArena: function(box){
+      box.innerHTML = `
+        <div class="arena-diagram" style="background:linear-gradient(180deg,#0f1528,#0a0f1e);padding:6px;">
+          <svg viewBox="0 0 360 200" style="width:100%;max-width:400px;height:auto;">
+            <defs>
+              <linearGradient id="sliderG3" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#FFD700"/><stop offset="50%" stop-color="#FF6B35"/><stop offset="100%" stop-color="#FF2222"/></linearGradient>
+              <radialGradient id="brainDim"><stop offset="0%" stop-color="#443366"/><stop offset="100%" stop-color="#221133"/></radialGradient>
+            </defs>
+            <!-- CAPSAICIN SLIDER -->
+            <text x="80" y="16" text-anchor="middle" fill="#8B5CF6" font-size="10" font-weight="700">CAPSAICIN LEVEL</text>
+            <rect x="20" y="22" width="120" height="12" rx="6" fill="#221133" stroke="#443366" stroke-width="1"/>
+            <rect x="20" y="22" width="120" height="12" rx="6" fill="url(#sliderG3)" opacity="0.7"/>
+            <circle cx="135" cy="28" r="8" fill="#fff" stroke="#FF2222" stroke-width="2.5"/>
+            <text x="80" y="48" text-anchor="middle" fill="#FF4444" font-size="11" font-weight="700">HIGH</text>
+            <!-- RECEPTOR TOGGLE -->
+            <text x="240" y="16" text-anchor="middle" fill="#8B5CF6" font-size="10" font-weight="700">RECEPTOR SETTING</text>
+            <rect x="200" y="22" width="80" height="28" rx="8" fill="rgba(100,80,160,0.2)" stroke="rgba(100,80,160,0.5)" stroke-width="2" stroke-dasharray="5,3"/>
+            <text x="240" y="41" text-anchor="middle" fill="#FFD700" font-size="20" font-weight="700">?</text>
+            <!-- BRAIN (dimmed, waiting) -->
+            <ellipse cx="80" cy="100" rx="32" ry="28" fill="url(#brainDim)" stroke="#443366" stroke-width="2" stroke-dasharray="4"/>
+            <path d="M60 92 Q70 80 80 92 Q90 80 100 92" fill="none" stroke="#554477" stroke-width="1.5" opacity="0.4"/>
+            <text x="80" y="104" text-anchor="middle" fill="#665588" font-size="8" font-weight="600">BRAIN</text>
+            <text x="80" y="136" text-anchor="middle" fill="#554477" font-size="8">awaiting result...</text>
+            <!-- SIGNAL BAR (empty) -->
+            <rect x="140" y="72" width="20" height="65" rx="3" fill="#151025" stroke="#332255" stroke-width="1.5"/>
+            <text x="150" y="68" text-anchor="middle" fill="#665588" font-size="7" font-weight="600">SIGNAL</text>
+            <text x="150" y="148" text-anchor="middle" fill="#554477" font-size="7">0/10</text>
+            <!-- DATA TABLE from Wednesday -->
+            <rect x="185" y="62" width="165" height="82" rx="4" fill="rgba(20,15,40,0.8)" stroke="rgba(100,80,160,0.3)" stroke-width="1"/>
+            <text x="267" y="76" text-anchor="middle" fill="#FFD700" font-size="8" font-weight="700">WEDNESDAY DATA</text>
+            <!-- Table headers -->
+            <text x="208" y="88" text-anchor="middle" fill="#8B5CF6" font-size="7" font-weight="600">Setup</text>
+            <text x="278" y="88" text-anchor="middle" fill="#8B5CF6" font-size="7" font-weight="600">Brain</text>
+            <text x="332" y="88" text-anchor="middle" fill="#8B5CF6" font-size="7" font-weight="600">Bar</text>
+            <line x1="190" y1="91" x2="345" y2="91" stroke="rgba(100,80,160,0.3)" stroke-width="0.5"/>
+            <!-- Data rows -->
+            <text x="208" y="101" text-anchor="middle" fill="#bbb" font-size="7">Low+Normal</text>
+            <circle cx="270" cy="98" r="5" fill="#FFD700" opacity="0.6"/><text x="290" y="101" fill="#FFD700" font-size="7">Yellow</text>
+            <text x="332" y="101" text-anchor="middle" fill="#bbb" font-size="7">2/10</text>
+            <text x="208" y="114" text-anchor="middle" fill="#bbb" font-size="7">Med+Normal</text>
+            <circle cx="270" cy="111" r="5" fill="#FF6B35" opacity="0.6"/><text x="290" y="114" fill="#FF6B35" font-size="7">Orange</text>
+            <text x="332" y="114" text-anchor="middle" fill="#bbb" font-size="7">5/10</text>
+            <text x="208" y="127" text-anchor="middle" fill="#bbb" font-size="7">High+Normal</text>
+            <circle cx="270" cy="124" r="5" fill="#FF4444" opacity="0.6"/><text x="290" y="127" fill="#FF4444" font-size="7">Red</text>
+            <text x="332" y="127" text-anchor="middle" fill="#bbb" font-size="7">7/10</text>
+            <!-- Connecting arrow from receptor to brain -->
+            <path d="M200 50 Q160 60 120 80" fill="none" stroke="rgba(100,80,160,0.2)" stroke-width="1" stroke-dasharray="3"/>
+          </svg>
+        </div>`;
+    },
+    doPhase: {
+      mechanic: 'pickTheMatch',
+      prompt: 'Which receptor setting produces a stronger signal at High capsaicin?',
+      options: [
+        {id:'a',text:'Normal receptor — moderate signal',correct:false,feedback:'Remember Wednesday — when you toggled the receptor to Hypersensitive, did the signal get weaker or stronger? Look at the data table in the corner.'},
+        {id:'b',text:'Hypersensitive receptor — stronger signal',correct:true}
+      ]
+    },
+    provePhase: {
+      question: 'At High capsaicin, what happened when the receptor changed to Hypersensitive?',
+      options: [
+        {id:'a',text:'The signal got stronger — bar went from 7 to 10',correct:true},
+        {id:'b',text:'The signal stayed the same — both are red',correct:false,feedback:'Look closer — the brain colors aren\'t the same. Check the signal strength bar: 7/10 vs. 10/10. The Hypersensitive receptor pushed it higher.'},
+        {id:'c',text:'The signal got weaker',correct:false,feedback:'When the receptor gets MORE sensitive, it activates MORE — look at the bar going up, not down.'}
+      ]
+    },
+    hintLadder: {
+      hint1:{text:'Look at the signal strength bars for both rows — one reads 7/10 and the other reads 10/10. Which receptor setting made the bar go higher?'},
+      stepByStep:{panels:[
+        {text:'Same capsaicin level. Different receptor. The signal went UP when the receptor was Hypersensitive. 7/10 became 10/10.'},
+        {text:'Tap the option that says the signal got stronger.'}
+      ]}
+    }
+  },
+  // ROUND 4: The Signal Sequence
+  {
+    name: "The Signal Sequence",
+    sourceDay: "Monday",
+    sourceDayClass: "day-mon",
+    required: true,
+    focusPrompt: "Remember the signal chain from Monday's story — what order did the signal travel?",
+    contextCaption: "From Monday: Harris's signal traveled a specific path from chip to brain.",
+    buildArena: function(box){
+      box.innerHTML = `
+        <div class="arena-diagram" style="background:linear-gradient(180deg,#1a0f2e,#0f0a1a);">
+          <svg viewBox="0 0 360 170" style="width:100%;max-width:400px;height:auto;">
+            <defs>
+              <radialGradient id="capG4"><stop offset="0%" stop-color="#FF6655"/><stop offset="100%" stop-color="#CC2222"/></radialGradient>
+              <linearGradient id="recG4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#A78BFA"/><stop offset="100%" stop-color="#7C3AED"/></linearGradient>
+              <radialGradient id="brainG4"><stop offset="0%" stop-color="#FFE066"/><stop offset="100%" stop-color="#CC9900"/></radialGradient>
+            </defs>
+            <!-- Slot 1: Capsaicin/Stimulus -->
+            <circle cx="45" cy="70" r="22" fill="rgba(255,68,68,0.1)" stroke="#FF6666" stroke-width="2" stroke-dasharray="5,3"/>
+            <circle cx="45" cy="66" r="10" fill="url(#capG4)" opacity="0.6"/>
+            <line x1="35" y1="60" x2="30" y2="54" stroke="#FF9988" stroke-width="1.5" opacity="0.5"/>
+            <line x1="55" y1="60" x2="60" y2="54" stroke="#FF9988" stroke-width="1.5" opacity="0.5"/>
+            <text x="45" y="82" text-anchor="middle" fill="#FF6666" font-size="11" font-weight="700">1</text>
+            <text x="45" y="108" text-anchor="middle" fill="#FF9988" font-size="8">Red molecule</text>
+            <!-- Arrow 1-2 -->
+            <line x1="70" y1="70" x2="110" y2="70" stroke="rgba(100,80,160,0.25)" stroke-width="2.5" stroke-dasharray="7,4"/>
+            <polygon points="108,65 118,70 108,75" fill="rgba(100,80,160,0.25)"/>
+            <!-- Slot 2: Receptor -->
+            <rect x="118" y="48" width="44" height="44" rx="6" fill="rgba(139,92,246,0.08)" stroke="#B794F6" stroke-width="2" stroke-dasharray="5,3"/>
+            <path d="M140 52 L130 68 Q126 78 134 78 L146 78 Q154 78 150 68 Z" fill="url(#recG4)" opacity="0.5"/>
+            <circle cx="140" cy="62" r="3.5" fill="#1a0f2e" opacity="0.7"/>
+            <rect x="138" y="62" width="4" height="6" fill="#1a0f2e" opacity="0.7"/>
+            <text x="140" y="88" text-anchor="middle" fill="#B794F6" font-size="11" font-weight="700">2</text>
+            <text x="140" y="108" text-anchor="middle" fill="#B794F6" font-size="8">Keyhole protein</text>
+            <!-- Arrow 2-3 -->
+            <line x1="165" y1="70" x2="205" y2="70" stroke="rgba(100,80,160,0.25)" stroke-width="2.5" stroke-dasharray="7,4"/>
+            <polygon points="203,65 213,70 203,75" fill="rgba(100,80,160,0.25)"/>
+            <!-- Slot 3: Neuron -->
+            <rect x="213" y="48" width="50" height="44" rx="6" fill="rgba(0,212,255,0.08)" stroke="#00D4FF" stroke-width="2" stroke-dasharray="5,3"/>
+            <ellipse cx="225" cy="68" rx="7" ry="9" fill="#0088AA" opacity="0.5"/>
+            <line x1="232" y1="68" x2="258" y2="68" stroke="#00D4FF" stroke-width="2.5" opacity="0.4"/>
+            <rect x="236" y="64" width="6" height="8" rx="2" fill="#005577" opacity="0.5"/>
+            <rect x="246" y="64" width="6" height="8" rx="2" fill="#005577" opacity="0.5"/>
+            <text x="238" y="88" text-anchor="middle" fill="#00D4FF" font-size="11" font-weight="700">3</text>
+            <text x="238" y="108" text-anchor="middle" fill="#00BBDD" font-size="8">Long branching cell</text>
+            <!-- Arrow 3-4 -->
+            <line x1="266" y1="70" x2="298" y2="70" stroke="rgba(100,80,160,0.25)" stroke-width="2.5" stroke-dasharray="7,4"/>
+            <polygon points="296,65 306,70 296,75" fill="rgba(100,80,160,0.25)"/>
+            <!-- Slot 4: Brain -->
+            <ellipse cx="325" cy="68" rx="26" ry="22" fill="rgba(255,215,0,0.08)" stroke="#FFD700" stroke-width="2" stroke-dasharray="5,3"/>
+            <ellipse cx="325" cy="66" rx="18" ry="14" fill="url(#brainG4)" opacity="0.25"/>
+            <path d="M312 62 Q318 52 325 62 Q332 52 338 62" fill="none" stroke="#DDAA00" stroke-width="1.5" opacity="0.4"/>
+            <text x="325" y="88" text-anchor="middle" fill="#FFD700" font-size="11" font-weight="700">4</text>
+            <text x="325" y="108" text-anchor="middle" fill="#DDAA00" font-size="8">Reads signal</text>
+          </svg>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:4px;flex-wrap:wrap;">
+            <span style="padding:3px 10px;border-radius:4px;background:rgba(255,68,68,0.12);color:#FF6666;font-size:10px;font-weight:600;">Stimulus</span>
+            <span style="padding:3px 10px;border-radius:4px;background:rgba(139,92,246,0.12);color:#B794F6;font-size:10px;font-weight:600;">Receptor</span>
+            <span style="padding:3px 10px;border-radius:4px;background:rgba(0,212,255,0.12);color:#00D4FF;font-size:10px;font-weight:600;">Neuron</span>
+            <span style="padding:3px 10px;border-radius:4px;background:rgba(255,215,0,0.12);color:#FFD700;font-size:10px;font-weight:600;">Brain</span>
+          </div>
+        </div>`;
+    },
+    doPhase: {
+      mechanic: 'whatComesNext',
+      prompt: 'What comes next in the signal chain?',
+      steps: [
+        {
+          chainSoFar: ['Stimulus','Receptor'],
+          options: [
+            {id:'a',text:'Brain',correct:false,feedback:'The brain is the last stop — something carries the signal there first. Look at the long branching cell between the receptor and the brain.'},
+            {id:'b',text:'Neuron',correct:true},
+            {id:'c',text:'Capsaicin',correct:false,feedback:'Capsaicin is the stimulus — it already triggered the receptor. What carries the signal next?'}
+          ]
+        },
+        {
+          chainSoFar: ['Stimulus','Receptor','Neuron'],
+          options: [
+            {id:'a',text:'Brain',correct:true},
+            {id:'b',text:'Capsaicin',correct:false,feedback:'Capsaicin already did its job at the start. The neuron carries the signal to the last stop.'}
+          ]
+        }
+      ]
+    },
+    provePhase: {
+      question: 'Which part of the chain carries the signal to the brain?',
+      options: [
+        {id:'a',text:'The neuron',correct:true},
+        {id:'b',text:'The receptor',correct:false,feedback:'The receptor detects the stimulus — it doesn\'t travel to the brain. The long cell does.'},
+        {id:'c',text:'The stimulus',correct:false,feedback:'The stimulus triggers the chain — it doesn\'t carry the message. Look at the branching cell.'}
+      ]
+    },
+    hintLadder: {
+      hint1:{text:'Look at the pathway diagram — find the long branching cell between the receptor and the brain. That\'s the piece that carries the signal. What\'s it called from Monday\'s story?'},
+      stepByStep:{panels:[
+        {text:'The neuron (long branching cell) carries the signal from the receptor. Tap Neuron for Step 1. Then the brain is the last stop — tap Brain for Step 2.'},
+        {text:'Stimulus leads to Receptor leads to Neuron leads to Brain. That\'s the full chain.'}
+      ]}
+    }
+  },
+  // ROUND 5: The Receptor Secret
+  {
+    name: "The Receptor Secret",
+    sourceDay: "Tuesday",
+    sourceDayClass: "day-tue",
+    required: true,
+    focusPrompt: "Remember the side-by-side comparison from Tuesday — heat and capsaicin produced the same output. Which structure couldn't tell them apart?",
+    contextCaption: "From Tuesday: This comparison shows what happened when heat and capsaicin each reached the same receptor.",
+    buildArena: function(box){
+      box.innerHTML = `
+        <div class="arena-diagram" style="background:linear-gradient(180deg,#1a1a2e,#16213e);padding:4px;">
+          <div style="display:flex;gap:6px;justify-content:center;align-items:flex-start;">
+            <!-- Left: Heat pathway -->
+            <div style="flex:1;max-width:165px;text-align:center;padding:6px 4px;border-radius:10px;background:rgba(255,107,53,0.06);border:1px solid rgba(255,107,53,0.25);">
+              <div style="font-size:10px;color:#FF6B35;font-weight:700;margin-bottom:3px;letter-spacing:0.5px;">HEAT (real fire)</div>
+              <div id="hs_heat" style="cursor:pointer;padding:5px;border-radius:6px;transition:all 0.2s;background:rgba(255,107,53,0.08);">
+                <svg viewBox="0 0 50 35" width="50" height="35"><path d="M25 2 Q15 12 20 20 Q18 15 14 22 Q10 30 25 32 Q40 30 36 22 Q32 15 30 20 Q35 12 25 2Z" fill="#FF6B35" opacity="0.7"/><path d="M25 10 Q20 16 22 22 Q25 28 28 22 Q30 16 25 10Z" fill="#FFD700" opacity="0.6"/></svg>
+                <div style="font-size:9px;color:#FF8855;font-weight:600;">STIMULUS</div>
+              </div>
+              <div style="margin:3px 0;color:rgba(255,107,53,0.4);font-size:10px;">&#9660;</div>
+              <div id="hs_receptor_left" style="cursor:pointer;padding:5px;border-radius:8px;transition:all 0.2s;background:rgba(139,92,246,0.08);">
+                <svg viewBox="0 0 60 50" width="60" height="50">
+                  <rect x="5" y="36" width="50" height="6" rx="2" fill="#3a2266" opacity="0.5"/>
+                  <path d="M30 4 L18 32 Q14 42 22 42 L38 42 Q46 42 42 32 Z" fill="#8B5CF6" stroke="#B794F6" stroke-width="1.5"/>
+                  <circle cx="30" cy="18" r="4.5" fill="#1a1a2e"/><rect x="28" y="18" width="4" height="8" rx="1" fill="#1a1a2e"/>
+                  <rect x="26" y="38" width="3" height="8" fill="#7C3AED" opacity="0.4"/><rect x="31" y="38" width="3" height="8" fill="#7C3AED" opacity="0.4"/>
+                  <circle cx="30" cy="18" r="7" fill="none" stroke="#FF6B35" stroke-width="1" stroke-dasharray="2" opacity="0.5"/>
+                </svg>
+                <div style="font-size:10px;color:#B794F6;font-weight:700;">RECEPTOR</div>
+                <div style="font-size:7px;color:#555;"><sup>TRPV1 — science name</sup></div>
+              </div>
+              <div style="margin:3px 0;color:rgba(0,212,255,0.3);font-size:10px;">&#9660;</div>
+              <div id="hs_neuron_left" style="cursor:pointer;padding:4px;border-radius:6px;transition:all 0.2s;background:rgba(0,212,255,0.06);">
+                <svg viewBox="0 0 70 20" width="70" height="20"><ellipse cx="10" cy="10" rx="6" ry="7" fill="#0088AA" opacity="0.6"/><line x1="16" y1="10" x2="60" y2="10" stroke="#00D4FF" stroke-width="2.5" opacity="0.5"/><circle cx="38" cy="10" r="2.5" fill="#39FF14" opacity="0.6"/></svg>
+                <div style="font-size:9px;color:#00D4FF;font-weight:700;">NEURON fires</div>
+              </div>
+              <div style="margin:3px 0;color:rgba(255,215,0,0.3);font-size:10px;">&#9660;</div>
+              <div id="hs_brain_left" style="cursor:pointer;padding:4px;border-radius:6px;transition:all 0.2s;background:rgba(255,215,0,0.06);">
+                <svg viewBox="0 0 40 28" width="40" height="28"><ellipse cx="20" cy="16" rx="16" ry="12" fill="#CC9900" opacity="0.3"/><path d="M10 12 Q15 4 20 12 Q25 4 30 12" fill="none" stroke="#DDAA00" stroke-width="1.5" opacity="0.5"/></svg>
+                <div style="font-size:9px;color:#FFD700;font-weight:700;">BRAIN: "FIRE!"</div>
+              </div>
+            </div>
+            <!-- Right: Capsaicin pathway -->
+            <div style="flex:1;max-width:165px;text-align:center;padding:6px 4px;border-radius:10px;background:rgba(255,68,68,0.06);border:1px solid rgba(255,68,68,0.25);">
+              <div style="font-size:10px;color:#FF4444;font-weight:700;margin-bottom:3px;letter-spacing:0.5px;">CAPSAICIN (chemical)</div>
+              <div id="hs_capsaicin" style="cursor:pointer;padding:5px;border-radius:6px;transition:all 0.2s;background:rgba(255,68,68,0.08);">
+                <svg viewBox="0 0 50 35" width="50" height="35"><circle cx="25" cy="18" r="10" fill="#DD2222" stroke="#FF5544" stroke-width="1.5"/><line x1="15" y1="12" x2="10" y2="6" stroke="#FF7766" stroke-width="1.5"/><circle cx="10" cy="6" r="2" fill="#FF9988"/><line x1="35" y1="12" x2="40" y2="6" stroke="#FF7766" stroke-width="1.5"/><circle cx="40" cy="6" r="2" fill="#FF9988"/><line x1="20" y1="28" x2="16" y2="34" stroke="#FF7766" stroke-width="1.5"/><line x1="30" y1="28" x2="34" y2="34" stroke="#FF7766" stroke-width="1.5"/></svg>
+                <div style="font-size:9px;color:#FF6666;font-weight:600;">STIMULUS</div>
+              </div>
+              <div style="margin:3px 0;color:rgba(255,68,68,0.4);font-size:10px;">&#9660;</div>
+              <div id="hs_receptor_right" style="cursor:pointer;padding:5px;border-radius:8px;transition:all 0.2s;background:rgba(139,92,246,0.08);">
+                <svg viewBox="0 0 60 50" width="60" height="50">
+                  <rect x="5" y="36" width="50" height="6" rx="2" fill="#3a2266" opacity="0.5"/>
+                  <path d="M30 4 L18 32 Q14 42 22 42 L38 42 Q46 42 42 32 Z" fill="#8B5CF6" stroke="#B794F6" stroke-width="1.5"/>
+                  <circle cx="30" cy="18" r="4.5" fill="#1a1a2e"/><rect x="28" y="18" width="4" height="8" rx="1" fill="#1a1a2e"/>
+                  <rect x="26" y="38" width="3" height="8" fill="#7C3AED" opacity="0.4"/><rect x="31" y="38" width="3" height="8" fill="#7C3AED" opacity="0.4"/>
+                  <circle cx="30" cy="18" r="7" fill="none" stroke="#FF4444" stroke-width="1" stroke-dasharray="2" opacity="0.5"/>
+                </svg>
+                <div style="font-size:10px;color:#B794F6;font-weight:700;">RECEPTOR</div>
+                <div style="font-size:7px;color:#555;"><sup>TRPV1 — science name</sup></div>
+              </div>
+              <div style="margin:3px 0;color:rgba(0,212,255,0.3);font-size:10px;">&#9660;</div>
+              <div id="hs_neuron_right" style="cursor:pointer;padding:4px;border-radius:6px;transition:all 0.2s;background:rgba(0,212,255,0.06);">
+                <svg viewBox="0 0 70 20" width="70" height="20"><ellipse cx="10" cy="10" rx="6" ry="7" fill="#0088AA" opacity="0.6"/><line x1="16" y1="10" x2="60" y2="10" stroke="#00D4FF" stroke-width="2.5" opacity="0.5"/><circle cx="38" cy="10" r="2.5" fill="#39FF14" opacity="0.6"/></svg>
+                <div style="font-size:9px;color:#00D4FF;font-weight:700;">NEURON fires</div>
+              </div>
+              <div style="margin:3px 0;color:rgba(255,215,0,0.3);font-size:10px;">&#9660;</div>
+              <div id="hs_brain_right" style="cursor:pointer;padding:4px;border-radius:6px;transition:all 0.2s;background:rgba(255,215,0,0.06);">
+                <svg viewBox="0 0 40 28" width="40" height="28"><ellipse cx="20" cy="16" rx="16" ry="12" fill="#CC9900" opacity="0.3"/><path d="M10 12 Q15 4 20 12 Q25 4 30 12" fill="none" stroke="#DDAA00" stroke-width="1.5" opacity="0.5"/></svg>
+                <div style="font-size:9px;color:#FFD700;font-weight:700;">BRAIN: "FIRE!"</div>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center;margin-top:6px;padding:4px 12px;border-radius:6px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);display:inline-block;margin-left:auto;margin-right:auto;width:auto;">
+            <span style="font-size:12px;font-weight:700;color:#FFD700;letter-spacing:1px;">OUTPUT: IDENTICAL</span>
+          </div>
+        </div>`;
+    },
+    doPhase: {
+      mechanic: 'hotspot',
+      prompt: 'Tap the ONE structure that cannot tell heat and capsaicin apart.',
+      hotspots: [
+        {id:'hs_receptor_left',correct:true},
+        {id:'hs_receptor_right',correct:true},
+        {id:'hs_heat',correct:false,feedback:'That\'s a trigger — heat is different from capsaicin. Look for the protein that treats them the same.'},
+        {id:'hs_capsaicin',correct:false,feedback:'That\'s a trigger — capsaicin is the chemical stimulus. Look for the protein that treats them the same.'},
+        {id:'hs_neuron_left',correct:false,feedback:'Neuron is the messenger. It just carries the signal. Look for the detector protein — the keyhole shape.'},
+        {id:'hs_neuron_right',correct:false,feedback:'Neuron is the messenger. It just carries the signal. Look for the detector protein — the keyhole shape.'},
+        {id:'hs_brain_left',correct:false,feedback:'The brain receives the signal — but something EARLIER already mixed up the messages. Find the keyhole protein on the tongue.'},
+        {id:'hs_brain_right',correct:false,feedback:'The brain receives the signal — but something EARLIER already mixed up the messages. Find the keyhole protein on the tongue.'}
+      ]
+    },
+    provePhase: {
+      question: 'Why did Harris\'s brain think the chip was fire?',
+      options: [
+        {id:'a',text:'The receptor sent the same signal for both',correct:true},
+        {id:'b',text:'Capsaicin actually burns tongue tissue',correct:false,feedback:'There was no burn — look at Tuesday\'s evidence. The receptor just sent the same signal it sends for real heat.'},
+        {id:'c',text:'The neuron changed the signal to "heat"',correct:false,feedback:'The neuron doesn\'t change signals — it just carries them. The mix-up happened earlier, at the receptor.'}
+      ]
+    },
+    hintLadder: {
+      hint1:{text:'Look at the comparison visual — both sides show the SAME receptor opening the SAME way. The receptor is the part that can\'t tell them apart. Tap it.'},
+      stepByStep:{panels:[
+        {text:'This receptor opens the same channel for heat AND capsaicin. It can\'t tell them apart. The keyhole-shaped protein is the answer.'},
+        {text:'Tap the receptor protein — the keyhole shape on either side of the comparison.'}
+      ]}
+    }
+  },
+  // ROUND 6: The Lab Recall
+  {
+    name: "The Lab Recall",
+    sourceDay: "Wednesday",
+    sourceDayClass: "day-wed",
+    required: true,
+    focusPrompt: "Remember your Wednesday lab — what happened to the brain AND the signal bar at High capsaicin with a Hypersensitive receptor?",
+    contextCaption: "From Wednesday: This setup shows High capsaicin and a Hypersensitive receptor — what was the brain response and signal bar level?",
+    buildArena: function(box){
+      box.innerHTML = `
+        <div class="arena-diagram" style="background:linear-gradient(180deg,#0f1528,#0a0f1e);padding:4px;">
+          <svg viewBox="0 0 360 210" style="width:100%;max-width:400px;height:auto;">
+            <defs>
+              <linearGradient id="slG6" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#FFD700"/><stop offset="50%" stop-color="#FF6B35"/><stop offset="100%" stop-color="#FF2222"/></linearGradient>
+              <radialGradient id="brQ6"><stop offset="0%" stop-color="#443366"/><stop offset="100%" stop-color="#221133"/></radialGradient>
+            </defs>
+            <!-- Variable badges -->
+            <rect x="15" y="8" width="100" height="32" rx="8" fill="rgba(255,68,68,0.12)" stroke="rgba(255,68,68,0.4)" stroke-width="1.5"/>
+            <text x="65" y="20" text-anchor="middle" fill="#8B5CF6" font-size="8" font-weight="600">CAPSAICIN</text>
+            <text x="65" y="33" text-anchor="middle" fill="#FF4444" font-size="13" font-weight="700">HIGH</text>
+            <rect x="130" y="8" width="120" height="32" rx="8" fill="rgba(255,107,53,0.12)" stroke="rgba(255,107,53,0.4)" stroke-width="1.5"/>
+            <text x="190" y="20" text-anchor="middle" fill="#8B5CF6" font-size="8" font-weight="600">RECEPTOR</text>
+            <text x="190" y="33" text-anchor="middle" fill="#FF6B35" font-size="12" font-weight="700">HYPERSENSITIVE</text>
+            <!-- Brain (unknown) -->
+            <ellipse cx="75" cy="85" rx="35" ry="30" fill="url(#brQ6)" stroke="#443366" stroke-width="2" stroke-dasharray="5"/>
+            <path d="M52 78 Q62 64 75 78 Q88 64 98 78" fill="none" stroke="#554477" stroke-width="1.5" opacity="0.4"/>
+            <text x="75" y="90" text-anchor="middle" fill="#FFD700" font-size="16" font-weight="700">?</text>
+            <text x="75" y="124" text-anchor="middle" fill="#665588" font-size="9" font-weight="600">BRAIN</text>
+            <!-- Signal bar (unknown) -->
+            <rect x="135" y="55" width="22" height="70" rx="4" fill="#151025" stroke="#332255" stroke-width="1.5"/>
+            <text x="146" y="50" text-anchor="middle" fill="#665588" font-size="8" font-weight="600">SIGNAL</text>
+            <text x="146" y="90" text-anchor="middle" fill="#FFD700" font-size="14" font-weight="700">?</text>
+            <text x="146" y="138" text-anchor="middle" fill="#554477" font-size="8">?/10</text>
+            <!-- Data table -->
+            <rect x="180" y="50" width="170" height="110" rx="5" fill="rgba(20,15,40,0.85)" stroke="rgba(100,80,160,0.3)" stroke-width="1"/>
+            <text x="265" y="65" text-anchor="middle" fill="#FFD700" font-size="9" font-weight="700">WEDNESDAY DATA</text>
+            <line x1="185" y1="70" x2="345" y2="70" stroke="rgba(100,80,160,0.2)" stroke-width="0.5"/>
+            <text x="215" y="80" text-anchor="middle" fill="#8B5CF6" font-size="7" font-weight="600">Setup</text>
+            <text x="290" y="80" text-anchor="middle" fill="#8B5CF6" font-size="7" font-weight="600">Brain</text>
+            <text x="335" y="80" text-anchor="middle" fill="#8B5CF6" font-size="7" font-weight="600">Bar</text>
+            <line x1="185" y1="84" x2="345" y2="84" stroke="rgba(100,80,160,0.15)" stroke-width="0.5"/>
+            <!-- Rows -->
+            <text x="215" y="95" text-anchor="middle" fill="#aaa" font-size="7">Low+Normal</text><circle cx="282" cy="92" r="4" fill="#FFD700" opacity="0.5"/><text x="297" y="95" fill="#FFD700" font-size="7">Yel</text><text x="335" y="95" text-anchor="middle" fill="#aaa" font-size="7">2/10</text>
+            <text x="215" y="108" text-anchor="middle" fill="#aaa" font-size="7">Med+Normal</text><circle cx="282" cy="105" r="4" fill="#FF6B35" opacity="0.5"/><text x="297" y="108" fill="#FF6B35" font-size="7">Org</text><text x="335" y="108" text-anchor="middle" fill="#aaa" font-size="7">5/10</text>
+            <text x="215" y="121" text-anchor="middle" fill="#aaa" font-size="7">High+Normal</text><circle cx="282" cy="118" r="4" fill="#FF4444" opacity="0.5"/><text x="297" y="121" fill="#FF4444" font-size="7">Red</text><text x="335" y="121" text-anchor="middle" fill="#aaa" font-size="7">7/10</text>
+            <text x="215" y="134" text-anchor="middle" fill="#aaa" font-size="7">Med+Hyper</text><circle cx="282" cy="131" r="4" fill="#FF4444" opacity="0.5"/><text x="297" y="134" fill="#FF4444" font-size="7">Red</text><text x="335" y="134" text-anchor="middle" fill="#aaa" font-size="7">7/10</text>
+            <!-- Mystery row -->
+            <rect x="185" y="140" width="155" height="16" rx="2" fill="rgba(255,215,0,0.08)" stroke="rgba(255,215,0,0.2)" stroke-width="1"/>
+            <text x="215" y="152" text-anchor="middle" fill="#FFD700" font-size="8" font-weight="700">High+Hyper</text>
+            <text x="290" y="152" text-anchor="middle" fill="#FFD700" font-size="8" font-weight="700">???</text>
+            <text x="335" y="152" text-anchor="middle" fill="#FFD700" font-size="8" font-weight="700">???</text>
+          </svg>
+        </div>`;
+    },
+    doPhase: {
+      mechanic: 'coachClick',
+      prompt: 'Tap the brain response that matches this setup from your lab.',
+      options: [
+        {id:'a',text:'Yellow brain + bar at 2/10 — Mild',correct:false,feedback:'Yellow was the response for LOW capsaicin — this is set to HIGH with a Hypersensitive receptor. Check the signal bar — it should be much higher than 2. Look at the data table.'},
+        {id:'b',text:'Red brain + bar at 7/10 — Strong',correct:false,feedback:'That was High capsaicin with a NORMAL receptor — bar at 7/10. But this setup has BOTH maxed out. The bar should go higher. Check the data table for the last row.'},
+        {id:'c',text:'Deep red brain + bar at 10/10 — Maximum',correct:true}
+      ]
+    },
+    provePhase: {
+      question: 'What combination pushed the signal bar to its highest — 10 out of 10?',
+      options: [
+        {id:'a',text:'High capsaicin + Hypersensitive receptor',correct:true},
+        {id:'b',text:'Low capsaicin + Hypersensitive receptor',correct:false,feedback:'Hypersensitive helps, but Low capsaicin limits the signal to bar 5/10. The maximum needs both variables at their highest.'},
+        {id:'c',text:'High capsaicin + Normal receptor',correct:false,feedback:'High capsaicin is strong — bar 7/10 — but Normal receptor doesn\'t push it to 10. The maximum was when BOTH were maxed out.'}
+      ]
+    },
+    hintLadder: {
+      hint1:{text:'Look at the data table from Wednesday — find the row where BOTH capsaicin AND receptor sensitivity are at their highest. That row had the tallest signal bar.'},
+      stepByStep:{panels:[
+        {text:'Both variables at maximum = signal bar at 10/10. That\'s the strongest response. The brain goes deep red with a glow ring.'},
+        {text:'Tap the maximum response — deep red with the full bar.'}
+      ]}
+    }
+  },
+  // ROUND 7: Cross-Day Synthesis (BONUS)
+  {
+    name: "Cross-Day Synthesis",
+    sourceDay: "Tue + Wed",
+    sourceDayClass: "day-multi",
+    required: false,
+    focusPrompt: "You'll answer 3 quick steps — one at a time. Use Tuesday's evidence and Wednesday's lab data together.",
+    contextCaption: "From Tuesday and Wednesday: Your evidence and lab data both proved the same thing about the receptor.",
+    buildArena: function(box){
+      box.innerHTML = `
+        <div class="arena-diagram" style="background:linear-gradient(180deg,#16213e,#0f1528);padding:4px;">
+          <div style="display:flex;gap:6px;justify-content:center;align-items:stretch;flex-wrap:wrap;">
+            <!-- Tuesday evidence: bar graph -->
+            <div style="flex:1;max-width:170px;padding:6px;border-radius:10px;background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.25);">
+              <div style="font-size:10px;color:#00D4FF;font-weight:700;text-align:center;margin-bottom:4px;letter-spacing:0.5px;">TUESDAY EVIDENCE</div>
+              <svg viewBox="0 0 130 80" style="width:100%;height:auto;">
+                <!-- Y axis -->
+                <line x1="25" y1="10" x2="25" y2="65" stroke="rgba(0,212,255,0.3)" stroke-width="1"/>
+                <text x="12" y="14" fill="#00AACC" font-size="5" text-anchor="middle">10</text>
+                <text x="12" y="38" fill="#00AACC" font-size="5" text-anchor="middle">5</text>
+                <text x="12" y="64" fill="#00AACC" font-size="5" text-anchor="middle">0</text>
+                <!-- X axis -->
+                <line x1="25" y1="65" x2="120" y2="65" stroke="rgba(0,212,255,0.3)" stroke-width="1"/>
+                <!-- Heat bar -->
+                <rect x="35" y="15" width="28" height="50" rx="3" fill="rgba(255,107,53,0.5)" stroke="#FF6B35" stroke-width="1.5"/>
+                <text x="49" y="42" text-anchor="middle" fill="#fff" font-size="7" font-weight="700">7</text>
+                <text x="49" y="76" text-anchor="middle" fill="#FF6B35" font-size="7" font-weight="600">Heat</text>
+                <!-- Capsaicin bar (same height!) -->
+                <rect x="75" y="15" width="28" height="50" rx="3" fill="rgba(255,68,68,0.5)" stroke="#FF4444" stroke-width="1.5"/>
+                <text x="89" y="42" text-anchor="middle" fill="#fff" font-size="7" font-weight="700">7</text>
+                <text x="89" y="76" text-anchor="middle" fill="#FF4444" font-size="7" font-weight="600">Caps.</text>
+                <!-- "Same height" bracket -->
+                <line x1="30" y1="12" x2="108" y2="12" stroke="#FFD700" stroke-width="1" stroke-dasharray="3"/>
+                <text x="69" y="9" text-anchor="middle" fill="#FFD700" font-size="6" font-weight="700">SAME HEIGHT</text>
+              </svg>
+              <div style="font-size:8px;color:#00AACC;text-align:center;margin-top:2px;">Identical signals from both stimuli</div>
+            </div>
+            <!-- Wednesday data -->
+            <div style="flex:1;max-width:170px;padding:6px;border-radius:10px;background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.25);">
+              <div style="font-size:10px;color:#8B5CF6;font-weight:700;text-align:center;margin-bottom:4px;letter-spacing:0.5px;">WEDNESDAY DATA</div>
+              <table style="margin:0 auto;border-collapse:collapse;font-size:8px;width:100%;">
+                <tr><th style="padding:2px 4px;color:#FFD700;font-size:7;">Caps</th><th style="padding:2px 4px;color:#FFD700;font-size:7;">Recep</th><th style="padding:2px 4px;color:#FFD700;font-size:7;">Bar</th></tr>
+                <tr style="background:rgba(100,80,160,0.06);"><td style="padding:2px 4px;color:#aaa;">Low</td><td style="padding:2px 4px;color:#aaa;">Normal</td><td style="padding:2px 4px;color:#FFD700;">2/10</td></tr>
+                <tr style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);"><td style="padding:2px 4px;color:#B794F6;font-weight:700;">Med</td><td style="padding:2px 4px;color:#B794F6;font-weight:700;">Normal</td><td style="padding:2px 4px;color:#B794F6;font-weight:700;">5/10</td></tr>
+                <tr style="background:rgba(100,80,160,0.06);"><td style="padding:2px 4px;color:#aaa;">High</td><td style="padding:2px 4px;color:#aaa;">Normal</td><td style="padding:2px 4px;color:#FF4444;">7/10</td></tr>
+                <tr style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);"><td style="padding:2px 4px;color:#B794F6;font-weight:700;">Med</td><td style="padding:2px 4px;color:#B794F6;font-weight:700;">Hyper</td><td style="padding:2px 4px;color:#B794F6;font-weight:700;">7/10</td></tr>
+                <tr style="background:rgba(100,80,160,0.06);"><td style="padding:2px 4px;color:#aaa;">Low</td><td style="padding:2px 4px;color:#aaa;">Hyper</td><td style="padding:2px 4px;color:#FFD700;">5/10</td></tr>
+                <tr style="background:rgba(100,80,160,0.06);"><td style="padding:2px 4px;color:#aaa;">High</td><td style="padding:2px 4px;color:#aaa;">Hyper</td><td style="padding:2px 4px;color:#FF2222;font-weight:700;">10/10</td></tr>
+              </table>
+              <div style="font-size:7px;color:#8B5CF6;text-align:center;margin-top:3px;">Highlighted rows: same capsaicin, different receptor</div>
+            </div>
+          </div>
+        </div>`;
+    },
+    doPhase: {
+      mechanic: 'steppedClaimBuilder',
+      prompt: 'Build a claim using evidence from Tuesday and Wednesday.',
+      steps: [
+        {
+          prompt: 'Tap the Tuesday evidence that showed heat and capsaicin produce identical signals.',
+          options: [
+            {id:'a',text:'Signal-strength bar graph (two bars at same height)',correct:true},
+            {id:'b',text:'Spicy food activation table (McNugget / Taki / Ghost Pepper)',correct:false,feedback:'That table shows different foods — look for the graph where two bars reach the same height.'}
+          ]
+        },
+        {
+          prompt: 'Tap the two Wednesday rows that ONLY changed the receptor — capsaicin stayed the same.',
+          options: [
+            {id:'a',text:'Rnd 1 (Low+Normal, 2/10) vs Rnd 3 (High+Normal, 7/10) — capsaicin changed',correct:false,feedback:'In that pair, the CAPSAICIN level changed — so you can\'t tell if it was the receptor or the capsaicin that made the difference. Find the pair where only the receptor setting changed.'},
+            {id:'b',text:'Rnd 2 (Med+Normal, 5/10) vs Rnd 4 (Med+Hyper, 7/10) — only receptor changed',correct:true}
+          ]
+        },
+        {
+          prompt: 'Complete the sentence: "The receptor treated the chip like fire because ___."',
+          options: [
+            {id:'a',text:'it can\'t tell stimuli apart',correct:true},
+            {id:'b',text:'the chip was too hot',correct:false,feedback:'There was no real heat — Tuesday\'s evidence showed capsaicin is a chemical, not fire. The receptor just sent the same signal.'},
+            {id:'c',text:'capsaicin broke the receptor',correct:false,feedback:'The receptor wasn\'t broken — it worked exactly as designed. It just couldn\'t tell the difference.'}
+          ]
+        }
+      ]
+    },
+    provePhase: {
+      question: 'What is the main reason capsaicin fools the brain?',
+      options: [
+        {id:'a',text:'The receptor sends identical signals for heat and capsaicin',correct:true},
+        {id:'b',text:'Capsaicin damages the receptor so it malfunctions',correct:false,feedback:'The receptor works perfectly — that\'s the problem. It\'s doing exactly what it\'s designed to do for both stimuli.'},
+        {id:'c',text:'The neuron misinterprets the signal on the way to the brain',correct:false,feedback:'The neuron is just a messenger. The mix-up happened at the receptor, before the neuron even fired.'}
+      ]
+    },
+    hintLadder: {
+      hint1:{text:'Look at the Tuesday comparison on the left — both signals come out identical. Now look at Wednesday\'s data on the right — when only the receptor changed, the signal changed. The receptor is the key.'},
+      stepByStep:{panels:[
+        {text:'Tuesday\'s bar graph shows matching bars — heat and capsaicin produced the same signal. Wednesday\'s rows 2 and 4 show same capsaicin but different receptor, different signal.'},
+        {text:'The receptor can\'t tell stimuli apart — that\'s why the brain was fooled. Tap to confirm.'}
+      ]}
+    }
+  },
+  // ROUND 8: The Full Signal Chain (BONUS)
+  {
+    name: "The Full Signal Chain",
+    sourceDay: "All 3 Days",
+    sourceDayClass: "day-multi",
+    required: false,
+    focusPrompt: "This is the final signal. Build the full chain from chip to brain — everything you've learned this week.",
+    contextCaption: "From Monday, Tuesday, and Wednesday: You've seen every piece. Now put the full signal chain together.",
+    buildArena: function(box){
+      box.innerHTML = `
+        <div class="arena-diagram" style="background:linear-gradient(180deg,#1a0f2e,#0f0a1a);padding:4px;">
+          <svg viewBox="0 0 370 160" style="width:100%;max-width:420px;height:auto;">
+            <defs>
+              <radialGradient id="capG8"><stop offset="0%" stop-color="#FF6655"/><stop offset="100%" stop-color="#CC2222"/></radialGradient>
+              <linearGradient id="recG8" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#A78BFA"/><stop offset="100%" stop-color="#7C3AED"/></linearGradient>
+              <radialGradient id="brG8"><stop offset="0%" stop-color="#FFE066"/><stop offset="100%" stop-color="#BB8800"/></radialGradient>
+            </defs>
+            <!-- CAPSAICIN -->
+            <circle cx="45" cy="65" r="20" fill="url(#capG8)" opacity="0.7" stroke="#FF7766" stroke-width="2"/>
+            <line x1="28" y1="55" x2="20" y2="46" stroke="#FF9988" stroke-width="1.5" opacity="0.6"/><circle cx="20" cy="46" r="2.5" fill="#FFAA88" opacity="0.5"/>
+            <line x1="62" y1="55" x2="70" y2="46" stroke="#FF9988" stroke-width="1.5" opacity="0.6"/><circle cx="70" cy="46" r="2.5" fill="#FFAA88" opacity="0.5"/>
+            <line x1="35" y1="82" x2="28" y2="92" stroke="#FF9988" stroke-width="1.5" opacity="0.4"/>
+            <line x1="55" y1="82" x2="62" y2="92" stroke="#FF9988" stroke-width="1.5" opacity="0.4"/>
+            <text x="45" y="105" text-anchor="middle" fill="#FF6666" font-size="10" font-weight="700">CAPSAICIN</text>
+            <text x="45" y="116" text-anchor="middle" fill="#FF9988" font-size="7">stimulus</text>
+            <!-- MON badge -->
+            <rect x="22" y="28" width="28" height="13" rx="3" fill="rgba(57,255,20,0.15)" stroke="#39FF14" stroke-width="0.8"/>
+            <text x="36" y="37" text-anchor="middle" fill="#39FF14" font-size="6" font-weight="700">MON</text>
+            <!-- Arrow 1→2 (disconnected) -->
+            <line x1="68" y1="65" x2="108" y2="65" stroke="rgba(100,80,160,0.2)" stroke-width="2" stroke-dasharray="6,4"/>
+            <!-- RECEPTOR -->
+            <rect x="108" y="40" width="50" height="50" rx="6" fill="rgba(139,92,246,0.05)" stroke="rgba(139,92,246,0.15)" stroke-width="1"/>
+            <rect x="118" y="68" width="30" height="6" rx="2" fill="#3a2266" opacity="0.4"/>
+            <path d="M133 44 L122 66 Q118 74 126 74 L140 74 Q148 74 144 66 Z" fill="url(#recG8)" opacity="0.7" stroke="#B794F6" stroke-width="1.5"/>
+            <circle cx="133" cy="55" r="4" fill="#1a0f2e"/><rect x="131" y="55" width="4" height="7" rx="1" fill="#1a0f2e"/>
+            <text x="133" y="105" text-anchor="middle" fill="#B794F6" font-size="10" font-weight="700">RECEPTOR</text>
+            <!-- TUE badge -->
+            <rect x="115" y="28" width="26" height="13" rx="3" fill="rgba(0,212,255,0.15)" stroke="#00D4FF" stroke-width="0.8"/>
+            <text x="128" y="37" text-anchor="middle" fill="#00D4FF" font-size="6" font-weight="700">TUE</text>
+            <!-- Arrow 2→3 -->
+            <line x1="161" y1="65" x2="203" y2="65" stroke="rgba(100,80,160,0.2)" stroke-width="2" stroke-dasharray="6,4"/>
+            <!-- NEURON -->
+            <rect x="203" y="40" width="60" height="50" rx="6" fill="rgba(0,212,255,0.05)" stroke="rgba(0,212,255,0.15)" stroke-width="1"/>
+            <ellipse cx="218" cy="63" rx="8" ry="10" fill="#0088AA" opacity="0.5"/>
+            <circle cx="218" cy="60" r="3.5" fill="#006688" opacity="0.5"/>
+            <line x1="226" y1="63" x2="256" y2="63" stroke="#00D4FF" stroke-width="2.5" opacity="0.4"/>
+            <rect x="232" y="59" width="6" height="8" rx="2" fill="#005577" opacity="0.4"/>
+            <rect x="242" y="59" width="6" height="8" rx="2" fill="#005577" opacity="0.4"/>
+            <circle cx="255" cy="56" r="2.5" fill="#00D4FF" opacity="0.4"/>
+            <circle cx="255" cy="70" r="2.5" fill="#00D4FF" opacity="0.4"/>
+            <text x="233" y="105" text-anchor="middle" fill="#00D4FF" font-size="10" font-weight="700">NEURON</text>
+            <!-- Arrow 3→4 -->
+            <line x1="266" y1="65" x2="300" y2="65" stroke="rgba(100,80,160,0.2)" stroke-width="2" stroke-dasharray="6,4"/>
+            <!-- BRAIN -->
+            <ellipse cx="330" cy="62" rx="28" ry="24" fill="rgba(255,215,0,0.08)" stroke="#FFD700" stroke-width="2" stroke-dasharray="5,3"/>
+            <ellipse cx="330" cy="60" rx="20" ry="16" fill="url(#brG8)" opacity="0.2"/>
+            <path d="M316 56 Q322 44 330 56 Q338 44 344 56" fill="none" stroke="#DDAA00" stroke-width="1.5" opacity="0.3"/>
+            <text x="330" y="105" text-anchor="middle" fill="#FFD700" font-size="10" font-weight="700">BRAIN</text>
+            <!-- WED badge -->
+            <rect x="317" y="28" width="28" height="13" rx="3" fill="rgba(139,92,246,0.15)" stroke="#8B5CF6" stroke-width="0.8"/>
+            <text x="331" y="37" text-anchor="middle" fill="#8B5CF6" font-size="6" font-weight="700">WED</text>
+          </svg>
+        </div>`;
+    },
+    doPhase: {
+      mechanic: 'tileBuilder',
+      prompt: 'Tap the tiles in the correct signal chain order — first to last.',
+      tiles: [
+        {id:'d',text:'Brain reads signal as FIRE',short:'Brain',icon:'&#x1F9E0;'},
+        {id:'b',text:'Receptor activates and opens',short:'Receptor',icon:'&#x1F511;'},
+        {id:'c',text:'Neuron fires a signal',short:'Neuron',icon:'&#x26A1;'},
+        {id:'a',text:'Capsaicin (stimulus) touches tongue',short:'Stimulus',icon:'&#x1F336;&#xFE0F;'}
+      ],
+      correctOrder: ['a','b','c','d'],
+      explainPhase: {
+        prompt: 'Now tap the ONE reason the brain thought the chip was fire.',
+        options: [
+          {id:'a',text:'The receptor can\'t tell capsaicin from real heat',correct:true},
+          {id:'b',text:'The neuron made the signal stronger than it should be',correct:false,feedback:'The neuron just carries — it doesn\'t change the signal. The problem is earlier, at the receptor.'},
+          {id:'c',text:'Capsaicin is actually a type of heat',correct:false,feedback:'Capsaicin is a chemical, not heat. That\'s the whole point — the receptor treats them the same even though they\'re different.'}
+        ]
+      }
+    },
+    provePhase: {
+      question: 'If a NEW chemical activated the same receptor, what signal would the brain receive?',
+      options: [
+        {id:'a',text:'The same heat/pain signal',correct:true},
+        {id:'b',text:'A completely new signal',correct:false,feedback:'The receptor only sends one type of signal when it activates — it can\'t create a new one. Any stimulus that opens this receptor sends the same message.'},
+        {id:'c',text:'No signal at all',correct:false,feedback:'If the receptor activates, a signal IS sent. That\'s what receptors do — detect and send.'}
+      ]
+    },
+    hintLadder: {
+      hint1:{text:'Start with what touches the tongue first — find the tile with the red molecule. That\'s always Step 1. Then follow the chain: what does the molecule touch? What fires next? Where does the signal end up?'},
+      stepByStep:{panels:[
+        {text:'Capsaicin (stimulus) touches tongue, then Receptor activates, then Neuron fires, then Brain reads signal. The receptor can\'t tell capsaicin from heat — that\'s why the brain was fooled.'},
+        {text:'Any chemical that activates this receptor sends the same heat signal. Tap it to confirm.'}
+      ]}
+    }
+  }
+];
+// ========== WELCOME ==========
+const nameInput = document.getElementById('studentNameInput');
+const startBtn = document.getElementById('startBtn');
+nameInput.addEventListener('input',()=>{startBtn.disabled = nameInput.value.trim().length<1;});
+startBtn.addEventListener('click',()=>{
+  gameState.studentName = nameInput.value.trim();
+  const tInput = document.getElementById('teacherNameInput').value.trim();
+  teacherName = tInput.length > 0 ? tInput : "Your teacher";
+  buildAffirmations();
+  gameState.totalStartTime = Date.now();
+  // Init round states
+  for(let i=0;i<ROUNDS.length;i++){
+    gameState.rounds.push({completed:false,score:0,wrongAttempts:0,hintsUsed:0,failedOut:false,
+      timeStart:0,timeEnd:0,attempts:0,consecutiveFastWrongs:0,phaseStartTime:0});
+  }
+  document.getElementById('welcomeScreen').style.display='none';
+  document.getElementById('topBar').style.display='flex';
+  document.getElementById('pathwayTracker').style.display='flex';
+  document.getElementById('mainArea').style.display='flex';
+  document.getElementById('bottomBar').style.display='flex';
+  buildPathway();
+  loadRound(0);
+});
+// ========== BOTTOM BAR ==========
+document.getElementById('vocabBtn').addEventListener('click',showVocab);
+document.getElementById('hintBtn').addEventListener('click',showHint);
+document.getElementById('resetLevelBtn').addEventListener('click',()=>{
+  const rs=gameState.rounds[gameState.currentRound];
+  if(!rs||rs.completed)return;
+  gameState.processing=false; // Force-clear so reset always works mid-animation
+  closeAllOverlays();
+  if(celebrationTimeout){clearTimeout(celebrationTimeout);celebrationTimeout=null;}
+  rs.wrongAttempts=0;
+  rs.consecutiveFastWrongs=0;
+  loadRound(gameState.currentRound);
+});
+// ========== LOAD ROUND ==========
+function loadRound(idx){
+  if(gameState.processing)return;
+  if(idx>=ROUNDS.length){showReceipt();return;}
+  gameState.currentRound=idx;
+  const rd=ROUNDS[idx];
+  const rs=gameState.rounds[idx];
+  rs.timeStart=Date.now();
+  rs.phaseStartTime=Date.now();
+  // Reset _explainDone flag if present (for tile builder rounds on reset)
+  if(rd.doPhase && rd.doPhase._explainDone) rd.doPhase._explainDone = false;
+  // Clear any pending celebration timeout
+  if(celebrationTimeout){clearTimeout(celebrationTimeout);celebrationTimeout=null;}
+  // Update UI
+  document.getElementById('roundBadge').textContent=`Signal ${idx+1} of 8`;
+  document.getElementById('scoreDisplay').textContent=gameState.score;
+  document.getElementById('sourceDay').innerHTML=`Source: <span class="${rd.sourceDayClass}">${rd.sourceDay}</span>`;
+  document.getElementById('focusPrompt').textContent=rd.focusPrompt;
+  document.getElementById('contextCaption').textContent=rd.contextCaption;
+  // Reset level button state
+  const rlb=document.getElementById('resetLevelBtn');
+  rlb.disabled=false;rlb.style.opacity='1';
+  // Clear arena
+  const box=document.getElementById('arenaBox');
+  while(box.firstChild)box.removeChild(box.firstChild);
+  // Build arena
+  try{rd.buildArena(box);}catch(e){console.error('Arena build error',e);box.innerHTML='<p style="color:var(--text-dim)">Visual loading...</p>';}
+  updatePathway();
+  // Start DO phase
+  setTimeout(()=>{startDoPhase(idx);},800);
+}
+// ========== DO PHASE ==========
+function startDoPhase(idx){
+  const rd=ROUNDS[idx];
+  const rs=gameState.rounds[idx];
+  rs.phaseStartTime=Date.now();
+  const iz=document.getElementById('interactionZone');
+  if(rd.doPhase.mechanic==='pickTheMatch'){
+    renderPickTheMatch(iz,rd,rs,idx);
+  } else if(rd.doPhase.mechanic==='coachClickMatch'){
+    renderCoachClickMatch(iz,rd,rs,idx);
+  } else if(rd.doPhase.mechanic==='whatComesNext'){
+    renderWhatComesNext(iz,rd,rs,idx);
+  } else if(rd.doPhase.mechanic==='hotspot'){
+    renderHotspot(iz,rd,rs,idx);
+  } else if(rd.doPhase.mechanic==='coachClick'){
+    renderCoachClick(iz,rd,rs,idx);
+  } else if(rd.doPhase.mechanic==='steppedClaimBuilder'){
+    renderSteppedClaimBuilder(iz,rd,rs,idx);
+  } else if(rd.doPhase.mechanic==='tileBuilder'){
+    renderTileBuilder(iz,rd,rs,idx);
+  } else {
+    iz.innerHTML=`<div class="iz-prompt">${rd.doPhase.prompt}</div><p style="color:var(--text-dim);text-align:center;">Mechanic loading...</p>`;
+  }
+}
+// ========== PICK THE MATCH MECHANIC ==========
+function renderPickTheMatch(iz,rd,rs,idx){
+  let selected=null;
+  const dimmed=new Set();
+  function render(){
+    let html=`<div class="iz-prompt">${rd.doPhase.prompt}</div><div class="options-row">`;
+    rd.doPhase.options.forEach(opt=>{
+      const cls=['option-card'];
+      if(dimmed.has(opt.id)) cls.push('dimmed');
+      if(selected===opt.id) cls.push('selected');
+      if(idx===0 && opt.correct && dimmed.size===0) cls.push('ghost-glow');
+      html+=`<div class="${cls.join(' ')}" data-id="${opt.id}">${opt.text}</div>`;
+    });
+    html+=`</div><button class="lock-in-btn ${selected?'ready':''}" id="lockInDo">Lock In</button>`;
+    html+=`<div id="coachingArea"></div>`;
+    iz.innerHTML=html;
+    iz.querySelectorAll('.option-card:not(.dimmed)').forEach(card=>{
+      card.addEventListener('click',()=>{
+        if(gameState.processing)return;
+        selected=card.dataset.id;
+        render();
+      });
+    });
+    const lockBtn=document.getElementById('lockInDo');
+    if(lockBtn && selected){
+      lockBtn.addEventListener('click',()=>{
+        if(gameState.processing)return;
+        gameState.processing=true;
+        const opt=rd.doPhase.options.find(o=>o.id===selected);
+        const elapsed=Date.now()-rs.phaseStartTime;
+        if(opt.correct){
+          trackAttempt(rs);
+          const card=iz.querySelector(`[data-id="${selected}"]`);
+          if(card)card.classList.add('correct');
+          playCorrectSound();
+          const pts=rs.hintsUsed===0&&rs.wrongAttempts===0?50:rs.hintsUsed>=2?25:35;
+          gameState.score+=pts;
+          animatePoints(pts);
+          document.getElementById('scoreDisplay').textContent=gameState.score;
+          setTimeout(()=>{gameState.processing=false;startProvePhase(idx);},800);
+        } else {
+          rs.wrongAttempts++;
+          trackAttempt(rs);
+          if(elapsed<2000) rs.consecutiveFastWrongs++;
+          else rs.consecutiveFastWrongs=0;
+          const card=iz.querySelector(`[data-id="${selected}"]`);
+          if(card)card.classList.add('wrong');
+          playWrongSound();
+          // Fast guess gate
+          if(rs.consecutiveFastWrongs>=2){
+            rs.consecutiveFastWrongs=0;
+            gameState.processing=false;
+            showBuffering('Find the label in the picture...',5000,()=>{
+              selected=null;dimmed.clear();render();
+            });
+            return;
+          }
+          // Check fail-out
+          if(rs.wrongAttempts>=3 && rs.hintsUsed>=2){
+            rs.failedOut=true;rs.score=50;rs.completed=true;
+            rs.timeEnd=Date.now();
+            updateStreak(false);
+            gameState.processing=false;
+            showCelebration("Let's move on — you'll see this idea again.",null,2000);
+            setTimeout(()=>{completeRound(idx);},2200);
+            return;
+          }
+          // Show coaching
+          dimmed.add(selected);
+          selected=null;
+          const ca=document.getElementById('coachingArea');
+          if(ca) ca.innerHTML=`<div class="coaching-bar">${opt.feedback}</div><button class="try-again-btn" id="tryAgainDo">Try Again</button>`;
+          // Auto-trigger hints
+          if(rs.wrongAttempts===1 && rs.hintsUsed<1){rs.hintsUsed=1;
+            setTimeout(()=>showHintPanel('Hint',rd.hintLadder.hint1.text),500);
+          } else if(rs.wrongAttempts>=2 && rs.hintsUsed<2 && rd.hintLadder.stepByStep){
+            rs.hintsUsed=2;
+            setTimeout(()=>showStepByStep(rd.hintLadder.stepByStep.panels),500);
+          }
+          gameState.processing=false;
+          rs.phaseStartTime=Date.now();
+          const ta=document.getElementById('tryAgainDo');
+          if(ta)ta.addEventListener('click',()=>{render();});
+        }
+      });
+    }
+  }
+  render();
+}
+// ========== COACH-CLICK MATCH MECHANIC (Round 2) ==========
+function renderCoachClickMatch(iz,rd,rs,idx){
+  const matches=rd.doPhase.matches;
+  let currentMatchIdx=0;
+  const completed=[];
+  let selectedEv=null;
+  const usedTerms=new Set();
+  function render(){
+    if(currentMatchIdx>=matches.length){
+      // All matched - DO complete
+      const pts=rs.hintsUsed===0&&rs.wrongAttempts===0?50:rs.hintsUsed>=2?25:35;
+      gameState.score+=pts;
+      animatePoints(pts);
+      document.getElementById('scoreDisplay').textContent=gameState.score;
+      playCorrectSound();
+      setTimeout(()=>{startProvePhase(idx);},800);
+      return;
+    }
+    const m=matches[currentMatchIdx];
+    let html=`<div class="iz-prompt">${rd.doPhase.prompt}</div>`;
+    html+=`<div class="step-indicator">Match ${currentMatchIdx+1} of ${matches.length}</div>`;
+    html+=`<div style="text-align:center;margin-bottom:8px;"><span style="color:var(--gold);font-weight:700;">Tap Evidence ${m.evLabel}</span>, then tap its vocabulary term below.</div>`;
+    html+=`<div class="vocab-btn-row">`;
+    ['Capsaicin','Receptor','Neuron'].forEach(t=>{
+      const cls=['vocab-match-btn'];
+      if(usedTerms.has(t))cls.push('used');
+      html+=`<div class="${cls.join(' ')}" data-term="${t}">${t}</div>`;
+    });
+    html+=`</div><div id="coachingArea"></div>`;
+    iz.innerHTML=html;
+    // Highlight evidence in arena
+    const evEl=document.getElementById(m.evId);
+    if(evEl){
+      evEl.style.border='2px solid var(--gold)';
+      evEl.style.boxShadow='0 0 12px rgba(255,215,0,0.4)';
+    }
+    iz.querySelectorAll('.vocab-match-btn:not(.used)').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        if(gameState.processing)return;
+        const term=btn.dataset.term;
+        trackAttempt(rs);
+        if(term===m.term){
+          // Correct match
+          usedTerms.add(term);
+          completed.push(m);
+          if(evEl){evEl.style.border='2px solid var(--correct-green)';evEl.style.boxShadow='0 0 8px rgba(0,230,118,0.4)';}
+          btn.style.borderColor='var(--correct-green)';btn.style.color='var(--correct-green)';
+          currentMatchIdx++;
+          setTimeout(()=>render(),600);
+        } else {
+          // Wrong
+          rs.wrongAttempts++;
+          btn.classList.add('wrong-flash');
+          const ca=document.getElementById('coachingArea');
+          if(ca)ca.innerHTML=`<div class="coaching-bar">${m.wrongFeedback}</div>`;
+          // Hint correct button
+          setTimeout(()=>{
+            const correctBtn=iz.querySelector(`[data-term="${m.term}"]`);
+            if(correctBtn)correctBtn.classList.add('pulse-hint');
+          },1000);
+          if(rs.wrongAttempts===1&&rs.hintsUsed<1){rs.hintsUsed=1;}
+          if(rs.wrongAttempts>=2&&rs.hintsUsed<2){rs.hintsUsed=2;}
+          if(checkFailOut(rs,idx,5)) return;
+        }
+      });
+    });
+  }
+  render();
+}
+// ========== WHAT COMES NEXT MECHANIC ==========
+function renderWhatComesNext(iz,rd,rs,idx){
+  if(!rd.doPhase.steps||rd.doPhase.steps.length===0){
+    iz.innerHTML='<p style="color:var(--text-dim);text-align:center;">Loading...</p>';
+    return;
+  }
+  let currentStep=0;
+  const filledSteps=[];
+  function render(){
+    if(currentStep>=rd.doPhase.steps.length){
+      const pts=rs.hintsUsed===0&&rs.wrongAttempts===0?50:rs.hintsUsed>=2?25:35;
+      gameState.score+=pts;animatePoints(pts);
+      document.getElementById('scoreDisplay').textContent=gameState.score;
+      playCorrectSound();
+      setTimeout(()=>{startProvePhase(idx);},800);
+      return;
+    }
+    const step=rd.doPhase.steps[currentStep];
+    let html=`<div class="iz-prompt">${rd.doPhase.prompt}</div>`;
+    html+=`<div class="chain-display">`;
+    step.chainSoFar.forEach((s,i)=>{
+      if(i>0) html+=`<span class="chain-arrow">&rarr;</span>`;
+      html+=`<span class="chain-slot filled">${s}</span>`;
+    });
+    html+=`<span class="chain-arrow">&rarr;</span><span class="chain-slot empty">???</span>`;
+    html+=`</div>`;
+    html+=`<div class="options-row">`;
+    const dimmed=new Set();
+    step.options.forEach(opt=>{
+      const cls=['option-card'];
+      if(dimmed.has(opt.id))cls.push('dimmed');
+      html+=`<div class="${cls.join(' ')}" data-id="${opt.id}">${opt.text}</div>`;
+    });
+    html+=`</div><div id="coachingArea"></div>`;
+    iz.innerHTML=html;
+    iz.querySelectorAll('.option-card:not(.dimmed)').forEach(card=>{
+      card.addEventListener('click',()=>{
+        if(gameState.processing)return;
+        gameState.processing=true;
+        trackAttempt(rs);
+        const opt=step.options.find(o=>o.id===card.dataset.id);
+        if(opt.correct){
+          card.classList.add('correct');
+          filledSteps.push(opt.text);
+          currentStep++;
+          setTimeout(()=>{gameState.processing=false;render();},600);
+        } else {
+          rs.wrongAttempts++;
+          card.classList.add('wrong');
+          card.classList.add('dimmed');
+          const ca=document.getElementById('coachingArea');
+          if(ca)ca.innerHTML=`<div class="coaching-bar">${opt.feedback||'Look at the diagram for the next step.'}</div><button class="try-again-btn" onclick="this.parentNode.innerHTML=''">Try Again</button>`;
+          if(rs.wrongAttempts===1&&rs.hintsUsed<1){rs.hintsUsed=1;setTimeout(()=>showHintPanel('Hint',rd.hintLadder.hint1.text),500);}
+          if(rs.wrongAttempts>=2&&rs.hintsUsed<2){rs.hintsUsed=2;setTimeout(()=>showStepByStep(rd.hintLadder.stepByStep.panels),500);}
+          gameState.processing=false;
+          if(checkFailOut(rs,idx,5)) return;
+        }
+      });
+    });
+  }
+  render();
+}
+// ========== HOTSPOT MECHANIC ==========
+function renderHotspot(iz,rd,rs,idx){
+  if(!rd.doPhase.hotspots){
+    iz.innerHTML='<p style="color:var(--text-dim);text-align:center;">Loading...</p>';
+    return;
+  }
+  iz.innerHTML=`<div class="iz-prompt">${rd.doPhase.prompt}</div><div id="coachingArea"></div>`;
+  let hotspotDone=false; // Guard: prevents arena handlers from firing after DO completes
+  // Attach click handlers to arena elements
+  rd.doPhase.hotspots.forEach(hs=>{
+    const el=document.getElementById(hs.id);
+    if(!el)return;
+    el.style.cursor='pointer';
+    el.addEventListener('click',function handler(){
+      if(gameState.processing||hotspotDone)return;
+      trackAttempt(rs);
+      if(hs.correct){
+        hotspotDone=true;
+        gameState.processing=true;
+        el.style.border='3px solid var(--correct-green)';
+        el.style.boxShadow='0 0 15px rgba(0,230,118,0.5)';
+        playCorrectSound();
+        const pts=rs.hintsUsed===0&&rs.wrongAttempts===0?50:rs.hintsUsed>=2?25:35;
+        gameState.score+=pts;animatePoints(pts);
+        document.getElementById('scoreDisplay').textContent=gameState.score;
+        setTimeout(()=>{gameState.processing=false;startProvePhase(idx);},800);
+      } else {
+        rs.wrongAttempts++;
+        playWrongSound();
+        el.style.border='3px solid var(--wrong-red)';
+        setTimeout(()=>{el.style.border='';},800);
+        const ca=document.getElementById('coachingArea');
+        if(ca)ca.innerHTML=`<div class="coaching-bar">${hs.feedback}</div>`;
+        if(rs.wrongAttempts>=3){
+          const correctHs=rd.doPhase.hotspots.find(h=>h.correct);
+          if(correctHs){const correctEl=document.getElementById(correctHs.id);
+          if(correctEl){correctEl.style.border='2px solid var(--gold)';correctEl.style.boxShadow='0 0 12px rgba(255,215,0,0.5)';}}
+        }
+        if(rs.wrongAttempts===1&&rs.hintsUsed<1){rs.hintsUsed=1;setTimeout(()=>showHintPanel('Hint',rd.hintLadder.hint1.text),500);}
+        if(rs.wrongAttempts>=2&&rs.hintsUsed<2){rs.hintsUsed=2;setTimeout(()=>showStepByStep(rd.hintLadder.stepByStep.panels),500);}
+        if(checkFailOut(rs,idx,6)){hotspotDone=true;return;}
+      }
+    });
+  });
+}
+// ========== COACH-CLICK MECHANIC (single selection like Pick-the-Match but with coaching highlight) ==========
+function renderCoachClick(iz,rd,rs,idx){
+  // Reuse pickTheMatch logic
+  renderPickTheMatch(iz,rd,rs,idx);
+}
+// ========== STEPPED CLAIM BUILDER ==========
+function renderSteppedClaimBuilder(iz,rd,rs,idx){
+  if(!rd.doPhase.steps){
+    iz.innerHTML='<p style="color:var(--text-dim);text-align:center;">Loading...</p>';
+    return;
+  }
+  let currentStep=0;
+  function render(){
+    if(currentStep>=rd.doPhase.steps.length){
+      const pts=rs.hintsUsed===0&&rs.wrongAttempts===0?50:rs.hintsUsed>=2?25:35;
+      gameState.score+=pts;animatePoints(pts);
+      document.getElementById('scoreDisplay').textContent=gameState.score;
+      playCorrectSound();
+      setTimeout(()=>{startProvePhase(idx);},800);
+      return;
+    }
+    const step=rd.doPhase.steps[currentStep];
+    let html=`<div class="step-indicator">STEP ${currentStep+1} of ${rd.doPhase.steps.length}</div>`;
+    html+=`<div class="iz-prompt">${step.prompt}</div>`;
+    html+=`<div class="options-row">`;
+    step.options.forEach(opt=>{
+      html+=`<div class="option-card" data-id="${opt.id}">${opt.text}</div>`;
+    });
+    html+=`</div><div id="coachingArea"></div>`;
+    iz.innerHTML=html;
+    iz.querySelectorAll('.option-card').forEach(card=>{
+      card.addEventListener('click',()=>{
+        if(gameState.processing)return;
+        gameState.processing=true;
+        trackAttempt(rs);
+        const opt=step.options.find(o=>o.id===card.dataset.id);
+        if(opt.correct){
+          card.classList.add('correct');
+          currentStep++;
+          setTimeout(()=>{gameState.processing=false;render();},600);
+        } else {
+          rs.wrongAttempts++;
+          card.classList.add('wrong');
+          const ca=document.getElementById('coachingArea');
+          if(ca)ca.innerHTML=`<div class="coaching-bar">${opt.feedback||step.wrongFeedback||'Look at the visual for a clue.'}</div><button class="try-again-btn" id="trySCB">Try Again</button>`;
+          if(rs.wrongAttempts===1&&rs.hintsUsed<1){rs.hintsUsed=1;}
+          if(rs.wrongAttempts>=2&&rs.hintsUsed<2){rs.hintsUsed=2;}
+          gameState.processing=false;
+          if(checkFailOut(rs,idx,5)) return;
+          const ta=document.getElementById('trySCB');
+          if(ta)ta.addEventListener('click',()=>{render();});
+        }
+      });
+    });
+  }
+  render();
+}
+// ========== TILE BUILDER ==========
+function renderTileBuilder(iz,rd,rs,idx){
+  if(!rd.doPhase.tiles){
+    iz.innerHTML='<p style="color:var(--text-dim);text-align:center;">Loading...</p>';
+    return;
+  }
+  const placed=[];
+  const correctOrder=rd.doPhase.correctOrder;
+  function render(){
+    if(placed.length>=correctOrder.length){
+      // All placed correctly, now show explain phase if exists
+      if(rd.doPhase.explainPhase && !rd.doPhase._explainDone){
+        renderExplainPhase(iz,rd,rs,idx);
+        return;
+      }
+      const pts=rs.hintsUsed===0&&rs.wrongAttempts===0?50:rs.hintsUsed>=2?25:35;
+      gameState.score+=pts;animatePoints(pts);
+      document.getElementById('scoreDisplay').textContent=gameState.score;
+      playCorrectSound();
+      setTimeout(()=>{startProvePhase(idx);},800);
+      return;
+    }
+    let html=`<div class="iz-prompt">${rd.doPhase.prompt}</div>`;
+    // Show placed chain
+    html+=`<div class="placed-chain">`;
+    placed.forEach((t,i)=>{
+      if(i>0)html+=`<span class="placed-arrow">&rarr;</span>`;
+      html+=`<span class="placed-tile">${t.short}</span>`;
+    });
+    if(placed.length>0 && placed.length<correctOrder.length) html+=`<span class="placed-arrow">&rarr;</span><span class="chain-slot empty">???</span>`;
+    if(placed.length===0) html+=`<span class="chain-slot empty">Tap first step</span>`;
+    html+=`</div>`;
+    // Tile pool
+    html+=`<div class="tile-pool">`;
+    rd.doPhase.tiles.forEach(tile=>{
+      const isPlaced=placed.some(p=>p.id===tile.id);
+      html+=`<div class="tile ${isPlaced?'placed':''}" data-id="${tile.id}">${tile.icon||''} ${tile.text}</div>`;
+    });
+    html+=`</div><div id="coachingArea"></div>`;
+    iz.innerHTML=html;
+    iz.querySelectorAll('.tile:not(.placed)').forEach(t=>{
+      t.addEventListener('click',()=>{
+        if(gameState.processing)return;
+        trackAttempt(rs);
+        const tileId=t.dataset.id;
+        const expectedId=correctOrder[placed.length];
+        if(tileId===expectedId){
+          placed.push(rd.doPhase.tiles.find(x=>x.id===tileId));
+          render();
+        } else {
+          rs.wrongAttempts++;
+          t.classList.add('bounce-back');
+          const ca=document.getElementById('coachingArea');
+          if(ca)ca.innerHTML=`<div class="coaching-bar">Check the order — what gets activated first?</div>`;
+          if(rs.wrongAttempts===1&&rs.hintsUsed<1){rs.hintsUsed=1;setTimeout(()=>showHintPanel('Hint',rd.hintLadder.hint1.text),500);}
+          if(rs.wrongAttempts>=2&&rs.hintsUsed<2){rs.hintsUsed=2;setTimeout(()=>showStepByStep(rd.hintLadder.stepByStep.panels),500);}
+          if(checkFailOut(rs,idx,6)) return;
+        }
+      });
+    });
+  }
+  render();
+}
+function renderExplainPhase(iz,rd,rs,idx){
+  const ep=rd.doPhase.explainPhase;
+  rd.doPhase._explainDone=true;
+  let html=`<div class="iz-prompt">${ep.prompt}</div><div class="options-row">`;
+  ep.options.forEach(opt=>{
+    html+=`<div class="explain-card option-card" data-id="${opt.id}">${opt.text}</div>`;
+  });
+  html+=`</div><div id="coachingArea"></div>`;
+  iz.innerHTML=html;
+  iz.querySelectorAll('.option-card').forEach(card=>{
+    card.addEventListener('click',()=>{
+      if(gameState.processing)return;
+      gameState.processing=true;
+      trackAttempt(rs);
+      const opt=ep.options.find(o=>o.id===card.dataset.id);
+      if(opt.correct){
+        card.classList.add('correct');
+        playCorrectSound();
+        const pts=rs.hintsUsed===0&&rs.wrongAttempts===0?25:15;
+        gameState.score+=pts;animatePoints(pts);
+        document.getElementById('scoreDisplay').textContent=gameState.score;
+        setTimeout(()=>{gameState.processing=false;startProvePhase(idx);},800);
+      } else {
+        rs.wrongAttempts++;
+        card.classList.add('wrong');card.classList.add('dimmed');
+        const ca=document.getElementById('coachingArea');
+        if(ca)ca.innerHTML=`<div class="coaching-bar">${opt.feedback}</div><button class="try-again-btn" onclick="this.parentNode.innerHTML=''">Try Again</button>`;
+        gameState.processing=false;
+        if(checkFailOut(rs,idx,5)) return;
+      }
+    });
+  });
+}
+// ========== PROVE PHASE ==========
+function startProvePhase(idx){
+  const rd=ROUNDS[idx];
+  const rs=gameState.rounds[idx];
+  rs.phaseStartTime=Date.now();
+  const iz=document.getElementById('interactionZone');
+  const dimmed=new Set();
+  let selected=null;
+  function render(){
+    let html=`<div class="iz-prompt">${rd.provePhase.question}</div><div class="options-row">`;
+    rd.provePhase.options.forEach(opt=>{
+      const cls=['option-card'];
+      if(dimmed.has(opt.id))cls.push('dimmed');
+      if(selected===opt.id)cls.push('selected');
+      html+=`<div class="${cls.join(' ')}" data-id="${opt.id}">${opt.text}</div>`;
+    });
+    html+=`</div><button class="lock-in-btn ${selected?'ready':''}" id="lockInProve">Lock In</button><div id="coachingAreaProve"></div>`;
+    iz.innerHTML=html;
+    iz.querySelectorAll('.option-card:not(.dimmed)').forEach(card=>{
+      card.addEventListener('click',()=>{
+        if(gameState.processing)return;
+        selected=card.dataset.id;
+        render();
+      });
+    });
+    const lockBtn=document.getElementById('lockInProve');
+    if(lockBtn && selected){
+      lockBtn.addEventListener('click',()=>{
+        if(gameState.processing)return;
+        gameState.processing=true;
+        const opt=rd.provePhase.options.find(o=>o.id===selected);
+        if(opt.correct){
+          trackAttempt(rs);
+          const card=iz.querySelector(`[data-id="${selected}"]`);
+          if(card)card.classList.add('correct');
+          playCorrectSound();
+          const pts=rs.hintsUsed===0&&rs.wrongAttempts===0?50:rs.hintsUsed>=2?25:35;
+          gameState.score+=pts;animatePoints(pts);
+          document.getElementById('scoreDisplay').textContent=gameState.score;
+          // Score round
+          rs.score=scoreForRound(rs);
+          rs.completed=true;
+          rs.timeEnd=Date.now();
+          updateStreak(true);
+          setTimeout(()=>{gameState.processing=false;completeRound(idx);},800);
+        } else {
+          rs.wrongAttempts++;
+          trackAttempt(rs);
+          const card=iz.querySelector(`[data-id="${selected}"]`);
+          if(card)card.classList.add('wrong');
+          playWrongSound();
+          dimmed.add(selected);selected=null;
+          // Check fail-out
+          if(rs.wrongAttempts>=4 && rs.hintsUsed>=2){
+            rs.failedOut=true;rs.score=50;rs.completed=true;
+            rs.timeEnd=Date.now();
+            updateStreak(false);
+            gameState.processing=false;
+            showCelebration("Let's move on — you'll see this idea again.",null,2000);
+            setTimeout(()=>{completeRound(idx);},2200);
+            return;
+          }
+          const ca=document.getElementById('coachingAreaProve');
+          if(ca)ca.innerHTML=`<div class="coaching-bar">${opt.feedback}</div><button class="try-again-btn" id="tryAgainProve">Try Again</button>`;
+          gameState.processing=false;
+          const ta=document.getElementById('tryAgainProve');
+          if(ta)ta.addEventListener('click',()=>{render();});
+        }
+      });
+    }
+  }
+  render();
+}
+// ========== COMPLETE ROUND ==========
+function completeRound(idx){
+  if(gameState.processing)return;
+  updatePathway();
+  const rd=ROUNDS[idx];
+  const rs=gameState.rounds[idx];
+  // Disable reset
+  const rlb=document.getElementById('resetLevelBtn');
+  rlb.disabled=true;rlb.style.opacity='0.4';
+  // Check affirmation (first try)
+  const isFirstTry = rs.wrongAttempts===0 && rs.hintsUsed===0;
+  // Check milestones
+  const completedCount = gameState.rounds.filter(r=>r.completed).length;
+  const reqCompleted = gameState.rounds.filter((r,i)=>r.completed && ROUNDS[i].required).length;
+  const bonusCompleted = gameState.rounds.filter((r,i)=>r.completed && !ROUNDS[i].required).length;
+  // Check required complete
+  if(reqCompleted>=6 && !gameState.requiredCompleteShown){
+    gameState.requiredCompleteShown=true;
+    gameState.requiredComplete=true;
+    if(bonusCompleted<2){
+      showCelebration("You did it! 2 Bonus Rounds — dare to try?",getAffirmation(),null,[
+        {label:'Keep Going',cls:'btn-keep',action:'keepGoing'},
+        {label:'See Score',cls:'btn-score',action:'seeScore'}
+      ]);
+      return;
+    }
+  }
+  // Check bonus complete
+  if(bonusCompleted>=2 && !gameState.bonusCompleteShown){
+    gameState.bonusCompleteShown=true;
+    gameState.bonusComplete=true;
+    showCelebration("BOSS DEFEATED!",getAffirmation(),3000);
+    setTimeout(()=>{showReceipt();},3500);
+    return;
+  }
+  // Milestone celebration every 2 rounds
+  if(completedCount>0 && completedCount%2===0){
+    const txt = isFirstTry ? getAffirmation() : "Nice!";
+    showCelebration(txt,null,1000);
+    setTimeout(()=>{advanceRound();},1200);
+  } else {
+    if(isFirstTry){
+      // Brief affirmation
+      showCelebration(getAffirmation(),null,1000);
+      setTimeout(()=>{advanceRound();},1200);
+    } else {
+      setTimeout(()=>{advanceRound();},500);
+    }
+  }
+}
+function advanceRound(){
+  if(gameState.processing)return;
+  const next=gameState.currentRound+1;
+  if(next>=ROUNDS.length){
+    showReceipt();
+  } else {
+    loadRound(next);
+  }
+}
+// ========== RECEIPT ==========
+function showReceipt(){
+  if(gameState.receiptRendered)return;
+  gameState.receiptRendered=true;
+  closeAllOverlays();
+  // Hide game UI
+  document.getElementById('topBar').style.display='none';
+  document.getElementById('pathwayTracker').style.display='none';
+  document.getElementById('mainArea').style.display='none';
+  document.getElementById('bottomBar').style.display='none';
+  const overall=calcOverall();
+  const totalTime=Math.round((Date.now()-gameState.totalStartTime)/1000);
+  const mins=Math.floor(totalTime/60);
+  const secs=totalTime%60;
+  const decoded=gameState.rounds.filter(r=>r.completed).length;
+  let colorCls='green';
+  let label='Mastery';
+  if(overall<85){colorCls='yellow';label='Approaching Mastery';}
+  if(overall<70){colorCls='red';label='Needs More Practice';}
+  // Pathway nodes
+  let pNodes='';
+  for(let i=0;i<8;i++){
+    const rs=gameState.rounds[i];
+    const cls=rs.completed?(rs.score>=60?'g':'y'):'x';
+    pNodes+=`<div class="pc-node ${cls}">${i+1}</div>`;
+  }
+  // Detail table rows
+  let rows='';
+  ROUNDS.forEach((rd,i)=>{
+    const rs=gameState.rounds[i];
+    const t=rs.completed?Math.round((rs.timeEnd-rs.timeStart)/1000):0;
+    const tm=Math.floor(t/60)+':'+String(t%60).padStart(2,'0');
+    const bonusCls=rd.required?'':'bonus-row';
+    const star=rd.required?'':'&#x2B50; ';
+    rows+=`<tr class="${bonusCls}"><td>${star}${i+1}</td><td>${rd.name}</td><td>${rd.sourceDay}</td><td style="color:${rs.score>=85?'var(--correct-green)':rs.score>=70?'var(--gold)':'var(--wrong-red)'}">${rs.completed?rs.score+'%':'—'}</td><td>${rs.completed?rs.attempts:'—'}</td><td>${rs.completed?tm:'—'}</td></tr>`;
+  });
+  const reqComp=gameState.rounds.filter((r,i)=>r.completed&&ROUNDS[i].required).length>=6;
+  const bonComp=gameState.rounds.filter((r,i)=>r.completed&&!ROUNDS[i].required).length>=2;
+  let badgeCls='req';let badgeText='Required Complete';
+  if(bonComp){badgeCls='bonus';badgeText='Full Clear — Boss Defeated!';}
+  else if(!reqComp){badgeCls='req';badgeText='In Progress';}
+  const receiptEl=document.getElementById('receiptScreen');
+  receiptEl.style.display='block';
+  receiptEl.innerHTML=`
+    <div class="receipt-inner">
+      <div class="receipt-header">
+        <h2>Mr. Jawad's Simulations</h2>
+        <h3>${TOPIC} — Thursday Score Report</h3>
+      </div>
+      <div class="receipt-name">
+        <input type="text" id="receiptName" value="${escHtml(gameState.studentName)}">
+        <button id="lockNameBtn">Lock</button>
+      </div>
+      <div class="pathway-completion">${pNodes}</div>
+      <div class="signals-decoded">SIGNALS DECODED: ${decoded} of 8</div>
+      <div class="overall-pct ${colorCls}">${overall}%</div>
+      <div class="mastery-label">${label}</div>
+      <div class="streak-record">Best Streak: ${gameState.maxStreak}</div>
+      <button class="detail-toggle" id="detailToggle">See Details</button>
+      <table class="detail-table" id="detailTable">
+        <thead><tr><th>#</th><th>Round</th><th>Source</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="total-time">Total Time: ${mins}:${String(secs).padStart(2,'0')}</div>
+      <div class="completion-badge ${badgeCls}">${badgeText}</div>
+      <div class="screenshot-note">Take a screenshot and upload to Google Classroom</div>
+      <div class="receipt-actions">
+        <button class="btn-print" id="printBtn">&#x1F5A8;&#xFE0F; Print</button>
+        <button class="btn-startover" id="startOverBtn">Start Over</button>
+      </div>
+    </div>`;
+  document.getElementById('lockNameBtn').addEventListener('click',function(){
+    const inp=document.getElementById('receiptName');
+    inp.disabled=true;this.textContent='Locked';this.disabled=true;
+    gameState.studentName=inp.value.trim();
+  });
+  document.getElementById('detailToggle').addEventListener('click',function(){
+    const dt=document.getElementById('detailTable');
+    dt.classList.toggle('open');
+    this.textContent=dt.classList.contains('open')?'Hide Details':'See Details';
+  });
+  document.getElementById('printBtn').addEventListener('click',()=>{try{window.print();}catch(e){}});
+  document.getElementById('startOverBtn').addEventListener('click',()=>{
+    closeAllOverlays();
+    const ov=document.createElement('div');ov.className='confirm-overlay';
+    ov.innerHTML=`<div class="confirm-box"><p>Start over? This will erase all progress.</p><div class="btn-row"><button style="background:var(--wrong-red);color:#fff;" id="confirmYes">Yes, Start Over</button><button style="background:rgba(100,80,160,0.4);color:var(--text);" id="confirmNo">Cancel</button></div></div>`;
+    document.body.appendChild(ov);
+    document.getElementById('confirmYes').addEventListener('click',()=>{location.reload();});
+    document.getElementById('confirmNo').addEventListener('click',()=>{ov.remove();});
+  });
+}
+// ========== VISIBILITY CHANGE ==========
+let ambientInterval=null;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    if(ambientInterval){clearInterval(ambientInterval);ambientInterval=null;}
+  }
+});
+</script>
+</body>
+</html>
