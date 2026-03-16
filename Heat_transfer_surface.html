@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Heat Transfer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);color:#fff;height:100vh;overflow:hidden;user-select:none;}
+#app{display:flex;height:100vh;width:100vw;}
+
+/* LEFT PANEL */
+#left-panel{width:280px;min-width:280px;background:linear-gradient(180deg,#1e2a4a,#162040);border-right:2px solid #2a3a6a;display:flex;flex-direction:column;padding:12px;gap:8px;overflow-y:auto;}
+.panel-title{font-size:15px;font-weight:700;color:#ffb74d;text-align:center;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.mission-box{background:linear-gradient(135deg,#2a1a4a,#1a2a5a);border:1px solid #5c6bc0;border-radius:10px;padding:10px;text-align:center;font-size:12px;color:#b0bec5;line-height:1.4;}
+.mission-box .emoji{font-size:28px;display:block;margin-bottom:4px;}
+.round-counter{text-align:center;font-size:20px;font-weight:800;color:#fff;background:linear-gradient(135deg,#ff6f00,#f44336);border-radius:10px;padding:8px;letter-spacing:1px;}
+.var-section{background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;border:1px solid rgba(255,255,255,0.1);}
+.var-label{font-size:13px;font-weight:700;color:#81d4fa;margin-bottom:6px;text-transform:uppercase;}
+.var-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.var-btn{padding:10px 4px;border-radius:8px;border:2px solid transparent;background:rgba(255,255,255,0.08);color:#ccc;font-size:12px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
+.var-btn:hover:not(.locked):not(.selected){background:rgba(255,255,255,0.15);transform:scale(1.03);}
+.var-btn.selected{border-color:#ffb74d;background:rgba(255,183,77,0.2);color:#ffb74d;box-shadow:0 0 12px rgba(255,183,77,0.3);}
+.var-btn.locked{opacity:0.3;cursor:not-allowed;pointer-events:none;}
+.color-swatch{width:24px;height:24px;border-radius:50%;display:inline-block;margin-bottom:4px;border:2px solid rgba(255,255,255,0.3);}
+#start-btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:18px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#4CAF50,#2E7D32);color:#fff;letter-spacing:1px;transition:all .2s;box-shadow:0 4px 15px rgba(76,175,80,0.4);}
+#start-btn:hover:not(:disabled){transform:scale(1.03);box-shadow:0 6px 20px rgba(76,175,80,0.5);}
+#start-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.predict-box{background:linear-gradient(135deg,#1a237e,#283593);border:1px solid #5c6bc0;border-radius:10px;padding:10px;text-align:center;}
+.predict-label{font-size:11px;color:#9fa8da;margin-bottom:6px;}
+.predict-btns{display:flex;gap:4px;}
+.predict-btn{flex:1;padding:8px 2px;border-radius:8px;border:2px solid transparent;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;}
+.predict-btn.safe{background:rgba(76,175,80,0.15);color:#66bb6a;border-color:rgba(76,175,80,0.3);}
+.predict-btn.caution{background:rgba(255,193,7,0.15);color:#fdd835;border-color:rgba(255,193,7,0.3);}
+.predict-btn.danger{background:rgba(244,67,54,0.15);color:#ef5350;border-color:rgba(244,67,54,0.3);}
+.predict-btn.chosen{box-shadow:0 0 15px currentColor;transform:scale(1.05);}
+.bottom-btns{display:flex;gap:6px;margin-top:auto;}
+.bottom-btns button{flex:1;padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;}
+#reset-btn{background:linear-gradient(135deg,#c62828,#b71c1c);color:#fff;}
+#new-run-btn{background:linear-gradient(135deg,#1565C0,#0D47A1);color:#fff;}
+
+/* CENTER ARENA */
+#center-panel{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+#arena-header{text-align:center;padding:8px;font-size:14px;font-weight:700;color:#ffb74d;background:rgba(0,0,0,0.3);}
+#arena{flex:1;position:relative;overflow:hidden;}
+#arena canvas{width:100%;height:100%;display:block;}
+#feedback-overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:900;opacity:0;pointer-events:none;text-shadow:0 0 30px currentColor;transition:opacity .3s;}
+.badge-popup{position:absolute;top:20%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(135deg,#FFD700,#FFA000);color:#333;padding:16px 32px;border-radius:16px;font-size:22px;font-weight:900;box-shadow:0 8px 32px rgba(255,215,0,0.5);opacity:0;pointer-events:none;z-index:50;text-align:center;}
+
+/* RIGHT PANEL */
+#right-panel{width:280px;min-width:280px;background:linear-gradient(180deg,#1e2a4a,#162040);border-left:2px solid #2a3a6a;display:flex;flex-direction:column;padding:12px;gap:8px;overflow-y:auto;}
+.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.hud-card{background:rgba(255,255,255,0.06);border-radius:10px;padding:10px;text-align:center;border:1px solid rgba(255,255,255,0.08);}
+.hud-value{font-size:22px;font-weight:900;color:#fff;}
+.hud-label{font-size:10px;color:#78909c;text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+.progress-section{background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;border:1px solid rgba(255,255,255,0.08);}
+.progress-bar-bg{width:100%;height:14px;background:rgba(255,255,255,0.1);border-radius:7px;overflow:hidden;margin:6px 0;}
+.progress-bar-fill{height:100%;border-radius:7px;transition:width .5s;background:linear-gradient(90deg,#4CAF50,#8BC34A);}
+.progress-text{font-size:11px;color:#aaa;text-align:center;}
+.ec-text{color:#FFD700;font-weight:700;}
+.data-header{display:flex;justify-content:space-between;align-items:center;}
+.data-header span{font-size:14px;font-weight:700;color:#81d4fa;}
+#copy-btn{padding:5px 10px;border:none;border-radius:6px;background:linear-gradient(135deg,#5c6bc0,#3949ab);color:#fff;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;}
+#copy-btn:hover{transform:scale(1.05);}
+#data-table-wrap{flex:1;overflow-y:auto;}
+#data-table{width:100%;border-collapse:collapse;font-size:11px;}
+#data-table th{background:rgba(255,183,77,0.2);color:#ffb74d;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;}
+#data-table td{padding:6px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.06);color:#ccc;}
+#data-table tr.new-row{animation:rowFlash .6s;}
+@keyframes rowFlash{0%{background:rgba(255,183,77,0.3);}100%{background:transparent;}}
+.burn-safe{color:#4CAF50;font-weight:700;}
+.burn-caution{color:#FFC107;font-weight:700;}
+.burn-danger{color:#f44336;font-weight:700;}
+.status-msg{text-align:center;font-size:13px;padding:8px;border-radius:8px;font-weight:600;}
+
+/* Thermometer sidebar in arena */
+.thermo-container{position:absolute;right:20px;top:50%;transform:translateY(-50%);width:50px;display:flex;flex-direction:column;align-items:center;z-index:10;}
+.thermo-label{font-size:11px;color:#fff;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,0.8);}
+.thermo-tube{width:20px;height:200px;background:rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;position:relative;border:2px solid rgba(255,255,255,0.2);}
+.thermo-fill{position:absolute;bottom:0;width:100%;border-radius:0 0 8px 8px;transition:height 0.1s linear;}
+.thermo-temp{font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 10px rgba(255,100,0,0.5);margin-top:4px;}
+.thermo-bulb{width:32px;height:32px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);margin-top:-4px;}
+
+/* Burn meter on right side of arena */
+.burn-meter-wrap{position:absolute;left:20px;top:50%;transform:translateY(-50%);width:50px;display:flex;flex-direction:column;align-items:center;z-index:10;}
+.burn-meter-label{font-size:10px;color:#fff;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,0.8);text-transform:uppercase;margin-bottom:4px;}
+.burn-meter-bar{width:20px;height:200px;background:rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;position:relative;border:2px solid rgba(255,255,255,0.2);}
+.burn-meter-fill{position:absolute;bottom:0;width:100%;border-radius:0 0 8px 8px;transition:height 0.1s linear;}
+.burn-meter-icon{font-size:28px;margin-top:4px;}
+
+/* Power-up overlay */
+.powerup-badge{position:absolute;top:10px;right:10px;background:linear-gradient(135deg,#7C4DFF,#536DFE);color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;z-index:20;display:none;box-shadow:0 4px 15px rgba(124,77,255,0.4);}
+
+/* Cloud event */
+.cloud-overlay{position:absolute;top:0;left:-200px;width:200px;height:100px;z-index:15;opacity:0;transition:opacity .5s;}
+
+/* Completion overlay */
+#completion-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:100;flex-direction:column;gap:16px;}
+#completion-overlay .big-badge{font-size:64px;}
+#completion-overlay .big-text{font-size:28px;font-weight:900;color:#FFD700;text-shadow:0 0 20px rgba(255,215,0,0.5);}
+#completion-overlay .sub-text{font-size:16px;color:#aaa;}
+</style>
+</head>
+<body>
+<div id="app">
+<!-- LEFT PANEL -->
+<div id="left-panel">
+<div class="panel-title">Surface Trap</div>
+<div class="mission-box"><span class="emoji">🔍</span>Test surfaces. Find burn risks.</div>
+<div class="round-counter" id="round-counter">Round 1 / 8</div>
+
+<div class="var-section" id="material-section">
+<div class="var-label">Material</div>
+<div class="var-grid" id="material-grid"></div>
+</div>
+
+<div class="var-section" id="color-section">
+<div class="var-label">Surface Color</div>
+<div class="var-grid" id="color-grid"></div>
+</div>
+
+<div class="predict-box" id="predict-box">
+<div class="predict-label">Predict Burn Risk</div>
+<div class="predict-btns">
+<button class="predict-btn safe" onclick="setPrediction('Safe')">Safe</button>
+<button class="predict-btn caution" onclick="setPrediction('Caution')">Caution</button>
+<button class="predict-btn danger" onclick="setPrediction('Danger')">Danger</button>
+</div>
+</div>
+
+<button id="start-btn" disabled onclick="startRound()">▶ START</button>
+
+<div class="bottom-btns">
+<button id="reset-btn" onclick="resetSim()">Reset</button>
+<button id="new-run-btn" onclick="newRun()">New Run</button>
+</div>
+</div>
+
+<!-- CENTER ARENA -->
+<div id="center-panel">
+<div id="arena-header">Mr. Jawad's Simulations — Heat Transfer</div>
+<div id="arena">
+<canvas id="arena-canvas"></canvas>
+<div class="thermo-container" id="thermo-container">
+<div class="thermo-label">TEMP</div>
+<div class="thermo-tube"><div class="thermo-fill" id="thermo-fill"></div></div>
+<div class="thermo-temp" id="thermo-temp">72°F</div>
+<div class="thermo-bulb" id="thermo-bulb" style="background:radial-gradient(circle,#42A5F5,#1565C0);"></div>
+</div>
+<div class="burn-meter-wrap" id="burn-meter-wrap">
+<div class="burn-meter-label">Burn Risk</div>
+<div class="burn-meter-bar"><div class="burn-meter-fill" id="burn-meter-fill"></div></div>
+<div class="burn-meter-icon" id="burn-meter-icon">✅</div>
+</div>
+<div class="powerup-badge" id="powerup-badge">🔬 Thermal Camera</div>
+<div id="feedback-overlay"></div>
+<div id="completion-overlay">
+<div class="big-badge" id="comp-badge">🏆</div>
+<div class="big-text" id="comp-text"></div>
+<div class="sub-text" id="comp-sub"></div>
+</div>
+</div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div id="right-panel">
+<div class="panel-title">Progress</div>
+<div class="hud-grid">
+<div class="hud-card"><div class="hud-value" id="hud-score">0</div><div class="hud-label">Score</div></div>
+<div class="hud-card"><div class="hud-value" id="hud-streak">0</div><div class="hud-label">Streak</div></div>
+<div class="hud-card"><div class="hud-value" id="hud-completed">0/8</div><div class="hud-label">Rounds</div></div>
+<div class="hud-card"><div class="hud-value" id="hud-accuracy">--%</div><div class="hud-label">Accuracy</div></div>
+</div>
+<div class="progress-section">
+<div style="font-size:12px;font-weight:700;color:#81d4fa;">Required: 5 rounds</div>
+<div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill" style="width:0%;"></div></div>
+<div class="progress-text" id="progress-text">Complete 5 more rounds</div>
+</div>
+<div class="status-msg" id="status-msg" style="background:rgba(255,183,77,0.1);color:#ffb74d;">Pick material & color</div>
+
+<div class="data-header">
+<span>Data Table</span>
+<button id="copy-btn" onclick="copyTable()">📋 Copy Table</button>
+</div>
+<div id="data-table-wrap">
+<table id="data-table">
+<thead><tr><th>Material</th><th>Color</th><th>Temp °F</th><th>Burn Risk</th></tr></thead>
+<tbody id="data-body"></tbody>
+</table>
+</div>
+</div>
+</div>
+
+<script>
+// ===== GAME STATE =====
+const MATERIALS = [
+  {name:'Metal', conductivity:1.0, emoji:'⚙️', texture:'metal'},
+  {name:'Plastic', conductivity:0.6, emoji:'🧊', texture:'plastic'},
+  {name:'Rubber', conductivity:0.45, emoji:'🛞', texture:'rubber'},
+  {name:'Wood', conductivity:0.25, emoji:'🪵', texture:'wood'}
+];
+const COLORS = [
+  {name:'Black', absorption:1.0, hex:'#1a1a1a', display:'#222'},
+  {name:'Dark Gray', absorption:0.7, hex:'#555555', display:'#666'},
+  {name:'White', absorption:0.2, hex:'#f0f0f0', display:'#eee'},
+  {name:'Light Tan', absorption:0.35, hex:'#d4b896', display:'#d4b896'}
+];
+
+let state = {
+  round:1, selectedMaterial:null, selectedColor:null, prediction:null,
+  running:false, recorded:false, temperature:72, burnRisk:'',
+  data:[], score:0, streak:0, predictions:0, correctPredictions:0,
+  powerupActive:false, powerupEarned:false, changedVar:null,
+  prevMaterial:null, prevColor:null, cloudActive:false, completed:false,
+  gen:0
+};
+
+let canvas, ctx, animFrame, heatParticles=[], sunParticles=[], ambientTimer=0;
+
+// ===== INIT =====
+function init(){
+  try{
+    canvas = document.getElementById('arena-canvas');
+    ctx = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    buildMaterialButtons();
+    buildColorButtons();
+    requestAnimationFrame(gameLoop);
+  }catch(e){console.error('Init error:',e);}
+}
+
+function resizeCanvas(){
+  try{
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+  }catch(e){}
+}
+
+// ===== BUILD CONTROLS =====
+function buildMaterialButtons(){
+  const grid = document.getElementById('material-grid');
+  grid.innerHTML='';
+  MATERIALS.forEach((m,i)=>{
+    const btn = document.createElement('button');
+    btn.className='var-btn';
+    btn.id='mat-'+i;
+    btn.innerHTML=`<div style="font-size:22px">${m.emoji}</div><div>${m.name}</div>`;
+    btn.onclick=()=>selectMaterial(i);
+    grid.appendChild(btn);
+  });
+}
+
+function buildColorButtons(){
+  const grid = document.getElementById('color-grid');
+  grid.innerHTML='';
+  COLORS.forEach((c,i)=>{
+    const btn = document.createElement('button');
+    btn.className='var-btn';
+    btn.id='col-'+i;
+    btn.innerHTML=`<div class="color-swatch" style="background:${c.display}"></div><div>${c.name}</div>`;
+    btn.onclick=()=>selectColor(i);
+    grid.appendChild(btn);
+  });
+}
+
+// ===== SELECTION LOGIC WITH ONE-VARIABLE LOCK =====
+function selectMaterial(i){
+  if(state.running||state.recorded) return;
+  state.selectedMaterial = i;
+  // One-variable-per-round lock logic
+  if(state.round>1){
+    if(state.prevMaterial!==null && i!==state.prevMaterial){
+      // Student changed material — lock color to previous
+      state.changedVar='material';
+      if(state.prevColor!==null){
+        state.selectedColor = state.prevColor;
+      }
+    } else if(i===state.prevMaterial){
+      // Student returned to previous material — unlock everything
+      state.changedVar=null;
+    }
+    updateColorBtns(state.changedVar==='material');
+  }
+  updateMaterialBtns(state.changedVar==='color');
+  checkReady();
+}
+
+function selectColor(i){
+  if(state.running||state.recorded) return;
+  state.selectedColor = i;
+  if(state.round>1){
+    if(state.prevColor!==null && i!==state.prevColor){
+      state.changedVar='color';
+      if(state.prevMaterial!==null){
+        state.selectedMaterial = state.prevMaterial;
+      }
+    } else if(i===state.prevColor){
+      state.changedVar=null;
+    }
+    updateMaterialBtns(state.changedVar==='color');
+  }
+  updateColorBtns(state.changedVar==='material');
+  checkReady();
+}
+
+function updateMaterialBtns(lockOthers){
+  MATERIALS.forEach((_,i)=>{
+    const btn=document.getElementById('mat-'+i);
+    btn.classList.remove('selected','locked');
+    if(state.selectedMaterial===i) btn.classList.add('selected');
+    else if(lockOthers) btn.classList.add('locked');
+  });
+}
+
+function updateColorBtns(lockOthers){
+  COLORS.forEach((_,i)=>{
+    const btn=document.getElementById('col-'+i);
+    btn.classList.remove('selected','locked');
+    if(state.selectedColor===i) btn.classList.add('selected');
+    else if(lockOthers) btn.classList.add('locked');
+  });
+}
+
+function setPrediction(p){
+  state.prediction=p;
+  document.querySelectorAll('.predict-btn').forEach(b=>b.classList.remove('chosen'));
+  const map={Safe:'safe',Caution:'caution',Danger:'danger'};
+  document.querySelector('.predict-btn.'+map[p]).classList.add('chosen');
+  checkReady();
+}
+
+function checkReady(){
+  const btn=document.getElementById('start-btn');
+  const ready = state.selectedMaterial!==null && state.selectedColor!==null && state.prediction && !state.running && !state.recorded;
+  btn.disabled=!ready;
+}
+
+// ===== TEMPERATURE CALCULATION =====
+function calcTemp(matIdx, colIdx, cloudFactor){
+  const mat = MATERIALS[matIdx];
+  const col = COLORS[colIdx];
+  const base = 72;
+  const heatGain = (mat.conductivity * 0.55 + col.absorption * 0.45);
+  // Cloud only reduces radiation heat gain, not base ambient temp
+  const rand = (Math.random()*6 - 3);
+  let finalTemp = base + (heatGain * 100 + rand) * cloudFactor;
+  return Math.round(Math.max(80, Math.min(170, finalTemp)));
+}
+
+function getBurnRisk(temp){
+  if(temp < 110) return 'Safe';
+  if(temp < 135) return 'Caution';
+  return 'Danger';
+}
+
+// ===== START ROUND =====
+function startRound(){
+  if(state.running || state.recorded) return;
+  try{
+    state.running = true;
+    state.temperature = 72;
+    state.cloudActive = false;
+    const roundGen = state.gen; // capture generation for timeout guards
+    document.getElementById('start-btn').disabled = true;
+    lockControls(true);
+
+    // Random cloud event (20% chance)
+    let cloudFactor = 1.0;
+    const cloudChance = Math.random();
+    if(cloudChance < 0.2){
+      state.cloudActive = true;
+      cloudFactor = 0.75;
+      setTimeout(()=>{
+        if(state.gen!==roundGen) return;
+        showFeedback('☁️ Cloud Cover!', '#90CAF5');
+      }, 1500);
+    }
+
+    const targetTemp = calcTemp(state.selectedMaterial, state.selectedColor, cloudFactor);
+    const burnRisk = getBurnRisk(targetTemp);
+    state.burnRisk = burnRisk;
+
+    // Animate temperature climb
+    const duration = 4000; // 4 seconds
+    const startTime = performance.now();
+    const startTemp = 72;
+
+    heatParticles = [];
+
+    function animateTemp(now){
+      try{
+        if(state.gen!==roundGen) return; // stale animation after reset
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed/duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // ease out cubic
+        state.temperature = Math.round(startTemp + (targetTemp - startTemp) * eased);
+
+        updateThermometer();
+        updateBurnMeter();
+
+        // Spawn heat particles
+        if(Math.random() < 0.3 + progress * 0.5){
+          spawnHeatParticle();
+        }
+
+        if(progress < 1){
+          requestAnimationFrame(animateTemp);
+        } else {
+          state.temperature = targetTemp;
+          updateThermometer();
+          updateBurnMeter();
+          finishRound(targetTemp, burnRisk, roundGen);
+        }
+      }catch(e){
+        console.error('Temp animation error:', e);
+        if(state.gen===roundGen){
+          state.temperature = targetTemp;
+          finishRound(targetTemp, burnRisk, roundGen);
+        }
+      }
+    }
+
+    requestAnimationFrame(animateTemp);
+
+    // Safety timeout
+    setTimeout(()=>{
+      if(state.gen!==roundGen) return;
+      if(state.running){
+        state.temperature = targetTemp;
+        finishRound(targetTemp, burnRisk, roundGen);
+      }
+    }, 6000);
+
+  }catch(e){
+    console.error('Start round error:', e);
+    state.running = false;
+    lockControls(false);
+  }
+}
+
+function finishRound(temp, burnRisk, roundGen){
+  try{
+    // Guard against double-call or stale call after reset
+    if(state.recorded || state.gen!==roundGen) return;
+    state.running = false;
+    state.recorded = true;
+
+    // Flash feedback
+    const colors={Safe:'#4CAF50',Caution:'#FFC107',Danger:'#f44336'};
+    const icons={Safe:'✅ Safe',Caution:'⚠️ Caution',Danger:'🔥 Danger'};
+    showFeedback(icons[burnRisk], colors[burnRisk]);
+
+    // Score
+    state.predictions++;
+    let roundScore = 10;
+    if(state.prediction === burnRisk){
+      state.correctPredictions++;
+      state.streak++;
+      roundScore += 15 + (state.streak * 5);
+    } else {
+      state.streak = 0;
+    }
+    state.score += roundScore;
+
+    // Power-up after 4 rounds
+    if(state.data.length >= 3 && !state.powerupEarned){
+      state.powerupEarned = true;
+      state.powerupActive = true;
+      document.getElementById('powerup-badge').style.display='block';
+      setTimeout(()=>{
+        if(state.gen===roundGen) showBadge('🔬 Thermal Camera Unlocked!');
+      }, 800);
+    }
+
+    // Record data
+    const mat = MATERIALS[state.selectedMaterial].name;
+    const col = COLORS[state.selectedColor].name;
+    state.data.push({material:mat, color:col, temp:temp, risk:burnRisk});
+
+    // Update table
+    addTableRow(mat, col, temp, burnRisk);
+
+    // Update HUD
+    updateHUD();
+
+    // Store previous selections
+    state.prevMaterial = state.selectedMaterial;
+    state.prevColor = state.selectedColor;
+
+    // Check completion
+    if(state.data.length === 5){
+      updateStatus('Required done! Extra credit?', '#4CAF50');
+      showBadge('✅ 5 Rounds Complete!');
+    } else if(state.data.length === 8){
+      state.completed = true;
+      updateStatus('All 8 done! Inspector badge!', '#FFD700');
+      showCompletion();
+    }
+
+    // Auto-advance after delay
+    setTimeout(()=>{
+      if(state.gen!==roundGen) return; // stale timeout after reset
+      if(state.data.length < 8 && !state.completed){
+        advanceRound();
+      }
+    }, 2000);
+
+  }catch(e){
+    console.error('Finish round error:', e);
+  }
+}
+
+function advanceRound(){
+  state.round++;
+  state.recorded = false;
+  state.running = false;
+  state.prediction = null;
+  state.changedVar = null;
+  state.selectedMaterial = null;
+  state.selectedColor = null;
+
+  document.querySelectorAll('.predict-btn').forEach(b=>b.classList.remove('chosen'));
+  document.getElementById('round-counter').textContent = `Round ${state.round} / 8`;
+
+  // Unlock all buttons
+  MATERIALS.forEach((_,i)=>{
+    const btn=document.getElementById('mat-'+i);
+    btn.classList.remove('selected','locked');
+  });
+  COLORS.forEach((_,i)=>{
+    const btn=document.getElementById('col-'+i);
+    btn.classList.remove('selected','locked');
+  });
+
+  lockControls(false);
+  checkReady();
+  updateStatus('Pick material & color', '#ffb74d');
+}
+
+function lockControls(locked){
+  if(locked){
+    document.querySelectorAll('.var-btn').forEach(b=>b.style.pointerEvents='none');
+    document.querySelectorAll('.predict-btn').forEach(b=>b.style.pointerEvents='none');
+  } else {
+    document.querySelectorAll('.var-btn').forEach(b=>b.style.pointerEvents='');
+    document.querySelectorAll('.predict-btn').forEach(b=>b.style.pointerEvents='');
+  }
+}
+
+// ===== HUD UPDATES =====
+function updateHUD(){
+  document.getElementById('hud-score').textContent = state.score;
+  document.getElementById('hud-streak').textContent = state.streak;
+  document.getElementById('hud-completed').textContent = `${state.data.length}/8`;
+  const acc = state.predictions>0 ? Math.round(state.correctPredictions/state.predictions*100) : 0;
+  document.getElementById('hud-accuracy').textContent = acc+'%';
+
+  const pct = Math.min(state.data.length/5*100, 100);
+  document.getElementById('progress-fill').style.width = pct+'%';
+  if(state.data.length < 5){
+    document.getElementById('progress-text').textContent = `Complete ${5-state.data.length} more rounds`;
+  } else if(state.data.length < 8){
+    document.getElementById('progress-text').innerHTML = `<span class="ec-text">Extra Credit: ${state.data.length}/8</span>`;
+  } else {
+    document.getElementById('progress-text').innerHTML = `<span class="ec-text">🏆 All Complete!</span>`;
+  }
+}
+
+function updateThermometer(){
+  const pct = Math.max(0, Math.min((state.temperature - 72) / 100 * 100, 100));
+  const fill = document.getElementById('thermo-fill');
+  const r = Math.max(0, Math.min(255, Math.round((state.temperature-72)/100*255)));
+  const b = Math.max(0, Math.min(255, Math.round(255 - (state.temperature-72)/100*255)));
+  const g = Math.max(0, Math.round(b*0.3));
+  const color = `rgb(${r},${g},${b})`;
+  fill.style.height = pct+'%';
+  fill.style.background = `linear-gradient(to top, ${color}, ${color})`;
+  document.getElementById('thermo-temp').textContent = state.temperature+'°F';
+  document.getElementById('thermo-temp').style.color = color;
+  document.getElementById('thermo-bulb').style.background = `radial-gradient(circle,${color},${color}88)`;
+}
+
+function updateBurnMeter(){
+  const safe=110, caution=135, max=170;
+  let pct=0, color='#4CAF50', icon='✅';
+  if(state.temperature < safe){
+    pct = (state.temperature-72)/(safe-72)*33;
+    color='#4CAF50'; icon='✅';
+  } else if(state.temperature < caution){
+    pct = 33 + (state.temperature-safe)/(caution-safe)*33;
+    color='#FFC107'; icon='⚠️';
+  } else {
+    pct = 66 + (state.temperature-caution)/(max-caution)*34;
+    color='#f44336'; icon='🔥';
+  }
+  pct = Math.max(0, Math.min(pct, 100));
+  document.getElementById('burn-meter-fill').style.height = pct+'%';
+  document.getElementById('burn-meter-fill').style.background = `linear-gradient(to top, ${color}88, ${color})`;
+  document.getElementById('burn-meter-icon').textContent = icon;
+}
+
+function updateStatus(msg, color){
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.style.color = color;
+  el.style.background = color+'18';
+}
+
+// ===== TABLE =====
+function addTableRow(mat, col, temp, risk){
+  const tbody = document.getElementById('data-body');
+  const tr = document.createElement('tr');
+  tr.className='new-row';
+  const riskClass = risk==='Safe'?'burn-safe':risk==='Caution'?'burn-caution':'burn-danger';
+  tr.innerHTML=`<td>${mat}</td><td>${col}</td><td>${temp}</td><td class="${riskClass}">${risk}</td>`;
+  tbody.appendChild(tr);
+  tr.scrollIntoView({behavior:'smooth'});
+}
+
+function copyTable(){
+  try{
+    let text = 'Material\tColor\tSurface Temp (°F)\tBurn Risk\n';
+    state.data.forEach(d=>{
+      text += `${d.material}\t${d.color}\t${d.temp}\t${d.risk}\n`;
+    });
+    navigator.clipboard.writeText(text).then(()=>{
+      const btn = document.getElementById('copy-btn');
+      btn.textContent='✅ Copied!';
+      setTimeout(()=>btn.textContent='📋 Copy Table',2000);
+    }).catch(()=>{
+      // Fallback
+      const ta=document.createElement('textarea');
+      ta.value=text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      const btn = document.getElementById('copy-btn');
+      btn.textContent='✅ Copied!';
+      setTimeout(()=>btn.textContent='📋 Copy Table',2000);
+    });
+  }catch(e){console.error('Copy error:',e);}
+}
+
+// ===== FEEDBACK =====
+function showFeedback(text, color){
+  try{
+    const el = document.getElementById('feedback-overlay');
+    el.textContent = text;
+    el.style.color = color;
+    el.style.opacity = '1';
+    setTimeout(()=>el.style.opacity='0', 1500);
+  }catch(e){}
+}
+
+function showBadge(text){
+  try{
+    const badge = document.createElement('div');
+    badge.className='badge-popup';
+    badge.textContent=text;
+    document.getElementById('arena').appendChild(badge);
+    requestAnimationFrame(()=>{
+      badge.style.opacity='1';
+      badge.style.transition='opacity .5s, transform .5s';
+      badge.style.transform='translate(-50%,-50%) scale(1.1)';
+    });
+    setTimeout(()=>{
+      badge.style.opacity='0';
+      setTimeout(()=>badge.remove(), 500);
+    }, 2500);
+  }catch(e){}
+}
+
+function showCompletion(){
+  try{
+    const overlay = document.getElementById('completion-overlay');
+    document.getElementById('comp-badge').textContent='🏆';
+    document.getElementById('comp-text').textContent='Safety Inspector Badge Earned!';
+    document.getElementById('comp-sub').textContent=`Score: ${state.score} | Accuracy: ${Math.round(state.correctPredictions/state.predictions*100)}%`;
+    overlay.style.display='flex';
+    setTimeout(()=>overlay.style.display='none', 4000);
+  }catch(e){}
+}
+
+// ===== RESET / NEW RUN =====
+function resetSim(){
+  state = {round:1,selectedMaterial:null,selectedColor:null,prediction:null,running:false,recorded:false,temperature:72,burnRisk:'',data:[],score:0,streak:0,predictions:0,correctPredictions:0,powerupActive:false,powerupEarned:false,changedVar:null,prevMaterial:null,prevColor:null,cloudActive:false,completed:false,gen:(state.gen||0)+1};
+  document.getElementById('data-body').innerHTML='';
+  document.getElementById('round-counter').textContent='Round 1 / 8';
+  document.getElementById('powerup-badge').style.display='none';
+  document.getElementById('completion-overlay').style.display='none';
+  document.querySelectorAll('.var-btn').forEach(b=>{b.classList.remove('selected','locked');b.style.pointerEvents='';});
+  document.querySelectorAll('.predict-btn').forEach(b=>{b.classList.remove('chosen');b.style.pointerEvents='';});
+  updateHUD();
+  updateThermometer();
+  updateBurnMeter();
+  updateStatus('Pick material & color','#ffb74d');
+  document.getElementById('start-btn').disabled=true;
+  heatParticles=[];
+  sunParticles=[];
+}
+
+function newRun(){
+  resetSim();
+}
+
+// ===== PARTICLE SYSTEM =====
+function spawnHeatParticle(){
+  if(!canvas) return;
+  const cx = canvas.width/2;
+  const surfaceY = canvas.height * 0.7 - 155 - 5;
+  const spread = 100;
+  heatParticles.push({
+    x: cx + (Math.random()-0.5)*spread*2,
+    y: surfaceY,
+    vx: (Math.random()-0.5)*1.5,
+    vy: -(1 + Math.random()*3),
+    life: 1,
+    decay: 0.008 + Math.random()*0.015,
+    size: 2 + Math.random()*4,
+    type: 'heat'
+  });
+}
+
+function spawnSunParticle(){
+  if(!canvas) return;
+  const cx = canvas.width/2;
+  const startY = 30;
+  const targetY = canvas.height * 0.48;
+  sunParticles.push({
+    x: cx + (Math.random()-0.5)*200,
+    y: startY + Math.random()*30,
+    targetY: targetY + Math.random()*40,
+    vy: 2 + Math.random()*2,
+    life: 1,
+    size: 1.5 + Math.random()*2
+  });
+}
+
+// ===== MAIN DRAW LOOP =====
+function gameLoop(timestamp){
+  try{
+    if(!ctx || !canvas) { requestAnimationFrame(gameLoop); return; }
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ambientTimer = timestamp || 0;
+
+    drawSky();
+    drawSun();
+    drawSunRays();
+    drawPlatform();
+    drawSurfaceBlock();
+    drawHandAnimation();
+    updateAndDrawParticles();
+
+    if(state.powerupActive && (state.running || state.recorded)){
+      drawThermalOverlay();
+    }
+
+    if(state.cloudActive && state.running){
+      drawCloud();
+    }
+
+  }catch(e){console.error('Game loop error:',e);}
+  requestAnimationFrame(gameLoop);
+}
+
+function drawSky(){
+  // Sky gradient with warm horizon
+  const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,'#0a1628');
+  grad.addColorStop(0.3,'#1a3a6a');
+  grad.addColorStop(0.65,'#3a5a8a');
+  grad.addColorStop(0.78,'#8a6a4a');
+  grad.addColorStop(0.82,'#a07850');
+  grad.addColorStop(1,'#6a5040');
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Ground plane
+  const groundY = canvas.height * 0.78;
+  const gGrad = ctx.createLinearGradient(0,groundY,0,canvas.height);
+  gGrad.addColorStop(0,'#8a7a60');
+  gGrad.addColorStop(0.3,'#6a5a48');
+  gGrad.addColorStop(1,'#4a3a30');
+  ctx.fillStyle=gGrad;
+  ctx.fillRect(0,groundY,canvas.width,canvas.height-groundY);
+
+  // Ground texture lines
+  ctx.save();
+  ctx.globalAlpha=0.08;
+  ctx.strokeStyle='#000';
+  for(let i=0;i<canvas.width;i+=40){
+    const jitter = Math.sin(i*0.7)*4;
+    ctx.beginPath();
+    ctx.moveTo(i+jitter,groundY);
+    ctx.lineTo(i+jitter*0.5,canvas.height);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Horizon glow from sun
+  ctx.save();
+  ctx.globalAlpha=0.15;
+  const hGlow = ctx.createRadialGradient(canvas.width/2, groundY-30, 20, canvas.width/2, groundY-30, 300);
+  hGlow.addColorStop(0,'rgba(255,200,100,0.5)');
+  hGlow.addColorStop(1,'rgba(255,150,50,0)');
+  ctx.fillStyle=hGlow;
+  ctx.fillRect(0,groundY-200,canvas.width,250);
+  ctx.restore();
+}
+
+function drawSun(){
+  const cx = canvas.width/2;
+  const cy = 70;
+  const pulse = Math.sin(ambientTimer/500)*5;
+  const time = ambientTimer/1000;
+
+  // Huge atmospheric glow
+  ctx.save();
+  ctx.globalAlpha=0.12;
+  const atmo = ctx.createRadialGradient(cx,cy,30,cx,cy,250);
+  atmo.addColorStop(0,'rgba(255,235,59,0.5)');
+  atmo.addColorStop(0.4,'rgba(255,183,77,0.2)');
+  atmo.addColorStop(1,'rgba(255,100,0,0)');
+  ctx.fillStyle=atmo;
+  ctx.fillRect(cx-260,cy-260,520,520);
+  ctx.restore();
+
+  // Corona rays (rotating)
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.rotate(time*0.1);
+  const numRays=16;
+  for(let i=0;i<numRays;i++){
+    const angle = (i/numRays)*Math.PI*2;
+    const rayLen = 90 + pulse + Math.sin(time*2+i)*15;
+    const rayW = 8 + Math.sin(time*3+i*2)*3;
+    ctx.save();
+    ctx.rotate(angle);
+    ctx.globalAlpha=0.12 + Math.sin(time+i)*0.04;
+    const rGrad = ctx.createLinearGradient(0,0,rayLen,0);
+    rGrad.addColorStop(0,'rgba(255,235,100,0.8)');
+    rGrad.addColorStop(0.5,'rgba(255,180,50,0.3)');
+    rGrad.addColorStop(1,'rgba(255,120,0,0)');
+    ctx.fillStyle=rGrad;
+    ctx.beginPath();
+    ctx.moveTo(25,0);
+    ctx.lineTo(rayLen,-rayW);
+    ctx.lineTo(rayLen,rayW);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Mid glow ring
+  const midGlow = ctx.createRadialGradient(cx,cy,25,cx,cy,60+pulse);
+  midGlow.addColorStop(0,'rgba(255,245,200,0.7)');
+  midGlow.addColorStop(0.5,'rgba(255,200,80,0.3)');
+  midGlow.addColorStop(1,'rgba(255,150,0,0)');
+  ctx.fillStyle=midGlow;
+  ctx.beginPath();
+  ctx.arc(cx,cy,60+pulse,0,Math.PI*2);
+  ctx.fill();
+
+  // Inner sun body
+  const inner = ctx.createRadialGradient(cx,cy,3,cx,cy,32);
+  inner.addColorStop(0,'#FFFDE7');
+  inner.addColorStop(0.3,'#FFEB3B');
+  inner.addColorStop(0.7,'#FFA726');
+  inner.addColorStop(1,'#FF7043');
+  ctx.fillStyle=inner;
+  ctx.beginPath();
+  ctx.arc(cx,cy,32,0,Math.PI*2);
+  ctx.fill();
+
+  // Sun surface detail
+  ctx.save();
+  ctx.globalAlpha=0.2;
+  for(let s=0;s<4;s++){
+    const sx = cx - 15 + Math.sin(time*1.5+s*2)*12;
+    const sy = cy - 10 + Math.cos(time*1.2+s*3)*10;
+    const spot = ctx.createRadialGradient(sx,sy,0,sx,sy,10);
+    spot.addColorStop(0,'rgba(255,100,0,0.4)');
+    spot.addColorStop(1,'rgba(255,100,0,0)');
+    ctx.fillStyle=spot;
+    ctx.beginPath();
+    ctx.arc(sx,sy,10,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Lens flare
+  ctx.save();
+  ctx.globalAlpha=0.08 + Math.sin(time*0.7)*0.03;
+  const flareX = cx + 40;
+  const flareY = cy + 50;
+  const flare = ctx.createRadialGradient(flareX,flareY,0,flareX,flareY,25);
+  flare.addColorStop(0,'rgba(200,220,255,0.6)');
+  flare.addColorStop(1,'rgba(200,220,255,0)');
+  ctx.fillStyle=flare;
+  ctx.beginPath();
+  ctx.arc(flareX,flareY,25,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Spawn sun particles when running
+  if(state.running && Math.random()<0.5){
+    spawnSunParticle();
+  }
+}
+
+function drawSunRays(){
+  if(!state.running && !state.recorded) return;
+  const cx = canvas.width/2;
+  const sunY = 70;
+  const surfaceY = canvas.height * 0.48;
+  const time = ambientTimer/300;
+
+  ctx.save();
+
+  // Wide volumetric light beams
+  const numBeams = 5;
+  for(let i=0;i<numBeams;i++){
+    const spread = (i - (numBeams-1)/2) * 50;
+    const topX = cx + spread * 0.3;
+    const botX = cx + spread;
+    const beamW = 18 + Math.sin(time+i)*4;
+    const alpha = state.running ? 0.06 + Math.sin(time+i*0.7)*0.02 : 0.03;
+
+    ctx.globalAlpha=alpha;
+    const bGrad = ctx.createLinearGradient(topX, sunY+40, botX, surfaceY);
+    bGrad.addColorStop(0,'rgba(255,245,180,0.9)');
+    bGrad.addColorStop(0.5,'rgba(255,220,100,0.4)');
+    bGrad.addColorStop(1,'rgba(255,180,50,0)');
+    ctx.fillStyle=bGrad;
+    ctx.beginPath();
+    ctx.moveTo(topX-beamW/2, sunY+40);
+    ctx.lineTo(botX-beamW*1.5, surfaceY);
+    ctx.lineTo(botX+beamW*1.5, surfaceY);
+    ctx.lineTo(topX+beamW/2, sunY+40);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Floating dust particles in beams
+  ctx.globalAlpha=0.4;
+  for(let d=0;d<8;d++){
+    const dSeed = d*137.5 + ambientTimer*0.01;
+    const dx = cx + Math.sin(dSeed)*100;
+    const dy = sunY + 60 + ((dSeed*7)%(surfaceY-sunY-60));
+    const dSize = 1 + Math.sin(dSeed*3)*0.5;
+    ctx.fillStyle='rgba(255,240,180,0.7)';
+    ctx.beginPath();
+    ctx.arc(dx,dy,dSize,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function drawPlatform(){
+  const cx = canvas.width/2;
+  const py = canvas.height * 0.7;
+  const pw = 300;
+  const ph = 35;
+
+  // Platform shadow on ground
+  ctx.save();
+  ctx.globalAlpha=0.25;
+  ctx.fillStyle='rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.ellipse(cx, py+ph+15, pw/2+30, 15, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Platform 3D side
+  const sideGrad = ctx.createLinearGradient(cx-pw/2, py+ph, cx-pw/2, py+ph+10);
+  sideGrad.addColorStop(0,'#37474F');
+  sideGrad.addColorStop(1,'#263238');
+  ctx.fillStyle=sideGrad;
+  roundRect(ctx, cx-pw/2, py+ph-3, pw, 13, 4);
+  ctx.fill();
+
+  // Platform top surface
+  const pGrad = ctx.createLinearGradient(cx-pw/2, py, cx-pw/2, py+ph);
+  pGrad.addColorStop(0,'#78909C');
+  pGrad.addColorStop(0.3,'#607D8B');
+  pGrad.addColorStop(1,'#455A64');
+  ctx.fillStyle=pGrad;
+  roundRect(ctx, cx-pw/2, py, pw, ph, 8);
+  ctx.fill();
+
+  // Metallic edge highlight
+  ctx.save();
+  ctx.globalAlpha=0.3;
+  ctx.strokeStyle='rgba(255,255,255,0.4)';
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(cx-pw/2+8, py+2);
+  ctx.lineTo(cx+pw/2-8, py+2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Platform bolts
+  ctx.fillStyle='#455A64';
+  const boltPositions = [cx-pw/2+20, cx+pw/2-20, cx-pw/2+60, cx+pw/2-60];
+  boltPositions.forEach(bx=>{
+    ctx.beginPath();
+    ctx.arc(bx, py+ph/2, 4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.15)';
+    ctx.lineWidth=1;
+    ctx.stroke();
+  });
+
+  // Label
+  ctx.fillStyle='rgba(255,255,255,0.4)';
+  ctx.font='bold 11px Segoe UI, Arial';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText('TEST PLATFORM', cx, py+ph/2+1);
+}
+
+function drawSurfaceBlock(){
+  const cx = canvas.width/2;
+  const blockW = 220;
+  const blockH = 155;
+  const blockX = cx - blockW/2;
+  const blockY = canvas.height*0.7 - blockH - 5;
+
+  if(state.selectedMaterial===null || state.selectedColor===null){
+    ctx.strokeStyle='rgba(255,255,255,0.15)';
+    ctx.lineWidth=2;
+    ctx.setLineDash([8,4]);
+    roundRect(ctx, blockX, blockY, blockW, blockH, 12);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.font='14px Segoe UI, Arial';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    const hint = state.selectedMaterial===null && state.selectedColor===null
+      ? 'Select Material & Color'
+      : state.selectedMaterial===null ? 'Now pick a Material' : 'Now pick a Color';
+    ctx.fillText(hint, cx, blockY+blockH/2);
+    return;
+  }
+
+  const matData = MATERIALS[state.selectedMaterial];
+  const colData = COLORS[state.selectedColor];
+  const baseColor = colData.hex;
+  const heatPct = Math.max(0, Math.min(1, (state.temperature - 72) / 100));
+
+  // 3D shadow behind block
+  ctx.save();
+  ctx.globalAlpha=0.5;
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  roundRect(ctx, blockX+8, blockY+10, blockW, blockH, 12);
+  ctx.fill();
+  ctx.restore();
+
+  // 3D side edge (right)
+  ctx.fillStyle=blendColors(baseColor, '#000000', 0.4);
+  ctx.beginPath();
+  ctx.moveTo(blockX+blockW, blockY+12);
+  ctx.lineTo(blockX+blockW+8, blockY+18);
+  ctx.lineTo(blockX+blockW+8, blockY+blockH+8);
+  ctx.lineTo(blockX+blockW, blockY+blockH);
+  ctx.closePath();
+  ctx.fill();
+
+  // 3D side edge (bottom)
+  ctx.fillStyle=blendColors(baseColor, '#000000', 0.5);
+  ctx.beginPath();
+  ctx.moveTo(blockX+12, blockY+blockH);
+  ctx.lineTo(blockX+blockW, blockY+blockH);
+  ctx.lineTo(blockX+blockW+8, blockY+blockH+8);
+  ctx.lineTo(blockX+18, blockY+blockH+8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Main block face
+  const faceGrad = ctx.createLinearGradient(blockX, blockY, blockX, blockY+blockH);
+  faceGrad.addColorStop(0, blendColors(baseColor, '#FFFFFF', 0.08));
+  faceGrad.addColorStop(0.5, baseColor);
+  faceGrad.addColorStop(1, blendColors(baseColor, '#000000', 0.15));
+  ctx.fillStyle=faceGrad;
+  roundRect(ctx, blockX, blockY, blockW, blockH, 12);
+  ctx.fill();
+
+  // Heat color overlay
+  if(heatPct > 0.05){
+    ctx.save();
+    ctx.globalAlpha = heatPct * 0.55;
+    const hGrad = ctx.createRadialGradient(cx, blockY+blockH*0.4, 10, cx, blockY+blockH/2, blockW/2);
+    hGrad.addColorStop(0,'rgba(255,60,0,0.7)');
+    hGrad.addColorStop(0.5,'rgba(255,120,0,0.4)');
+    hGrad.addColorStop(1,'rgba(255,80,0,0.1)');
+    ctx.fillStyle=hGrad;
+    roundRect(ctx, blockX, blockY, blockW, blockH, 12);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Material texture
+  drawTexture(ctx, matData.texture, blockX, blockY, blockW, blockH, heatPct);
+
+  // Top edge highlight (catches sunlight)
+  ctx.save();
+  ctx.globalAlpha= 0.15 + heatPct*0.2;
+  const topHL = ctx.createLinearGradient(blockX, blockY, blockX, blockY+20);
+  topHL.addColorStop(0,'rgba(255,255,200,0.6)');
+  topHL.addColorStop(1,'rgba(255,255,200,0)');
+  ctx.fillStyle=topHL;
+  roundRect(ctx, blockX, blockY, blockW, 20, 12);
+  ctx.fill();
+  ctx.restore();
+
+  // Radiant heat glow
+  if(heatPct > 0.15){
+    ctx.save();
+    ctx.globalAlpha = heatPct * 0.35;
+    const glowGrad = ctx.createRadialGradient(cx, blockY+blockH*0.3, 5, cx, blockY+blockH/2, blockW/2+50);
+    glowGrad.addColorStop(0,'rgba(255,100,0,0.6)');
+    glowGrad.addColorStop(0.4,'rgba(255,60,0,0.25)');
+    glowGrad.addColorStop(1,'rgba(255,0,0,0)');
+    ctx.fillStyle=glowGrad;
+    ctx.fillRect(blockX-50, blockY-40, blockW+100, blockH+80);
+    ctx.restore();
+  }
+
+  // Rising heat shimmer waves
+  if(heatPct > 0.15 && (state.running || state.recorded)){
+    ctx.save();
+    const waveCount = Math.floor(3 + heatPct*6);
+    for(let w=0;w<waveCount;w++){
+      const seed = w*47 + ambientTimer*0.003;
+      const wx = blockX + 15 + (w/(waveCount-1))*(blockW-30);
+      const wy = blockY - 8 - ((seed*13)%40);
+      const wAlpha = (0.15 + heatPct*0.25) * (1 - ((seed*13)%40)/40);
+      ctx.globalAlpha=wAlpha;
+      const wGrad = ctx.createRadialGradient(wx,wy,0,wx,wy,8+heatPct*6);
+      wGrad.addColorStop(0,`rgba(255,${Math.round(200-heatPct*120)},${Math.round(80*(1-heatPct))},0.6)`);
+      wGrad.addColorStop(1,`rgba(255,${Math.round(200-heatPct*120)},${Math.round(80*(1-heatPct))},0)`);
+      ctx.fillStyle=wGrad;
+      ctx.fillRect(wx-12,wy-12,24,24);
+    }
+    ctx.restore();
+  }
+
+  // Material label badge
+  ctx.font='bold 15px Segoe UI, Arial';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  const labelText = matData.name;
+  const labelW = ctx.measureText(labelText).width+20;
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  roundRect(ctx, cx-labelW/2, blockY+blockH-30, labelW, 24, 8);
+  ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.fillText(labelText, cx, blockY+blockH-18);
+
+  // Color label badge
+  ctx.font='bold 13px Segoe UI, Arial';
+  const colLabel = colData.name;
+  const colW = ctx.measureText(colLabel).width+18;
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  roundRect(ctx, cx-colW/2, blockY+6, colW, 22, 8);
+  ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.fillText(colLabel, cx, blockY+17);
+
+  // End-of-round risk pulse border
+  if(state.recorded && !state.running){
+    const pulseTime = (ambientTimer/200) % (Math.PI*2);
+    const pulseAlpha = 0.15 + Math.sin(pulseTime)*0.12;
+    const riskColor = state.burnRisk==='Safe'?'0,200,0':state.burnRisk==='Caution'?'255,200,0':'255,50,0';
+    ctx.save();
+    ctx.globalAlpha = pulseAlpha;
+    ctx.strokeStyle=`rgba(${riskColor},0.9)`;
+    ctx.lineWidth=5;
+    ctx.shadowColor=`rgba(${riskColor},0.5)`;
+    ctx.shadowBlur=15;
+    roundRect(ctx, blockX-3, blockY-3, blockW+6, blockH+6, 14);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawTexture(ctx, type, x, y, w, h, heatPct){
+  ctx.save();
+
+  if(type==='metal'){
+    // Brushed metal horizontal lines
+    ctx.globalAlpha=0.2;
+    ctx.strokeStyle='rgba(255,255,255,0.3)';
+    ctx.lineWidth=0.5;
+    for(let i=3;i<h-3;i+=3){
+      const wobble = Math.sin(i*0.3)*0.5;
+      ctx.beginPath();
+      ctx.moveTo(x+10, y+i+wobble);
+      ctx.lineTo(x+w-10, y+i+wobble);
+      ctx.stroke();
+    }
+    // Bright metallic sheen band
+    ctx.globalAlpha=0.18;
+    const sheenX = x + w*0.25 + Math.sin(ambientTimer/2000)*w*0.15;
+    const sheen = ctx.createLinearGradient(sheenX-20,y,sheenX+20,y);
+    sheen.addColorStop(0,'transparent');
+    sheen.addColorStop(0.5,'rgba(255,255,255,0.5)');
+    sheen.addColorStop(1,'transparent');
+    ctx.fillStyle=sheen;
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.fill();
+    // Rivets along edges
+    ctx.globalAlpha=0.3;
+    ctx.fillStyle='rgba(180,180,180,0.5)';
+    const rivetSpacing=35;
+    for(let rx=x+20;rx<x+w-10;rx+=rivetSpacing){
+      // Top row
+      ctx.beginPath();ctx.arc(rx,y+14,3,0,Math.PI*2);ctx.fill();
+      // Bottom row
+      ctx.beginPath();ctx.arc(rx,y+h-14,3,0,Math.PI*2);ctx.fill();
+    }
+    // Rivet highlights
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    for(let rx=x+20;rx<x+w-10;rx+=rivetSpacing){
+      ctx.beginPath();ctx.arc(rx-1,y+13,1.5,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(rx-1,y+h-15,1.5,0,Math.PI*2);ctx.fill();
+    }
+
+  } else if(type==='plastic'){
+    // Smooth glossy highlight
+    ctx.globalAlpha=0.2;
+    const glossGrad = ctx.createRadialGradient(x+w*0.35,y+h*0.25,5,x+w*0.5,y+h*0.5,w*0.7);
+    glossGrad.addColorStop(0,'rgba(255,255,255,0.5)');
+    glossGrad.addColorStop(0.3,'rgba(255,255,255,0.15)');
+    glossGrad.addColorStop(1,'transparent');
+    ctx.fillStyle=glossGrad;
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.fill();
+    // Subtle mold line
+    ctx.globalAlpha=0.06;
+    ctx.strokeStyle='rgba(255,255,255,0.3)';
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(x+15,y+h/2);
+    ctx.lineTo(x+w-15,y+h/2);
+    ctx.stroke();
+    // Surface grain (very fine)
+    ctx.globalAlpha=0.04;
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    for(let row=5;row<h-5;row+=8){
+      for(let col=5;col<w-5;col+=8){
+        if(Math.sin(row*col*0.1)>0.3){
+          ctx.fillRect(x+col,y+row,1,1);
+        }
+      }
+    }
+
+  } else if(type==='rubber'){
+    // Bump shadows (drawn first, behind highlights)
+    ctx.globalAlpha=0.06;
+    ctx.fillStyle='rgba(0,0,0,0.5)';
+    for(let row=6;row<h-6;row+=10){
+      for(let col=6;col<w-6;col+=10){
+        const offset = (row%20===0)?5:0;
+        ctx.beginPath();ctx.arc(x+col+offset+1,y+row+1,3,0,Math.PI*2);ctx.fill();
+      }
+    }
+    // Pebbled rubber texture highlights (on top)
+    ctx.globalAlpha=0.12;
+    ctx.fillStyle='rgba(255,255,255,0.3)';
+    for(let row=6;row<h-6;row+=10){
+      for(let col=6;col<w-6;col+=10){
+        const offset = (row%20===0)?5:0;
+        const bx=x+col+offset;
+        const by=y+row;
+        ctx.beginPath();ctx.arc(bx,by,3,0,Math.PI*2);ctx.fill();
+      }
+    }
+    // Matte finish (anti-gloss)
+    ctx.globalAlpha=0.05;
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.fill();
+
+  } else if(type==='wood'){
+    // Rich wood grain lines
+    ctx.globalAlpha=0.15;
+    ctx.strokeStyle='rgba(80,40,0,0.4)';
+    ctx.lineWidth=1.5;
+    for(let i=8;i<w-8;i+=8){
+      const waveAmp = 3 + Math.sin(i*0.15)*4;
+      ctx.beginPath();
+      ctx.moveTo(x+i, y+5);
+      for(let j=5;j<h-5;j+=10){
+        ctx.lineTo(x+i+Math.sin(j*0.08+i*0.05)*waveAmp, y+j);
+      }
+      ctx.stroke();
+    }
+    // Wood knot
+    ctx.globalAlpha=0.1;
+    const knotX=x+w*0.65, knotY=y+h*0.4;
+    for(let ring=0;ring<4;ring++){
+      ctx.strokeStyle=`rgba(80,40,0,${0.15-ring*0.03})`;
+      ctx.beginPath();
+      ctx.ellipse(knotX,knotY,8+ring*6,5+ring*4,0.2,0,Math.PI*2);
+      ctx.stroke();
+    }
+    // Second smaller knot
+    ctx.globalAlpha=0.07;
+    const k2x=x+w*0.25, k2y=y+h*0.7;
+    for(let ring=0;ring<3;ring++){
+      ctx.strokeStyle='rgba(80,40,0,0.12)';
+      ctx.beginPath();
+      ctx.ellipse(k2x,k2y,5+ring*4,3+ring*3,-0.3,0,Math.PI*2);
+      ctx.stroke();
+    }
+    // Warm wood sheen
+    ctx.globalAlpha=0.08;
+    const woodSheen = ctx.createLinearGradient(x,y,x,y+h);
+    woodSheen.addColorStop(0,'rgba(255,220,150,0.3)');
+    woodSheen.addColorStop(0.5,'transparent');
+    woodSheen.addColorStop(1,'rgba(100,60,20,0.2)');
+    ctx.fillStyle=woodSheen;
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function drawHandAnimation(){
+  if(!state.recorded || state.running) return;
+  const cx = canvas.width/2;
+  const blockY = canvas.height*0.7 - 155 - 5;
+  const handX = cx + 155;
+  const handY = blockY + 80;
+  const blockEdge = cx + 110;
+  const bob = Math.sin(ambientTimer/400)*5;
+
+  // Hand emoji
+  ctx.font='40px Arial';
+  ctx.textAlign='center';
+  ctx.fillText('✋', handX, handY+bob);
+
+  // Heat transfer arrow
+  const arrowSpeed = state.selectedMaterial!==null ? MATERIALS[state.selectedMaterial].conductivity : 0.5;
+  const progress = ((ambientTimer/200) * arrowSpeed) % 1;
+
+  ctx.save();
+  const arrowAlpha = 0.4 + arrowSpeed * 0.4;
+  ctx.globalAlpha=arrowAlpha;
+
+  // Arrow body
+  const riskColors = {Safe:'#4CAF50',Caution:'#FFC107',Danger:'#f44336'};
+  const arrowColor = riskColors[state.burnRisk] || '#FFC107';
+  ctx.strokeStyle=arrowColor;
+  ctx.lineWidth=3;
+  ctx.beginPath();
+  ctx.moveTo(blockEdge, handY+bob-10);
+  ctx.lineTo(handX-25, handY+bob-10);
+  ctx.stroke();
+
+  // Animated dots along arrow
+  for(let d=0;d<3;d++){
+    const dotPos = ((progress + d*0.33) % 1);
+    const dx = blockEdge + (handX-25-blockEdge)*dotPos;
+    ctx.fillStyle=arrowColor;
+    ctx.beginPath();
+    ctx.arc(dx, handY+bob-10, 4, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Speed label
+  ctx.font='bold 11px Segoe UI, Arial';
+  ctx.fillStyle='rgba(255,255,255,0.8)';
+  ctx.textAlign='center';
+  const speedLabel = arrowSpeed >= 0.8 ? 'FAST' : arrowSpeed >= 0.5 ? 'MEDIUM' : 'SLOW';
+  ctx.fillText(speedLabel, (blockEdge+handX-25)/2, handY+bob-22);
+
+  ctx.restore();
+}
+
+function drawThermalOverlay(){
+  if(!state.powerupActive) return;
+  const cx = canvas.width/2;
+  const blockW = 220;
+  const blockH = 155;
+  const blockX = cx - blockW/2;
+  const blockY = canvas.height*0.7 - blockH - 5;
+
+  ctx.save();
+  ctx.globalAlpha=0.25;
+
+  // Thermal gradient overlay
+  const heatPct = Math.max(0, (state.temperature - 72) / 100);
+  const thermalGrad = ctx.createRadialGradient(cx, blockY+blockH/2, 10, cx, blockY+blockH/2, blockW/2);
+  thermalGrad.addColorStop(0, `rgba(255,${Math.round(255*(1-heatPct))},0,0.7)`);
+  thermalGrad.addColorStop(0.5, `rgba(255,${Math.round(180*(1-heatPct))},0,0.4)`);
+  thermalGrad.addColorStop(1, `rgba(100,100,255,0.1)`);
+  ctx.fillStyle=thermalGrad;
+  roundRect(ctx, blockX, blockY, blockW, blockH, 12);
+  ctx.fill();
+
+  // Hot spot indicator
+  ctx.globalAlpha = 0.4 + Math.sin(ambientTimer/300)*0.1;
+  ctx.fillStyle='rgba(255,0,0,0.3)';
+  ctx.beginPath();
+  ctx.arc(cx, blockY+blockH*0.4, 20+heatPct*15, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawCloud(){
+  const cx = canvas.width/2;
+  const time = ambientTimer/1000;
+  const cloudX = cx - 60 + Math.sin(time*0.5)*80;
+  const cloudY = 40;
+
+  ctx.save();
+  ctx.globalAlpha=0.7;
+  ctx.fillStyle='rgba(200,220,240,0.8)';
+
+  // Cloud shape
+  ctx.beginPath();
+  ctx.arc(cloudX, cloudY, 25, 0, Math.PI*2);
+  ctx.arc(cloudX+25, cloudY-8, 20, 0, Math.PI*2);
+  ctx.arc(cloudX+50, cloudY, 22, 0, Math.PI*2);
+  ctx.arc(cloudX+20, cloudY+5, 18, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function updateAndDrawParticles(){
+  // Heat particles
+  for(let i=heatParticles.length-1;i>=0;i--){
+    const p = heatParticles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= p.decay;
+    if(p.life<=0){heatParticles.splice(i,1);continue;}
+
+    ctx.save();
+    ctx.globalAlpha=p.life*0.6;
+    const heatPct = Math.max(0, Math.min(1, (state.temperature - 72) / 100));
+    const r = 255;
+    const g = Math.max(0, Math.round(200 - heatPct*150));
+    const b = Math.max(0, Math.round(50*(1-heatPct)));
+    const glow = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*2);
+    glow.addColorStop(0,`rgba(${r},${g},${b},0.8)`);
+    glow.addColorStop(1,`rgba(${r},${g},${b},0)`);
+    ctx.fillStyle=glow;
+    ctx.fillRect(p.x-p.size*2,p.y-p.size*2,p.size*4,p.size*4);
+    ctx.restore();
+  }
+
+  // Sun particles
+  for(let i=sunParticles.length-1;i>=0;i--){
+    const p = sunParticles[i];
+    p.y += p.vy;
+    p.life -= 0.012;
+    if(p.life<=0 || p.y > p.targetY){sunParticles.splice(i,1);continue;}
+
+    ctx.save();
+    ctx.globalAlpha=p.life*0.5;
+    ctx.fillStyle='rgba(255,235,100,0.8)';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Ambient floating particles
+  if(Math.random()<0.05){
+    ctx.save();
+    ctx.globalAlpha=0.1;
+    ctx.fillStyle='rgba(100,150,255,0.3)';
+    const px = Math.random()*canvas.width;
+    const py = Math.random()*canvas.height;
+    ctx.beginPath();
+    ctx.arc(px,py,1+Math.random()*2,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ===== UTILITY =====
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+function blendColors(c1, c2, ratio){
+  try{
+    const parse = (c)=>{
+      if(typeof c!=='string') return [128,128,128];
+      if(c.startsWith('#')){
+        let hex=c.replace('#','');
+        if(hex.length===3) hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+        const r=parseInt(hex.substr(0,2),16)||0;
+        const g=parseInt(hex.substr(2,2),16)||0;
+        const b=parseInt(hex.substr(4,2),16)||0;
+        return [r,g,b];
+      }
+      const m=c.match(/(\d+)/g);
+      if(m&&m.length>=3) return [+m[0]||0,+m[1]||0,+m[2]||0];
+      return [128,128,128];
+    };
+    const [r1,g1,b1]=parse(c1);
+    const [r2,g2,b2]=parse(c2);
+    const r=Math.round(r1+(r2-r1)*ratio)||0;
+    const g=Math.round(g1+(g2-g1)*ratio)||0;
+    const b=Math.round(b1+(b2-b1)*ratio)||0;
+    return `rgb(${r},${g},${b})`;
+  }catch(e){return 'rgb(128,128,128)';}
+}
+
+// ===== BOOT =====
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

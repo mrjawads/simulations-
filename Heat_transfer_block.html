@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Block Meltdown</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a1a;color:#fff;overflow:hidden;height:100vh;width:100vw;}
+#app{display:flex;height:100vh;width:100vw;}
+
+/* LEFT PANEL */
+#left-panel{width:280px;min-width:280px;background:linear-gradient(180deg,#12122a 0%,#0d0d20 100%);padding:14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;border-right:1px solid rgba(255,213,79,0.15);}
+.panel-title{font-size:18px;font-weight:800;background:linear-gradient(90deg,#ffd54f,#ff8f00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;text-transform:uppercase;letter-spacing:2px;}
+.mission-box{background:linear-gradient(135deg,rgba(255,213,79,0.08),rgba(255,143,0,0.05));border:1px solid rgba(255,213,79,0.2);border-radius:12px;padding:12px;text-align:center;font-size:13px;color:#ccc;line-height:1.4;}
+.control-group{background:rgba(255,255,255,0.03);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.06);}
+.control-label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.control-label::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#ffd54f;}
+.btn-row{display:flex;flex-direction:column;gap:6px;}
+.var-btn{padding:11px 10px;border:2px solid rgba(255,255,255,0.08);border-radius:10px;background:rgba(255,255,255,0.03);color:#bbb;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.35s cubic-bezier(.4,0,.2,1);text-align:center;position:relative;overflow:hidden;}
+.var-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,213,79,0.1),transparent);opacity:0;transition:opacity 0.3s;}
+.var-btn:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.2);color:#fff;}
+.var-btn:hover::after{opacity:1;}
+.var-btn.selected{border-color:#ffd54f;background:rgba(255,213,79,0.12);color:#ffd54f;box-shadow:0 0 20px rgba(255,213,79,0.15),inset 0 0 20px rgba(255,213,79,0.05);}
+.var-btn.selected::after{opacity:1;}
+.var-btn.locked{opacity:0.25;cursor:not-allowed;pointer-events:none;}
+.start-btn{width:100%;padding:15px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;transition:all 0.35s;text-transform:uppercase;letter-spacing:2px;position:relative;overflow:hidden;}
+.start-btn.ready{background:linear-gradient(135deg,#ff6f00,#ff8f00,#ffab00);color:#fff;box-shadow:0 4px 20px rgba(255,111,0,0.4),0 0 40px rgba(255,111,0,0.1);animation:pulse-btn 2.5s ease-in-out infinite;}
+.start-btn.disabled{background:linear-gradient(135deg,#222,#1a1a1a);color:#555;cursor:not-allowed;box-shadow:none;animation:none;border:1px solid rgba(255,255,255,0.05);}
+@keyframes pulse-btn{0%,100%{box-shadow:0 4px 20px rgba(255,111,0,0.4),0 0 40px rgba(255,111,0,0.1);}50%{box-shadow:0 6px 30px rgba(255,111,0,0.6),0 0 60px rgba(255,111,0,0.2);transform:translateY(-1px);}}
+.bottom-btns{display:flex;gap:8px;margin-top:auto;}
+.bottom-btns button{flex:1;padding:10px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all 0.3s;}
+#resetBtn{background:linear-gradient(135deg,#c62828,#b71c1c);color:#fff;box-shadow:0 2px 10px rgba(198,40,40,0.3);}
+#resetBtn:hover{box-shadow:0 4px 15px rgba(198,40,40,0.5);}
+#newRunBtn{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff;box-shadow:0 2px 10px rgba(21,101,192,0.3);}
+#newRunBtn:hover{box-shadow:0 4px 15px rgba(21,101,192,0.5);}
+
+/* CENTER ARENA */
+#center-panel{flex:1;display:flex;flex-direction:column;background:#080816;position:relative;overflow:hidden;}
+#arena-container{flex:1;position:relative;display:flex;align-items:center;justify-content:center;}
+#arenaCanvas{display:block;}
+#hud-bar{height:72px;background:linear-gradient(180deg,rgba(18,18,42,0.95),rgba(13,13,32,0.98));display:flex;align-items:center;justify-content:space-around;padding:0 20px;border-top:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(10px);}
+.hud-item{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.hud-label{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:2px;font-weight:600;}
+.hud-value{font-size:22px;font-weight:800;letter-spacing:0.5px;}
+.hud-value.temp{background:linear-gradient(135deg,#ff6f00,#ff3d00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hud-value.round{color:#42a5f5;}
+.hud-value.score{background:linear-gradient(135deg,#ffd54f,#ff8f00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hud-value.vent{color:#66bb6a;}
+.hud-value.vent.bad{color:#ef5350;}
+#result-badge{position:absolute;top:20px;right:20px;padding:12px 24px;border-radius:25px;font-size:18px;font-weight:800;display:none;z-index:10;animation:badge-pop 0.5s cubic-bezier(.4,0,.2,1);letter-spacing:1px;box-shadow:0 4px 20px rgba(0,0,0,0.5);}
+@keyframes badge-pop{0%{transform:scale(0) rotate(-10deg);opacity:0;}60%{transform:scale(1.15) rotate(2deg);}100%{transform:scale(1) rotate(0deg);opacity:1;}}
+#heat-event{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:32px;font-weight:800;color:#ff6f00;display:none;z-index:15;text-shadow:0 0 30px rgba(255,111,0,0.8),0 0 60px rgba(255,111,0,0.4);letter-spacing:3px;}
+#heat-event.visible{display:block;animation:heat-pulse 2s ease-in-out forwards;}
+@keyframes heat-pulse{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5);}20%{opacity:1;transform:translate(-50%,-50%) scale(1.1);}80%{opacity:1;transform:translate(-50%,-50%) scale(1.05);}100%{opacity:0;transform:translate(-50%,-50%) scale(0.9);}}
+#drone-overlay{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.85);border:2px solid #ffd54f;border-radius:14px;padding:10px;display:none;z-index:12;backdrop-filter:blur(5px);}
+#drone-overlay .drone-title{font-size:11px;color:#ffd54f;text-align:center;font-weight:700;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;}
+#drone-overlay canvas{display:block;border-radius:8px;}
+
+/* RIGHT PANEL */
+#right-panel{width:300px;min-width:300px;background:linear-gradient(180deg,#12122a 0%,#0d0d20 100%);padding:14px;display:flex;flex-direction:column;gap:10px;border-left:1px solid rgba(255,255,255,0.06);overflow-y:auto;}
+.progress-section{background:rgba(255,255,255,0.03);border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.06);}
+.section-title{font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
+.progress-bar-track{width:100%;height:10px;background:rgba(255,255,255,0.05);border-radius:5px;overflow:hidden;margin:10px 0 6px;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,#43a047,#66bb6a,#81c784);border-radius:5px;transition:width 0.6s cubic-bezier(.4,0,.2,1);width:0%;box-shadow:0 0 10px rgba(67,160,71,0.4);}
+.progress-text{font-size:12px;color:#888;text-align:center;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stat-card{background:rgba(255,255,255,0.03);border-radius:10px;padding:12px 8px;text-align:center;border:1px solid rgba(255,255,255,0.04);}
+.stat-val{font-size:24px;font-weight:800;background:linear-gradient(135deg,#ffd54f,#ffab00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.stat-lbl{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:2px;margin-top:2px;}
+#data-section{flex:1;display:flex;flex-direction:column;min-height:0;}
+.data-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.data-title{font-size:13px;font-weight:700;color:#42a5f5;text-transform:uppercase;letter-spacing:1px;}
+#copyBtn{padding:6px 14px;border:1px solid rgba(66,165,245,0.3);border-radius:8px;background:rgba(66,165,245,0.08);color:#42a5f5;font-size:11px;cursor:pointer;transition:all 0.3s;font-weight:600;}
+#copyBtn:hover{background:rgba(66,165,245,0.2);border-color:rgba(66,165,245,0.5);}
+#data-table-wrap{flex:1;overflow-y:auto;border-radius:10px;border:1px solid rgba(255,255,255,0.06);}
+#data-table{width:100%;border-collapse:collapse;font-size:12px;}
+#data-table thead{position:sticky;top:0;z-index:2;}
+#data-table th{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff;padding:8px 4px;font-size:9px;text-transform:uppercase;letter-spacing:1px;font-weight:700;}
+#data-table td{padding:7px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);font-size:12px;color:#ccc;}
+#data-table tr:nth-child(even){background:rgba(255,255,255,0.02);}
+#data-table tr.new-row{animation:row-flash 1.5s ease;}
+@keyframes row-flash{0%{background:rgba(255,213,79,0.25);}100%{background:transparent;}}
+
+/* COMPLETION MODAL */
+#completion-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(8px);}
+.modal-box{background:linear-gradient(135deg,#1a1a3a,#12122a);border:2px solid rgba(255,213,79,0.4);border-radius:24px;padding:40px;text-align:center;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 80px rgba(255,213,79,0.1);}
+.modal-box h2{font-size:30px;background:linear-gradient(135deg,#ffd54f,#ff8f00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px;font-weight:800;}
+.modal-box p{font-size:16px;color:#aaa;margin-bottom:24px;line-height:1.5;}
+.modal-box button{padding:12px 32px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin:6px;transition:all 0.3s;letter-spacing:0.5px;}
+.continue-btn{background:linear-gradient(135deg,#43a047,#2e7d32);color:#fff;box-shadow:0 4px 15px rgba(67,160,71,0.4);}
+.continue-btn:hover{box-shadow:0 6px 20px rgba(67,160,71,0.6);transform:translateY(-1px);}
+.done-btn{background:linear-gradient(135deg,#1565c0,#0d47a1);color:#fff;box-shadow:0 4px 15px rgba(21,101,192,0.4);}
+.done-btn:hover{box-shadow:0 6px 20px rgba(21,101,192,0.6);transform:translateY(-1px);}
+
+#sim-title{text-align:center;padding:10px;font-size:15px;font-weight:800;background:linear-gradient(90deg,rgba(255,213,79,0.1),rgba(255,143,0,0.08),rgba(255,213,79,0.1));color:#ffd54f;letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid rgba(255,213,79,0.1);}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="left-panel">
+<div class="panel-title">Block Meltdown</div>
+<div class="mission-box">You're a city planner. Find which block design keeps people coolest before the heat wave hits!</div>
+<div class="control-group">
+<div class="control-label">Ground Cover</div>
+<div class="btn-row" id="gc-btns">
+<button class="var-btn" data-var="gc" data-val="0" onclick="selectVar('gc',0)">All Concrete</button>
+<button class="var-btn" data-var="gc" data-val="1" onclick="selectVar('gc',1)">Half Green</button>
+<button class="var-btn" data-var="gc" data-val="2" onclick="selectVar('gc',2)">Mostly Green</button>
+</div>
+</div>
+<div class="control-group">
+<div class="control-label">Airflow</div>
+<div class="btn-row" id="af-btns">
+<button class="var-btn" data-var="af" data-val="0" onclick="selectVar('af',0)">Blocked</button>
+<button class="var-btn" data-var="af" data-val="1" onclick="selectVar('af',1)">Open</button>
+</div>
+</div>
+<button class="start-btn disabled" id="startBtn" onclick="runRound()">SELECT BOTH</button>
+<div class="bottom-btns">
+<button id="resetBtn" onclick="resetSim()">Reset</button>
+<button id="newRunBtn" onclick="newRun()">New Run</button>
+</div>
+</div>
+
+<div id="center-panel">
+<div id="sim-title">Mr. Jawad's Simulations — Block Meltdown</div>
+<div id="arena-container">
+<canvas id="arenaCanvas"></canvas>
+<div id="result-badge"></div>
+<div id="heat-event">HEAT WAVE SURGE!</div>
+<div id="drone-overlay"><div class="drone-title">Thermal Drone</div><canvas id="droneCanvas" width="160" height="110"></canvas></div>
+</div>
+<div id="hud-bar">
+<div class="hud-item"><span class="hud-label">Round</span><span class="hud-value round" id="hud-round">0 / 8</span></div>
+<div class="hud-item"><span class="hud-label">Block Temp</span><span class="hud-value temp" id="hud-temp">85°F</span></div>
+<div class="hud-item"><span class="hud-label">Ventilation</span><span class="hud-value vent" id="hud-vent">—</span></div>
+<div class="hud-item"><span class="hud-label">Score</span><span class="hud-value score" id="hud-score">0</span></div>
+<div class="hud-item"><span class="hud-label">Streak</span><span class="hud-value" id="hud-streak" style="color:#ab47bc;">0</span></div>
+</div>
+</div>
+
+<div id="right-panel">
+<div class="progress-section">
+<div class="section-title">Progress</div>
+<div class="stats-grid">
+<div class="stat-card"><div class="stat-val" id="stat-completed">0</div><div class="stat-lbl">Done</div></div>
+<div class="stat-card"><div class="stat-val" id="stat-best">—</div><div class="stat-lbl">Coolest</div></div>
+</div>
+<div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
+<div class="progress-text" id="progress-text">Complete 5 rounds</div>
+</div>
+<div id="data-section">
+<div class="data-header">
+<span class="data-title">Data Table</span>
+<button id="copyBtn" onclick="copyTable()">📋 Copy Table</button>
+</div>
+<div id="data-table-wrap">
+<table id="data-table">
+<thead><tr><th>#</th><th>Ground Cover</th><th>Airflow</th><th>Temp</th><th>Change</th></tr></thead>
+<tbody id="data-tbody"></tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<div id="completion-modal">
+<div class="modal-box" id="modal-box"></div>
+</div>
+
+<script>
+// ==================== STATE ====================
+const BASELINE = 85;
+const GC_LABELS = ['All Concrete','Half Green','Mostly Green'];
+const AF_LABELS = ['Blocked','Open'];
+const TEMP_MAP = [[102,96],[94,90],[91,88]];
+
+let state = {round:0,gc:-1,af:-1,firstVar:null,running:false,data:[],score:0,streak:0,bestTemp:null,droneUnlocked:false,shownRequired:false,shownExtra:false};
+
+// ==================== CANVAS ====================
+const canvas = document.getElementById('arenaCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+let particles = [];
+let currentHeatLevel = 0;
+let targetHeatLevel = 0;
+let showWind = false;
+let blockLayout = null;
+let animPhase = 'idle';
+let frameCount = 0;
+
+// Seeded random for consistent block layouts per selection
+let seedVal = 1;
+function seededRandom() { seedVal = (seedVal * 16807) % 2147483647; return (seedVal - 1) / 2147483646; }
+
+function resizeCanvas() {
+  try {
+    const c = document.getElementById('arena-container');
+    W = c.clientWidth; H = c.clientHeight;
+    canvas.width = W; canvas.height = H;
+  } catch(e) { W=800; H=500; canvas.width=W; canvas.height=H; }
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ==================== BLOCK LAYOUT ====================
+function generateBlockLayout(gcLevel) {
+  const cols = 10, rows = 10;
+  const cells = [];
+  const greenPct = gcLevel === 0 ? 0 : gcLevel === 1 ? 0.5 : 0.8;
+  seedVal = gcLevel * 1000 + 42;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const isGreen = seededRandom() < greenPct;
+      const bHeight = 0.4 + seededRandom() * 0.45;
+      cells.push({
+        r, c, isGreen,
+        heat: 0,
+        hasBuilding: !isGreen && seededRandom() < 0.55,
+        buildingH: bHeight,
+        buildingColor: `hsl(${200 + seededRandom()*30}, ${15+seededRandom()*15}%, ${35+seededRandom()*20}%)`,
+        hasTree: isGreen && seededRandom() < 0.75,
+        treeSize: 0.6 + seededRandom() * 0.4,
+        treeSway: seededRandom() * Math.PI * 2
+      });
+    }
+  }
+  return { cols, rows, cells };
+}
+
+// ==================== DRAWING HELPERS ====================
+function parseColorToRGB(c) {
+  if (c.startsWith('#')) {
+    return [parseInt(c.slice(1,3),16)||0, parseInt(c.slice(3,5),16)||0, parseInt(c.slice(5,7),16)||0];
+  }
+  if (c.startsWith('rgb')) {
+    const m = c.match(/[\d.]+/g);
+    if (m && m.length >= 3) return [+m[0]||0, +m[1]||0, +m[2]||0];
+  }
+  if (c.startsWith('hsl')) {
+    const m = c.match(/[\d.]+/g);
+    if (m && m.length >= 3) {
+      let h=(+m[0])/360, s=(+m[1])/100, l=(+m[2])/100;
+      let r2,g2,b2;
+      if (s===0) { r2=g2=b2=l; } else {
+        const hue2rgb=(p,q,t2)=>{if(t2<0)t2+=1;if(t2>1)t2-=1;if(t2<1/6)return p+(q-p)*6*t2;if(t2<1/2)return q;if(t2<2/3)return p+(q-p)*(2/3-t2)*6;return p;};
+        const q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
+        r2=hue2rgb(p,q,h+1/3); g2=hue2rgb(p,q,h); b2=hue2rgb(p,q,h-1/3);
+      }
+      return [Math.round(r2*255), Math.round(g2*255), Math.round(b2*255)];
+    }
+  }
+  return [128,128,128];
+}
+function lerpColor(a, b, t) {
+  t = Math.max(0, Math.min(1, t));
+  const [ar,ag,ab] = parseColorToRGB(a);
+  const [br,bg,bb] = parseColorToRGB(b);
+  return `rgb(${Math.round(ar+(br-ar)*t)},${Math.round(ag+(bg-ag)*t)},${Math.round(ab+(bb-ab)*t)})`;
+}
+
+function drawRoundedRect(x, y, w, h, r) {
+  if (w <= 0 || h <= 0) return;
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
+// ==================== MAIN DRAW ====================
+function drawArena() {
+  const t = frameCount / 60;
+
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  const heatSky = currentHeatLevel;
+  if (animPhase === 'heating' || animPhase === 'done') {
+    skyGrad.addColorStop(0, lerpColor('#0d1b2a', '#1a0a00', heatSky * 0.6));
+    skyGrad.addColorStop(0.4, lerpColor('#1b2838', '#2a1500', heatSky * 0.4));
+    skyGrad.addColorStop(1, lerpColor('#0a0a1a', '#150a00', heatSky * 0.3));
+  } else {
+    skyGrad.addColorStop(0, '#0d1b2a');
+    skyGrad.addColorStop(1, '#0a0a1a');
+  }
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle star dots when idle
+  if (animPhase === 'idle') {
+    for (let i = 0; i < 30; i++) {
+      const sx = (i * 137.5) % W;
+      const sy = (i * 97.3) % (H * 0.4);
+      const flicker = 0.3 + Math.sin(t * 2 + i) * 0.2;
+      ctx.fillStyle = `rgba(255,255,255,${flicker})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (!blockLayout) {
+    // Placeholder
+    ctx.font = 'bold 22px Segoe UI';
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.textAlign = 'center';
+    ctx.fillText('Choose Ground Cover & Airflow', W/2, H/2 - 10);
+    ctx.font = '14px Segoe UI';
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillText('then press START', W/2, H/2 + 18);
+    ctx.textAlign = 'start';
+    return;
+  }
+
+  const { cols, rows, cells } = blockLayout;
+  const pad = 50;
+  const cs = Math.min((W - pad*2) / cols, (H - pad*2) / rows);
+  const ox = (W - cs * cols) / 2;
+  const oy = (H - cs * rows) / 2;
+
+  // Ground shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  drawRoundedRect(ox - 6, oy - 6, cs*cols + 12, cs*rows + 12, 8);
+  ctx.fill();
+
+  // Draw cells
+  cells.forEach(cell => {
+    const x = ox + cell.c * cs;
+    const y = oy + cell.r * cs;
+
+    if (cell.isGreen) {
+      // --- GREEN CELL ---
+      const baseSat = 0.5 + Math.sin(t + cell.r * 0.5 + cell.c * 0.3) * 0.08;
+      const gColor = lerpColor('#2e7d32', '#43a047', baseSat);
+      const heated = lerpColor(gColor, '#6d9b3a', cell.heat * 0.5);
+      ctx.fillStyle = heated;
+      ctx.fillRect(x, y, cs, cs);
+
+      // Grass texture dots
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      for (let i = 0; i < 5; i++) {
+        const gx = x + ((cell.c*7 + cell.r*13 + i*31) % 100) / 100 * cs;
+        const gy = y + ((cell.r*11 + cell.c*17 + i*43) % 100) / 100 * cs;
+        ctx.beginPath();
+        ctx.arc(gx, gy, 1.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // Tree
+      if (cell.hasTree) {
+        const ts = cell.treeSize;
+        const sway = Math.sin(t * 1.5 + cell.treeSway) * 2;
+        const tcx = x + cs * 0.5 + sway;
+        const tcy = y + cs * 0.5;
+
+        // Shadow on ground
+        ctx.fillStyle = 'rgba(0,50,0,0.25)';
+        ctx.beginPath();
+        ctx.ellipse(tcx + 3, tcy + cs * 0.3, cs * 0.28 * ts, cs * 0.12 * ts, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        // Trunk
+        ctx.fillStyle = '#4e342e';
+        const tw = cs * 0.08;
+        ctx.fillRect(tcx - tw/2, tcy - cs*0.05, tw, cs * 0.35);
+        // Trunk highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillRect(tcx - tw/4, tcy - cs*0.05, tw/3, cs * 0.35);
+
+        // Canopy layers (3 overlapping circles for lush look)
+        const canopyColors = ['#1b5e20','#2e7d32','#388e3c'];
+        const offsets = [{dx:0,dy:-0.18,s:0.3},{dx:-0.08,dy:-0.12,s:0.22},{dx:0.1,dy:-0.15,s:0.24}];
+        offsets.forEach((o, i) => {
+          const cx = tcx + cs * o.dx;
+          const cy = tcy + cs * o.dy;
+          const cr = cs * o.s * ts;
+          // Canopy shadow
+          const cGrad = ctx.createRadialGradient(cx - cr*0.2, cy - cr*0.2, cr*0.1, cx, cy, cr);
+          cGrad.addColorStop(0, canopyColors[i]);
+          cGrad.addColorStop(0.7, canopyColors[i]);
+          cGrad.addColorStop(1, 'rgba(0,80,0,0.5)');
+          ctx.fillStyle = cGrad;
+          ctx.beginPath();
+          ctx.arc(cx, cy, cr, 0, Math.PI*2);
+          ctx.fill();
+        });
+
+        // Canopy highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.beginPath();
+        ctx.arc(tcx - cs*0.05, tcy - cs*0.22, cs*0.12*ts, 0, Math.PI*2);
+        ctx.fill();
+      }
+    } else {
+      // --- CONCRETE CELL ---
+      const heatP = cell.heat;
+      let cColor;
+      if (heatP < 0.3) cColor = lerpColor('#8e8e8e', '#bfa44f', heatP / 0.3);
+      else if (heatP < 0.6) cColor = lerpColor('#bfa44f', '#e07020', (heatP-0.3)/0.3);
+      else cColor = lerpColor('#e07020', '#c62828', (heatP-0.6)/0.4);
+      ctx.fillStyle = cColor;
+      ctx.fillRect(x, y, cs, cs);
+
+      // Concrete crack lines
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x + cs*0.3, y);
+      ctx.lineTo(x + cs*0.35, y + cs);
+      ctx.moveTo(x, y + cs*0.6);
+      ctx.lineTo(x + cs, y + cs*0.55);
+      ctx.stroke();
+
+      // Sidewalk edge
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillRect(x, y, cs, 2);
+      ctx.fillRect(x, y, 2, cs);
+
+      // Building
+      if (cell.hasBuilding) {
+        const bw = cs * 0.72;
+        const bh = cs * cell.buildingH;
+        const bx = x + (cs - bw) / 2;
+        const by = y + cs - bh;
+
+        // Building shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(bx + 4, by + 4, bw, bh);
+
+        // Building body gradient
+        const bGrad = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
+        bGrad.addColorStop(0, cell.buildingColor);
+        bGrad.addColorStop(0.5, lerpColor(cell.buildingColor, '#555', 0.1));
+        bGrad.addColorStop(1, lerpColor(cell.buildingColor, '#333', 0.3));
+        ctx.fillStyle = bGrad;
+        ctx.fillRect(bx, by, bw, bh);
+
+        // Building highlight edge
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(bx, by, 2, bh);
+        ctx.fillRect(bx, by, bw, 2);
+
+        // Windows grid
+        const winW = cs * 0.06, winH = cs * 0.05;
+        const winGap = cs * 0.11;
+        const winStartX = bx + 5;
+        const winStartY = by + 5;
+        for (let wy = winStartY; wy < by + bh - 8; wy += winGap) {
+          for (let wx = winStartX; wx < bx + bw - 8; wx += winGap) {
+            const lit = ((Math.floor(wx) * 7 + Math.floor(wy) * 13) % 5) > 1;
+            if (lit) {
+              ctx.fillStyle = `rgba(255,255,${180+Math.sin(t+wx)*30},${0.5 + heatP * 0.3})`;
+            } else {
+              ctx.fillStyle = 'rgba(40,60,80,0.6)';
+            }
+            ctx.fillRect(wx, wy, winW, winH);
+          }
+        }
+
+        // Rooftop
+        ctx.fillStyle = 'rgba(80,80,80,0.5)';
+        ctx.fillRect(bx + 2, by, bw - 4, 3);
+
+        // Heat glow on building when hot
+        if (heatP > 0.5) {
+          ctx.fillStyle = `rgba(255,100,0,${(heatP-0.5)*0.15})`;
+          ctx.fillRect(bx, by, bw, bh);
+        }
+      }
+
+      // Rising heat shimmer particles
+      if (heatP > 0.2 && animPhase !== 'idle') {
+        const shimN = Math.floor(heatP * 6);
+        for (let i = 0; i < shimN; i++) {
+          const phase = t * 2 + i * 1.7 + cell.c * 0.5 + cell.r * 0.8;
+          const px = x + cs * (0.2 + ((i * 37) % 60) / 100);
+          const py = y + cs - (phase % 1) * cs;
+          const alpha = heatP * 0.3 * (1 - (phase % 1));
+          const size = 1.5 + heatP * 2;
+          ctx.fillStyle = `rgba(255,${140+i*20},0,${alpha})`;
+          ctx.beginPath();
+          ctx.arc(px, py, size, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+
+      // Danger zone pulsing glow
+      if (heatP > 0.8) {
+        const pulseA = 0.08 + Math.sin(t * 4) * 0.04;
+        ctx.fillStyle = `rgba(255,0,0,${pulseA})`;
+        ctx.fillRect(x, y, cs, cs);
+      }
+    }
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(x, y, cs, cs);
+  });
+
+  // Block border
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 2;
+  drawRoundedRect(ox - 1, oy - 1, cs*cols + 2, cs*rows + 2, 4);
+  ctx.stroke();
+
+  // ---- WIND ARROWS ----
+  if (showWind) {
+    const arrowCount = 12;
+    for (let i = 0; i < arrowCount; i++) {
+      const ay = oy + (i + 0.5) * (rows * cs / arrowCount);
+      const speed = 90 + (i % 3) * 20;
+      const ax = ox + ((t * speed + i * 95) % (cols * cs + 120)) - 60;
+      const alpha = 0.5 + Math.sin(t * 3 + i) * 0.2;
+      
+      // Arrow trail
+      const trailGrad = ctx.createLinearGradient(ax - 25, ay, ax + 35, ay);
+      trailGrad.addColorStop(0, `rgba(200,230,255,0)`);
+      trailGrad.addColorStop(0.3, `rgba(200,230,255,${alpha * 0.3})`);
+      trailGrad.addColorStop(1, `rgba(255,255,255,${alpha})`);
+      ctx.strokeStyle = trailGrad;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(ax - 20, ay);
+      ctx.lineTo(ax + 30, ay);
+      ctx.stroke();
+
+      // Arrow head
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(ax + 35, ay);
+      ctx.lineTo(ax + 25, ay - 5);
+      ctx.lineTo(ax + 25, ay + 5);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Wind label
+    ctx.save();
+    ctx.font = 'bold 12px Segoe UI';
+    ctx.fillStyle = 'rgba(200,230,255,0.6)';
+    ctx.fillText('💨 Wind', ox + cols*cs + 8, oy + 18);
+    ctx.restore();
+  }
+
+  // ---- SUN & RADIATION ----
+  if (animPhase === 'heating' || (animPhase === 'done' && currentHeatLevel > 0.1)) {
+    const sunX = W / 2;
+    const sunY = 25;
+    const sunPulse = 1 + Math.sin(t * 3) * 0.08;
+    const sunR = 35 * sunPulse;
+
+    // Outer halo
+    const halo = ctx.createRadialGradient(sunX, sunY, sunR * 0.3, sunX, sunY, sunR * 3);
+    halo.addColorStop(0, `rgba(255,235,59,${0.3 * currentHeatLevel})`);
+    halo.addColorStop(0.5, `rgba(255,193,7,${0.1 * currentHeatLevel})`);
+    halo.addColorStop(1, 'rgba(255,152,0,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR * 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sun core
+    const core = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
+    core.addColorStop(0, '#fff9c4');
+    core.addColorStop(0.4, '#ffee58');
+    core.addColorStop(0.8, '#ffa000');
+    core.addColorStop(1, 'rgba(255,111,0,0)');
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sun rays (rotating)
+    const rayCount = 12;
+    for (let i = 0; i < rayCount; i++) {
+      const angle = (i / rayCount) * Math.PI * 2 + t * 0.3;
+      const rLen = sunR * (1.8 + Math.sin(t * 4 + i) * 0.4);
+      const rx1 = sunX + Math.cos(angle) * sunR * 0.8;
+      const ry1 = sunY + Math.sin(angle) * sunR * 0.8;
+      const rx2 = sunX + Math.cos(angle) * rLen;
+      const ry2 = sunY + Math.sin(angle) * rLen;
+      ctx.strokeStyle = `rgba(255,220,50,${0.2 + currentHeatLevel * 0.2})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(rx1, ry1);
+      ctx.lineTo(rx2, ry2);
+      ctx.stroke();
+    }
+
+    // Radiation beams down onto block
+    if (animPhase === 'heating') {
+      ctx.save();
+      const beamCount = 8;
+      for (let i = 0; i < beamCount; i++) {
+        const bx1 = sunX + (i - beamCount/2) * 15;
+        const bx2 = ox + (i + 0.5) * (cols * cs / beamCount);
+        const progress = (t * 0.8 + i * 0.15) % 1;
+        const bAlpha = currentHeatLevel * 0.15 * (1 - progress);
+        const grad = ctx.createLinearGradient(bx1, sunY + 40, bx2, oy);
+        grad.addColorStop(0, `rgba(255,200,0,${bAlpha})`);
+        grad.addColorStop(1, `rgba(255,100,0,${bAlpha * 0.3})`);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 3 + currentHeatLevel * 3;
+        ctx.setLineDash([8, 12]);
+        ctx.beginPath();
+        ctx.moveTo(bx1, sunY + 40);
+        ctx.lineTo(bx2, oy);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  // ---- FLOATING HEAT PARTICLES ----
+  if (currentHeatLevel > 0.1) {
+    particles.forEach(p => {
+      p.y -= p.speed;
+      p.x += Math.sin(t * 2 + p.phase) * 0.5;
+      p.life -= 0.005;
+      if (p.life <= 0 || p.y < oy - 30) {
+        p.y = oy + rows * cs;
+        p.x = ox + Math.random() * cols * cs;
+        p.life = 0.7 + Math.random() * 0.3;
+      }
+      const a = p.life * currentHeatLevel * 0.4;
+      const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
+      grd.addColorStop(0, `rgba(255,${120+p.hue},0,${a})`);
+      grd.addColorStop(1, `rgba(255,${80+p.hue},0,0)`);
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI*2);
+      ctx.fill();
+    });
+  }
+
+  // ---- LABELS ----
+  // Temperature label in arena
+  if (animPhase !== 'idle') {
+    const labelX = ox + cols * cs + 16;
+    const labelY = oy + rows * cs / 2;
+    // Thermometer bar
+    const thH = rows * cs * 0.6;
+    const thW = 18;
+    const thX = labelX;
+    const thY = labelY - thH / 2;
+
+    // Track
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    drawRoundedRect(thX, thY, thW, thH, 9);
+    ctx.fill();
+
+    // Fill
+    const fillH = thH * Math.min(currentHeatLevel, 1);
+    if (fillH > 2) {
+      const fillR = Math.min(7, fillH / 2, (thW - 4) / 2);
+      const fillGrad = ctx.createLinearGradient(thX, thY + thH - fillH, thX, thY + thH);
+      fillGrad.addColorStop(0, '#ff3d00');
+      fillGrad.addColorStop(0.5, '#ff6f00');
+      fillGrad.addColorStop(1, '#ffa726');
+      ctx.fillStyle = fillGrad;
+      drawRoundedRect(thX + 2, thY + thH - fillH, thW - 4, fillH, fillR);
+      ctx.fill();
+
+      // Glow
+      if (currentHeatLevel > 0.5) {
+        ctx.save();
+        ctx.shadowColor = '#ff3d00';
+        ctx.shadowBlur = 10 + currentHeatLevel * 10;
+        drawRoundedRect(thX + 2, thY + thH - fillH, thW - 4, fillH, fillR);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Bulb at bottom
+    ctx.fillStyle = lerpColor('#ffa726', '#d32f2f', currentHeatLevel);
+    ctx.beginPath();
+    ctx.arc(thX + thW/2, thY + thH + 6, 10, 0, Math.PI*2);
+    ctx.fill();
+    if (currentHeatLevel > 0.6) {
+      ctx.save();
+      ctx.shadowColor = '#ff3d00';
+      ctx.shadowBlur = 15;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+// ==================== HEAT UPDATE ====================
+function updateHeat() {
+  if (!blockLayout) return;
+  currentHeatLevel += (targetHeatLevel - currentHeatLevel) * 0.025;
+  blockLayout.cells.forEach(cell => {
+    const tgt = cell.isGreen ? currentHeatLevel * 0.15 : currentHeatLevel;
+    cell.heat += (tgt - cell.heat) * 0.04;
+  });
+}
+
+// ==================== ANIMATION LOOP ====================
+function animate() {
+  try {
+    frameCount++;
+    ctx.clearRect(0, 0, W, H);
+    updateHeat();
+    drawArena();
+    requestAnimationFrame(animate);
+  } catch(e) {
+    console.error('Animate error:', e);
+    setTimeout(() => requestAnimationFrame(animate), 100);
+  }
+}
+
+// ==================== GAME LOGIC ====================
+function selectVar(varType, val) {
+  if (state.running) return;
+  if (varType === 'gc') {
+    state.gc = val;
+    document.querySelectorAll('#gc-btns .var-btn').forEach((b, i) => b.classList.toggle('selected', i === val));
+  } else {
+    state.af = val;
+    document.querySelectorAll('#af-btns .var-btn').forEach((b, i) => b.classList.toggle('selected', i === val));
+  }
+  if (state.gc >= 0) {
+    blockLayout = generateBlockLayout(state.gc);
+    showWind = state.af === 1;
+    targetHeatLevel = 0;
+    currentHeatLevel = 0;
+    animPhase = 'idle';
+  }
+  const btn = document.getElementById('startBtn');
+  if (state.gc >= 0 && state.af >= 0) {
+    btn.classList.remove('disabled');
+    btn.classList.add('ready');
+    btn.textContent = 'START';
+  } else {
+    btn.classList.remove('ready');
+    btn.classList.add('disabled');
+    btn.textContent = 'SELECT BOTH';
+  }
+}
+
+function runRound() {
+  try {
+    if (state.running || state.gc < 0 || state.af < 0 || state.round >= 8) return;
+    state.running = true;
+    state.round++;
+    const btn = document.getElementById('startBtn');
+    btn.classList.remove('ready');
+    btn.classList.add('disabled');
+    btn.textContent = 'RUNNING...';
+    document.getElementById('hud-round').textContent = `${state.round} / 8`;
+
+    const finalTemp = TEMP_MAP[state.gc][state.af];
+    const change = finalTemp - BASELINE;
+
+    blockLayout = generateBlockLayout(state.gc);
+    showWind = state.af === 1;
+
+    // Spawn particles
+    const { cols, rows } = blockLayout;
+    const cs = Math.min((W - 100) / cols, (H - 100) / rows);
+    const ox = (W - cs * cols) / 2;
+    const oy = (H - cs * rows) / 2;
+    particles = [];
+    for (let i = 0; i < 50; i++) {
+      particles.push({
+        x: ox + Math.random() * cols * cs,
+        y: oy + Math.random() * rows * cs,
+        speed: 0.3 + Math.random() * 1.2,
+        size: 1.5 + Math.random() * 2.5,
+        life: Math.random(),
+        phase: Math.random() * Math.PI * 2,
+        hue: Math.floor(Math.random() * 80)
+      });
+    }
+
+    // Heat wave random event
+    if (Math.random() < 0.3) {
+      setTimeout(() => {
+        try {
+          const el = document.getElementById('heat-event');
+          el.classList.add('visible');
+          setTimeout(() => el.classList.remove('visible'), 2200);
+        } catch(e) {}
+      }, 1200);
+    }
+
+    animPhase = 'heating';
+    targetHeatLevel = Math.min((finalTemp - BASELINE) / 17, 1);
+
+    const ventEl = document.getElementById('hud-vent');
+    ventEl.textContent = state.af === 1 ? 'OPEN' : 'BLOCKED';
+    ventEl.classList.toggle('bad', state.af === 0);
+
+    // Animate thermometer
+    let tempDisp = BASELINE;
+    const tempI = setInterval(() => {
+      try {
+        tempDisp += (finalTemp - tempDisp) * 0.08;
+        if (Math.abs(tempDisp - finalTemp) < 0.3) { tempDisp = finalTemp; clearInterval(tempI); }
+        document.getElementById('hud-temp').textContent = `${Math.round(tempDisp)}°F`;
+      } catch(e) { clearInterval(tempI); }
+    }, 40);
+
+    setTimeout(() => {
+      try {
+        animPhase = 'done';
+        const badge = document.getElementById('result-badge');
+        let bText, bColor, bShadow;
+        if (finalTemp <= 89) { bText='COOL'; bColor='linear-gradient(135deg,#43a047,#66bb6a)'; bShadow='0 4px 20px rgba(67,160,71,0.5)'; }
+        else if (finalTemp <= 94) { bText='WARM'; bColor='linear-gradient(135deg,#ff8f00,#ffa726)'; bShadow='0 4px 20px rgba(255,143,0,0.5)'; }
+        else if (finalTemp <= 99) { bText='HOT'; bColor='linear-gradient(135deg,#e53935,#f44336)'; bShadow='0 4px 20px rgba(229,57,53,0.5)'; }
+        else { bText='DANGER ZONE'; bColor='linear-gradient(135deg,#b71c1c,#c62828)'; bShadow='0 4px 25px rgba(183,28,28,0.6)'; }
+        badge.textContent = bText;
+        badge.style.background = bColor;
+        badge.style.color = '#fff';
+        badge.style.boxShadow = bShadow;
+        badge.style.display = 'block';
+        badge.style.animation = bText === 'DANGER ZONE'
+          ? 'badge-pop 0.5s cubic-bezier(.4,0,.2,1), pulse-btn 1.5s ease-in-out infinite'
+          : 'badge-pop 0.5s cubic-bezier(.4,0,.2,1)';
+
+        const coolBonus = finalTemp <= 89 ? 20 : finalTemp <= 94 ? 10 : 0;
+        if (coolBonus > 0) { state.streak++; state.score += coolBonus + state.streak * 5; }
+        else { state.streak = 0; state.score += 5; }
+        document.getElementById('hud-score').textContent = state.score;
+        document.getElementById('hud-streak').textContent = state.streak;
+
+        if (state.bestTemp === null || finalTemp < state.bestTemp) state.bestTemp = finalTemp;
+        document.getElementById('stat-best').textContent = `${state.bestTemp}°F`;
+
+        const row = { round:state.round, gc:GC_LABELS[state.gc], af:AF_LABELS[state.af], temp:finalTemp, change:`+${change}°F` };
+        state.data.push(row);
+        const tr = document.createElement('tr');
+        tr.className = 'new-row';
+        tr.innerHTML = `<td>${row.round}</td><td>${row.gc}</td><td>${row.af}</td><td>${row.temp}°F</td><td>${row.change}</td>`;
+        document.getElementById('data-tbody').appendChild(tr);
+
+        document.getElementById('stat-completed').textContent = state.data.length;
+        const pct = Math.min(state.data.length / 5 * 100, 100);
+        document.getElementById('progress-fill').style.width = pct + '%';
+        if (state.data.length < 5) document.getElementById('progress-text').textContent = `${5-state.data.length} more required`;
+        else if (state.data.length < 8) document.getElementById('progress-text').textContent = `Done! ${8-state.data.length} extra credit left`;
+        else document.getElementById('progress-text').textContent = 'All 8 complete!';
+
+        if (state.data.length >= 3 && !state.droneUnlocked) { state.droneUnlocked = true; showDroneOverlay(); }
+        if (state.data.length === 5 && !state.shownRequired) { state.shownRequired = true; setTimeout(() => showModal('required'), 800); }
+        else if (state.data.length === 8 && !state.shownExtra) { state.shownExtra = true; setTimeout(() => showModal('extra'), 800); }
+
+        state.running = false;
+        btn.textContent = state.round >= 8 ? 'COMPLETE' : 'START';
+        if (state.round < 8) { btn.classList.remove('disabled'); btn.classList.add('ready'); }
+
+        setTimeout(() => { try { badge.style.display = 'none'; } catch(e) {} }, 3500);
+      } catch(e) {
+        state.running = false;
+        btn.textContent = 'START';
+        btn.classList.remove('disabled'); btn.classList.add('ready');
+      }
+    }, 3800);
+
+    // Safety timeout
+    setTimeout(() => {
+      if (state.running) {
+        state.running = false;
+        btn.textContent = 'START';
+        if (state.round < 8) { btn.classList.remove('disabled'); btn.classList.add('ready'); }
+      }
+    }, 8000);
+  } catch(e) { state.running = false; }
+}
+
+function showDroneOverlay() {
+  try {
+    const ov = document.getElementById('drone-overlay');
+    ov.style.display = 'block';
+    const dc = document.getElementById('droneCanvas').getContext('2d');
+    // Realistic thermal image using noise
+    for (let y = 0; y < 110; y += 3) {
+      for (let x = 0; x < 160; x += 3) {
+        const nx = x / 160, ny = y / 110;
+        // Simulate hot spots in center, cool edges
+        const dist = Math.sqrt(Math.pow(nx-0.5,2) + Math.pow(ny-0.5,2));
+        const heat = Math.max(0, Math.min(1, 0.8 - dist + (Math.random()-0.5)*0.4));
+        // Thermal colormap: blue → green → yellow → red → white
+        let r, g, b;
+        if (heat < 0.25) { r=0; g=0; b=Math.floor(heat/0.25*255); }
+        else if (heat < 0.5) { const t2=(heat-0.25)/0.25; r=0; g=Math.floor(t2*255); b=Math.floor((1-t2)*255); }
+        else if (heat < 0.75) { const t2=(heat-0.5)/0.25; r=Math.floor(t2*255); g=255; b=0; }
+        else { const t2=(heat-0.75)/0.25; r=255; g=Math.floor((1-t2)*255); b=Math.floor(t2*100); }
+        dc.fillStyle = `rgb(${r},${g},${b})`;
+        dc.fillRect(x, y, 3, 3);
+      }
+    }
+    setTimeout(() => { ov.style.display = 'none'; }, 5000);
+  } catch(e) {}
+}
+
+function showModal(type) {
+  try {
+    const modal = document.getElementById('completion-modal');
+    const box = document.getElementById('modal-box');
+    if (type === 'required') {
+      box.innerHTML = `<h2>Required Complete!</h2><p>5 rounds done! Keep going for extra credit?</p><button class="continue-btn" onclick="closeModal()">Keep Going!</button><button class="done-btn" onclick="closeModal()">I'm Done</button>`;
+    } else {
+      box.innerHTML = `<h2>Extra Credit Complete!</h2><p>All 8 rounds done! Great work, city planner!</p><button class="done-btn" onclick="closeModal()">Finish</button>`;
+    }
+    modal.style.display = 'flex';
+  } catch(e) {}
+}
+function closeModal() { document.getElementById('completion-modal').style.display = 'none'; }
+
+function resetSim() {
+  state = {round:0,gc:-1,af:-1,firstVar:null,running:false,data:[],score:0,streak:0,bestTemp:null,droneUnlocked:false,shownRequired:false,shownExtra:false};
+  document.querySelectorAll('.var-btn').forEach(b => b.classList.remove('selected','locked'));
+  document.getElementById('data-tbody').innerHTML = '';
+  document.getElementById('hud-round').textContent = '0 / 8';
+  document.getElementById('hud-temp').textContent = '85°F';
+  const v = document.getElementById('hud-vent'); v.textContent = '—'; v.classList.remove('bad');
+  document.getElementById('hud-score').textContent = '0';
+  document.getElementById('hud-streak').textContent = '0';
+  document.getElementById('stat-completed').textContent = '0';
+  document.getElementById('stat-best').textContent = '—';
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('progress-text').textContent = 'Complete 5 rounds';
+  document.getElementById('result-badge').style.display = 'none';
+  const b = document.getElementById('startBtn'); b.classList.remove('ready'); b.classList.add('disabled'); b.textContent = 'SELECT BOTH';
+  blockLayout = null; targetHeatLevel = 0; currentHeatLevel = 0; animPhase = 'idle'; particles = [];
+}
+
+function newRun() {
+  state.gc = -1; state.af = -1; state.firstVar = null; state.running = false;
+  document.querySelectorAll('.var-btn').forEach(b => b.classList.remove('selected','locked'));
+  document.getElementById('hud-temp').textContent = '85°F';
+  const v = document.getElementById('hud-vent'); v.textContent = '—'; v.classList.remove('bad');
+  document.getElementById('result-badge').style.display = 'none';
+  const b = document.getElementById('startBtn'); b.classList.remove('ready'); b.classList.add('disabled'); b.textContent = 'SELECT BOTH';
+  blockLayout = null; targetHeatLevel = 0; currentHeatLevel = 0; animPhase = 'idle'; particles = [];
+}
+
+function copyTable() {
+  try {
+    let text = 'Round\tGround Cover\tAirflow\tBlock Temp (°F)\tChange from Start\n';
+    state.data.forEach(d => { text += `${d.round}\t${d.gc}\t${d.af}\t${d.temp}°F\t${d.change}\n`; });
+    navigator.clipboard.writeText(text).then(() => {
+      const b = document.getElementById('copyBtn'); b.textContent = 'Copied!';
+      setTimeout(() => { b.textContent = '📋 Copy Table'; }, 2000);
+    }).catch(() => {
+      const ta = document.createElement('textarea'); ta.value = text;
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      const b = document.getElementById('copyBtn'); b.textContent = 'Copied!';
+      setTimeout(() => { b.textContent = '📋 Copy Table'; }, 2000);
+    });
+  } catch(e) {}
+}
+
+// ==================== INIT ====================
+try { animate(); } catch(e) { console.error('Init error:', e); }
+</script>
+</body>
+</html>

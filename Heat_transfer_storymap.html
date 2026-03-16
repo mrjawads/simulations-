@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Heat Transfer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#1a1a2e;color:#e0e0e0;overflow:hidden;height:100vh;}
+.app{display:flex;height:100vh;width:100vw;}
+.left-sidebar{width:280px;min-width:280px;background:linear-gradient(180deg,#1e1e3a,#16213e);border-right:2px solid #2a2a5a;display:flex;flex-direction:column;overflow-y:auto;padding:10px;}
+.left-sidebar::-webkit-scrollbar{width:6px;}
+.left-sidebar::-webkit-scrollbar-thumb{background:#4a4a8a;border-radius:3px;}
+.pick-header{text-align:center;font-size:15px;font-weight:700;color:#ffd54f;margin:6px 0;text-transform:uppercase;letter-spacing:1px;}
+.scenario-card{display:flex;align-items:center;gap:8px;padding:10px;margin:3px 0;border-radius:10px;cursor:pointer;background:rgba(255,255,255,0.05);border:2px solid transparent;transition:all 0.3s;position:relative;}
+.scenario-card:hover{background:rgba(255,255,255,0.1);border-color:#4a90d9;}
+.scenario-card.selected{background:rgba(74,144,217,0.2);border-color:#4a90d9;box-shadow:0 0 12px rgba(74,144,217,0.3);}
+.scenario-card.completed{opacity:0.55;}
+.scenario-card .check-mark{position:absolute;right:8px;font-size:14px;display:none;}
+.scenario-card.completed .check-mark{display:block;}
+.sc-emoji{font-size:28px;min-width:36px;text-align:center;}
+.sc-name{font-size:13px;font-weight:600;color:#ccc;line-height:1.2;}
+.divider{height:1px;background:linear-gradient(90deg,transparent,#4a4a8a,transparent);margin:10px 0;}
+.section-label{font-size:12px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin:6px 0 4px 4px;}
+.level-tabs{display:flex;gap:4px;margin:4px 0;}
+.level-tab{flex:1;padding:8px 4px;text-align:center;font-size:12px;font-weight:700;border-radius:8px;cursor:pointer;border:2px solid #3a3a6a;background:rgba(255,255,255,0.03);color:#aaa;transition:all 0.3s;}
+.level-tab.active{color:#fff;}
+.level-tab[data-level="low"].active{background:#43a047;border-color:#66bb6a;}
+.level-tab[data-level="med"].active{background:#fb8c00;border-color:#ffa726;}
+.level-tab[data-level="high"].active{background:#e53935;border-color:#ef5350;}
+.keywords-box{margin:4px 0;}
+.kw-item{display:inline-block;padding:3px 8px;margin:2px;border-radius:12px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.08);color:#999;transition:all 0.3s;}
+.kw-item.highlighted{background:rgba(255,193,7,0.2);color:#ffd54f;border:1px solid rgba(255,193,7,0.4);}
+.btn-row{display:flex;gap:6px;margin-top:auto;padding-top:8px;}
+.btn-reset{flex:1;padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.3s;}
+.btn-reset.red{background:linear-gradient(135deg,#e53935,#c62828);color:#fff;}
+.btn-reset.blue{background:linear-gradient(135deg,#1e88e5,#1565c0);color:#fff;}
+.btn-reset:hover{transform:scale(1.02);filter:brightness(1.1);}
+.center-panel{flex:1;display:flex;flex-direction:column;background:#0f0f23;position:relative;overflow:hidden;}
+.step-tabs{display:flex;height:44px;background:rgba(0,0,0,0.3);border-bottom:2px solid #2a2a5a;flex-shrink:0;}
+.step-tab{flex:1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.4s;position:relative;}
+.step-tab.active{color:#fff;}
+.step-tab.active::after{content:'';position:absolute;bottom:0;left:10%;width:80%;height:3px;border-radius:2px;animation:glowPulse 2s infinite;}
+.step-tab[data-step="predict"].active{color:#ffd54f;text-shadow:0 0 10px rgba(255,213,79,0.5);}
+.step-tab[data-step="predict"].active::after{background:#ffd54f;box-shadow:0 0 8px #ffd54f;}
+.step-tab[data-step="read"].active{color:#64b5f6;text-shadow:0 0 10px rgba(100,181,246,0.5);}
+.step-tab[data-step="read"].active::after{background:#64b5f6;box-shadow:0 0 8px #64b5f6;}
+.step-tab[data-step="watch"].active{color:#ff8a65;text-shadow:0 0 10px rgba(255,138,101,0.5);}
+.step-tab[data-step="watch"].active::after{background:#ff8a65;box-shadow:0 0 8px #ff8a65;}
+.step-tab[data-step="record"].active{color:#81c784;text-shadow:0 0 10px rgba(129,199,132,0.5);}
+.step-tab[data-step="record"].active::after{background:#81c784;box-shadow:0 0 8px #81c784;}
+.step-tab.done{color:#4a8a4a;}
+@keyframes glowPulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+.center-content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;position:relative;overflow:hidden;}
+.content-card{background:linear-gradient(135deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:680px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
+.predict-card{text-align:center;}
+.predict-q{font-size:20px;font-weight:600;color:#ffd54f;margin-bottom:16px;line-height:1.4;}
+.predict-options{display:flex;flex-direction:column;gap:8px;}
+.predict-btn{padding:14px 20px;border:2px solid #3a3a6a;border-radius:12px;background:rgba(255,255,255,0.05);color:#ddd;font-size:15px;cursor:pointer;transition:all 0.3s;text-align:left;}
+.predict-btn:hover{border-color:#ffd54f;background:rgba(255,213,79,0.1);}
+.predict-btn.selected{border-color:#ffd54f;background:rgba(255,213,79,0.15);color:#ffd54f;}
+.read-card{max-height:55vh;overflow-y:auto;}
+.read-card::-webkit-scrollbar{width:6px;}
+.read-card::-webkit-scrollbar-thumb{background:#4a4a8a;border-radius:3px;}
+.passage-text{font-size:17px;line-height:1.75;color:#ddd;}
+.passage-text .kw{color:#ffd54f;font-weight:700;}
+.passage-text .sentence-hl{background:rgba(100,181,246,0.25);border-radius:4px;padding:1px 4px;}
+.watch-canvas-container{width:100%;height:100%;display:flex;justify-content:center;align-items:center;}
+#watchCanvas{border-radius:12px;background:#0a0a1a;max-width:100%;max-height:100%;}
+.record-card{text-align:center;}
+.record-msg{font-size:22px;font-weight:700;margin-bottom:10px;}
+.record-sub{font-size:15px;color:#aaa;}
+.action-area{padding:12px;display:flex;justify-content:center;gap:12px;align-items:center;flex-shrink:0;}
+.action-btn{padding:14px 32px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.3s;text-transform:uppercase;letter-spacing:1px;}
+.action-btn.primary{background:linear-gradient(135deg,#4a90d9,#1565c0);color:#fff;box-shadow:0 4px 16px rgba(74,144,217,0.3);}
+.action-btn.primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(74,144,217,0.4);}
+.action-btn.speak{background:linear-gradient(135deg,#7c4dff,#6200ea);color:#fff;box-shadow:0 4px 16px rgba(124,77,255,0.3);}
+.action-btn.speak:hover{transform:translateY(-2px);}
+.action-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none!important;}
+.right-sidebar{width:280px;min-width:280px;background:linear-gradient(180deg,#1e1e3a,#16213e);border-left:2px solid #2a2a5a;display:flex;flex-direction:column;overflow-y:auto;padding:10px;}
+.right-sidebar::-webkit-scrollbar{width:6px;}
+.right-sidebar::-webkit-scrollbar-thumb{background:#4a4a8a;border-radius:3px;}
+.hud-title{text-align:center;font-size:14px;font-weight:700;color:#ffd54f;text-transform:uppercase;letter-spacing:1px;margin:4px 0 8px;}
+.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.hud-stat{background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;text-align:center;border:1px solid rgba(255,255,255,0.08);}
+.hud-stat .val{font-size:22px;font-weight:800;color:#fff;}
+.hud-stat .lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+.progress-bar-container{background:rgba(255,255,255,0.08);border-radius:8px;height:18px;margin:6px 0;overflow:hidden;position:relative;}
+.progress-bar-fill{height:100%;border-radius:8px;transition:width 0.5s ease;background:linear-gradient(90deg,#43a047,#66bb6a);}
+.progress-bar-fill.extra{background:linear-gradient(90deg,#ffd54f,#ffb300);}
+.progress-text{font-size:12px;color:#aaa;text-align:center;margin:4px 0 8px;}
+.data-header{display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px;}
+.data-title{font-size:13px;font-weight:700;color:#aaa;text-transform:uppercase;}
+.copy-btn{padding:4px 10px;border:1px solid #4a90d9;border-radius:6px;background:transparent;color:#4a90d9;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.3s;}
+.copy-btn:hover{background:rgba(74,144,217,0.1);}
+.copy-btn.copied{border-color:#66bb6a;color:#66bb6a;}
+.data-table-wrap{flex:1;overflow-y:auto;}
+.data-table-wrap::-webkit-scrollbar{width:5px;}
+.data-table-wrap::-webkit-scrollbar-thumb{background:#4a4a8a;border-radius:3px;}
+.data-table{width:100%;border-collapse:collapse;font-size:10px;}
+.data-table th{background:rgba(74,144,217,0.2);color:#64b5f6;padding:6px 4px;text-align:left;font-size:10px;font-weight:700;border-bottom:2px solid #2a2a5a;position:sticky;top:0;}
+.data-table td{padding:5px 4px;border-bottom:1px solid rgba(255,255,255,0.05);color:#bbb;vertical-align:top;font-size:10px;line-height:1.3;}
+.data-table tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+.recording-label{position:absolute;bottom:58px;right:16px;font-size:11px;color:#777;text-align:right;pointer-events:none;}
+.welcome-screen{text-align:center;padding:40px;}
+.welcome-title{font-size:28px;font-weight:800;background:linear-gradient(135deg,#ff8a65,#ffd54f);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px;}
+.welcome-sub{font-size:16px;color:#aaa;margin-bottom:8px;line-height:1.5;}
+.welcome-mission{font-size:14px;color:#ff8a65;font-weight:600;padding:12px;background:rgba(255,138,101,0.1);border-radius:10px;border:1px solid rgba(255,138,101,0.2);margin-top:12px;}
+.sim-title{text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);padding:4px;letter-spacing:0.5px;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="left-sidebar">
+<div class="pick-header">Pick Any 5 You Like</div>
+<div id="scenarioList"></div>
+<div class="divider"></div>
+<div class="section-label">Reading Level</div>
+<div class="level-tabs">
+<div class="level-tab active" data-level="low" onclick="setLevel('low')">Low</div>
+<div class="level-tab" data-level="med" onclick="setLevel('med')">Med</div>
+<div class="level-tab" data-level="high" onclick="setLevel('high')">High</div>
+</div>
+<div class="divider"></div>
+<div class="section-label">Key Words</div>
+<div class="keywords-box" id="keywordsBox"></div>
+<div class="divider"></div>
+<div class="btn-row">
+<button class="btn-reset red" onclick="resetSim()">Reset</button>
+<button class="btn-reset blue" onclick="newRun()">New Run</button>
+</div>
+</div>
+<div class="center-panel">
+<div class="sim-title">Mr. Jawad's Simulations — Heat Transfer</div>
+<div class="step-tabs">
+<div class="step-tab" data-step="predict">1. Predict</div>
+<div class="step-tab" data-step="read">2. Read</div>
+<div class="step-tab" data-step="watch">3. Watch</div>
+<div class="step-tab" data-step="record">4. Record</div>
+</div>
+<div class="center-content" id="centerContent">
+<div class="welcome-screen">
+<div class="welcome-title">🔥 Burned by What You Can't See</div>
+<div class="welcome-sub">Real people get burned, overheated, or surprised by heat they never saw coming.</div>
+<div class="welcome-sub">Pick a scenario from the left to start your investigation.</div>
+<div class="welcome-mission">🎯 Complete 5 heat transfer missions to prove you can spot invisible danger.</div>
+</div>
+</div>
+<div class="action-area" id="actionArea"></div>
+<div class="recording-label">Record the type that <strong>started</strong> the danger.</div>
+</div>
+<div class="right-sidebar">
+<div class="hud-title">Progress</div>
+<div class="hud-grid">
+<div class="hud-stat"><div class="val" id="hudScore">0</div><div class="lbl">Score</div></div>
+<div class="hud-stat"><div class="val" id="hudStreak">0</div><div class="lbl">Streak</div></div>
+<div class="hud-stat"><div class="val" id="hudCompleted">0/8</div><div class="lbl">Completed</div></div>
+<div class="hud-stat"><div class="val" id="hudAccuracy">-</div><div class="lbl">Accuracy</div></div>
+</div>
+<div class="progress-bar-container"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+<div class="progress-text" id="progressText">Pick 5 more you like!</div>
+<div class="data-header">
+<div class="data-title">Data Table</div>
+<button class="copy-btn" id="copyBtn" onclick="copyTable()">📋 Copy Table</button>
+</div>
+<div class="data-table-wrap">
+<table class="data-table">
+<thead><tr><th>Scenario</th><th>What Happened?</th><th>Response</th><th>Heat Transfer?</th></tr></thead>
+<tbody id="dataBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+<script>
+// ===== SCENARIO DATA =====
+const SCENARIOS=[
+{id:1,name:"Bronx Hot Slide",emoji:"🛝",primary:"Radiation",
+predict:{q:"A girl slides down a plastic slide on an 80°F day. What do you think will happen?",opts:["Nothing — 80°F is not that hot","Her legs will get burned by the hot surface","She will cool down from the wind","The slide will break from the heat"]},
+readings:{
+low:"A girl in the Bronx slides down a plastic slide on an 80°F day. The slide <kw>absorbs</kw> <kw>radiation</kw> from the sun all morning and reaches 160°F. The instant her legs touch, <kw>conduction</kw> sends that <kw>heat transfer</kw> straight into her skin. She gets second-degree burns from a surface nobody thought was dangerous.",
+med:"A girl in the Bronx runs to the playground on an 80°F afternoon. She jumps on a plastic slide — and screams. The slide has been sitting in direct sunlight for hours, and the plastic <kw>absorbs</kw> <kw>radiation</kw> from the sun. Its <kw>surface temperature</kw> reaches over 160°F, twice as hot as the air around it. The moment her bare legs press down, <kw>conduction</kw> moves that stored heat directly into her skin. She ends up with second-degree burns, and her mother had no idea a plastic slide could cause a <kw>heat transfer</kw> that severe.",
+high:"A girl in the Bronx races her friend to the playground on an 80°F afternoon. The air feels warm, not dangerous. She climbs to the top of a plastic slide and pushes off. The plastic has been <kw>absorb</kw>ing <kw>radiation</kw> from the sun since morning, and its <kw>surface temperature</kw> now exceeds 160°F. That is hot enough to fry an egg. The instant her bare legs press against the surface, <kw>conduction</kw> transfers that stored heat directly into her skin. She screams and tries to push herself off, but the damage is done — second-degree burns across both legs. Her mother is stunned because she never imagined a plastic slide could produce a <kw>heat transfer</kw> intense enough to injure her child."},
+kwUsed:["radiation","absorb","conduction","heat transfer","surface temperature"],
+watch:{danger:0.92},
+data:{happened:"Plastic slide absorbed radiation, reached 160°F on 80°F day",response:"Child got second-degree burns from conduction on contact",transfer:"Radiation heated the surface"}},
+{id:2,name:"Union Square Platform",emoji:"🚇",primary:"Convection",
+predict:{q:"A commuter waits underground during a July heat wave. What do you think the temperature is like?",opts:["Cooler than outside — underground stays cool","About the same as outside","Much hotter than outside from trapped heat","The trains keep it comfortable"]},
+readings:{
+low:"A commuter waits on the Union Square subway platform during a July heat wave. Train AC units blast hot exhaust air onto the platform through <kw>convection</kw>. The platform <kw>heat transfer</kw> pushes the temperature to 94°F with a \"feels like\" of 111°F. The commuter collapses from heat exhaustion underground — hotter than the street above.",
+med:"A commuter stands on the Union Square subway platform during a summer heat wave. The air underground feels thick and heavy. Every time a train pulls in, the AC system pumps hot exhaust air directly onto the platform. This <kw>convection</kw> current pushes the platform temperature to 94°F, with a \"feels like\" of 111°F from trapped humidity. The platform is actually hotter than the street above because there is no wind to carry the <kw>heat transfer</kw> away. The commuter collapses from heat exhaustion before the next train arrives.",
+high:"A commuter descends the stairs into the Union Square subway station during a July heat wave. The air below is hotter than the air above. Every arriving train pumps hot exhaust from its AC system directly onto the platform, creating a blast of <kw>convection</kw> that raises the temperature around waiting riders. The platform hits 94°F, but trapped humidity makes it feel like 111°F. There is almost no airflow underground, so <kw>heat transfer</kw> has nowhere to go — the hot air just sits there. Above ground, a breeze carries some heat away, but this platform is sealed like an oven. The commuter collapses from heat exhaustion, one of many riders who never expected the subway to be more dangerous than the summer streets above."},
+kwUsed:["convection","heat transfer"],
+watch:{danger:0.82},
+data:{happened:"Train AC blasted hot exhaust onto sealed platform via convection",response:"Commuter collapsed from heat exhaustion underground",transfer:"Convection trapped hot air on platform"}},
+{id:3,name:"The 68-Degree Day",emoji:"🚗",primary:"Radiation",
+predict:{q:"A car sits parked on a 68°F spring day with windows closed. What happens inside?",opts:["Stays about 68°F — same as outside","Gets a little warmer, maybe 75°F","Heats past 100°F in just 20 minutes","Gets cooler because metal reflects heat"]},
+readings:{
+low:"A caregiver leaves a toddler in a parked car on a spring day when it is only 68°F outside. <kw>Radiation</kw> from the sun passes through the windshield and heats the seats and dashboard inside. The hot surfaces <kw>absorb</kw> the energy and radiate it back, but the trapped air cannot escape. The car reaches over 100°F in twenty minutes — a deadly <kw>heat transfer</kw> trap no one expected.",
+med:"A caregiver in the South leaves a toddler buckled into a car seat on a pleasant 68°F spring day. The sun does not feel dangerous, but <kw>radiation</kw> passes straight through the windshield glass. The dashboard and seats <kw>absorb</kw> that energy and heat up fast. Those hot surfaces radiate heat back into the sealed cabin. The trapped air has no escape — <kw>convection</kw> cannot carry the <kw>heat transfer</kw> out. In twenty minutes the sealed car becomes a deadly trap — all from heat that built up on a day that felt safe.",
+high:"A caregiver in the South leaves a toddler buckled into a car seat on a spring afternoon. The outside temperature reads only 68°F — jacket weather, not danger weather. But <kw>radiation</kw> from the sun passes directly through the glass windshield and strikes the dashboard and seats. Those surfaces <kw>absorb</kw> the energy and their <kw>surface temperature</kw> rises fast. The heated surfaces then radiate that energy back into the cabin air, which is sealed inside with no escape. With the windows shut, <kw>convection</kw> cannot carry the <kw>heat transfer</kw> out — the car becomes a trap. The interior climbs past 100°F in just twenty minutes — a deadly result built invisibly on a day most people would call cool."},
+kwUsed:["radiation","absorb","heat transfer","convection","surface temperature"],
+watch:{danger:0.95},
+data:{happened:"Radiation passed through windshield, surfaces absorbed heat in sealed car",response:"Car interior reached 100°F+ in 20 minutes on a 68°F day",transfer:"Radiation heated the interior"}},
+{id:4,name:"Coney Island Bench",emoji:"🪑",primary:"Conduction",
+predict:{q:"A teenager sits on a dark metal bench at the beach on a July afternoon. What happens?",opts:["The bench feels comfortable","The metal burns his legs on contact","He cools down because metal is cool","Nothing — benches are designed to be safe"]},
+readings:{
+low:"A teenager sits down on a dark metal bench at Coney Island on a July afternoon. The metal <kw>absorbs</kw> <kw>radiation</kw> from the sun all day and gets dangerously hot. The instant his skin touches, <kw>conduction</kw> sends heat into his legs in seconds. A wooden bench two feet away stays warm but safe — wood is a poor <kw>heat transfer</kw> material.",
+med:"A teenager drops onto a dark metal bench at Coney Island after a July afternoon at the beach. The metal has been <kw>absorb</kw>ing <kw>radiation</kw> from direct sunlight for hours. Its <kw>surface temperature</kw> is far above what skin can handle. The second his bare legs press down, <kw>conduction</kw> races heat from the bench into his skin. He jumps up with burns on the back of his thighs. A wooden bench two feet away is warm but safe, because wood blocks <kw>heat transfer</kw> instead of speeding it up.",
+high:"A teenager finishes a July afternoon at Coney Island and drops onto a dark metal bench to rest. The metal has been baking in direct sunlight for hours, quietly <kw>absorb</kw>ing <kw>radiation</kw> from the sun. Metal is one of the best conductors of heat — it soaks up energy fast and holds onto it. His bare legs press against the surface, and <kw>conduction</kw> transfers that stored heat into his skin almost instantly. He jumps up with red marks on the back of his thighs — the beginning of burns. Two feet away sits a wooden bench that is warm but completely safe to touch. Wood is a poor conductor, which means it resists <kw>heat transfer</kw> instead of rushing it into your body."},
+kwUsed:["absorb","radiation","conduction","heat transfer","surface temperature"],
+watch:{danger:0.87},
+data:{happened:"Dark metal bench absorbed radiation, became dangerously hot",response:"Teenager got leg burns from conduction on contact",transfer:"Conduction from metal to skin"}},
+{id:5,name:"Barefoot on Rubber",emoji:"👣",primary:"Radiation",
+predict:{q:"A child runs barefoot onto a black rubber playground mat in summer. What happens?",opts:["The rubber feels soft and cool","The mat is warm but safe","The surface is over 160°F and burns feet","Rubber does not absorb heat"]},
+readings:{
+low:"A six-year-old runs barefoot onto a black rubber playground mat on a summer day. The dark surface <kw>absorbs</kw> <kw>radiation</kw> from the sun and its <kw>surface temperature</kw> passes 160°F. That is hotter than a fresh cup of coffee. The child's feet burn on contact because <kw>conduction</kw> transfers heat from the mat into skin the instant they touch.",
+med:"A six-year-old kicks off his shoes at a NYC playground and runs barefoot toward the swings. Between him and the swings is a black recycled-rubber safety mat. That dark rubber <kw>absorbs</kw> <kw>radiation</kw> from the sun all day, and its <kw>surface temperature</kw> passes 160°F — hotter than a cup of coffee. The mat was designed to prevent injuries from falls, but the <kw>heat transfer</kw> from the surface creates a new danger. The moment his bare feet hit the mat, <kw>conduction</kw> sends heat into his skin and he screams.",
+high:"A six-year-old kicks off his shoes at a NYC playground and races toward the swings. The black recycled-rubber safety mat stretches out between him and the swing set. It looks harmless — it was installed to cushion falls and prevent head injuries. But the dark rubber has been <kw>absorb</kw>ing <kw>radiation</kw> from the sun since morning. Its <kw>surface temperature</kw> now exceeds 160°F, which is hotter than a fresh cup of coffee and well past the point where skin burns on contact. The mat designed to protect children from one danger has become a different danger through <kw>heat transfer</kw>. The instant his bare feet land, <kw>conduction</kw> drives heat from the rubber into his skin, and he screams."},
+kwUsed:["absorb","radiation","surface temperature","heat transfer","conduction"],
+watch:{danger:0.92},
+data:{happened:"Black rubber mat absorbed radiation, surface exceeded 160°F",response:"Child's feet burned from conduction on contact",transfer:"Radiation heated the dark surface"}},
+{id:6,name:"Brownsville Top Floor",emoji:"🏢",primary:"Convection",
+predict:{q:"An elderly woman lives on the top floor with no AC during a heat wave. Where is the hottest spot?",opts:["The ground floor — heat sinks down","The middle floors — heat spreads evenly","The top floor — hot air rises and collects","All floors are the same temperature"]},
+readings:{
+low:"An elderly woman lives on the top floor of a Brownsville apartment building with no air conditioning. Hot air rises through <kw>convection</kw> and collects on her floor during a July heat wave. The dark tar roof above her <kw>absorbs</kw> <kw>radiation</kw> from the sun and sends heat downward through the ceiling. A neighbor finds her disoriented — the <kw>heat transfer</kw> from below and above turned her apartment into a trap.",
+med:"An elderly woman lives on the top floor of a Brownsville apartment building with no AC. A July heat wave pushes temperatures past 95°F for days. Inside her building, hot air rises through <kw>convection</kw> and pools on her floor — the highest point where heat collects. Above her, the dark tar roof <kw>absorbs</kw> <kw>radiation</kw> from the sun all day and radiates heat downward through the ceiling. She is trapped between heat from below and above, with no airflow to carry the <kw>heat transfer</kw> away. A neighbor rushes her to a cooling center — approximately 525 New Yorkers die from heat each year.",
+high:"An elderly woman lives alone on the top floor of a Brownsville apartment building with no air conditioning. When a July heat wave hits and outdoor temperatures push past 95°F for several days, her apartment becomes dangerous. Hot air throughout the building rises through <kw>convection</kw> and collects on her floor, the highest point it can reach. At the same time, the dark tar roof above her <kw>absorbs</kw> <kw>radiation</kw> from the sun all day long. That roof radiates heat downward through the ceiling into her living space. She is caught between rising heat from below and radiated heat from above, with no AC and no airflow to carry the <kw>heat transfer</kw> away. A neighbor finds her disoriented and overheating — she survives after being taken to a cooling center. Approximately 525 New Yorkers die from heat-related causes each year, most in homes without AC."},
+kwUsed:["convection","absorb","radiation","heat transfer"],
+watch:{danger:0.85},
+data:{happened:"Hot air rose via convection + roof absorbed radiation from above",response:"Woman found disoriented from heat trapped on top floor",transfer:"Convection collected hot air on top floor"}},
+{id:7,name:"The Chef's Lesson",emoji:"🍳",primary:"Conduction",
+predict:{q:"A cook grabs a stainless steel pan handle on a lit stove without a towel. What happens?",opts:["The handle stays cool — only the bottom heats","He burns his palm in seconds","The handle heats slowly over many minutes","Steel does not conduct heat well"]},
+readings:{
+low:"A line cook at a Brooklyn restaurant grabs a stainless steel pan handle without a towel. <kw>Conduction</kw> carries heat from the burner flame through the entire metal handle in seconds. He gets a serious palm burn from <kw>heat transfer</kw> he could have blocked with one piece of cloth. His coworker hands him a pan with a wooden handle — same fire, no burn, because wood stops <kw>conduction</kw>.",
+med:"A line cook at a Brooklyn restaurant reaches for a stainless steel pan on the stove without thinking. The burner flame heats the bottom of the pan, and <kw>conduction</kw> carries that heat through the metal handle in seconds. Metal is an excellent conductor — it moves <kw>heat transfer</kw> fast and efficiently from one end to the other. He grabs the handle and burns his palm before he can let go. His coworker tosses him a pan with a wooden handle — same stove, same heat, but wood blocks <kw>conduction</kw> and his hand stays safe.",
+high:"A line cook at a busy Brooklyn restaurant is moving fast during the dinner rush. He reaches for a stainless steel pan sitting on a lit burner and wraps his hand around the handle. The burner flame heats the bottom of the pan, and because metal is an excellent conductor, <kw>conduction</kw> carries that heat through the entire handle in seconds. By the time his brain registers the pain, the burn is already done — a serious palm burn from <kw>heat transfer</kw> he never saw coming. His coworker hands him a different pan with a wooden handle. Same stove, same flame, same temperature — but wood is a poor conductor that blocks <kw>conduction</kw> at the point of contact. One material rushes heat into your hand; the other stops it cold."},
+kwUsed:["conduction","heat transfer"],
+watch:{danger:0.82},
+data:{happened:"Conduction carried heat through metal pan handle in seconds",response:"Cook got serious palm burn from heat transfer",transfer:"Conduction through metal"}},
+{id:8,name:"Two-Color Experiment",emoji:"🎨",primary:"Radiation",
+predict:{q:"Two identical metal trays sit in the sun — one black, one white. After 30 minutes, what happens?",opts:["Both reach the same temperature","The white tray gets hotter","The black tray reaches 140°F+ while white stays safe","Neither tray gets very hot"]},
+readings:{
+low:"A science teacher in Queens places two metal trays in the sun — one painted black, one painted white. After thirty minutes, the black tray reaches over 140°F and is too hot to touch. The white tray is warm but safe — the black surface <kw>absorbs</kw> more <kw>radiation</kw>. Color changes how much <kw>heat transfer</kw> a material takes in.",
+med:"A science teacher in Queens sets up a simple experiment for her class. She puts two identical metal trays in the sun — one painted black, one painted white. After thirty minutes, the black tray is over 140°F and impossible to touch. The white tray is warm but completely safe to hold with bare hands. The black surface <kw>absorbs</kw> far more <kw>radiation</kw> than the white one. That extra <kw>heat transfer</kw> is why dark cars, benches, and playground equipment get dangerously hot.",
+high:"A science teacher in Queens wants her students to understand why color matters in <kw>heat transfer</kw>. She sets up a simple experiment: two identical metal trays placed in direct sunlight, one painted black and one painted white. Same metal, same sun, same amount of time. After thirty minutes, she asks a student to touch the black tray. He pulls his hand back immediately — the <kw>surface temperature</kw> is over 140°F. She then asks him to touch the white tray, and he holds it easily — warm, but safe. The black surface <kw>absorbs</kw> far more <kw>radiation</kw> than the white surface, which reflects much of the sunlight back. Her students suddenly understand why dark-colored cars heat up faster inside, why dark playground equipment burns, and why light-colored surfaces stay cooler under the same sun."},
+kwUsed:["heat transfer","absorb","radiation","surface temperature"],
+watch:{danger:0.78},
+data:{happened:"Black tray absorbed radiation to 140°F+, white tray stayed safe",response:"Students shocked that color determined heat absorption",transfer:"Radiation absorption depends on color"}}
+];
+const KEY_WORDS=["heat transfer","conduction","convection","radiation","absorb","surface temperature"];
+
+// ===== STATE =====
+let state={currentScenario:null,currentStep:null,readingLevel:'low',completed:new Set(),score:0,streak:0,predictions:0,tableRows:[],predictionMade:false,speechActive:false,speechResumeInterval:null,animId:null};
+
+// ===== PARTICLES =====
+let particles=[];
+function addParticle(x,y,vx,vy,life,color,size){particles.push({x,y,vx,vy,life,maxLife:life,color,size:size||3});}
+function updateParticles(ctx){
+for(let i=particles.length-1;i>=0;i--){
+const p=particles[i];
+p.x+=p.vx;p.y+=p.vy;p.life--;
+if(p.life<=0){particles.splice(i,1);continue;}
+const a=p.life/p.maxLife;
+ctx.globalAlpha=a*0.8;
+ctx.fillStyle=p.color;
+ctx.beginPath();ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2);ctx.fill();
+ctx.globalAlpha=1;
+}}
+
+// ===== INIT =====
+function init(){try{renderScenarioList();renderKeywords();updateHUD();}catch(e){console.error('Init error:',e);}}
+
+function renderScenarioList(){
+const el=document.getElementById('scenarioList');el.innerHTML='';
+SCENARIOS.forEach(sc=>{
+const card=document.createElement('div');
+card.className='scenario-card'+(state.completed.has(sc.id)?' completed':'')+(state.currentScenario===sc.id?' selected':'');
+card.innerHTML=`<span class="sc-emoji">${sc.emoji}</span><span class="sc-name">${sc.name}</span><span class="check-mark">✅</span>`;
+card.onclick=()=>selectScenario(sc.id);
+el.appendChild(card);
+});}
+
+function renderKeywords(hl){
+const el=document.getElementById('keywordsBox');el.innerHTML='';
+KEY_WORDS.forEach(kw=>{
+const s=document.createElement('span');
+s.className='kw-item'+(hl&&hl.includes(kw)?' highlighted':'');
+s.textContent=kw;el.appendChild(s);
+});}
+
+// ===== SCENARIO SELECTION =====
+let predictionTimer=null;
+function selectScenario(id){
+try{
+if(state.currentStep==='watch')return;
+if(state.completed.has(id))return;
+// Cancel any pending prediction timer from previous scenario
+if(predictionTimer){clearTimeout(predictionTimer);predictionTimer=null;}
+// Stop speech if switching during READ
+stopSpeech();
+// Cancel animation if switching during WATCH residual
+if(state.animId){cancelAnimationFrame(state.animId);state.animId=null;}
+state.currentScenario=id;state.currentStep='predict';state.predictionMade=false;
+const sc=SCENARIOS.find(s=>s.id===id);
+renderKeywords(sc.kwUsed);renderScenarioList();updateStepTabs();showPredict();
+}catch(e){console.error('selectScenario:',e);}}
+
+function updateStepTabs(){
+const order=['predict','read','watch','record'];
+document.querySelectorAll('.step-tab').forEach(tab=>{
+tab.classList.remove('active','done');
+const step=tab.dataset.step;
+if(step===state.currentStep)tab.classList.add('active');
+if(order.indexOf(step)<order.indexOf(state.currentStep))tab.classList.add('done');
+});}
+
+// ===== PREDICT =====
+function showPredict(){
+const sc=SCENARIOS.find(s=>s.id===state.currentScenario);
+const c=document.getElementById('centerContent');
+c.innerHTML=`<div class="content-card predict-card"><div class="predict-q">${sc.predict.q}</div><div class="predict-options">${sc.predict.opts.map((o,i)=>`<div class="predict-btn" onclick="makePrediction(this,${i})">${o}</div>`).join('')}</div></div>`;
+document.getElementById('actionArea').innerHTML='';}
+
+function makePrediction(el){
+if(state.predictionMade)return;state.predictionMade=true;state.predictions++;
+document.querySelectorAll('.predict-btn').forEach(b=>b.classList.remove('selected'));
+el.classList.add('selected');
+const scenarioAtClick=state.currentScenario;
+predictionTimer=setTimeout(()=>{
+predictionTimer=null;
+if(state.currentScenario!==scenarioAtClick)return;// scenario changed, abort
+state.currentStep='read';updateStepTabs();showRead();
+},600);}
+
+// ===== READ =====
+function showRead(){
+try{
+const sc=SCENARIOS.find(s=>s.id===state.currentScenario);
+let text=sc.readings[state.readingLevel].replace(/<kw>([^<]+)<\/kw>/g,'<span class="kw">$1</span>');
+// Robust sentence split: split after period (optionally followed by quotes) then whitespace or end
+const sentences=text.split(/(?<=\.[""'']?\s)|(?<=\.[""'']?)(?=<span)|(?<=\.[""'']?)$/g).filter(s=>s&&s.trim().length>0);
+let processed=sentences.map((s,i)=>`<span class="sent" data-idx="${i}">${s}</span>`).join('');
+const c=document.getElementById('centerContent');
+c.innerHTML=`<div class="content-card read-card"><div class="passage-text">${processed}</div></div>`;
+document.getElementById('actionArea').innerHTML=`<button class="action-btn speak" onclick="readAloud()">🔊 Read Aloud</button><button class="action-btn primary" onclick="goToWatch()">Continue →</button>`;
+}catch(e){console.error('showRead:',e);state.currentStep='watch';updateStepTabs();showWatch();}}
+
+// ===== READ ALOUD =====
+let synth=null;
+function readAloud(){
+try{
+if(!synth){if(!window.speechSynthesis){return;}synth=window.speechSynthesis;}
+if(state.speechActive){stopSpeech();return;}
+const sentEls=document.querySelectorAll('.sent');
+const sentences=[];sentEls.forEach(el=>sentences.push(el.textContent));
+state.speechActive=true;speakSentences(sentences,sentEls,0);
+}catch(e){console.error('readAloud:',e);state.speechActive=false;}}
+
+function speakSentences(sentences,els,idx){
+if(!state.speechActive||idx>=sentences.length){stopSpeech();return;}
+try{
+els.forEach(el=>el.classList.remove('sentence-hl'));
+if(els[idx])els[idx].classList.add('sentence-hl');
+const utt=new SpeechSynthesisUtterance(sentences[idx]);utt.rate=0.9;
+if(state.speechResumeInterval)clearInterval(state.speechResumeInterval);
+state.speechResumeInterval=setInterval(()=>{try{if(synth&&synth.speaking)synth.resume();}catch(e){}},10000);
+utt.onend=()=>speakSentences(sentences,els,idx+1);
+utt.onerror=()=>speakSentences(sentences,els,idx+1);
+synth.cancel();synth.speak(utt);
+setTimeout(()=>{if(state.speechActive&&synth&&synth.speaking){synth.cancel();speakSentences(sentences,els,idx+1);}},15000);
+}catch(e){console.error('speak:',e);stopSpeech();}}
+
+function stopSpeech(){
+state.speechActive=false;
+if(state.speechResumeInterval){clearInterval(state.speechResumeInterval);state.speechResumeInterval=null;}
+try{if(synth)synth.cancel();}catch(e){}
+document.querySelectorAll('.sent').forEach(el=>el.classList.remove('sentence-hl'));}
+
+// ===== WATCH =====
+function goToWatch(){
+stopSpeech();state.currentStep='watch';updateStepTabs();showWatch();}
+
+function showWatch(){
+const sc=SCENARIOS.find(s=>s.id===state.currentScenario);
+const c=document.getElementById('centerContent');
+c.innerHTML=`<div class="watch-canvas-container"><canvas id="watchCanvas"></canvas></div>`;
+document.getElementById('actionArea').innerHTML='';
+// Delay one frame so the container has laid out its dimensions
+requestAnimationFrame(()=>{
+try{
+const container=c.querySelector('.watch-canvas-container');
+const cw=container.clientWidth||600;const ch=container.clientHeight||380;
+const W=Math.min(cw-20,780);
+const H=Math.min(ch-20,440);
+const canvas=document.getElementById('watchCanvas');
+if(!canvas){goToRecord();return;}
+canvas.width=Math.max(W,300);canvas.height=Math.max(H,200);
+particles=[];
+const watchTimeout=setTimeout(()=>{if(state.currentStep==='watch')goToRecord();},14000);
+runWatchAnimation(sc,canvas,canvas.width,canvas.height,()=>{
+clearTimeout(watchTimeout);
+setTimeout(()=>{if(state.currentStep==='watch')goToRecord();},2000);
+});
+}catch(e){console.error('Watch error:',e);setTimeout(()=>goToRecord(),2000);}
+});}
+
+// ===== ANIMATION ENGINE =====
+function runWatchAnimation(sc,canvas,W,H,onComplete){
+if(!canvas){onComplete();return;}
+const ctx=canvas.getContext('2d');
+let frame=0;
+const totalFrames=300;// ~5 seconds
+const danger=sc.watch.danger;
+if(state.animId)cancelAnimationFrame(state.animId);
+
+// Shared drawing helpers
+function lerp(a,b,t){return a+(b-a)*Math.min(Math.max(t,0),1);}
+function easeOut(t){return 1-Math.pow(1-t,3);}
+function easeInOut(t){return t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
+function colorTemp(p){
+if(p<0.3)return`rgb(${lerp(80,120,p/0.3)|0},${lerp(140,180,p/0.3)|0},255)`;
+if(p<0.6)return`rgb(255,${lerp(200,140,(p-0.3)/0.3)|0},${lerp(80,30,(p-0.3)/0.3)|0})`;
+return`rgb(255,${lerp(60,20,(p-0.6)/0.4)|0},${lerp(20,5,(p-0.6)/0.4)|0})`;}
+
+function drawSun(x,y,r){
+ctx.save();
+// Outer glow
+const glow=ctx.createRadialGradient(x,y,r*0.5,x,y,r*2.5);
+glow.addColorStop(0,'rgba(255,215,0,0.4)');glow.addColorStop(0.5,'rgba(255,180,0,0.1)');glow.addColorStop(1,'rgba(255,150,0,0)');
+ctx.fillStyle=glow;ctx.beginPath();ctx.arc(x,y,r*2.5,0,Math.PI*2);ctx.fill();
+// Sun body
+const sg=ctx.createRadialGradient(x-r*0.2,y-r*0.2,0,x,y,r);
+sg.addColorStop(0,'#fff8e1');sg.addColorStop(0.4,'#ffd54f');sg.addColorStop(1,'#ff8f00');
+ctx.fillStyle=sg;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+// Rays
+const rayCount=12;
+for(let i=0;i<rayCount;i++){
+const angle=(i/rayCount)*Math.PI*2+frame*0.005;
+const rLen=r*0.6+Math.sin(frame*0.08+i*1.3)*r*0.15;
+const rx=x+Math.cos(angle)*(r+2);const ry=y+Math.sin(angle)*(r+2);
+const rex=x+Math.cos(angle)*(r+rLen);const rey=y+Math.sin(angle)*(r+rLen);
+ctx.strokeStyle=`rgba(255,215,0,${0.3+Math.sin(frame*0.06+i)*0.15})`;
+ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rex,rey);ctx.stroke();
+}
+ctx.restore();}
+
+function drawRadiationBeams(sx,sy,tx,ty,p,count){
+for(let i=0;i<count;i++){
+const spread=(i-(count-1)/2)*18;
+const fx=sx+spread*0.6;const fy=sy;
+const toX=tx+spread;const toY=ty;
+const reach=Math.min(p*1.2,1);
+const mx=fx+(toX-fx)*reach;const my=fy+(toY-fy)*reach;
+// Animated dashes
+const grad=ctx.createLinearGradient(fx,fy,mx,my);
+grad.addColorStop(0,'rgba(255,215,0,0.9)');grad.addColorStop(0.6,'rgba(255,165,0,0.6)');grad.addColorStop(1,'rgba(255,100,0,0.1)');
+ctx.strokeStyle=grad;ctx.lineWidth=3;
+ctx.setLineDash([8,5]);ctx.lineDashOffset=-frame*1.5;
+ctx.beginPath();ctx.moveTo(fx,fy);ctx.lineTo(mx,my);ctx.stroke();
+ctx.setLineDash([]);
+// Tip glow
+if(reach>0.3){
+const ta=Math.sin(frame*0.1+i)*0.3+0.5;
+ctx.fillStyle=`rgba(255,200,50,${ta*reach})`;
+ctx.beginPath();ctx.arc(mx,my,4,0,Math.PI*2);ctx.fill();
+// Spawn particles
+if(frame%6===i%6)addParticle(mx,my,(Math.random()-0.5)*1,(Math.random()-0.5)*1,20+Math.random()*15,'rgba(255,200,50,0.7)',2);
+}}}
+
+function drawConductionFlow(fx,fy,tx,ty,p){
+const num=8;
+for(let i=0;i<num;i++){
+const t=((frame*0.015+i/num)%1);
+const px=fx+(tx-fx)*t;const py=fy+(ty-fy)*t;
+const a=Math.sin(t*Math.PI)*(0.4+p*0.6);
+const sz=3+p*3+Math.sin(frame*0.12+i)*1;
+// Outer glow
+ctx.fillStyle=`rgba(255,60,30,${a*0.3})`;
+ctx.beginPath();ctx.arc(px,py,sz+4,0,Math.PI*2);ctx.fill();
+// Core
+ctx.fillStyle=`rgba(255,${80+Math.sin(frame*0.1+i)*40|0},30,${a})`;
+ctx.beginPath();ctx.arc(px,py,sz,0,Math.PI*2);ctx.fill();
+// Hot white center
+ctx.fillStyle=`rgba(255,255,200,${a*0.5})`;
+ctx.beginPath();ctx.arc(px,py,sz*0.4,0,Math.PI*2);ctx.fill();
+}}
+
+function drawConvectionCurls(x,y,w,p,count){
+count=count||5;if(count<2)count=2;
+for(let i=0;i<count;i++){
+const cx=x+(i/(count-1))*w;
+const rise=p*90;
+const a=0.2+p*0.5;
+const sway=Math.sin(frame*0.025+i*1.2)*15;
+// Rising curved stream
+ctx.strokeStyle=`rgba(255,${120-p*60|0},${50-p*30|0},${a})`;
+ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(cx,y);
+ctx.bezierCurveTo(cx+sway,y-rise*0.3,cx-sway*0.8,y-rise*0.65,cx+sway*0.5,y-rise);ctx.stroke();
+// Glowing particle at top
+const pa=a*0.8;
+ctx.fillStyle=`rgba(255,${140-p*60|0},50,${pa})`;
+ctx.beginPath();ctx.arc(cx+sway*0.5,y-rise+Math.sin(frame*0.04+i)*4,3+p*2,0,Math.PI*2);ctx.fill();
+if(frame%8===i%8)addParticle(cx+sway*0.5,y-rise,(Math.random()-0.5)*0.5,-0.5-Math.random(),15,'rgba(255,130,50,0.5)',2);
+}}
+
+function drawHeatShimmer(x,y,w,h,intensity){
+for(let i=0;i<6;i++){
+const sx=x+Math.random()*w;
+const sy=y+Math.random()*h;
+const a=intensity*0.15*Math.sin(frame*0.05+i*2);
+ctx.fillStyle=`rgba(255,200,100,${Math.abs(a)})`;
+ctx.beginPath();ctx.ellipse(sx,sy,8+Math.sin(frame*0.03+i)*4,2,0,0,Math.PI*2);ctx.fill();
+}}
+
+function drawLabel(text,x,y,color,bgColor){
+ctx.save();ctx.font='bold 13px sans-serif';ctx.textAlign='center';
+const m=ctx.measureText(text);const pw=8;const ph=4;
+if(bgColor){
+ctx.fillStyle=bgColor;
+ctx.beginPath();ctx.roundRect(x-m.width/2-pw,y-12-ph,m.width+pw*2,18+ph*2,6);ctx.fill();
+}
+ctx.fillStyle=color||'#fff';ctx.fillText(text,x,y);
+ctx.restore();}
+
+function drawThermometer(x,y,h,temp,label,maxT){
+maxT=maxT||200;
+const w=16;const fillPct=Math.min(temp/maxT,1);
+// Tube
+ctx.fillStyle='rgba(255,255,255,0.1)';ctx.beginPath();ctx.roundRect(x-w/2,y,w,h,w/2);ctx.fill();
+// Fill
+const fh=Math.max(h*fillPct,6);
+const tg=ctx.createLinearGradient(x,y+h,x,y+h-fh);
+if(fillPct<0.4){tg.addColorStop(0,'#43a047');tg.addColorStop(1,'#66bb6a');}
+else if(fillPct<0.7){tg.addColorStop(0,'#fb8c00');tg.addColorStop(1,'#ffd54f');}
+else{tg.addColorStop(0,'#c62828');tg.addColorStop(1,'#ef5350');}
+const fillR=Math.min(w/2-2,Math.max((fh-2)/2,1));
+ctx.fillStyle=tg;ctx.beginPath();ctx.roundRect(x-w/2+2,y+h-fh,w-4,Math.max(fh-2,2),fillR);ctx.fill();
+// Bulb
+ctx.fillStyle=fillPct>0.7?'#e53935':fillPct>0.4?'#fb8c00':'#43a047';
+ctx.beginPath();ctx.arc(x,y+h+8,10,0,Math.PI*2);ctx.fill();
+// Temp text
+ctx.save();ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+ctx.fillStyle='#fff';ctx.fillText(`${temp|0}°F`,x,y+h+32);
+if(label){ctx.font='bold 10px sans-serif';ctx.fillStyle='#aaa';ctx.fillText(label,x,y-8);}
+ctx.restore();}
+
+function drawGauge(rawP){
+const p=easeOut(rawP);
+const gx=W-65,gy=20,gw=36,gh=Math.min(H-80,260);
+// Background track
+ctx.fillStyle='rgba(255,255,255,0.06)';ctx.beginPath();ctx.roundRect(gx,gy,gw,gh,gw/2);ctx.fill();
+// Zone markers
+const zones=[{pct:0.4,color:'#43a047',label:'SAFE'},{pct:0.3,color:'#ffd54f',label:'CAUTION'},{pct:0.3,color:'#e53935',label:'DANGER'}];
+let yOff=gy+gh;
+zones.forEach(z=>{
+const zh=gh*z.pct;yOff-=zh;
+ctx.fillStyle=z.color+'20';ctx.fillRect(gx+2,yOff,gw-4,zh);
+ctx.fillStyle=z.color;ctx.font='bold 8px sans-serif';ctx.textAlign='center';
+ctx.fillText(z.label,gx+gw/2,yOff+zh/2+3);
+});
+// Fill level
+const fillPct=Math.min(p*danger,1);
+const fillH=Math.max(gh*fillPct,0);
+if(fillH>2){
+const gaugeR=Math.min(gw/2-3,fillH/2);
+const fg=ctx.createLinearGradient(gx,gy+gh,gx,gy+gh-fillH);
+if(fillPct<0.4){fg.addColorStop(0,'#43a047');fg.addColorStop(1,'#66bb6a');}
+else if(fillPct<0.7){fg.addColorStop(0,'#fb8c00');fg.addColorStop(1,'#ffd54f');}
+else{fg.addColorStop(0,'#c62828');fg.addColorStop(1,'#ff5252');}
+ctx.fillStyle=fg;ctx.beginPath();ctx.roundRect(gx+3,gy+gh-fillH,gw-6,fillH,gaugeR);ctx.fill();
+// Pulsing glow for danger
+if(fillPct>0.7){
+ctx.save();ctx.shadowColor='#e53935';ctx.shadowBlur=12+Math.sin(frame*0.1)*6;
+ctx.fillStyle='rgba(229,57,53,0.25)';ctx.beginPath();ctx.roundRect(gx+3,gy+gh-fillH,gw-6,fillH,gaugeR);ctx.fill();
+ctx.restore();
+}}
+// Needle
+const needleY=gy+gh-fillH;
+ctx.fillStyle='#fff';ctx.beginPath();
+ctx.moveTo(gx-4,needleY);ctx.lineTo(gx+2,needleY-3);ctx.lineTo(gx+2,needleY+3);ctx.closePath();ctx.fill();
+// Title
+ctx.save();ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.fillStyle='#888';
+ctx.fillText('HEAT DANGER',gx+gw/2,gy+gh+14);ctx.fillText('LEVEL',gx+gw/2,gy+gh+24);
+ctx.restore();}
+
+function drawPerson(x,y,scale,opts){
+opts=opts||{};scale=scale||1;
+ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+if(opts.rotate)ctx.rotate(opts.rotate);
+// Head
+ctx.fillStyle=opts.skinColor||'#ffcc80';
+ctx.beginPath();ctx.arc(0,-28,10,0,Math.PI*2);ctx.fill();
+// Body
+ctx.fillStyle=opts.shirtColor||'#42a5f5';
+ctx.beginPath();ctx.moveTo(-8,-18);ctx.lineTo(8,-18);ctx.lineTo(10,8);ctx.lineTo(-10,8);ctx.closePath();ctx.fill();
+// Legs
+ctx.fillStyle=opts.pantsColor||'#5c6bc0';
+ctx.fillRect(-8,8,7,16);ctx.fillRect(1,8,7,16);
+// Arms
+ctx.strokeStyle=opts.skinColor||'#ffcc80';ctx.lineWidth=3;
+if(opts.armsUp){ctx.beginPath();ctx.moveTo(-8,-14);ctx.lineTo(-16,-24);ctx.moveTo(8,-14);ctx.lineTo(16,-24);ctx.stroke();}
+else{ctx.beginPath();ctx.moveTo(-8,-14);ctx.lineTo(-14,2);ctx.moveTo(8,-14);ctx.lineTo(14,2);ctx.stroke();}
+ctx.restore();}
+
+function drawBurnWarning(x,y,p){
+const a=0.5+Math.sin(frame*0.15)*0.3;
+ctx.save();ctx.globalAlpha=p;
+// Red pulse circle
+ctx.fillStyle=`rgba(229,57,53,${a*0.3})`;
+ctx.beginPath();ctx.arc(x,y,20+Math.sin(frame*0.1)*5,0,Math.PI*2);ctx.fill();
+// Warning text
+ctx.font='bold 16px sans-serif';ctx.textAlign='center';ctx.fillStyle=`rgba(255,80,50,${a})`;
+ctx.fillText('⚠️ BURN',x,y+5);
+ctx.restore();}
+
+function drawGround(y,color1,color2){
+const gg=ctx.createLinearGradient(0,y,0,H);
+gg.addColorStop(0,color1||'#2a3a2a');gg.addColorStop(1,color2||'#1a2a1a');
+ctx.fillStyle=gg;ctx.fillRect(0,y,W,H-y);}
+
+// ===== SCENARIO ANIMATIONS =====
+const anims={
+1:function(p){// Bronx Hot Slide
+drawGround(H*0.72,'#3d5a3d','#2a4a2a');
+// Sky gradient
+const sky=ctx.createLinearGradient(0,0,0,H*0.72);sky.addColorStop(0,'#1a237e');sky.addColorStop(1,'#283593');
+ctx.fillStyle=sky;ctx.fillRect(0,0,W,H*0.72);
+drawSun(W*0.15,H*0.12,22);
+// Playground structure
+ctx.fillStyle='#5d4037';ctx.fillRect(W*0.25,H*0.25,8,H*0.47);// left pole
+ctx.fillStyle='#5d4037';ctx.fillRect(W*0.56,H*0.25,8,H*0.47);// right pole
+ctx.fillStyle='#6d4c41';ctx.fillRect(W*0.22,H*0.23,W*0.38,10);// top bar
+// Slide surface - heats up
+const slideP=easeOut(p)*danger;
+const sc1=colorTemp(slideP);
+ctx.fillStyle=sc1;
+ctx.beginPath();ctx.moveTo(W*0.3,H*0.3);ctx.lineTo(W*0.52,H*0.65);ctx.lineTo(W*0.55,H*0.65);ctx.lineTo(W*0.55,H*0.68);ctx.lineTo(W*0.33,H*0.68);ctx.lineTo(W*0.3,H*0.3);ctx.closePath();ctx.fill();
+// Slide glow when hot
+if(slideP>0.5){
+ctx.save();ctx.shadowColor='#ff5722';ctx.shadowBlur=8+slideP*12;
+ctx.fillStyle=sc1;ctx.beginPath();ctx.moveTo(W*0.3,H*0.3);ctx.lineTo(W*0.52,H*0.65);ctx.lineTo(W*0.55,H*0.65);ctx.lineTo(W*0.55,H*0.68);ctx.lineTo(W*0.33,H*0.68);ctx.lineTo(W*0.3,H*0.3);ctx.closePath();ctx.fill();
+ctx.restore();
+drawHeatShimmer(W*0.3,H*0.35,W*0.25,H*0.3,slideP);}
+// Radiation beams
+drawRadiationBeams(W*0.15,H*0.18,W*0.4,H*0.4,p,5);
+// Slide label
+drawLabel('Slide Surface',W*0.42,H*0.52,'#fff','rgba(0,0,0,0.5)');
+// Temperature thermometers
+drawThermometer(W*0.7,H*0.15,H*0.35,80,'Air',200);
+drawThermometer(W*0.82,H*0.15,H*0.35,80+p*80,'Surface',200);
+// Person arrives at 60%
+if(p>0.6){
+const pp=(p-0.6)/0.4;
+drawPerson(W*0.36,H*0.4-pp*10,0.8,{shirtColor:'#e91e63'});
+if(p>0.72)drawConductionFlow(W*0.44,H*0.58,W*0.38,H*0.42,(p-0.72)/0.28);
+if(p>0.8)drawBurnWarning(W*0.36,H*0.22,(p-0.8)/0.2);
+}
+drawLabel('☀️ Radiation',W*0.25,H*0.22,'#ffd54f','rgba(0,0,0,0.5)');
+if(p>0.72)drawLabel('Conduction →',W*0.48,H*0.62,'#ef5350','rgba(0,0,0,0.5)');
+},
+2:function(p){// Union Square Platform
+// Street level
+ctx.fillStyle='#37474f';ctx.fillRect(0,0,W,H*0.22);
+ctx.fillStyle='#546e7a';ctx.fillRect(0,H*0.2,W,4);
+// Underground
+ctx.fillStyle='#1a1a1a';ctx.fillRect(0,H*0.22,W,H*0.78);
+// Ceiling
+ctx.fillStyle='#2d2d2d';ctx.fillRect(0,H*0.22,W,H*0.06);
+// Platform floor tiles
+ctx.fillStyle='#333';ctx.fillRect(0,H*0.82,W,H*0.18);
+for(let i=0;i<12;i++){ctx.fillStyle=i%2===0?'#3a3a3a':'#353535';ctx.fillRect(i*(W/12),H*0.82,W/12,H*0.05);}
+// Stairs label
+ctx.fillStyle='#aaa';ctx.font='10px sans-serif';ctx.textAlign='center';
+ctx.fillText('↑ Street Level',W*0.12,H*0.18);
+// Train
+const tx=W*0.08;const tw=W*0.35;
+ctx.fillStyle='#455a64';
+ctx.beginPath();ctx.roundRect(tx,H*0.36,tw,H*0.22,8);ctx.fill();
+ctx.fillStyle='#37474f';ctx.fillRect(tx,H*0.36,tw,H*0.04);
+// Windows
+for(let i=0;i<4;i++){
+ctx.fillStyle='#64b5f6';
+ctx.beginPath();ctx.roundRect(tx+20+i*(tw*0.22),H*0.42,tw*0.16,H*0.1,4);ctx.fill();}
+// AC exhaust from train
+if(p>0.08){
+const ep=Math.min((p-0.08)/0.4,1);
+// Red exhaust arrows
+drawConvectionCurls(tx+tw*0.1,H*0.58,tw*0.8,ep,6);
+drawLabel('AC Exhaust',tx+tw/2,H*0.62,'#ff8a65','rgba(0,0,0,0.6)');
+}
+// Trapped heat overlay
+const heatA=easeOut(p)*0.35;
+const hg=ctx.createLinearGradient(0,H*0.82,0,H*0.28);
+hg.addColorStop(0,`rgba(255,80,30,${heatA*0.2})`);hg.addColorStop(1,`rgba(255,40,20,${heatA})`);
+ctx.fillStyle=hg;ctx.fillRect(0,H*0.28,W,H*0.54);
+drawHeatShimmer(0,H*0.3,W,H*0.5,easeOut(p)*0.8);
+// Street is cooler - show green tint
+ctx.fillStyle=`rgba(100,200,100,${p*0.08})`;ctx.fillRect(0,0,W,H*0.22);
+// Person on platform
+const personX=W*0.65;
+if(p<0.75){drawPerson(personX,H*0.74,1);}
+else{
+const cp=(p-0.75)/0.25;
+drawPerson(personX,H*0.74+cp*12,1,{rotate:cp*0.6});}
+// Temp displays
+drawThermometer(W*0.78,H*0.3,H*0.3,75+p*19,'Platform',150);
+if(p>0.35){
+ctx.save();ctx.font='bold 13px sans-serif';ctx.textAlign='center';
+ctx.fillStyle='#ef5350';ctx.fillText(`Feels Like: ${85+p*26|0}°F`,W*0.78,H*0.28);
+ctx.restore();}
+drawLabel('🌀 Convection',W*0.35,H*0.7,'#ff8a65','rgba(0,0,0,0.6)');
+if(p>0.5)drawLabel('Trapped Heat — No Wind',W*0.5,H*0.35,'#ffd54f','rgba(0,0,0,0.5)');
+if(p>0.75)drawBurnWarning(personX,H*0.56,(p-0.75)/0.25);
+},
+3:function(p){// 68-Degree Day Car
+// Sky
+const sky=ctx.createLinearGradient(0,0,0,H*0.55);sky.addColorStop(0,'#1565c0');sky.addColorStop(1,'#42a5f5');
+ctx.fillStyle=sky;ctx.fillRect(0,0,W,H*0.55);
+drawGround(H*0.55,'#4a4a4a','#333');
+drawSun(W*0.5,H*0.1,24);
+// Car body
+const carL=W*0.15,carR=W*0.72,carTop=H*0.3,carBot=H*0.6;
+ctx.fillStyle='#546e7a';
+ctx.beginPath();ctx.moveTo(carL,carBot);ctx.lineTo(carL,carTop+20);ctx.quadraticCurveTo(carL+30,carTop,carL+80,carTop);
+ctx.lineTo(carR-30,carTop);ctx.quadraticCurveTo(carR,carTop,carR,carTop+20);
+ctx.lineTo(carR,carBot);ctx.closePath();ctx.fill();
+// Windshield
+ctx.fillStyle='rgba(100,181,246,0.25)';
+ctx.beginPath();ctx.moveTo(carL+60,carTop+2);ctx.lineTo(carL+90,carTop+2);
+ctx.lineTo(carL+85,carTop+35);ctx.lineTo(carL+50,carTop+35);ctx.closePath();ctx.fill();
+// Rear window
+ctx.fillStyle='rgba(100,181,246,0.2)';
+ctx.beginPath();ctx.moveTo(carR-80,carTop+2);ctx.lineTo(carR-50,carTop+2);
+ctx.lineTo(carR-40,carTop+35);ctx.lineTo(carR-85,carTop+35);ctx.closePath();ctx.fill();
+// Wheels
+ctx.fillStyle='#222';ctx.beginPath();ctx.arc(carL+50,carBot,14,0,Math.PI*2);ctx.fill();
+ctx.beginPath();ctx.arc(carR-50,carBot,14,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#555';ctx.beginPath();ctx.arc(carL+50,carBot,8,0,Math.PI*2);ctx.fill();
+ctx.beginPath();ctx.arc(carR-50,carBot,8,0,Math.PI*2);ctx.fill();
+// Radiation through windshield
+drawRadiationBeams(W*0.5,H*0.16,W*0.32,carTop+15,p,4);
+// Interior heating
+const intP=easeOut(p)*danger;
+const intColor=colorTemp(intP);
+ctx.fillStyle=intColor;ctx.globalAlpha=0.25+intP*0.35;
+ctx.fillRect(carL+10,carTop+5,(carR-carL)-20,carBot-carTop-10);
+ctx.globalAlpha=1;
+// Dashboard heating
+ctx.fillStyle=colorTemp(intP*1.1);ctx.fillRect(carL+15,carTop+35,60,8);
+drawLabel('Dashboard',carL+45,carTop+50,'#fff','rgba(0,0,0,0.5)');
+// Sealed icon
+if(p>0.25){
+ctx.save();ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+ctx.fillStyle=`rgba(229,57,53,${0.5+Math.sin(frame*0.1)*0.2})`;
+ctx.fillText('🔒 Windows Sealed',(carL+carR)/2,carTop+70);
+ctx.restore();}
+// Heat bouncing inside
+if(p>0.4){
+const bp=(p-0.4)/0.6;
+for(let i=0;i<4;i++){
+const bx=carL+30+i*((carR-carL-60)/3);
+const by=carTop+40+Math.sin(frame*0.04+i*1.5)*15;
+ctx.fillStyle=`rgba(255,100,50,${bp*0.3})`;
+ctx.beginPath();ctx.arc(bx,by,3+bp*2,0,Math.PI*2);ctx.fill();
+}}
+// Dual thermometers
+drawThermometer(W*0.8,H*0.12,H*0.35,68,'Outside',140);
+drawThermometer(W*0.9,H*0.12,H*0.35,68+p*42,'Inside',140);
+drawLabel('☀️ Radiation',W*0.4,H*0.22,'#ffd54f','rgba(0,0,0,0.5)');
+if(p>0.5)drawHeatShimmer(carL+15,carTop+10,(carR-carL)-30,carBot-carTop-20,intP);
+},
+4:function(p){// Coney Island Bench
+drawGround(H*0.72,'#c8b88a','#a0926e');// Sandy ground
+const sky=ctx.createLinearGradient(0,0,0,H*0.72);sky.addColorStop(0,'#0d47a1');sky.addColorStop(1,'#1976d2');
+ctx.fillStyle=sky;ctx.fillRect(0,0,W,H*0.72);
+drawSun(W*0.5,H*0.1,22);
+drawRadiationBeams(W*0.5,H*0.16,W*0.28,H*0.45,p,5);
+// Metal bench
+const benchP=easeOut(p)*danger;const benchC=colorTemp(benchP);
+ctx.fillStyle=benchC;
+ctx.beginPath();ctx.roundRect(W*0.12,H*0.52,W*0.32,H*0.04,3);ctx.fill();
+// Bench legs
+ctx.fillStyle='#666';ctx.fillRect(W*0.15,H*0.56,6,H*0.16);ctx.fillRect(W*0.41,H*0.56,6,H*0.16);
+// Bench arm rests
+ctx.fillStyle=benchC;ctx.fillRect(W*0.13,H*0.42,6,H*0.1);ctx.fillRect(W*0.43,H*0.42,6,H*0.1);
+// Glow
+if(benchP>0.5){
+ctx.save();ctx.shadowColor='#ff5722';ctx.shadowBlur=10+benchP*14;
+ctx.fillStyle=benchC;ctx.beginPath();ctx.roundRect(W*0.12,H*0.52,W*0.32,H*0.04,3);ctx.fill();
+ctx.restore();
+drawHeatShimmer(W*0.12,H*0.42,W*0.32,H*0.12,benchP);}
+drawLabel('Metal Bench',W*0.28,H*0.49,'#fff','rgba(0,0,0,0.5)');
+// Temp
+const metalTemp=90+p*55|0;
+ctx.save();ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+ctx.fillStyle=metalTemp>130?'#e53935':'#fb8c00';ctx.fillText(`${metalTemp}°F`,W*0.28,H*0.78);ctx.restore();
+// Person sits at 50%
+if(p>0.5){
+const pp=(p-0.5)/0.5;
+drawPerson(W*0.28,H*0.44,0.9,{shirtColor:'#ff7043'});
+drawConductionFlow(W*0.28,H*0.52,W*0.28,H*0.38,pp);
+if(p>0.72)drawBurnWarning(W*0.28,H*0.28,(p-0.72)/0.28);
+}
+// Wooden bench for comparison
+ctx.fillStyle='#8d6e63';ctx.beginPath();ctx.roundRect(W*0.58,H*0.52,W*0.25,H*0.03,3);ctx.fill();
+ctx.fillStyle='#6d4c41';ctx.fillRect(W*0.61,H*0.55,5,H*0.14);ctx.fillRect(W*0.79,H*0.55,5,H*0.14);
+drawLabel('Wood Bench',W*0.71,H*0.49,'#a1887f','rgba(0,0,0,0.5)');
+ctx.save();ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.fillStyle='#43a047';ctx.fillText('✓ Safe',W*0.71,H*0.78);ctx.restore();
+drawLabel('☀️ Radiation',W*0.35,H*0.3,'#ffd54f','rgba(0,0,0,0.5)');
+if(p>0.5)drawLabel('⚡ Conduction',W*0.28,H*0.6,'#ef5350','rgba(0,0,0,0.5)');
+},
+5:function(p){// Barefoot on Rubber
+drawGround(H*0.68,'#4a5a3a','#3a4a2a');
+const sky=ctx.createLinearGradient(0,0,0,H*0.68);sky.addColorStop(0,'#0d47a1');sky.addColorStop(1,'#1e88e5');
+ctx.fillStyle=sky;ctx.fillRect(0,0,W,H*0.68);
+drawSun(W*0.5,H*0.08,24);
+// Swing set in background
+ctx.strokeStyle='#5d4037';ctx.lineWidth=4;
+ctx.beginPath();ctx.moveTo(W*0.65,H*0.2);ctx.lineTo(W*0.7,H*0.65);ctx.moveTo(W*0.85,H*0.2);ctx.lineTo(W*0.8,H*0.65);
+ctx.moveTo(W*0.64,H*0.2);ctx.lineTo(W*0.86,H*0.2);ctx.stroke();
+// Rubber mat
+const matP=easeOut(p)*danger;const matC=colorTemp(matP);
+ctx.fillStyle=matC;ctx.beginPath();ctx.roundRect(W*0.1,H*0.63,W*0.52,H*0.07,4);ctx.fill();
+if(matP>0.5){
+ctx.save();ctx.shadowColor='#ff5722';ctx.shadowBlur=10+matP*15;
+ctx.fillStyle=matC;ctx.beginPath();ctx.roundRect(W*0.1,H*0.63,W*0.52,H*0.07,4);ctx.fill();
+ctx.restore();
+drawHeatShimmer(W*0.1,H*0.55,W*0.52,H*0.12,matP);}
+drawLabel('Black Rubber Safety Mat',W*0.36,H*0.67,'#fff','rgba(0,0,0,0.5)');
+drawRadiationBeams(W*0.5,H*0.14,W*0.36,H*0.55,p,6);
+// Original purpose label
+if(p>0.5){
+ctx.save();ctx.font='11px sans-serif';ctx.textAlign='center';
+ctx.fillStyle='#aaa';ctx.fillText('Designed for: Fall Protection',W*0.36,H*0.77);
+ctx.fillStyle='#e53935';ctx.fillText('Reality: Burn Hazard',W*0.36,H*0.83);ctx.restore();}
+// Temp + coffee comparison
+const matTemp=90+p*70|0;
+drawThermometer(W*0.72,H*0.2,H*0.35,matTemp,'Surface',200);
+if(p>0.35){ctx.save();ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillStyle='#ffab91';ctx.fillText('☕ > Coffee temp!',W*0.72,H*0.68);ctx.restore();}
+// Feet arrive
+if(p>0.6){
+const fp=(p-0.6)/0.4;
+drawPerson(W*0.3,H*0.55,0.8,{shirtColor:'#66bb6a'});
+drawConductionFlow(W*0.28,H*0.63,W*0.28,H*0.5,fp);
+drawConductionFlow(W*0.34,H*0.63,W*0.34,H*0.5,fp);
+if(p>0.8)drawBurnWarning(W*0.3,H*0.38,(p-0.8)/0.2);
+}
+drawLabel('☀️ Radiation',W*0.3,H*0.35,'#ffd54f','rgba(0,0,0,0.5)');
+},
+6:function(p){// Brownsville Top Floor
+// Sky
+ctx.fillStyle='#1a237e';ctx.fillRect(0,0,W,H*0.15);
+drawSun(W*0.5,H*0.06,18);
+// Building
+const bx=W*0.2,bw=W*0.45,by=H*0.12,bh=H*0.82;
+ctx.fillStyle='#4a4a4a';ctx.fillRect(bx,by,bw,bh);
+// Roof - absorbs radiation
+const roofP=easeOut(p)*0.9;
+ctx.fillStyle=colorTemp(roofP);ctx.fillRect(bx-5,by-6,bw+10,10);
+if(roofP>0.5){ctx.save();ctx.shadowColor='#ff5722';ctx.shadowBlur=8+roofP*8;
+ctx.fillStyle=colorTemp(roofP);ctx.fillRect(bx-5,by-6,bw+10,10);ctx.restore();}
+drawRadiationBeams(W*0.5,H*0.1,W*0.42,by-8,p,4);
+// Floors
+const floors=5;const floorH=bh/floors;
+for(let i=0;i<floors;i++){
+const fy=by+i*floorH;
+// Floor heat gradient - top floor hottest
+const floorHeat=i===0?easeOut(p)*0.5:i===1?easeOut(p)*0.25:easeOut(p)*0.1;
+ctx.fillStyle=`rgba(255,${80-floorHeat*60|0},30,${floorHeat})`;
+ctx.fillRect(bx+2,fy+2,bw-4,floorH-2);
+// Windows
+for(let w=0;w<3;w++){
+const wx=bx+20+w*(bw-40)/2.5;
+ctx.fillStyle=i===0&&p>0.5?`rgba(255,180,100,${0.3+p*0.3})`:'rgba(100,150,200,0.2)';
+ctx.fillRect(wx,fy+floorH*0.2,bw*0.18,floorH*0.5);}
+// Floor line
+ctx.strokeStyle='#555';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(bx,fy+floorH);ctx.lineTo(bx+bw,fy+floorH);ctx.stroke();
+// Label
+ctx.save();ctx.font='9px sans-serif';ctx.fillStyle='#999';ctx.textAlign='right';
+ctx.fillText(i===0?'Floor 5 (Top)':i===1?'Floor 4':i===2?'Floor 3':i===3?'Floor 2':'Floor 1',bx-5,fy+floorH*0.55);
+ctx.restore();}
+// Convection arrows rising inside building
+drawConvectionCurls(bx+15,by+bh-10,bw-30,p,5);
+// Radiation down from roof into top floor
+if(p>0.3){
+const rp=(p-0.3)/0.7;
+for(let i=0;i<4;i++){
+const dx=bx+bw*0.2+i*(bw*0.2);
+ctx.strokeStyle=`rgba(255,100,50,${rp*0.5})`;ctx.setLineDash([4,3]);ctx.lineDashOffset=-frame;ctx.lineWidth=2;
+ctx.beginPath();ctx.moveTo(dx,by+4);ctx.lineTo(dx,by+4+rp*floorH*0.8);ctx.stroke();ctx.setLineDash([]);
+}}
+// Person on top floor
+const px=bx+bw*0.65;const py=by+floorH*0.7;
+if(p<0.7)drawPerson(px,py,0.7);
+else drawPerson(px,py+((p-0.7)/0.3)*8,0.7,{rotate:(p-0.7)/0.3*0.4});
+// No AC label
+if(p>0.4){drawLabel('No AC',bx+bw*0.3,by+floorH*0.5,'#ef5350','rgba(0,0,0,0.6)');}
+drawLabel('🌀 Convection ↑',bx-W*0.02,H*0.6,'#ff8a65','rgba(0,0,0,0.5)');
+drawLabel('☀️ Radiation ↓',bx+bw+10,H*0.2,'#ffd54f','rgba(0,0,0,0.5)');
+if(p>0.7)drawBurnWarning(px,py-30,(p-0.7)/0.3);
+},
+7:function(p){// Chef's Lesson
+// Kitchen background
+ctx.fillStyle='#37474f';ctx.fillRect(0,H*0.55,W,H*0.45);// counter
+ctx.fillStyle='#455a64';ctx.fillRect(0,H*0.53,W,H*0.04);// counter edge
+ctx.fillStyle='#263238';ctx.fillRect(0,0,W,H*0.53);// wall
+// Stove
+ctx.fillStyle='#212121';ctx.beginPath();ctx.roundRect(W*0.12,H*0.35,W*0.3,H*0.22,6);ctx.fill();
+ctx.fillStyle='#333';ctx.fillRect(W*0.14,H*0.35,W*0.26,H*0.03);
+// Burner flame - animated
+for(let i=0;i<6;i++){
+const fx=W*0.2+i*(W*0.03);
+const fh=H*0.06+Math.sin(frame*0.12+i*1.1)*H*0.015;
+const fg=ctx.createLinearGradient(fx,H*0.46,fx,H*0.46-fh);
+fg.addColorStop(0,'#ff6f00');fg.addColorStop(0.3,'#ffd54f');fg.addColorStop(0.7,'#ffee58');fg.addColorStop(1,'rgba(255,238,88,0)');
+ctx.fillStyle=fg;
+ctx.beginPath();ctx.moveTo(fx-4,H*0.46);
+ctx.quadraticCurveTo(fx-6,H*0.46-fh*0.6,fx,H*0.46-fh+Math.sin(frame*0.15+i)*3);
+ctx.quadraticCurveTo(fx+6,H*0.46-fh*0.6,fx+4,H*0.46);ctx.fill();
+}
+// Flame glow
+ctx.save();ctx.shadowColor='#ff6f00';ctx.shadowBlur=15+Math.sin(frame*0.08)*5;
+ctx.fillStyle='rgba(255,150,0,0.1)';ctx.fillRect(W*0.17,H*0.38,W*0.12,H*0.08);ctx.restore();
+// Steel pan body
+ctx.fillStyle='#90a4ae';ctx.beginPath();ctx.roundRect(W*0.16,H*0.43,W*0.16,H*0.04,3);ctx.fill();
+ctx.fillStyle='#b0bec5';ctx.beginPath();ctx.ellipse(W*0.24,H*0.43,W*0.08,H*0.015,0,0,Math.PI*2);ctx.fill();
+// Handle - gradient heat
+const handleP=easeOut(p);
+const hg=ctx.createLinearGradient(W*0.32,0,W*0.58,0);
+hg.addColorStop(0,colorTemp(handleP*0.85));hg.addColorStop(1,colorTemp(handleP*0.3));
+ctx.fillStyle=hg;ctx.beginPath();ctx.roundRect(W*0.32,H*0.443,W*0.26,H*0.02,3);ctx.fill();
+// Heat flow through handle
+if(p>0.15)drawConductionFlow(W*0.32,H*0.453,W*0.58,H*0.453,(p-0.15)/0.85);
+// Hand grabs at 50%
+if(p>0.5){
+ctx.save();ctx.font='28px sans-serif';ctx.textAlign='center';
+ctx.fillText('✋',W*0.58,H*0.46);ctx.restore();
+if(p>0.65)drawBurnWarning(W*0.58,H*0.36,(p-0.65)/0.35);
+}
+// Wooden handle pan - comparison below
+ctx.fillStyle='#90a4ae';ctx.beginPath();ctx.roundRect(W*0.16,H*0.72,W*0.12,H*0.03,3);ctx.fill();
+ctx.fillStyle='#8d6e63';ctx.beginPath();ctx.roundRect(W*0.28,H*0.725,W*0.18,H*0.015,3);ctx.fill();
+drawLabel('Wood = Insulator',W*0.46,H*0.74,'#43a047','rgba(0,0,0,0.5)');
+ctx.save();ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.fillStyle='#43a047';ctx.fillText('✓ Safe to grab',W*0.46,H*0.8);ctx.restore();
+// Comparison line
+ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(W*0.08,H*0.65);ctx.lineTo(W*0.65,H*0.65);ctx.stroke();ctx.setLineDash([]);
+ctx.save();ctx.font='10px sans-serif';ctx.fillStyle='#777';ctx.textAlign='center';ctx.fillText('— VS —',W*0.37,H*0.65);ctx.restore();
+drawLabel('⚡ Conduction →',W*0.45,H*0.5,'#ef5350','rgba(0,0,0,0.5)');
+drawLabel('Metal = Conductor',W*0.24,H*0.41,'#b0bec5','rgba(0,0,0,0.5)');
+},
+8:function(p){// Two-Color Experiment
+drawGround(H*0.65,'#4a5a3a','#3a4a2a');
+const sky=ctx.createLinearGradient(0,0,0,H*0.65);sky.addColorStop(0,'#0d47a1');sky.addColorStop(1,'#1976d2');
+ctx.fillStyle=sky;ctx.fillRect(0,0,W,H*0.65);
+drawSun(W*0.5,H*0.08,22);
+// Timer
+ctx.save();ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.fillStyle='#ffd54f';
+const mins=p*30|0;ctx.fillText(`⏱ ${mins} minutes`,W*0.5,H*0.22);ctx.restore();
+// Radiation to both trays
+drawRadiationBeams(W*0.38,H*0.12,W*0.22,H*0.38,p,3);
+drawRadiationBeams(W*0.62,H*0.12,W*0.62,H*0.38,p,3);
+// Black tray
+const blackP=easeOut(p)*danger*1.15;
+ctx.fillStyle='#1a1a1a';ctx.beginPath();ctx.roundRect(W*0.08,H*0.45,W*0.28,H*0.12,4);ctx.fill();
+ctx.fillStyle=colorTemp(blackP);ctx.beginPath();ctx.roundRect(W*0.08,H*0.4,W*0.28,H*0.06,4);ctx.fill();
+if(blackP>0.5){
+ctx.save();ctx.shadowColor='#ff5722';ctx.shadowBlur=8+blackP*12;
+ctx.fillStyle=colorTemp(blackP);ctx.beginPath();ctx.roundRect(W*0.08,H*0.4,W*0.28,H*0.06,4);ctx.fill();
+ctx.restore();
+drawHeatShimmer(W*0.08,H*0.32,W*0.28,H*0.1,blackP);}
+drawLabel('BLACK Tray',W*0.22,H*0.54,'#fff','rgba(0,0,0,0.5)');
+// White tray
+ctx.fillStyle='#f5f5f5';ctx.beginPath();ctx.roundRect(W*0.55,H*0.45,W*0.28,H*0.12,4);ctx.fill();
+ctx.fillStyle='#e0e0e0';ctx.beginPath();ctx.roundRect(W*0.55,H*0.4,W*0.28,H*0.06,4);ctx.fill();
+drawLabel('WHITE Tray',W*0.69,H*0.54,'#555','rgba(255,255,255,0.7)');
+// Reflection arrows from white tray
+if(p>0.2){
+const rp=(p-0.2)/0.8;
+for(let i=0;i<4;i++){
+const rx=W*0.58+i*(W*0.06);
+ctx.strokeStyle=`rgba(255,215,0,${rp*0.4})`;ctx.setLineDash([4,3]);ctx.lineDashOffset=-frame;ctx.lineWidth=2;
+ctx.beginPath();ctx.moveTo(rx,H*0.4);ctx.lineTo(rx+8,H*0.4-rp*H*0.12);ctx.stroke();ctx.setLineDash([]);
+}
+drawLabel('Reflects ↑',W*0.69,H*0.28,'#aaa','rgba(0,0,0,0.4)');}
+// Dual thermometers
+drawThermometer(W*0.22,H*0.6,H*0.22,80+p*65,'Black',200);
+drawThermometer(W*0.69,H*0.6,H*0.22,80+p*25,'White',200);
+drawLabel('Same Sun ☀️',W*0.45,H*0.32,'#ffd54f','rgba(0,0,0,0.5)');
+if(p>0.6){drawLabel('Different Absorption!',W*0.45,H*0.92,'#fff','rgba(100,50,150,0.6)');}
+drawLabel('☀️ Radiation',W*0.45,H*0.16,'#ffd54f','rgba(0,0,0,0.5)');
+}
+};
+
+function animate(){
+if(frame>totalFrames){onComplete();return;}
+ctx.clearRect(0,0,W,H);
+const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0a0a1a');bg.addColorStop(1,'#0f1528');
+ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+const progress=Math.min(frame/totalFrames,1);
+ctx.save();
+try{if(anims[sc.id])anims[sc.id](progress);}catch(e){console.error('Anim draw error:',e);}
+ctx.restore();
+updateParticles(ctx);
+drawGauge(progress);
+// Summary bar at bottom
+ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(0,H-28,W-70,28);
+ctx.save();ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.7)';
+const summaries={1:'Radiation heats slide → 160°F → Conduction burns skin',2:'Train AC exhaust → Convection trapped underground → 111°F',3:'Radiation through glass → Surfaces absorb → Sealed car hits 100°F+',4:'Metal absorbs radiation → Conduction burns skin on contact',5:'Dark rubber absorbs radiation → 160°F → Conduction burns feet',6:'Convection rises to top floor + Roof radiates heat down',7:'Flame → Conduction through metal handle → Palm burn',8:'Black absorbs radiation → 140°F+. White reflects → Safe.'};
+ctx.fillText(summaries[sc.id]||'',(W-70)/2,H-10);ctx.restore();
+frame++;
+state.animId=requestAnimationFrame(animate);}
+animate();}
+
+// ===== RECORD =====
+function goToRecord(){
+if(state.animId){cancelAnimationFrame(state.animId);state.animId=null;}
+if(!state.currentScenario)return;
+const sc=SCENARIOS.find(s=>s.id===state.currentScenario);
+if(!sc)return;
+if(state.completed.has(sc.id)){state.currentStep='record';updateStepTabs();return;}
+state.currentStep='record';updateStepTabs();
+state.completed.add(sc.id);state.score+=100;state.streak++;
+state.tableRows.push({scenario:sc.name,happened:sc.data.happened,response:sc.data.response,transfer:sc.data.transfer});
+updateHUD();renderScenarioList();renderDataTable();
+const c=document.getElementById('centerContent');
+const count=state.completed.size;let msg='',sub='';
+if(count<5){msg=`✅ ${sc.name} Complete!`;sub=`${5-count} more to go! Pick your next scenario.`;}
+else if(count===5){msg='🎉 Required Complete!';sub='You finished 5! Continue for Extra Credit? (3 more scenarios)';}
+else if(count<8){msg=`⭐ ${sc.name} — Extra Credit!`;sub=`${8-count} more for full extra credit!`;}
+else{msg='🏆 Extra Credit Complete!';sub='Amazing! You completed all 8 scenarios!';}
+c.innerHTML=`<div class="content-card record-card"><div class="record-msg" style="color:#81c784">${msg}</div><div class="record-sub">${sub}</div></div>`;
+document.getElementById('actionArea').innerHTML=count<8?'<button class="action-btn primary" onclick="clearForNext()">Pick Next Scenario →</button>':'<button class="action-btn primary" onclick="clearForNext()">Review Your Data</button>';}
+
+function clearForNext(){
+state.currentScenario=null;state.currentStep=null;
+document.querySelectorAll('.step-tab').forEach(t=>t.classList.remove('active','done'));
+const c=document.getElementById('centerContent');const count=state.completed.size;
+if(count>=8)c.innerHTML=`<div class="welcome-screen"><div class="welcome-title">🏆 All 8 Missions Complete!</div><div class="welcome-sub">Copy your data table and fill in your worksheet.</div></div>`;
+else if(count>=5)c.innerHTML=`<div class="welcome-screen"><div class="welcome-title">🎉 Required Complete!</div><div class="welcome-sub">Keep going for extra credit — pick another scenario!</div></div>`;
+else c.innerHTML=`<div class="welcome-screen"><div class="welcome-title">🔥 Burned by What You Can't See</div><div class="welcome-sub">Pick your next scenario from the left sidebar.</div><div class="welcome-mission">🎯 ${5-count} more missions to complete the required 5.</div></div>`;
+document.getElementById('actionArea').innerHTML='';renderKeywords();renderScenarioList();}
+
+// ===== HUD =====
+function updateHUD(){
+document.getElementById('hudScore').textContent=state.score;
+document.getElementById('hudStreak').textContent=state.streak;
+document.getElementById('hudCompleted').textContent=`${state.completed.size}/8`;
+document.getElementById('hudAccuracy').textContent=state.predictions>0?`${Math.round(state.completed.size/Math.max(state.predictions,1)*100)}%`:'-';
+const fill=document.getElementById('progressFill');
+if(state.completed.size<=5){fill.style.width=Math.min((state.completed.size/5)*100,100)+'%';fill.className='progress-bar-fill';}
+else{fill.style.width=((state.completed.size/8)*100)+'%';fill.className='progress-bar-fill extra';}
+const r=Math.max(5-state.completed.size,0);let txt='';
+if(state.completed.size===0)txt='Pick 5 more you like!';
+else if(r>0)txt=`Pick ${r} more you like!`;
+else if(state.completed.size<8)txt=`Extra Credit: ${8-state.completed.size} more!`;
+else txt='🏆 All complete!';
+document.getElementById('progressText').textContent=txt;}
+
+// ===== DATA TABLE =====
+function renderDataTable(){
+const b=document.getElementById('dataBody');b.innerHTML='';
+state.tableRows.forEach(row=>{
+const tr=document.createElement('tr');
+tr.innerHTML=`<td>${row.scenario}</td><td>${row.happened}</td><td>${row.response}</td><td>${row.transfer}</td>`;
+b.appendChild(tr);});}
+
+function copyTable(){
+try{
+let text='Scenario\tWhat Happened?\tPerson/Situation Response\tConnection to Heat Transfer?\n';
+state.tableRows.forEach(row=>{text+=`${row.scenario}\t${row.happened}\t${row.response}\t${row.transfer}\n`;});
+navigator.clipboard.writeText(text).then(()=>{
+const btn=document.getElementById('copyBtn');btn.textContent='✅ Copied!';btn.classList.add('copied');
+setTimeout(()=>{btn.textContent='📋 Copy Table';btn.classList.remove('copied');},2000);
+}).catch(()=>{
+const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();
+document.execCommand('copy');document.body.removeChild(ta);
+const btn=document.getElementById('copyBtn');btn.textContent='✅ Copied!';
+setTimeout(()=>{btn.textContent='📋 Copy Table';},2000);
+});}catch(e){console.error('Copy error:',e);}}
+
+function setLevel(lvl){
+state.readingLevel=lvl;
+document.querySelectorAll('.level-tab').forEach(t=>t.classList.remove('active'));
+document.querySelector(`.level-tab[data-level="${lvl}"]`).classList.add('active');}
+
+function resetSim(){
+stopSpeech();if(state.animId){cancelAnimationFrame(state.animId);state.animId=null;}
+if(predictionTimer){clearTimeout(predictionTimer);predictionTimer=null;}
+state={currentScenario:null,currentStep:null,readingLevel:state.readingLevel,completed:new Set(),score:0,streak:0,predictions:0,tableRows:[],predictionMade:false,speechActive:false,speechResumeInterval:null,animId:null};
+particles=[];updateHUD();renderScenarioList();renderDataTable();renderKeywords();
+document.querySelectorAll('.step-tab').forEach(t=>t.classList.remove('active','done'));
+document.getElementById('centerContent').innerHTML=`<div class="welcome-screen"><div class="welcome-title">🔥 Burned by What You Can't See</div><div class="welcome-sub">Real people get burned, overheated, or surprised by heat they never saw coming.</div><div class="welcome-sub">Pick a scenario from the left to start your investigation.</div><div class="welcome-mission">🎯 Complete 5 heat transfer missions to prove you can spot invisible danger.</div></div>`;
+document.getElementById('actionArea').innerHTML='';}
+
+function newRun(){resetSim();}
+
+// ===== CANVAS POLYFILL =====
+if(!CanvasRenderingContext2D.prototype.roundRect){
+CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+if(w<0||h<0)return this;
+if(typeof r==='number')r=[r,r,r,r];
+const mr=Math.min(w/2,h/2);r=r.map(v=>Math.min(v,mr));
+this.moveTo(x+r[0],y);this.lineTo(x+w-r[1],y);this.quadraticCurveTo(x+w,y,x+w,y+r[1]);
+this.lineTo(x+w,y+h-r[2]);this.quadraticCurveTo(x+w,y+h,x+w-r[2],y+h);
+this.lineTo(x+r[3],y+h);this.quadraticCurveTo(x,y+h,x,y+h-r[3]);
+this.lineTo(x,y+r[0]);this.quadraticCurveTo(x,y,x+r[0],y);this.closePath();return this;};}
+
+init();
+</script>
+</body>
+</html>
