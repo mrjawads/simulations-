@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Escape Room — Heat Transfer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#1a1a2e;--bg2:#16213e;--text:#e0e0e0;--text-bright:#ffffff;
+--r1:#FF3333;--r1a:#FF8C00;--r1bg:rgba(255,51,51,0.08);--r1light:rgba(255,51,51,0.25);
+--r2:#00E5FF;--r2a:#FFD600;--r2bg:rgba(0,229,255,0.08);--r2light:rgba(0,229,255,0.25);
+--r3:#00E676;--r3a:#00BFA5;--r3bg:rgba(0,230,118,0.08);--r3light:rgba(0,230,118,0.25);
+--success:#4CAF50;--error:#f44336;--warn:#FFD600;
+--teal:#00BFA5;
+}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text)}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(0.97)}
+
+/* ===== SCREENS ===== */
+.screen{display:none;width:100%;height:100%;position:absolute;top:0;left:0;flex-direction:column;overflow:hidden}
+.screen.active{display:flex}
+
+/* ===== START SCREEN ===== */
+#startScreen{justify-content:center;align-items:center;background:radial-gradient(ellipse at center,#1e2a4a 0%,var(--bg) 70%);text-align:center}
+.start-brand{font-size:clamp(10px,1.4vw,14px);letter-spacing:4px;text-transform:uppercase;color:var(--teal);margin-bottom:16px;font-weight:600}
+.start-title{font-size:clamp(28px,5vw,52px);font-weight:800;color:var(--text-bright);text-shadow:0 0 30px rgba(0,191,165,0.4),0 0 60px rgba(0,191,165,0.15);line-height:1.15;margin-bottom:12px}
+.start-divider{width:60px;height:3px;background:var(--teal);margin:0 auto 14px;border-radius:2px;box-shadow:0 0 10px var(--teal)}
+.start-subtitle{font-size:clamp(14px,2vw,20px);color:var(--text);opacity:0.85;margin-bottom:36px}
+.start-btn{background:linear-gradient(135deg,var(--teal),#009688);color:#fff;font-size:clamp(16px,2.2vw,22px);font-weight:700;padding:14px 48px;border-radius:50px;box-shadow:0 0 20px rgba(0,191,165,0.4),0 4px 15px rgba(0,0,0,0.3);transition:all 0.3s ease;letter-spacing:1px}
+.start-btn:hover{box-shadow:0 0 30px rgba(0,191,165,0.6),0 6px 20px rgba(0,0,0,0.3);transform:translateY(-2px) scale(1.02)}
+.start-footer{position:absolute;bottom:24px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.25);font-weight:600}
+
+/* ===== HUD ===== */
+#hud{display:none;position:fixed;top:0;left:0;right:0;height:48px;background:rgba(22,33,62,0.95);border-bottom:1px solid rgba(255,255,255,0.08);z-index:20;padding:0 16px;align-items:center;justify-content:space-between;backdrop-filter:blur(4px)}
+#hud.visible{display:flex}
+.hud-left{display:flex;align-items:center;gap:12px}
+.hud-room{font-size:clamp(13px,1.6vw,16px);font-weight:700;color:var(--text-bright)}
+.hud-progress{font-size:12px;color:var(--text);opacity:0.7}
+.hud-streak{font-size:18px;opacity:0;transition:opacity 0.3s}
+.hud-streak.active{opacity:1;animation:fireFlicker 0.6s infinite alternate}
+.hud-right{display:flex;align-items:center;gap:14px}
+.hud-cleared{font-size:clamp(12px,1.4vw,15px);font-weight:600;color:var(--text);margin-left:auto}
+.hud-cleared.pulse{animation:hudPulse 0.4s ease}
+
+/* ===== CODE VAULT ===== */
+.code-vault{display:flex;gap:8px;align-items:center}
+.vault-room{display:flex;gap:3px;align-items:center;padding:3px 6px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)}
+.vault-room .vault-label{font-size:10px;opacity:0.5;margin-right:3px;font-weight:600}
+.vault-digit{width:22px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:rgba(255,255,255,0.25);background:rgba(0,0,0,0.3);border-radius:4px;border:1px solid rgba(255,255,255,0.08);transition:all 0.4s ease}
+.vault-digit.revealed{color:var(--text-bright);background:rgba(255,255,255,0.12);border-color:currentColor;animation:vaultReveal 0.5s ease}
+
+/* ===== GAME AREA ===== */
+#gameScreen{flex-direction:column;background:var(--bg)}
+.room-bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+.mission-line{text-align:center;font-size:clamp(13px,1.6vw,17px);color:var(--text);opacity:0.8;font-style:italic;padding:56px 20px 8px;position:relative;z-index:1}
+.puzzle-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 20px 60px;position:relative;z-index:1;overflow-y:auto}
+.puzzle-instruction{font-size:clamp(12px,1.4vw,15px);color:var(--text);opacity:0.75;text-align:center;margin-bottom:12px}
+.puzzle-micro{font-size:clamp(11px,1.2vw,13px);color:var(--text);opacity:0.6;text-align:center;margin-bottom:8px;font-weight:600;letter-spacing:1px}
+
+/* ===== BOTTOM BAR ===== */
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:15;background:rgba(22,33,62,0.9);border-top:1px solid rgba(255,255,255,0.06)}
+.scanner-btn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--text);transition:all 0.3s;position:relative}
+.scanner-btn.glow{animation:scanPulse 1.5s infinite;border-color:var(--warn)}
+.progress-dots{display:flex;gap:10px;position:absolute;left:50%;transform:translateX(-50%)}
+.p-dot{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,0.12);border:2px solid rgba(255,255,255,0.2);transition:all 0.4s}
+.p-dot.filled{background:currentColor;border-color:currentColor;box-shadow:0 0 10px currentColor}
+
+/* ===== CARDS ===== */
+.card{background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.12);border-radius:12px;padding:clamp(10px,1.5vw,16px) clamp(14px,2vw,20px);font-size:clamp(14px,1.8vw,18px);color:var(--text-bright);cursor:pointer;transition:all 0.3s ease;min-height:48px;display:flex;align-items:center;justify-content:center;text-align:center;user-select:none;position:relative}
+.card:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.25)}
+.card.selected{transform:scale(1.05);border-width:3px;box-shadow:0 0 20px currentColor;background:rgba(255,255,255,0.12)}
+.card.selected::after{content:'▶ SELECTED';position:absolute;top:-10px;right:-5px;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;background:currentColor;color:var(--bg)}
+.card.correct{border-color:var(--success)!important;background:rgba(76,175,80,0.15)!important;box-shadow:0 0 15px rgba(76,175,80,0.4)!important}
+.card.correct::before{content:'✔';position:absolute;top:4px;right:8px;font-size:14px;color:var(--success)}
+.card.wrong{border-color:var(--error)!important;background:rgba(244,67,54,0.12)!important;animation:wrongShake 0.4s ease}
+.card.wrong::before{content:'✖';position:absolute;top:4px;right:8px;font-size:14px;color:var(--error)}
+.card.dimmed{opacity:0.35;pointer-events:none}
+.card.locked{pointer-events:none;border-color:var(--success);background:rgba(76,175,80,0.1);box-shadow:0 0 10px rgba(76,175,80,0.2)}
+.card.locked::before{content:'✔';position:absolute;top:4px;right:8px;font-size:14px;color:var(--success)}
+.card.override-highlight{border-color:var(--warn)!important;box-shadow:0 0 25px rgba(255,214,0,0.5)!important;animation:overridePulse 0.8s infinite alternate}
+.card.disabled{pointer-events:none;opacity:0.5}
+
+/* ===== MATCH LOCK ===== */
+.match-area{display:flex;gap:clamp(16px,3vw,40px);align-items:center;justify-content:center;width:100%;max-width:700px}
+.match-col{display:flex;flex-direction:column;gap:12px;flex:1;max-width:280px}
+.match-completed{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;width:100%;max-width:700px}
+.match-done-pair{display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 12px;border-radius:8px;background:rgba(76,175,80,0.08);border:1px solid rgba(76,175,80,0.2);font-size:clamp(12px,1.3vw,14px);color:var(--success);opacity:0.7}
+.match-arrow{font-size:16px;opacity:0.5}
+
+/* ===== SEQUENCE LOCK ===== */
+.seq-slots{display:flex;gap:12px;margin-bottom:20px;width:100%;max-width:600px;justify-content:center}
+.seq-slot{flex:1;min-height:56px;border:2px dashed rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:clamp(12px,1.4vw,15px);color:rgba(255,255,255,0.25);transition:all 0.3s;max-width:180px;padding:8px}
+.seq-slot.active{border-color:currentColor;border-style:solid;box-shadow:0 0 12px currentColor}
+.seq-slot.filled{background:rgba(76,175,80,0.1);border-color:var(--success);border-style:solid;color:var(--success)}
+.seq-arrow{font-size:20px;color:rgba(255,255,255,0.2);display:flex;align-items:center}
+.seq-cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:600px}
+
+/* ===== SYSTEM SCANNER ===== */
+.gauge-panel{display:flex;gap:clamp(16px,3vw,32px);justify-content:center;align-items:flex-end;margin-bottom:20px;padding:16px;background:rgba(0,0,0,0.3);border-radius:12px;border:1px solid rgba(255,255,255,0.08);max-width:500px;width:100%;height:200px;position:relative}
+.gauge{display:flex;flex-direction:column;align-items:center;flex:1;height:100%}
+.gauge-bar-wrap{flex:1;width:36px;background:rgba(255,255,255,0.05);border-radius:6px;border:1px solid rgba(255,255,255,0.1);position:relative;overflow:hidden;display:flex;align-items:flex-end}
+.gauge-bar{width:100%;border-radius:4px;transition:height 1s ease;position:relative}
+.gauge-reading{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;white-space:nowrap}
+.gauge-label{font-size:clamp(10px,1.2vw,12px);margin-top:8px;text-align:center;font-weight:600;opacity:0.85}
+.gauge-zone{position:absolute;right:-40px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:space-between;font-size:9px;font-weight:600;width:35px}
+.zone-r{color:#f44336}.zone-y{color:#FFD600}.zone-g{color:#4CAF50}
+.scanner-q{font-size:clamp(16px,2.2vw,22px);font-weight:700;color:var(--text-bright);text-align:center;margin-bottom:16px}
+.answer-cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:600px}
+
+/* ===== QUICK FIRE ===== */
+.qf-question{font-size:clamp(16px,2.4vw,24px);font-weight:700;color:var(--text-bright);text-align:center;margin-bottom:6px;padding:0 10px}
+.qf-counter{font-size:13px;color:var(--text);opacity:0.6;margin-bottom:16px;text-align:center}
+.qf-buttons{display:flex;gap:16px;justify-content:center}
+.qf-btn{font-size:clamp(18px,2.5vw,26px);font-weight:800;padding:16px 40px;border-radius:14px;min-width:130px;letter-spacing:2px;transition:all 0.2s}
+.qf-true{background:rgba(76,175,80,0.15);border:3px solid var(--success);color:var(--success)}
+.qf-false{background:rgba(244,67,54,0.15);border:3px solid var(--error);color:var(--error)}
+.qf-btn.flash-correct{background:rgba(76,175,80,0.35)!important;box-shadow:0 0 20px rgba(76,175,80,0.5)}
+.qf-btn.flash-wrong{background:rgba(244,67,54,0.35)!important;box-shadow:0 0 20px rgba(244,67,54,0.5)}
+
+/* ===== MYSTERY INPUT ===== */
+.chain{display:flex;align-items:center;gap:clamp(4px,1vw,10px);justify-content:center;flex-wrap:wrap;margin-bottom:20px;max-width:700px;width:100%}
+.chain-step{display:flex;flex-direction:column;align-items:center;gap:4px;padding:clamp(8px,1.2vw,14px);border-radius:10px;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.12);min-width:clamp(70px,12vw,120px);text-align:center}
+.chain-step .icon{font-size:clamp(18px,2.5vw,28px)}
+.chain-step .label{font-size:clamp(10px,1.2vw,13px);font-weight:600;color:var(--text)}
+.chain-step.mystery{border-style:dashed;border-color:var(--warn);background:rgba(255,214,0,0.06)}
+.chain-step.mystery .label{color:var(--warn);font-size:clamp(16px,2vw,22px);font-weight:800}
+.chain-step.solved{border-color:var(--success);background:rgba(76,175,80,0.1)}
+.chain-step.solved .label{color:var(--success)}
+.chain-arrow{font-size:clamp(16px,2vw,22px);color:rgba(255,255,255,0.25)}
+
+/* ===== VISUAL RECALL ===== */
+.thermos-visual{display:flex;justify-content:center;margin-bottom:20px}
+.thermos{width:clamp(120px,20vw,180px);position:relative;display:flex;flex-direction:column;align-items:center}
+.thermos-layer{width:100%;border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:clamp(9px,1.1vw,12px);font-weight:600;position:relative}
+.t-outer{background:rgba(158,158,158,0.25);border:2px solid rgba(158,158,158,0.5);padding:8px;border-radius:14px}
+.t-vacuum{background:transparent;border:2px dashed rgba(255,255,255,0.3);margin:4px;padding:6px;border-radius:10px;position:relative}
+.t-vacuum-label{position:absolute;right:-80px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text);opacity:0.7;white-space:nowrap}
+.t-silver{background:linear-gradient(180deg,rgba(192,192,192,0.3),rgba(160,160,160,0.2));border:1px solid rgba(192,192,192,0.5);margin:3px;padding:5px;border-radius:8px}
+.t-inner{background:rgba(100,100,100,0.2);border:1px solid rgba(158,158,158,0.4);margin:2px;padding:4px;border-radius:6px}
+.t-drink{background:linear-gradient(180deg,rgba(0,191,165,0.3),rgba(0,191,165,0.15));border:1px solid rgba(0,191,165,0.5);padding:clamp(16px,3vw,28px) clamp(12px,2vw,20px);border-radius:4px;color:var(--teal);font-weight:700}
+.t-label{position:absolute;font-size:9px;color:var(--text);opacity:0.65;white-space:nowrap;font-weight:600}
+
+/* ===== SPOT THE DIFF ===== */
+.diff-area{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+
+/* ===== SCANNER OVERLAY ===== */
+.scanner-overlay{display:none;position:fixed;inset:0;z-index:40;background:rgba(0,0,0,0.85);flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;animation:fadeIn 0.3s ease}
+.scanner-overlay.active{display:flex}
+.scanner-title{font-size:clamp(14px,1.8vw,18px);font-weight:700;color:var(--warn);margin-bottom:12px;text-transform:uppercase;letter-spacing:2px}
+.scanner-text{font-size:clamp(13px,1.6vw,17px);color:var(--text);max-width:550px;line-height:1.6;margin-bottom:20px}
+.scanner-dismiss{font-size:13px;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:6px 16px;border-radius:20px;margin-top:12px;cursor:pointer}
+
+/* ===== CODE ENTRY ===== */
+.code-entry-overlay{display:none;position:fixed;inset:0;z-index:35;background:rgba(10,10,30,0.95);flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.code-entry-overlay.active{display:flex}
+.code-title{font-size:clamp(20px,3vw,28px);font-weight:800;color:var(--text-bright);margin-bottom:6px}
+.code-subtitle{font-size:clamp(13px,1.6vw,16px);color:var(--text);opacity:0.8;margin-bottom:20px}
+.code-digits{display:flex;gap:12px;margin-bottom:20px}
+.code-digit-slot{width:clamp(50px,8vw,64px);height:clamp(56px,9vw,72px);border:3px solid rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:clamp(24px,4vw,36px);font-weight:800;color:var(--text-bright);background:rgba(0,0,0,0.3);transition:all 0.3s}
+.code-digit-slot.filled{border-color:currentColor;box-shadow:0 0 12px currentColor}
+.code-numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px}
+.numpad-btn{width:clamp(56px,8vw,68px);height:clamp(48px,7vw,56px);font-size:clamp(18px,2.5vw,24px);font-weight:700;border-radius:10px;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.12);color:var(--text-bright);transition:all 0.2s}
+.numpad-btn:hover{background:rgba(255,255,255,0.15)}
+.code-feedback{font-size:14px;margin-top:12px;min-height:24px;font-weight:600}
+
+/* ===== DIGIT REVEAL ===== */
+.digit-reveal-overlay{display:none;position:fixed;inset:0;z-index:36;background:rgba(10,10,30,0.92);flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.3s}
+.digit-reveal-overlay.active{display:flex}
+.digit-big{font-size:clamp(60px,12vw,100px);font-weight:900;animation:digitReveal 0.8s ease;text-shadow:0 0 40px currentColor}
+.digit-label{font-size:clamp(13px,1.6vw,16px);color:var(--text);margin-top:8px;opacity:0.7}
+.digit-continue{margin-top:24px;padding:12px 32px;font-size:16px;font-weight:700;border-radius:30px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);color:var(--text-bright);transition:all 0.3s}
+
+/* ===== PASS THE LAPTOP ===== */
+.pass-overlay{display:none;position:fixed;inset:0;z-index:37;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.3s}
+.pass-overlay.active{display:flex}
+.pass-text{font-size:clamp(28px,5vw,48px);font-weight:900;color:var(--text-bright);letter-spacing:4px;text-shadow:0 0 30px currentColor;margin-bottom:24px}
+.pass-ready{padding:14px 40px;font-size:clamp(16px,2vw,20px);font-weight:700;border-radius:30px;border:2px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.08);color:var(--text-bright);transition:all 0.3s}
+
+/* ===== DOOR TRANSITION ===== */
+.door-overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.door-panel{width:80%;max-width:400px;height:70%;border-radius:20px;border:4px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-direction:column;position:relative}
+.door-lock{font-size:48px;opacity:0.8}
+.door-text{font-size:clamp(18px,3vw,28px);font-weight:800;color:var(--text-bright);letter-spacing:3px;margin-top:12px;text-transform:uppercase}
+
+/* ===== SCAN PREVIEW ===== */
+.scan-preview-overlay{display:none;position:fixed;inset:0;z-index:34;background:rgba(10,10,30,0.95);flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.scan-preview-overlay.active{display:flex}
+.scan-label{font-size:clamp(14px,1.8vw,18px);font-weight:700;letter-spacing:4px;text-transform:uppercase;margin-bottom:20px;animation:scanText 1.5s infinite}
+.scan-content{max-width:500px;text-align:center;padding:20px;border:2px solid;border-radius:16px;animation:scanBorder 1.5s infinite}
+.scan-content .icon{font-size:clamp(32px,5vw,48px);margin-bottom:8px}
+.scan-content .desc{font-size:clamp(13px,1.5vw,16px);color:var(--text);opacity:0.8}
+
+/* ===== FINAL LOCK ===== */
+.final-lock-area{width:100%;max-width:650px}
+.fl-pair-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;padding:8px;border-radius:10px;transition:all 0.3s}
+.fl-pair-row.active-pair{background:rgba(255,255,255,0.04)}
+.fl-pair-row.dimmed-pair{opacity:0.3}
+.fl-pair-row.locked-pair{opacity:0.7}
+.fl-term{flex:1;padding:10px 14px;border-radius:10px;font-size:clamp(13px,1.5vw,16px);font-weight:700;text-align:center;border:2px solid;display:flex;align-items:center;justify-content:center;gap:6px}
+.fl-arrow-sp{font-size:20px;color:rgba(255,255,255,0.2);min-width:30px;text-align:center}
+.fl-targets{flex:1.2;display:flex;flex-direction:column;gap:6px}
+.fl-target{padding:8px 12px;border-radius:8px;font-size:clamp(12px,1.3vw,14px);text-align:center;cursor:pointer;border:2px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:var(--text-bright);transition:all 0.3s}
+.fl-target:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.25)}
+.fl-target.fl-matched{border-color:var(--success);background:rgba(76,175,80,0.12);pointer-events:none}
+.fl-target.fl-wrong{border-color:var(--error);animation:wrongShake 0.4s}
+.fl-target.fl-dimmed{opacity:0.3;pointer-events:none}
+.fl-target.override-highlight{border-color:var(--warn)!important;box-shadow:0 0 20px rgba(255,214,0,0.4)!important;animation:overridePulse 0.8s infinite alternate}
+
+/* ===== ESCAPE REPORT ===== */
+#reportScreen{justify-content:flex-start;align-items:center;overflow-y:auto;padding:20px;background:radial-gradient(ellipse at top,#1e2a4a,var(--bg) 70%)}
+.report-header{font-size:clamp(32px,6vw,56px);font-weight:900;color:var(--text-bright);text-align:center;margin:20px 0 6px;animation:reportGlow 2s infinite alternate;letter-spacing:3px}
+.report-brand{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--teal);opacity:0.7;margin-bottom:20px}
+.report-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 28px;max-width:450px;width:100%;margin-bottom:16px}
+.report-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.report-row:last-child{border-bottom:none}
+.report-label{font-size:14px;color:var(--text);opacity:0.7}
+.report-value{font-size:16px;font-weight:700;color:var(--text-bright)}
+.report-stars{display:flex;gap:6px;margin:12px 0}
+.report-star{font-size:28px;opacity:0.2;transition:all 0.5s}
+.report-star.earned{opacity:1;animation:starFill 0.5s ease}
+.report-badges{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.badge{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text)}
+.badge.earned{background:rgba(255,214,0,0.1);border-color:rgba(255,214,0,0.3);color:var(--warn)}
+.report-btns{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;justify-content:center}
+.report-btn{padding:12px 28px;font-size:15px;font-weight:700;border-radius:30px;transition:all 0.3s}
+.btn-copy{background:rgba(0,191,165,0.15);border:2px solid var(--teal);color:var(--teal)}
+.btn-again{background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.2);color:var(--text-bright)}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+@keyframes wrongShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@keyframes hudPulse{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes vaultReveal{0%{transform:scale(0.5);opacity:0}50%{transform:scale(1.3)}100%{transform:scale(1);opacity:1}}
+@keyframes digitReveal{0%{transform:scale(0);opacity:0}60%{transform:scale(1.2);opacity:1}100%{transform:scale(1)}}
+@keyframes scanPulse{0%,100%{box-shadow:0 0 5px rgba(255,214,0,0.3)}50%{box-shadow:0 0 20px rgba(255,214,0,0.6)}}
+@keyframes overridePulse{0%{box-shadow:0 0 10px rgba(255,214,0,0.3)}100%{box-shadow:0 0 25px rgba(255,214,0,0.6)}}
+@keyframes scanText{0%,100%{opacity:0.6}50%{opacity:1}}
+@keyframes scanBorder{0%,100%{border-color:rgba(255,255,255,0.15)}50%{border-color:rgba(255,255,255,0.4)}}
+@keyframes fireFlicker{0%{transform:scale(1)}100%{transform:scale(1.15);filter:brightness(1.3)}}
+@keyframes reportGlow{0%{text-shadow:0 0 20px rgba(255,51,51,0.5)}33%{text-shadow:0 0 20px rgba(0,229,255,0.5)}66%{text-shadow:0 0 20px rgba(0,230,118,0.5)}100%{text-shadow:0 0 20px rgba(255,51,51,0.5)}}
+@keyframes starFill{0%{transform:scale(0) rotate(-30deg)}60%{transform:scale(1.3) rotate(10deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes particleBurst{0%{transform:translate(0,0) scale(1);opacity:1}100%{opacity:0}}
+@keyframes doorAnim{0%{opacity:0;transform:scale(0.95)}25%{opacity:1;transform:scale(1)}55%{opacity:1;transform:scale(1)}100%{opacity:1;transform:translateX(-120%)}}
+@keyframes doorAnimSlow{0%{opacity:0;transform:scale(0.95)}20%{opacity:1;transform:scale(1)}50%{opacity:1;transform:scale(1)}100%{opacity:1;transform:translateX(-120%)}}
+@keyframes escapeText{0%{transform:scale(0);opacity:0}50%{transform:scale(1.1);opacity:1}100%{transform:scale(1)}}
+@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+@keyframes heatShimmer{0%,100%{opacity:0.03}50%{opacity:0.07}}
+@keyframes gridPulse{0%,100%{opacity:0.04}50%{opacity:0.08}}
+@keyframes shieldPulse{0%,100%{opacity:0.03}50%{opacity:0.06}}
+
+/* ===== ROOM ATMOSPHERES ===== */
+.room-atmos-1::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(255,51,51,0.03) 40px,rgba(255,51,51,0.03) 42px);animation:heatShimmer 3s infinite;pointer-events:none}
+.room-atmos-2::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(0,229,255,0.04) 60px,rgba(0,229,255,0.04) 61px),repeating-linear-gradient(0deg,transparent,transparent 60px,rgba(0,229,255,0.04) 60px,rgba(0,229,255,0.04) 61px);animation:gridPulse 3s infinite;pointer-events:none}
+.room-atmos-3::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 40%,rgba(0,230,118,0.04) 0%,transparent 50%),radial-gradient(circle at 70% 60%,rgba(0,191,165,0.03) 0%,transparent 50%);animation:shieldPulse 4s infinite;pointer-events:none}
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div id="startScreen" class="screen active">
+  <div class="start-brand">Mr. Jawad's Escape Room Simulations</div>
+  <div class="start-title">Heat Transfer</div>
+  <div class="start-divider"></div>
+  <div class="start-subtitle">Unit Review</div>
+  <button class="start-btn" onclick="startGame()">BEGIN ESCAPE</button>
+  <div class="start-footer">DESIGNED BY MR. JAWAD</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-left">
+    <span class="hud-room" id="hudRoom"></span>
+    <span class="hud-progress" id="hudProgress"></span>
+    <span class="hud-streak" id="hudStreak">🔥</span>
+  </div>
+  <div class="hud-right">
+    <span class="hud-cleared" id="hudCleared">Puzzles: 0/6</span>
+    <div class="code-vault" id="codeVault"></div>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen" class="screen">
+  <div class="room-bg" id="roomBg"></div>
+  <div class="mission-line" id="missionLine"></div>
+  <div class="puzzle-area" id="puzzleArea"></div>
+  <div class="bottom-bar" id="bottomBar">
+    <button class="scanner-btn" id="scannerBtn" onclick="openScanner()" title="Scanner">🔍</button>
+    <div class="progress-dots" id="progressDots"></div>
+    <div style="width:44px"></div>
+  </div>
+</div>
+
+<!-- REPORT SCREEN -->
+<div id="reportScreen" class="screen"></div>
+
+<!-- SCANNER OVERLAY -->
+<div class="scanner-overlay" id="scannerOverlay" data-overlay="scanner">
+  <div class="scanner-title">⚡ SCANNER ACTIVE ⚡</div>
+  <div class="scanner-text" id="scannerText"></div>
+  <button class="scanner-dismiss" onclick="closeScanner()">Dismiss Scanner</button>
+</div>
+
+<!-- CODE ENTRY -->
+<div class="code-entry-overlay" id="codeEntry" data-overlay="code-entry">
+  <div class="code-title" id="codeTitle">ENTER EXIT CODE</div>
+  <div class="code-subtitle" id="codeSubtitle"></div>
+  <div class="code-digits" id="codeDigits"></div>
+  <div class="code-numpad" id="codeNumpad"></div>
+  <div class="code-feedback" id="codeFeedback"></div>
+</div>
+
+<!-- DIGIT REVEAL -->
+<div class="digit-reveal-overlay" id="digitReveal" data-overlay="digit-reveal"></div>
+
+<!-- PASS THE LAPTOP -->
+<div class="pass-overlay" id="passOverlay" data-overlay="pass"></div>
+
+<!-- SCAN PREVIEW -->
+<div class="scan-preview-overlay" id="scanPreview" data-overlay="scan-preview"></div>
+
+<script>
+'use strict';
+// ============================================================
+// STATE
+// ============================================================
+const S = {
+  screen:'start', room:0, puzzle:0, puzzlesSolved:0,
+  firstTrySolves:0, streak:0, startTime:0,
+  rooms:[
+    {code:'73',digits:['?','?'],color:'#FF3333',accent:'#FF8C00',solved:[false,false],wrongCounts:[0,0],scannerUsed:[false,false],firstTry:[true,true]},
+    {code:'59',digits:['?','?'],color:'#00E5FF',accent:'#FFD600',solved:[false,false],wrongCounts:[0,0],scannerUsed:[false,false],firstTry:[true,true]},
+    {code:'26',digits:['?','?'],color:'#00E676',accent:'#00BFA5',solved:[false,false],wrongCounts:[0,0],scannerUsed:[false,false],firstTry:[true,true]}
+  ],
+  puzzleSolving:false, overrideTriggered:false, scannerOpen:false,
+  qfState:null, seqState:null, matchState:null, diagState:null, flState:null,
+  tutorialDone:false, skipHeld:false, shiftSHeld:false, shiftSTimer:null,
+  badges:[], roomSkipped:[false,false,false],
+  codeInput:'', codeTarget:'',
+  previewDone:false
+};
+
+// ============================================================
+// CONTENT DATA
+// ============================================================
+const ROOMS = [
+  { name:'THE BURN ZONE',emoji:'🔥',mission:'Trace the invisible heat before it strikes.',atmos:'room-atmos-1',
+    puzzles:[
+      {type:'mystery',digit:'7',
+       chain:[{icon:'☀️',label:'Radiation heats bench'},{icon:'🪑',label:'Dark metal absorbs heat'},{icon:'❓',label:'???'},{icon:'🤕',label:'Contact burn'}],
+       hiddenIdx:2,
+       options:[{text:'Conduction to skin',correct:true,id:'a'},{text:'Convection in air',correct:false,id:'b'},{text:'Radiation reflects',correct:false,id:'c'}],
+       scanText:'In Burned by What You Can\'t See, the Coney Island bench was blazing hot from sunlight. The Scanner detected the moment where skin met metal — what type of transfer happens at that contact point?',
+       scan2:['a','b'],
+       preview:{icon:'🪑☀️',desc:'Dark bench under blazing sun… contact point where skin meets hot metal.'}},
+      {type:'quickfire',digit:'3',
+       questions:[
+         {emoji:'🛝',text:'A dark slide can be hotter than the air',answer:true,scanText:'In Burned by What You Can\'t See, the Bronx slide hit 160°F on an 80°F day. The Scanner reads surface versus air.'},
+         {emoji:'🍳',text:'Wood conducts heat faster than metal',answer:false,scanText:'In Burned by What You Can\'t See, the chef grabbed a metal pan handle and got burned — but a wooden handle stayed safe.'},
+         {emoji:'🚗',text:'A sealed car traps heat on cool days',answer:true,scanText:'In Burned by What You Can\'t See, a car windshield let radiation in on a 68°F day. The sealed interior shot past 100°F.'},
+         {emoji:'🎨',text:'Light colors absorb more heat',answer:false,scanText:'In Burned by What You Can\'t See, two identical trays sat in the sun — the black one hit 140°F+ while the white one stayed safe.'}
+       ],
+       preview:{icon:'🛝🚗🍳🎨',desc:'Rapid montage — slide, car, pan, trays — each pulsing with heat.'}}
+    ]},
+  { name:'THE HEAT GRID',emoji:'🏙️',mission:'Decode the heat grid before the city overheats.',atmos:'room-atmos-2',
+    puzzles:[
+      {type:'systemscanner',digit:'5',
+       gauges:[{label:'Metal + Black',value:90,reading:'158°F',zone:'red'},{label:'Rubber + Black',value:55,reading:'120°F',zone:'yellow'},{label:'Wood + Black',value:25,reading:'95°F',zone:'green'}],
+       question:'All are black. Why is metal hottest?',
+       options:[{text:'Higher conductivity',correct:true,id:'a'},{text:'More absorption',correct:false,id:'b'},{text:'Extra sunlight',correct:false,id:'c'}],
+       scanText:'In Surface Trap, all three surfaces were the same color — black. The Scanner compared the bars: metal shot highest, wood stayed lowest. What\'s different about the materials if color is the same?',
+       scan2:['a','b'],
+       preview:{icon:'📊',desc:'Surface Trap gauge panel — three temperature bars at different heights.'}},
+      {type:'sequence',digit:'9',
+       cards:[{icon:'🧱',label:'Concrete absorbs heat'},{icon:'🚫',label:'Blocked air traps heat'},{icon:'⚠️',label:'Block hits Danger Zone'}],
+       scanText:'In Block Meltdown, the worst combo was All Concrete plus Blocked airflow. The Scanner tracked heat building: first the ground soaked it up, then air couldn\'t carry it away, then the temperature bar hit red.',
+       scan2Indices:[0,1],
+       preview:{icon:'🧱🏙️',desc:'Block Meltdown city grid — concrete blocks, heat waves rising, airflow blocked.'}}
+    ]},
+  { name:'THE SHIELD LAB',emoji:'🛡️',mission:'Activate the heat shields before systems fail.',atmos:'room-atmos-3',
+    puzzles:[
+      {type:'matchlock',digit:'2',
+       pairs:[{term:'Firefighter Gear',target:'Blocks Conduction'},{term:'Foil on Windows',target:'Reflects Radiation'},{term:'Fan Trick',target:'Speeds Convection'}],
+       scanTexts:['In Surprising & Extreme, firefighter gear has thick layers between the fire and skin. The Scanner asks: how does heat try to get through when you\'re standing right in it?'],
+       scan2Targets:['Blocks Conduction','Reflects Radiation'],
+       preview:{icon:'🔥🪟💨',desc:'Three real-world fix icons — firefighter, window with foil, fan blowing air.'}},
+      {type:'visualrecall',digit:'6',
+       question:'What does the vacuum block?',
+       options:[{text:'Convection',correct:true,id:'a'},{text:'Conduction',correct:false,id:'b'},{text:'Radiation',correct:false,id:'c'}],
+       scanText:'In Surprising & Extreme, the thermos has an empty gap between walls — no air at all. The Scanner asks: which type of heat transfer needs air or liquid to work?',
+       scan2:['a','b'],
+       preview:{icon:'🧊',desc:'Thermos cross-section — layered cylinder with vacuum gap highlighted.'}}
+    ]}
+];
+
+const FINAL_LOCK = {
+  pairs:[
+    {term:'Sealed Car',target:'Traps Heat on Cool Days',room:0,emoji:'🔥',color:'#FF3333',
+     scanText:'In Burned by What You Can\'t See, radiation heated a sealed car past 100°F on a cool day. The Scanner asks: what did that sealed space do to the heat?',
+     scan2:['Traps Heat on Cool Days','Blocks Convection']},
+    {term:'Metal + Black',target:'158°F — Danger',room:1,emoji:'🏙️',color:'#00E5FF',
+     scanText:'In Surface Trap, the Metal + Black bar shot into the red zone. The Scanner asks: what reading did that gauge show?',
+     scan2:['158°F — Danger','Blocks Convection']},
+    {term:'Vacuum Layer',target:'Blocks Convection',room:2,emoji:'🛡️',color:'#00E676',scanText:'',scan2:[]}
+  ]
+};
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function $(id){return document.getElementById(id)}
+function closeAllOverlays(){
+  document.querySelectorAll('[data-overlay]').forEach(el=>{el.classList.remove('active');el.style.display='none'});
+  S.scannerOpen=false;
+}
+function closeScanner(){
+  $('scannerOverlay').classList.remove('active');$('scannerOverlay').style.display='none';S.scannerOpen=false;
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+function roomColor(r){return S.rooms[r]?S.rooms[r].color:'#fff'}
+function roomAccent(r){return S.rooms[r]?S.rooms[r].accent:'#fff'}
+function safeCall(fn){try{fn()}catch(e){console.error(e)}}
+
+function spawnParticles(x,y,color,count){
+  try{
+    const ct=Math.min(count||10,12);
+    for(let i=0;i<ct;i++){
+      const p=document.createElement('div');
+      const angle=Math.random()*Math.PI*2;const dist=60+Math.random()*80;
+      const dx=Math.cos(angle)*dist;const dy=Math.sin(angle)*dist;
+      const sz=4+Math.random()*6;
+      Object.assign(p.style,{position:'fixed',left:x+'px',top:y+'px',width:sz+'px',height:sz+'px',
+        background:color,borderRadius:Math.random()>0.5?'50%':'2px',zIndex:'60',pointerEvents:'none',
+        animation:`particleBurst 0.6s ease forwards`});
+      p.style.setProperty('--dx',dx+'px');p.style.setProperty('--dy',dy+'px');
+      document.body.appendChild(p);
+      const rem=()=>{try{p.remove()}catch(e){}};
+      p.addEventListener('animationend',rem);
+      setTimeout(rem,800);
+    }
+  }catch(e){}
+}
+
+// Patch particleBurst to use custom properties
+(function(){
+  const s=document.createElement('style');
+  s.textContent=`@keyframes particleBurst{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}`;
+  document.head.appendChild(s);
+})();
+
+// ============================================================
+// HUD
+// ============================================================
+function updateHud(){
+  try{
+    const r=S.room;const rm=ROOMS[r];
+    if(S.screen==='tutorial'){
+      $('hudRoom').textContent='📖 Tutorial';
+      $('hudProgress').textContent='';
+    }else if(S.screen==='finallock'){
+      $('hudRoom').textContent='🔐 FINAL LOCK';
+      $('hudProgress').textContent='';
+    }else{
+      $('hudRoom').textContent=`${rm.emoji} ${rm.name}`;
+      $('hudRoom').style.color=rm.puzzles[0]?roomColor(r):'';
+      $('hudProgress').textContent=`Room ${r+1} of 3`;
+    }
+    $('hudCleared').textContent=`Puzzles: ${S.puzzlesSolved}/6`;
+    $('hudStreak').classList.toggle('active',S.streak>=2);
+    updateVault();
+  }catch(e){}
+}
+
+function initVault(){
+  let h='';
+  for(let i=0;i<3;i++){
+    const c=roomColor(i);
+    h+=`<div class="vault-room" style="border-color:${c}30"><span class="vault-label" style="color:${c}">R${i+1}</span>`;
+    h+=`<div class="vault-digit" id="vd${i}0" style="color:${c}">?</div>`;
+    h+=`<div class="vault-digit" id="vd${i}1" style="color:${c}">?</div></div>`;
+  }
+  $('codeVault').innerHTML=h;
+}
+
+function updateVault(){
+  for(let i=0;i<3;i++){
+    for(let j=0;j<2;j++){
+      const el=$(`vd${i}${j}`);
+      if(el){
+        el.textContent=S.rooms[i].digits[j];
+        el.classList.toggle('revealed',S.rooms[i].digits[j]!=='?');
+      }
+    }
+  }
+}
+
+function updateProgressDots(){
+  try{
+    const dots=$('progressDots');
+    if(S.screen==='tutorial'||S.screen==='finallock'){dots.innerHTML='';return;}
+    const c=roomColor(S.room);
+    let h='';
+    for(let i=0;i<2;i++){
+      const filled=S.rooms[S.room].solved[i];
+      h+=`<div class="p-dot ${filled?'filled':''}" style="color:${c}"></div>`;
+    }
+    dots.innerHTML=h;
+  }catch(e){}
+}
+
+// ============================================================
+// GAME START
+// ============================================================
+function startGame(){
+  S.startTime=Date.now();
+  showScreen('gameScreen');
+  $('hud').classList.add('visible');
+  $('bottomBar').style.display='flex';
+  initVault();
+  startTutorial();
+}
+
+// ============================================================
+// TUTORIAL
+// ============================================================
+function startTutorial(){
+  S.screen='tutorial';S.tutorialDone=false;
+  updateHud();updateProgressDots();
+  $('missionLine').textContent='Learn the basics before entering the first room.';
+  $('missionLine').style.color='var(--text)';
+  $('scannerBtn').style.display='none';
+  $('roomBg').className='room-bg';
+  const area=$('puzzleArea');
+  const pairs=[{term:'Sun',target:'Hot'},{term:'Ice',target:'Cold'}];
+  let pairIdx=0;
+  function renderTutPair(){
+    const p=pairs[pairIdx];
+    if(!p){
+      area.innerHTML=`<div style="text-align:center"><div style="font-size:28px;font-weight:800;color:var(--success);margin-bottom:8px">✔ Tutorial Complete!</div>
+        <div style="font-size:15px;color:var(--text);opacity:0.7;margin-bottom:20px">You're ready for Room 1.</div></div>`;
+      setTimeout(()=>{if(!S.tutorialDone){S.tutorialDone=true;transitionToRoom(0);}},1500);
+      return;
+    }
+    area.innerHTML=`
+      <div class="puzzle-instruction">👆 Tap the word on the LEFT, then tap its match on the RIGHT</div>
+      <div class="puzzle-micro">Pair ${pairIdx+1} of 2</div>
+      <div class="match-area">
+        <div class="match-col"><div class="card" id="tutTerm" style="border-color:var(--teal);color:var(--teal)">${p.term}</div></div>
+        <div style="font-size:24px;color:rgba(255,255,255,0.15)">→</div>
+        <div class="match-col" id="tutTargets"></div>
+      </div>
+      <button onclick="skipTutorial()" style="position:fixed;bottom:70px;right:20px;font-size:13px;color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);padding:6px 14px;border-radius:16px;z-index:10">Skip Tutorial</button>`;
+    const tgt=$('tutTargets');
+    const opts=[p.target,pairIdx===0?'Cold':'Hot'];
+    shuffleArr(opts);
+    opts.forEach(o=>{
+      const c=document.createElement('div');c.className='card';c.textContent=o;
+      c.dataset.val=o;
+      c.onclick=()=>{
+        if(o===p.target){
+          c.classList.add('correct');
+          setTimeout(()=>{pairIdx++;renderTutPair();},600);
+        }else{
+          c.classList.add('wrong');
+          setTimeout(()=>c.classList.remove('wrong'),500);
+        }
+      };
+      tgt.appendChild(c);
+    });
+    let selected=false;
+    $('tutTerm').onclick=()=>{
+      selected=!selected;
+      $('tutTerm').classList.toggle('selected',selected);
+    };
+  }
+  renderTutPair();
+}
+
+function skipTutorial(){
+  if(S.tutorialDone)return;
+  S.tutorialDone=true;
+  transitionToRoom(0);
+}
+
+function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+// ============================================================
+// ROOM TRANSITIONS
+// ============================================================
+function transitionToRoom(roomIdx){
+  closeAllOverlays();
+  const rm=ROOMS[roomIdx];const c=rm.puzzles[0]?S.rooms[roomIdx].color:'#fff';
+  S.room=roomIdx;S.puzzle=0;S.screen='room';
+  // Door animation
+  const overlay=document.createElement('div');overlay.className='door-overlay';overlay.dataset.overlay='door';
+  overlay.innerHTML=`<div class="door-panel" style="background:${c}15;border-color:${c}50">
+    <div class="door-lock">🔒</div><div class="door-text" style="color:${c}">${rm.emoji} ${rm.name}</div></div>`;
+  overlay.style.background=`radial-gradient(ellipse at center,${c}20,rgba(10,10,30,0.97) 70%)`;
+  overlay.style.animation='doorAnim 1.2s ease forwards';
+  document.body.appendChild(overlay);
+  const cleanup=()=>{try{overlay.remove()}catch(e){}};
+  overlay.addEventListener('animationend',cleanup);
+  const safety=setTimeout(cleanup,2000);
+  // Load room behind
+  setTimeout(()=>{
+    try{
+      clearTimeout(safety);
+      loadRoom(roomIdx);
+    }catch(e){cleanup();loadRoom(roomIdx);}
+  },700);
+}
+
+function loadRoom(roomIdx){
+  S.room=roomIdx;S.screen='room';
+  const rm=ROOMS[roomIdx];
+  $('roomBg').className='room-bg '+rm.atmos;
+  $('missionLine').textContent=rm.mission;
+  $('missionLine').style.color=S.rooms[roomIdx].color;
+  $('scannerBtn').style.display='flex';
+  $('bottomBar').style.display='flex';
+  updateHud();updateProgressDots();
+  loadPuzzle();
+}
+
+// ============================================================
+// PUZZLE LOADER
+// ============================================================
+function loadPuzzle(){
+  S.puzzleSolving=false;
+  S.overrideTriggered=false;
+  S.previewDone=false;
+  closeAllOverlays();
+  const r=S.room;const p=S.puzzle;
+  const rm=ROOMS[r];
+  if(p>=2){showCodeEntry(r);return;}
+  if(S.rooms[r].solved[p]){S.puzzle++;loadPuzzle();return;}
+  const pz=rm.puzzles[p];
+  $('scannerBtn').classList.remove('glow');
+  updateProgressDots();
+  showScanPreview(pz,()=>{renderPuzzle(pz,r,p);});
+}
+
+function showScanPreview(pz,cb){
+  if(!pz.preview){cb();return;}
+  S.previewDone=false;
+  const ov=$('scanPreview');const c=roomColor(S.room);
+  ov.innerHTML=`<div class="scan-label" style="color:${c}">SCANNING ROOM...</div>
+    <div class="scan-content" style="border-color:${c}40">
+      <div class="icon">${pz.preview.icon}</div>
+      <div class="desc">${pz.preview.desc}</div>
+    </div>`;
+  ov.style.display='flex';ov.classList.add('active');
+  const done=()=>{
+    if(S.previewDone)return;S.previewDone=true;
+    ov.classList.remove('active');ov.style.display='none';cb();
+  };
+  setTimeout(done,3500);
+  setTimeout(done,5000);// safety
+}
+
+// ============================================================
+// RENDER PUZZLE
+// ============================================================
+function renderPuzzle(pz,r,p){
+  const area=$('puzzleArea');area.innerHTML='';
+  const color=roomColor(r);
+  try{
+    switch(pz.type){
+      case'mystery':renderMystery(pz,r,p,area,color);break;
+      case'quickfire':renderQuickFire(pz,r,p,area,color);break;
+      case'systemscanner':renderSystemScanner(pz,r,p,area,color);break;
+      case'sequence':renderSequence(pz,r,p,area,color);break;
+      case'matchlock':renderMatchLock(pz,r,p,area,color);break;
+      case'visualrecall':renderVisualRecall(pz,r,p,area,color);break;
+      default:area.innerHTML='<div>Unknown puzzle type</div>';
+    }
+  }catch(e){
+    area.innerHTML=`<div style="text-align:center;padding:40px"><div style="font-size:18px;color:var(--error);margin-bottom:12px">Something went wrong</div>
+      <button class="card" onclick="loadPuzzle()" style="border-color:var(--teal);color:var(--teal)">Click to retry this puzzle</button></div>`;
+  }
+}
+
+// ============================================================
+// WRONG ANSWER HANDLER
+// ============================================================
+function handleWrongAnswer(r,p,extraCb){
+  S.rooms[r].wrongCounts[p]++;
+  S.rooms[r].firstTry[p]=false;
+  S.streak=0;updateHud();
+  const wc=S.rooms[r].wrongCounts[p];
+  if(wc===1){
+    S.rooms[r].scannerUsed[p]=true;
+    // Auto-activate scanner + narrow choices
+    if(extraCb)extraCb('scanner');
+    autoOpenScanner(r,p);
+  }else if(wc>=2 && !S.overrideTriggered){
+    S.overrideTriggered=true;
+    closeScanner();
+    if(extraCb)extraCb('override');
+  }
+}
+
+function autoOpenScanner(r,p){
+  const pz=ROOMS[r].puzzles[p];
+  if(!pz)return;
+  let txt=pz.scanText||'Scanner analyzing...';
+  if(pz.type==='quickfire'&&S.qfState){
+    const qi=S.qfState.currentIdx;
+    const q=pz.questions[S.qfState.order[qi]];
+    if(q)txt=q.scanText;
+  }
+  $('scannerText').textContent=txt;
+  $('scannerOverlay').style.display='flex';
+  $('scannerOverlay').classList.add('active');
+  S.scannerOpen=true;
+  $('scannerBtn').classList.add('glow');
+}
+
+function openScanner(){
+  if(S.scannerOpen){closeScanner();return;}
+  const r=S.room;const p=S.puzzle;
+  if(p>=2||S.rooms[r].wrongCounts[p]<1)return;
+  // Quick Fire uses inline hints, not full-screen overlay
+  const pz=ROOMS[r]&&ROOMS[r].puzzles[p];
+  if(pz&&pz.type==='quickfire')return;
+  autoOpenScanner(r,p);
+}
+
+// ============================================================
+// PUZZLE SOLVED
+// ============================================================
+function puzzleSolved(r,p){
+  if(S.puzzleSolving)return;
+  S.puzzleSolving=true;
+  closeScanner();closeAllOverlays();
+  const pz=ROOMS[r].puzzles[p];
+  S.rooms[r].solved[p]=true;
+  S.rooms[r].digits[p]=pz.digit;
+  S.puzzlesSolved++;
+  if(S.rooms[r].firstTry[p])S.firstTrySolves++;
+  if(S.rooms[r].firstTry[p]){S.streak++;}else{S.streak=0;}
+  updateHud();updateProgressDots();
+  // Pulse cleared counter
+  $('hudCleared').classList.remove('pulse');
+  void $('hudCleared').offsetWidth;
+  $('hudCleared').classList.add('pulse');
+  showDigitReveal(pz.digit,roomColor(r),()=>{
+    S.puzzle++;
+    loadPuzzle();
+  });
+}
+
+function showDigitReveal(digit,color,cb){
+  const ov=$('digitReveal');
+  ov.innerHTML=`<div class="digit-big" style="color:${color}">${digit}</div>
+    <div class="digit-label">Code Digit Revealed!</div>
+    <button class="digit-continue" onclick="this.onclick=null;document.getElementById('digitReveal').classList.remove('active');document.getElementById('digitReveal').style.display='none';">Continue →</button>`;
+  ov.style.display='flex';ov.classList.add('active');
+  // Particles
+  try{const rect=ov.getBoundingClientRect();spawnParticles(rect.width/2,rect.height/2,color,10);}catch(e){}
+  const contBtn=ov.querySelector('.digit-continue');
+  contBtn.onclick=()=>{
+    contBtn.onclick=null;
+    ov.classList.remove('active');ov.style.display='none';
+    cb();
+  };
+  // Safety: auto-advance after 8s
+  setTimeout(()=>{if(ov.classList.contains('active')){ov.classList.remove('active');ov.style.display='none';cb();}},8000);
+}
+
+// ============================================================
+// CODE ENTRY
+// ============================================================
+function showCodeEntry(r){
+  closeAllOverlays();
+  S.codeInput='';
+  S.codeTarget=S.rooms[r].code;
+  const c=roomColor(r);
+  const d0=S.rooms[r].digits[0];const d1=S.rooms[r].digits[1];
+  $('codeTitle').textContent='ENTER EXIT CODE';$('codeTitle').style.color=c;
+  $('codeSubtitle').textContent=`Your digits: ${d0} ${d1}`;
+  $('codeSubtitle').style.color=c;
+  let dh='';
+  for(let i=0;i<2;i++){dh+=`<div class="code-digit-slot" id="cs${i}" style="color:${c}"></div>`;}
+  $('codeDigits').innerHTML=dh;
+  let nh='';
+  for(let i=1;i<=9;i++){nh+=`<button class="numpad-btn" onclick="codeType('${i}')">${i}</button>`;}
+  nh+=`<button class="numpad-btn" onclick="codeClear()">⌫</button>`;
+  nh+=`<button class="numpad-btn" onclick="codeType('0')">0</button>`;
+  nh+=`<button class="numpad-btn" onclick="codeSubmit()" style="font-size:14px">↵</button>`;
+  $('codeNumpad').innerHTML=nh;
+  $('codeFeedback').textContent='';
+  $('codeEntry').style.display='flex';$('codeEntry').classList.add('active');
+}
+
+function codeType(d){
+  if(S.codeInput.length>=2)return;
+  S.codeInput+=d;
+  for(let i=0;i<2;i++){
+    const sl=$(`cs${i}`);
+    sl.textContent=S.codeInput[i]||'';
+    sl.classList.toggle('filled',!!S.codeInput[i]);
+  }
+}
+function codeClear(){
+  S.codeInput=S.codeInput.slice(0,-1);
+  for(let i=0;i<2;i++){
+    const sl=$(`cs${i}`);
+    sl.textContent=S.codeInput[i]||'';
+    sl.classList.toggle('filled',!!S.codeInput[i]);
+  }
+  $('codeFeedback').textContent='';
+}
+function codeSubmit(){
+  if(S.codeInput.length<2)return;
+  if(S.codeInput===S.codeTarget){
+    $('codeFeedback').textContent='✔ Correct!';$('codeFeedback').style.color='var(--success)';
+    setTimeout(()=>{
+      $('codeEntry').classList.remove('active');$('codeEntry').style.display='none';
+      afterRoomComplete(S.room);
+    },600);
+  }else{
+    $('codeFeedback').textContent='✖ Incorrect — try again';$('codeFeedback').style.color='var(--error)';
+    S.codeInput='';
+    for(let i=0;i<2;i++){const sl=$(`cs${i}`);sl.textContent='';sl.classList.remove('filled');}
+  }
+}
+
+function afterRoomComplete(r){
+  closeAllOverlays();
+  if(r<2){showPassTheLaptop(r+1);}
+  else{showFinalLockTransition();}
+}
+
+// ============================================================
+// PASS THE LAPTOP
+// ============================================================
+let passGuard=false;
+function showPassTheLaptop(nextRoom){
+  if(passGuard)return;passGuard=true;
+  const c=S.rooms[nextRoom].color;
+  const ov=$('passOverlay');
+  ov.style.background=`radial-gradient(ellipse at center,${c}15,rgba(10,10,30,0.97) 70%)`;
+  ov.innerHTML=`<div class="pass-text" style="color:${c}">PASS THE LAPTOP</div>
+    <button class="pass-ready" id="passReady" style="border-color:${c};color:${c}">Ready</button>`;
+  ov.style.display='flex';ov.classList.add('active');
+  $('passReady').onclick=()=>{
+    $('passReady').onclick=null;
+    ov.classList.remove('active');ov.style.display='none';
+    passGuard=false;
+    transitionToRoom(nextRoom);
+  };
+  // Safety
+  setTimeout(()=>{passGuard=false;},10000);
+}
+
+// ============================================================
+// MYSTERY INPUT
+// ============================================================
+function renderMystery(pz,r,p,area,color){
+  let chainH='';
+  pz.chain.forEach((step,i)=>{
+    if(i>0)chainH+=`<div class="chain-arrow">→</div>`;
+    const isMystery=i===pz.hiddenIdx;
+    chainH+=`<div class="chain-step ${isMystery?'mystery':''}" id="chainStep${i}" style="border-color:${isMystery?'var(--warn)':color+'40'}">
+      <div class="icon">${step.icon}</div><div class="label">${isMystery?'???':step.label}</div></div>`;
+  });
+  let optsH='';
+  const opts=[...pz.options];
+  shuffleArr(opts);
+  opts.forEach(o=>{
+    optsH+=`<div class="card mystery-opt" data-correct="${o.correct}" data-id="${o.id}" style="border-color:${color}40;min-width:140px">${o.text}</div>`;
+  });
+  area.innerHTML=`<div class="puzzle-instruction">Tap the answer that fills the missing step</div>
+    <div class="chain">${chainH}</div>
+    <div class="answer-cards" id="mysteryOpts">${optsH}</div>`;
+
+  let wrongThisPuzzle=S.rooms[r].wrongCounts[p];
+  const optEls=area.querySelectorAll('.mystery-opt');
+  optEls.forEach(el=>{
+    el.onclick=()=>{
+      if(el.classList.contains('dimmed')||el.classList.contains('correct'))return;
+      if(el.dataset.correct==='true'){
+        el.classList.add('correct');
+        const ms=$(`chainStep${pz.hiddenIdx}`);
+        if(ms){ms.classList.remove('mystery');ms.classList.add('solved');
+          ms.querySelector('.label').textContent=el.textContent;ms.querySelector('.icon').textContent=pz.chain[pz.hiddenIdx].icon==='❓'?'✔':pz.chain[pz.hiddenIdx].icon;}
+        setTimeout(()=>puzzleSolved(r,p),600);
+      }else{
+        el.classList.add('wrong');
+        setTimeout(()=>{el.classList.remove('wrong');el.classList.add('dimmed');},500);
+        handleWrongAnswer(r,p,(action)=>{
+          if(action==='scanner')narrowMysteryOpts(pz,optEls);
+          if(action==='override')overrideMystery(pz,optEls,r,p);
+        });
+      }
+    };
+  });
+}
+
+function narrowMysteryOpts(pz,optEls){
+  optEls.forEach(el=>{
+    if(pz.scan2&&!pz.scan2.includes(el.dataset.id)&&el.dataset.correct!=='true'){
+      el.classList.add('dimmed');
+    }
+  });
+}
+
+function overrideMystery(pz,optEls,r,p){
+  optEls.forEach(el=>{
+    if(el.dataset.correct==='true'){
+      el.classList.add('override-highlight');
+      el.onclick=()=>{
+        el.classList.remove('override-highlight');el.classList.add('correct');
+        const ms=$(`chainStep${pz.hiddenIdx}`);
+        if(ms){ms.classList.remove('mystery');ms.classList.add('solved');
+          ms.querySelector('.label').textContent=el.textContent;}
+        setTimeout(()=>puzzleSolved(r,p),600);
+      };
+    }else{el.classList.add('dimmed');}
+  });
+}
+
+// ============================================================
+// QUICK FIRE
+// ============================================================
+function renderQuickFire(pz,r,p,area,color){
+  const order=[0,1,2,3];
+  S.qfState={currentIdx:0,order:order,correct:0,wrong:0,cumWrong:S.rooms[r].wrongCounts[p]||0,
+    missed:[],results:[null,null,null,null],retrying:false,done:false};
+  showQFQuestion(pz,r,p,area,color);
+}
+
+function showQFQuestion(pz,r,p,area,color){
+  const qs=S.qfState;
+  if(qs.done)return;
+  if(qs.currentIdx>=qs.order.length){
+    finishQFPass(pz,r,p,area,color);return;
+  }
+  const qi=qs.order[qs.currentIdx];
+  const q=pz.questions[qi];
+  area.innerHTML=`<div style="font-size:20px;margin-bottom:4px">${q.emoji}</div>
+    <div class="qf-question">"${q.text}"</div>
+    <div class="qf-counter">Question ${qs.currentIdx+1} of ${qs.order.length}</div>
+    <div class="qf-buttons">
+      <button class="qf-btn qf-true" id="qfTrue">TRUE</button>
+      <button class="qf-btn qf-false" id="qfFalse">FALSE</button>
+    </div>
+    <div id="qfHint" style="display:none;margin-top:16px;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,214,0,0.3);background:rgba(255,214,0,0.06);max-width:500px;text-align:center;font-size:13px;color:var(--text);opacity:0.85"></div>`;
+  const trueBtn=$('qfTrue');const falseBtn=$('qfFalse');
+  const answer=(val)=>{
+    trueBtn.onclick=null;falseBtn.onclick=null;
+    const isCorrect=(val===q.answer);
+    if(isCorrect){
+      (val?trueBtn:falseBtn).classList.add('flash-correct');
+      qs.correct++;qs.results[qi]=true;
+      setTimeout(()=>{qs.currentIdx++;showQFQuestion(pz,r,p,area,color);},500);
+    }else{
+      (val?trueBtn:falseBtn).classList.add('flash-wrong');
+      qs.results[qi]=false;
+      qs.cumWrong++;
+      S.rooms[r].wrongCounts[p]=qs.cumWrong;
+      S.rooms[r].firstTry[p]=false;S.streak=0;updateHud();
+      if(!qs.missed.includes(qi))qs.missed.push(qi);
+      // Scanner for QF — inline text (NOT full overlay)
+      if(qs.cumWrong>=1){
+        S.rooms[r].scannerUsed[p]=true;
+        $('scannerBtn').classList.add('glow');
+        const hintEl=$('qfHint');
+        if(hintEl){hintEl.style.display='block';hintEl.textContent='⚡ '+q.scanText;}
+      }
+      if(qs.cumWrong>=5&&!S.overrideTriggered){
+        S.overrideTriggered=true;qs.done=true;
+        area.innerHTML=`<div style="text-align:center"><div style="font-size:18px;color:var(--warn);margin-bottom:8px;font-weight:700">System Override — Signals Confirmed</div>
+          <div style="font-size:14px;color:var(--text);opacity:0.7">Scanner locked on remaining answers.</div></div>`;
+        setTimeout(()=>puzzleSolved(r,p),1200);
+        return;
+      }
+      setTimeout(()=>{qs.currentIdx++;showQFQuestion(pz,r,p,area,color);},500);
+    }
+  };
+  trueBtn.onclick=()=>answer(true);
+  falseBtn.onclick=()=>answer(false);
+}
+
+function finishQFPass(pz,r,p,area,color){
+  const qs=S.qfState;
+  const totalCorrect=qs.results.filter(r=>r===true).length;
+  if(totalCorrect>=3){
+    qs.done=true;
+    area.innerHTML=`<div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--success);margin-bottom:6px">✔ Signals Clear!</div>
+      <div style="font-size:14px;color:var(--text);opacity:0.7">${totalCorrect}/4 confirmed</div></div>`;
+    setTimeout(()=>puzzleSolved(r,p),800);
+  }else{
+    // Retry missed only
+    qs.order=qs.missed.slice();
+    qs.missed=[];
+    qs.currentIdx=0;
+    qs.retrying=true;
+    area.innerHTML=`<div style="text-align:center"><div style="font-size:16px;color:var(--warn);margin-bottom:12px;font-weight:600">⚠ ${totalCorrect}/4 — Retrying missed signals...</div></div>`;
+    setTimeout(()=>showQFQuestion(pz,r,p,area,color),1000);
+  }
+}
+
+// ============================================================
+// SYSTEM SCANNER PUZZLE
+// ============================================================
+function renderSystemScanner(pz,r,p,area,color){
+  let gaugeH='';
+  pz.gauges.forEach((g,i)=>{
+    const barColor=g.zone==='red'?'#f44336':g.zone==='yellow'?'#FFD600':'#4CAF50';
+    gaugeH+=`<div class="gauge"><div class="gauge-bar-wrap"><div class="gauge-bar" style="height:${g.value}%;background:linear-gradient(to top,${barColor}88,${barColor});box-shadow:0 0 10px ${barColor}40">
+      <div class="gauge-reading" style="color:${barColor}">${g.reading}</div></div></div>
+      <div class="gauge-label" style="color:${color}">${g.label}</div></div>`;
+  });
+  let zoneH=`<div class="gauge-zone"><div class="zone-r">🔴 Danger</div><div class="zone-y">🟡 Caution</div><div class="zone-g">🟢 Safe</div></div>`;
+  let optsH='';
+  const opts=[...pz.options];shuffleArr(opts);
+  opts.forEach(o=>{
+    optsH+=`<div class="card ss-opt" data-correct="${o.correct}" data-id="${o.id}" style="border-color:${color}40;min-width:140px">${o.text}</div>`;
+  });
+  area.innerHTML=`<div class="gauge-panel" style="border-color:${color}30">${gaugeH}${zoneH}</div>
+    <div class="scanner-q" style="color:${color}">${pz.question}</div>
+    <div class="answer-cards" id="ssOpts">${optsH}</div>`;
+
+  // Animate gauge bars
+  setTimeout(()=>{area.querySelectorAll('.gauge-bar').forEach(b=>{const h=b.style.height;b.style.height='0';
+    requestAnimationFrame(()=>b.style.height=h);});},50);
+
+  const optEls=area.querySelectorAll('.ss-opt');
+  optEls.forEach(el=>{
+    el.onclick=()=>{
+      if(el.classList.contains('dimmed')||el.classList.contains('correct'))return;
+      if(el.dataset.correct==='true'){
+        el.classList.add('correct');
+        setTimeout(()=>puzzleSolved(r,p),600);
+      }else{
+        el.classList.add('wrong');
+        setTimeout(()=>{el.classList.remove('wrong');el.classList.add('dimmed');},500);
+        handleWrongAnswer(r,p,(action)=>{
+          if(action==='scanner')narrowSSOptions(pz,optEls);
+          if(action==='override')overrideSS(pz,optEls,r,p);
+        });
+      }
+    };
+  });
+}
+
+function narrowSSOptions(pz,optEls){
+  optEls.forEach(el=>{
+    if(pz.scan2&&!pz.scan2.includes(el.dataset.id)&&el.dataset.correct!=='true'){el.classList.add('dimmed');}
+  });
+}
+
+function overrideSS(pz,optEls,r,p){
+  optEls.forEach(el=>{
+    if(el.dataset.correct==='true'){
+      el.classList.add('override-highlight');
+      el.onclick=()=>{
+        el.classList.remove('override-highlight');el.classList.add('correct');
+        setTimeout(()=>puzzleSolved(r,p),600);
+      };
+    }else{el.classList.add('dimmed');}
+  });
+}
+
+// ============================================================
+// SEQUENCE LOCK
+// ============================================================
+function renderSequence(pz,r,p,area,color){
+  S.seqState={step:0,locked:[false,false,false]};
+  renderSeqStep(pz,r,p,area,color);
+}
+
+function renderSeqStep(pz,r,p,area,color){
+  const ss=S.seqState;
+  if(ss.step>=2){
+    // Auto-place last card
+    ss.locked[2]=true;
+    renderSeqFinal(pz,r,p,area,color);
+    return;
+  }
+  // Slots
+  let slotsH='';
+  for(let i=0;i<3;i++){
+    const filled=ss.locked[i];
+    slotsH+=`<div class="seq-slot ${i===ss.step&&!filled?'active':''} ${filled?'filled':''}" style="color:${color}">
+      ${filled?`${pz.cards[i].icon} ${pz.cards[i].label}`:`${i+1}`}</div>`;
+    if(i<2)slotsH+=`<div class="seq-arrow">→</div>`;
+  }
+  // Cards (only unlocked)
+  let cardsH='';
+  const available=[];
+  for(let i=0;i<3;i++){if(!ss.locked[i])available.push(i);}
+  const shuffled=shuffleArr([...available]);
+  shuffled.forEach(idx=>{
+    cardsH+=`<div class="card seq-card" data-idx="${idx}" style="border-color:${color}40">${pz.cards[idx].icon} ${pz.cards[idx].label}</div>`;
+  });
+
+  const prompts=['What happens FIRST?','What happens NEXT?','Complete!'];
+  area.innerHTML=`<div class="puzzle-instruction">${prompts[ss.step]}</div>
+    <div class="puzzle-micro">Step ${ss.step+1} of 3</div>
+    <div class="seq-slots">${slotsH}</div>
+    <div class="seq-cards" id="seqCards">${cardsH}</div>`;
+
+  const cardEls=area.querySelectorAll('.seq-card');
+  cardEls.forEach(el=>{
+    el.onclick=()=>{
+      if(el.classList.contains('dimmed')||el.classList.contains('locked'))return;
+      const idx=parseInt(el.dataset.idx);
+      if(idx===ss.step){
+        el.classList.add('correct');
+        ss.locked[idx]=true;
+        ss.step++;
+        closeScanner();
+        setTimeout(()=>renderSeqStep(pz,r,p,area,color),500);
+      }else{
+        el.classList.add('wrong');
+        setTimeout(()=>{el.classList.remove('wrong');},500);
+        handleWrongAnswer(r,p,(action)=>{
+          if(action==='scanner')narrowSeqCards(pz,cardEls,ss);
+          if(action==='override')overrideSeq(pz,r,p,area,color,ss);
+        });
+      }
+    };
+  });
+}
+
+function narrowSeqCards(pz,cardEls,ss){
+  if(!ROOMS[S.room].puzzles[S.puzzle].scan2Indices)return;
+  const keep=ROOMS[S.room].puzzles[S.puzzle].scan2Indices;
+  cardEls.forEach(el=>{
+    const idx=parseInt(el.dataset.idx);
+    if(!keep.includes(idx)&&idx!==ss.step&&!el.classList.contains('locked')){
+      el.classList.add('dimmed');
+    }
+  });
+}
+
+function overrideSeq(pz,r,p,area,color,ss){
+  // Auto-solve cascade — show slots filling in with NO clickable cards
+  const renderCascadeFrame=()=>{
+    let slotsH='';
+    for(let i=0;i<3;i++){
+      const filled=ss.locked[i];
+      slotsH+=`<div class="seq-slot ${filled?'filled':''}" style="color:${color}">
+        ${filled?`${pz.cards[i].icon} ${pz.cards[i].label}`:`${i+1}`}</div>`;
+      if(i<2)slotsH+=`<div class="seq-arrow">→</div>`;
+    }
+    area.innerHTML=`<div class="puzzle-instruction" style="color:var(--warn);font-weight:700">🔓 Lock Override — Resolving Sequence...</div>
+      <div class="seq-slots">${slotsH}</div>`;
+  };
+  const cascade=(step)=>{
+    if(step>=3){renderSeqFinal(pz,r,p,area,color);return;}
+    ss.locked[step]=true;ss.step=step+1;
+    renderCascadeFrame();
+    setTimeout(()=>cascade(step+1),500);
+  };
+  cascade(ss.step);
+}
+
+function renderSeqFinal(pz,r,p,area,color){
+  let slotsH='';
+  for(let i=0;i<3;i++){
+    slotsH+=`<div class="seq-slot filled" style="color:${color}">${pz.cards[i].icon} ${pz.cards[i].label}</div>`;
+    if(i<2)slotsH+=`<div class="seq-arrow">→</div>`;
+  }
+  area.innerHTML=`<div class="puzzle-instruction" style="color:var(--success);font-weight:700">✔ Sequence Complete!</div>
+    <div class="seq-slots">${slotsH}</div>`;
+  setTimeout(()=>puzzleSolved(r,p),800);
+}
+
+// ============================================================
+// MATCH LOCK
+// ============================================================
+function renderMatchLock(pz,r,p,area,color){
+  S.matchState={pairIdx:0,completed:[]};
+  renderMatchPair(pz,r,p,area,color);
+}
+
+function renderMatchPair(pz,r,p,area,color){
+  const ms=S.matchState;
+  if(ms.pairIdx>=pz.pairs.length){
+    setTimeout(()=>puzzleSolved(r,p),600);return;
+  }
+  // Auto-match last pair
+  if(ms.pairIdx===pz.pairs.length-1&&pz.pairs.length>1){
+    ms.completed.push(pz.pairs[ms.pairIdx]);
+    renderMatchComplete(pz,r,p,area,color);
+    setTimeout(()=>puzzleSolved(r,p),800);
+    return;
+  }
+  const pair=pz.pairs[ms.pairIdx];
+  // Completed area
+  let compH='';
+  if(ms.completed.length>0){
+    compH='<div class="match-completed">';
+    ms.completed.forEach(c=>{compH+=`<div class="match-done-pair"><span>${c.term}</span><span class="match-arrow">→</span><span>${c.target}</span></div>`;});
+    compH+='</div>';
+  }
+  // Targets: show remaining
+  const remaining=pz.pairs.slice(ms.pairIdx);
+  const targets=shuffleArr(remaining.map(p=>p.target));
+
+  let targetsH='';
+  targets.forEach(t=>{
+    targetsH+=`<div class="card match-target" data-val="${t}" style="border-color:${color}40">${t}</div>`;
+  });
+
+  area.innerHTML=`${compH}
+    <div class="puzzle-instruction">👆 Tap the term on the LEFT, then tap its match on the RIGHT</div>
+    <div class="puzzle-micro">Pair ${ms.pairIdx+1} of ${pz.pairs.length}</div>
+    <div class="match-area">
+      <div class="match-col"><div class="card" id="matchTerm" style="border-color:${color};color:${color};font-weight:700">${pair.term}</div></div>
+      <div style="font-size:24px;color:rgba(255,255,255,0.15)">→</div>
+      <div class="match-col" id="matchTargets">${targetsH}</div>
+    </div>`;
+
+  const tgtEls=area.querySelectorAll('.match-target');
+  tgtEls.forEach(el=>{
+    el.onclick=()=>{
+      if(el.classList.contains('dimmed')||el.classList.contains('correct'))return;
+      if(el.dataset.val===pair.target){
+        el.classList.add('correct');
+        ms.completed.push(pair);
+        ms.pairIdx++;
+        closeScanner();
+        setTimeout(()=>renderMatchPair(pz,r,p,area,color),500);
+      }else{
+        el.classList.add('wrong');
+        setTimeout(()=>{el.classList.remove('wrong');el.classList.add('dimmed');},500);
+        handleWrongAnswer(r,p,(action)=>{
+          if(action==='scanner'){narrowMatchTargets(pz,tgtEls,pair);}
+          if(action==='override'){overrideMatchLock(pz,r,p,area,color,ms);}
+        });
+      }
+    };
+  });
+}
+
+function narrowMatchTargets(pz,tgtEls,pair){
+  const scan2=ROOMS[S.room].puzzles[S.puzzle].scan2Targets;
+  if(!scan2)return;
+  tgtEls.forEach(el=>{
+    if(!scan2.includes(el.dataset.val)&&el.dataset.val!==pair.target){el.classList.add('dimmed');}
+  });
+}
+
+function overrideMatchLock(pz,r,p,area,color,ms){
+  // Auto-solve cascade: complete remaining pairs
+  const cascade=(idx)=>{
+    if(idx>=pz.pairs.length){setTimeout(()=>puzzleSolved(r,p),400);return;}
+    ms.completed.push(pz.pairs[idx]);ms.pairIdx=idx+1;
+    renderMatchComplete(pz,r,p,area,color);
+    if(idx+1<pz.pairs.length)setTimeout(()=>cascade(idx+1),500);
+    else setTimeout(()=>puzzleSolved(r,p),600);
+  };
+  cascade(ms.pairIdx);
+}
+
+function renderMatchComplete(pz,r,p,area,color){
+  const ms=S.matchState;
+  let compH='<div class="match-completed">';
+  ms.completed.forEach(c=>{compH+=`<div class="match-done-pair"><span>${c.term}</span><span class="match-arrow">→</span><span>${c.target}</span></div>`;});
+  compH+='</div>';
+  area.innerHTML=`<div class="puzzle-instruction" style="color:var(--success);font-weight:700">✔ All Pairs Matched!</div>${compH}`;
+}
+
+// ============================================================
+// VISUAL RECALL
+// ============================================================
+function renderVisualRecall(pz,r,p,area,color){
+  // Thermos cross-section CSS art
+  const thermosH=`<div class="thermos-visual"><div class="thermos">
+    <div class="t-outer" style="border-color:rgba(158,158,158,0.5)">
+      <div style="position:absolute;top:4px;left:-75px;font-size:9px;color:var(--text);opacity:0.6;white-space:nowrap">Outer Wall →</div>
+      <div class="t-vacuum" style="border-color:rgba(255,255,255,0.3)">
+        <div class="t-vacuum-label">← Vacuum<br><span style="font-size:8px;opacity:0.6">(No Air Inside)</span></div>
+        <div class="t-silver" style="border-color:rgba(192,192,192,0.5)">
+          <div style="position:absolute;top:4px;right:-82px;font-size:9px;color:var(--text);opacity:0.6;white-space:nowrap">Silver Coating →</div>
+          <div class="t-inner" style="border-color:rgba(158,158,158,0.4)">
+            <div style="position:absolute;bottom:2px;left:-70px;font-size:9px;color:var(--text);opacity:0.6;white-space:nowrap">Inner Wall →</div>
+            <div class="t-drink">Hot Drink</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div></div>`;
+
+  let optsH='';
+  const opts=[...pz.options];shuffleArr(opts);
+  opts.forEach(o=>{
+    optsH+=`<div class="card vr-opt" data-correct="${o.correct}" data-id="${o.id}" style="border-color:${color}40;min-width:130px">${o.text}</div>`;
+  });
+
+  area.innerHTML=`${thermosH}
+    <div class="scanner-q" style="color:${color}">${pz.question}</div>
+    <div class="answer-cards" id="vrOpts">${optsH}</div>`;
+
+  const optEls=area.querySelectorAll('.vr-opt');
+  optEls.forEach(el=>{
+    el.onclick=()=>{
+      if(el.classList.contains('dimmed')||el.classList.contains('correct'))return;
+      if(el.dataset.correct==='true'){
+        el.classList.add('correct');
+        setTimeout(()=>puzzleSolved(r,p),600);
+      }else{
+        el.classList.add('wrong');
+        setTimeout(()=>{el.classList.remove('wrong');el.classList.add('dimmed');},500);
+        handleWrongAnswer(r,p,(action)=>{
+          if(action==='scanner')narrowVROpts(pz,optEls);
+          if(action==='override')overrideVR(pz,optEls,r,p);
+        });
+      }
+    };
+  });
+}
+
+function narrowVROpts(pz,optEls){
+  optEls.forEach(el=>{
+    if(pz.scan2&&!pz.scan2.includes(el.dataset.id)&&el.dataset.correct!=='true'){el.classList.add('dimmed');}
+  });
+}
+
+function overrideVR(pz,optEls,r,p){
+  optEls.forEach(el=>{
+    if(el.dataset.correct==='true'){
+      el.classList.add('override-highlight');
+      el.onclick=()=>{el.classList.remove('override-highlight');el.classList.add('correct');setTimeout(()=>puzzleSolved(r,p),600);};
+    }else{el.classList.add('dimmed');}
+  });
+}
+
+// ============================================================
+// FINAL LOCK
+// ============================================================
+function showFinalLockTransition(){
+  closeAllOverlays();
+  S.screen='finallock';
+  // Door animation - slower
+  const overlay=document.createElement('div');overlay.className='door-overlay';
+  overlay.innerHTML=`<div class="door-panel" style="background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.2)">
+    <div class="door-lock">🔐</div><div class="door-text">FINAL LOCK</div></div>`;
+  overlay.style.background='radial-gradient(ellipse at center,rgba(255,255,255,0.05),rgba(10,10,30,0.97) 70%)';
+  overlay.style.animation='doorAnimSlow 1.8s ease forwards';
+  document.body.appendChild(overlay);
+  const cleanup=()=>{try{overlay.remove()}catch(e){}};
+  overlay.addEventListener('animationend',cleanup);
+  setTimeout(cleanup,3000);
+  setTimeout(()=>{loadFinalLock();},1000);
+}
+
+function loadFinalLock(){
+  S.screen='finallock';
+  $('missionLine').textContent='This is it — match each room\'s key concept!';
+  $('missionLine').style.color='var(--text-bright)';
+  $('roomBg').className='room-bg';
+  $('scannerBtn').style.display='flex';
+  $('scannerBtn').classList.remove('glow');
+  $('bottomBar').style.display='flex';
+  updateHud();
+  $('progressDots').innerHTML='';
+
+  S.flState={activePair:0,locked:[false,false,false],wrongCounts:[0,0,0],overrides:[false,false,false]};
+  renderFinalLock();
+}
+
+function renderFinalLock(){
+  const fl=S.flState;const area=$('puzzleArea');
+  const allTargets=FINAL_LOCK.pairs.map(p=>p.target);
+  // Build available (unmatched) targets
+  const available=[];
+  FINAL_LOCK.pairs.forEach((p,i)=>{if(!fl.locked[i])available.push(p.target);});
+
+  let h='<div class="final-lock-area">';
+  FINAL_LOCK.pairs.forEach((pair,i)=>{
+    const isActive=i===fl.activePair&&!fl.locked[i];
+    const isDimmed=i!==fl.activePair&&!fl.locked[i];
+    const isLocked=fl.locked[i];
+    h+=`<div class="fl-pair-row ${isActive?'active-pair':''} ${isDimmed?'dimmed-pair':''} ${isLocked?'locked-pair':''}">
+      <div class="fl-term" style="border-color:${pair.color};color:${pair.color};background:${pair.color}10">${pair.emoji} ${pair.term}</div>
+      <div class="fl-arrow-sp">${isLocked?'→':'?'}</div>
+      <div class="fl-targets">`;
+    if(isLocked){
+      h+=`<div class="fl-target fl-matched" style="border-color:var(--success);color:var(--success)">✔ ${pair.target}</div>`;
+    }else if(isActive){
+      const shuffTargets=shuffleArr([...available]);
+      shuffTargets.forEach(t=>{
+        const correct=t===pair.target;
+        h+=`<div class="fl-target" data-pair="${i}" data-val="${t}" data-correct="${correct}" onclick="flSelectTarget(this,${i})">${t}</div>`;
+      });
+    }else{
+      h+=`<div class="fl-target fl-dimmed">—</div>`;
+    }
+    h+=`</div></div>`;
+  });
+  h+='</div>';
+  area.innerHTML=h;
+}
+
+function flSelectTarget(el,pairIdx){
+  const fl=S.flState;
+  if(fl.locked[pairIdx]||el.classList.contains('fl-dimmed')||el.classList.contains('fl-matched'))return;
+  if(el.dataset.correct==='true'){
+    el.classList.add('fl-matched');
+    fl.locked[pairIdx]=true;
+    fl.activePair++;
+    if(fl.activePair>=FINAL_LOCK.pairs.length){
+      // All matched — escape!
+      setTimeout(()=>triggerEscape(),600);
+    }else{
+      // Auto-match last if only one left
+      if(fl.activePair===FINAL_LOCK.pairs.length-1){
+        fl.locked[fl.activePair]=true;
+        setTimeout(()=>{renderFinalLock();setTimeout(()=>triggerEscape(),800);},500);
+      }else{
+        setTimeout(()=>renderFinalLock(),500);
+      }
+    }
+  }else{
+    el.classList.add('fl-wrong');
+    setTimeout(()=>{el.classList.remove('fl-wrong');el.classList.add('fl-dimmed');},500);
+    fl.wrongCounts[pairIdx]++;
+    S.streak=0;updateHud();
+    if(fl.wrongCounts[pairIdx]===1){
+      // Scanner
+      const pair=FINAL_LOCK.pairs[pairIdx];
+      if(pair.scanText){
+        $('scannerText').textContent=pair.scanText;
+        $('scannerOverlay').style.display='flex';$('scannerOverlay').classList.add('active');
+        S.scannerOpen=true;$('scannerBtn').classList.add('glow');
+      }
+      // Narrow to 2
+      const targets=document.querySelectorAll(`.fl-target[data-pair="${pairIdx}"]`);
+      targets.forEach(t=>{
+        if(FINAL_LOCK.pairs[pairIdx].scan2&&!FINAL_LOCK.pairs[pairIdx].scan2.includes(t.dataset.val)&&t.dataset.correct!=='true'){
+          t.classList.add('fl-dimmed');
+        }
+      });
+    }else if(fl.wrongCounts[pairIdx]>=2&&!fl.overrides[pairIdx]){
+      fl.overrides[pairIdx]=true;
+      closeScanner();
+      const targets=document.querySelectorAll(`.fl-target[data-pair="${pairIdx}"]`);
+      targets.forEach(t=>{
+        if(t.dataset.correct==='true'){t.classList.add('override-highlight');}
+        else{t.classList.add('fl-dimmed');}
+      });
+    }
+  }
+}
+
+// ============================================================
+// ESCAPE
+// ============================================================
+let escapeTriggered=false;
+function triggerEscape(){
+  if(escapeTriggered)return;escapeTriggered=true;
+  closeAllOverlays();
+  $('hud').classList.remove('visible');
+  $('bottomBar').style.display='none';
+
+  // Flash + ESCAPED text
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:55;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,10,30,0.97);animation:fadeIn 0.3s';
+  ov.innerHTML=`<div style="font-size:clamp(40px,8vw,72px);font-weight:900;animation:escapeText 1s ease,reportGlow 2s infinite alternate 1s;letter-spacing:4px;color:var(--text-bright)">ESCAPED!</div>`;
+  document.body.appendChild(ov);
+
+  // Confetti
+  try{
+    for(let i=0;i<30;i++){
+      const c=document.createElement('div');
+      const colors=['#FF3333','#00E5FF','#00E676','#FFD600','#FF8C00'];
+      const sz=6+Math.random()*8;
+      Object.assign(c.style,{position:'fixed',left:Math.random()*100+'%',top:'-20px',width:sz+'px',height:sz+'px',
+        background:colors[Math.floor(Math.random()*colors.length)],borderRadius:Math.random()>0.5?'50%':'2px',
+        zIndex:'56',pointerEvents:'none',animation:`confetti ${2+Math.random()*2}s linear forwards`,
+        animationDelay:Math.random()*0.5+'s'});
+      document.body.appendChild(c);
+      const rem=()=>{try{c.remove()}catch(e){}};
+      c.addEventListener('animationend',rem);setTimeout(rem,5000);
+    }
+  }catch(e){}
+
+  setTimeout(()=>{try{ov.remove()}catch(e){};showEscapeReport();},3000);
+  setTimeout(()=>{try{ov.remove()}catch(e){};showEscapeReport();},5000);// safety
+}
+
+// ============================================================
+// ESCAPE REPORT
+// ============================================================
+let reportShown=false;
+function showEscapeReport(){
+  if(reportShown)return;reportShown=true;
+  closeAllOverlays();
+  $('hud').classList.remove('visible');
+  $('bottomBar').style.display='none';
+  showScreen('reportScreen');
+
+  const elapsed=Math.floor((Date.now()-S.startTime)/1000);
+  const mins=Math.floor(elapsed/60);const secs=elapsed%60;
+  const timeStr=`${mins}:${secs<10?'0':''}${secs}`;
+
+  const roomsCleared=S.rooms.filter((rm,i)=>rm.solved[0]&&rm.solved[1]&&!S.roomSkipped[i]).length;
+  const stars=S.firstTrySolves>=4?3:S.firstTrySolves>=2?2:1;
+
+  // Calculate badges
+  const badges=[];
+  for(let i=0;i<3;i++){
+    const rm=S.rooms[i];
+    if(rm.solved[0]&&rm.solved[1]){
+      const totalWrong=rm.wrongCounts[0]+rm.wrongCounts[1];
+      if(totalWrong<=2&&!S.roomSkipped[i])badges.push('Clean Room');
+      if(!rm.scannerUsed[0]&&!rm.scannerUsed[1]&&!S.roomSkipped[i])badges.push('No Scanner');
+    }
+    for(let j=0;j<2;j++){
+      if(rm.scannerUsed[j]&&rm.solved[j]&&rm.wrongCounts[j]===1)badges.push('Deep Scan');
+      if(rm.scannerUsed[j]&&rm.solved[j]&&!rm.firstTry[j]&&rm.wrongCounts[j]<=2)badges.push('Comeback');
+    }
+  }
+  const uniqueBadges=[...new Set(badges)];
+
+  let starsH='<div class="report-stars">';
+  for(let i=0;i<3;i++){starsH+=`<div class="report-star ${i<stars?'earned':''}" style="animation-delay:${i*0.3}s">⭐</div>`;}
+  starsH+='</div>';
+
+  let badgeH='<div class="report-badges">';
+  ['Clean Room','Comeback','No Scanner','Deep Scan'].forEach(b=>{
+    const earned=uniqueBadges.includes(b);
+    badgeH+=`<div class="badge ${earned?'earned':''}">${earned?'🏆':''} ${b}</div>`;
+  });
+  badgeH+='</div>';
+
+  $('reportScreen').innerHTML=`
+    <div class="report-header">ESCAPED!</div>
+    <div class="report-brand">Mr. Jawad's Escape Room Simulations</div>
+    ${starsH}
+    <div class="report-card">
+      <div class="report-row"><span class="report-label">Rooms Cleared</span><span class="report-value">${roomsCleared} / 3</span></div>
+      <div class="report-row"><span class="report-label">Puzzles Cleared</span><span class="report-value">${S.puzzlesSolved} / 6</span></div>
+      <div class="report-row"><span class="report-label">First-Try Solves</span><span class="report-value">${S.firstTrySolves} / 6</span></div>
+      <div class="report-row"><span class="report-label">Time</span><span class="report-value">${timeStr}</span></div>
+    </div>
+    ${badgeH}
+    <div class="report-btns">
+      <button class="report-btn btn-copy" onclick="copyReport()">📋 Copy Report</button>
+      <button class="report-btn btn-again" id="playAgainBtn">🔄 Play Again</button>
+    </div>`;
+
+  $('playAgainBtn').onclick=()=>{$('playAgainBtn').onclick=null;location.reload();};
+
+  // Copy report data
+  window._reportText=`Mr. Jawad's Escape Room Simulations — Heat Transfer
+Rooms Cleared:\t${roomsCleared}/3
+Puzzles Cleared:\t${S.puzzlesSolved}/6
+First-Try Solves:\t${S.firstTrySolves}/6
+Stars:\t${'⭐'.repeat(stars)}
+Badges:\t${uniqueBadges.join(', ')||'None'}
+Time:\t${timeStr}`;
+}
+
+function copyReport(){
+  try{
+    navigator.clipboard.writeText(window._reportText).then(()=>{
+      const btn=document.querySelector('.btn-copy');if(btn){btn.textContent='✔ Copied!';setTimeout(()=>btn.textContent='📋 Copy Report',2000);}
+    });
+  }catch(e){
+    // Fallback
+    const ta=document.createElement('textarea');ta.value=window._reportText;document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy')}catch(e2){}ta.remove();
+  }
+}
+
+// ============================================================
+// EMERGENCY SKIP
+// ============================================================
+let longPressTimer=null;let longPressCount=0;
+document.addEventListener('mousedown',e=>{
+  const target=e.target;
+  if(target.closest('.hud-room')||target.classList.contains('hud-room')){
+    longPressTimer=setTimeout(()=>{
+      if(longPressCount===0){
+        longPressCount=1;
+        const conf=document.createElement('div');conf.id='skipConf';
+        conf.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:60;background:rgba(0,0,0,0.9);padding:16px 24px;border-radius:12px;border:2px solid var(--warn);color:var(--warn);font-size:14px;font-weight:700;text-align:center';
+        conf.textContent='Hold again to reveal codes';
+        document.body.appendChild(conf);setTimeout(()=>{try{conf.remove();longPressCount=0;}catch(e){}},3000);
+      }else{
+        longPressCount=0;try{const c=$('skipConf');if(c)c.remove();}catch(e){}
+        doEmergencySkip();
+      }
+    },5000);
+  }
+});
+document.addEventListener('mouseup',()=>{clearTimeout(longPressTimer);});
+document.addEventListener('touchstart',e=>{
+  const target=e.target;
+  if(target.closest('.hud-room')||target.classList.contains('hud-room')){
+    longPressTimer=setTimeout(()=>{
+      if(longPressCount===0){
+        longPressCount=1;
+        const conf=document.createElement('div');conf.id='skipConf';
+        conf.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:60;background:rgba(0,0,0,0.9);padding:16px 24px;border-radius:12px;border:2px solid var(--warn);color:var(--warn);font-size:14px;font-weight:700;text-align:center';
+        conf.textContent='Hold again to reveal codes';
+        document.body.appendChild(conf);setTimeout(()=>{try{conf.remove();longPressCount=0;}catch(e){}},3000);
+      }else{
+        longPressCount=0;try{const c=$('skipConf');if(c)c.remove();}catch(e){}
+        doEmergencySkip();
+      }
+    },5000);
+  }
+},{passive:true});
+document.addEventListener('touchend',()=>{clearTimeout(longPressTimer);},{passive:true});
+
+// Shift+S
+let shiftSStart=0;
+document.addEventListener('keydown',e=>{
+  if(e.key==='S'&&e.shiftKey&&!S.shiftSHeld){
+    S.shiftSHeld=true;shiftSStart=Date.now();
+    S.shiftSTimer=setInterval(()=>{
+      if(Date.now()-shiftSStart>=2000){
+        clearInterval(S.shiftSTimer);S.shiftSTimer=null;
+        doEmergencySkip();
+      }
+    },100);
+  }
+});
+document.addEventListener('keyup',e=>{
+  if(e.key==='S'){S.shiftSHeld=false;if(S.shiftSTimer){clearInterval(S.shiftSTimer);S.shiftSTimer=null;}}
+});
+
+function doEmergencySkip(){
+  if(S.screen==='finallock'){
+    // Skip to report
+    triggerEscape();
+    return;
+  }
+  if(S.screen!=='room')return;
+  const r=S.room;
+  // Reveal both digits
+  const rm=ROOMS[r];
+  for(let j=0;j<2;j++){
+    S.rooms[r].digits[j]=rm.puzzles[j].digit;
+    S.rooms[r].solved[j]=true;
+  }
+  S.roomSkipped[r]=true;
+  S.puzzlesSolved=S.rooms.reduce((sum,rm)=>sum+rm.solved.filter(Boolean).length,0);
+  updateHud();
+  closeAllOverlays();
+  showCodeEntry(r);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.onerror=function(msg,url,line){console.error('Global error:',msg,line);return true;};
+</script>
+</body>
+</html>
