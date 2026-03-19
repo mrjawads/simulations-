@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Rain Shadow Effect</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:#0a0e1a;color:#fff;overflow:hidden;height:100vh;user-select:none}
+#app{display:flex;flex-direction:column;height:100vh}
+#topBar{background:linear-gradient(90deg,#0d47a1,#1565c0,#42a5f5);padding:7px 16px;text-align:center;flex-shrink:0;box-shadow:0 3px 12px rgba(0,0,0,.4)}
+#topBar h1{font-size:19px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 6px rgba(0,0,0,.5)}
+#topBar span{font-size:12px;opacity:.8;font-weight:400;display:block}
+#main{display:flex;flex:1;overflow:hidden}
+#leftPanel{width:270px;min-width:270px;background:linear-gradient(180deg,#111833,#0c1228);padding:10px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex-shrink:0;border-right:1px solid rgba(255,255,255,.06)}
+#centerPanel{flex:1;position:relative;overflow:hidden}
+#centerPanel canvas{display:block;width:100%;height:100%}
+#rightPanel{width:235px;min-width:235px;background:linear-gradient(180deg,#0f1a0f,#0a120a);padding:10px;display:flex;flex-direction:column;gap:5px;overflow-y:auto;flex-shrink:0;border-left:1px solid rgba(255,255,255,.06)}
+
+/* STEP INDICATOR */
+#steps{display:flex;gap:4px;margin-bottom:2px}
+.step{flex:1;text-align:center;padding:5px 2px;border-radius:7px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.3);border:2px solid transparent;transition:all .3s}
+.step.active{background:rgba(76,175,80,.15);color:#a5d6a7;border-color:#4caf50;box-shadow:0 0 12px rgba(76,175,80,.2)}
+.step.done{background:rgba(76,175,80,.08);color:rgba(76,175,80,.5);border-color:rgba(76,175,80,.2)}
+.stepNum{font-size:14px;display:block;line-height:1}
+
+/* SECTIONS */
+.sec{background:rgba(255,255,255,.05);border-radius:10px;padding:10px;border:2px solid rgba(255,255,255,.06);transition:all .4s}
+.sec.glow{border-color:rgba(76,175,80,.5);background:rgba(76,175,80,.06);box-shadow:0 0 16px rgba(76,175,80,.12)}
+.sec.dim{opacity:.35;pointer-events:none}
+.secTitle{font-size:12px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.secTitle .ico{font-size:16px}
+.secHelp{font-size:10px;color:#a5d6a7;font-style:italic;margin-bottom:6px;line-height:1.3}
+
+/* ROUND BOX */
+#roundBox{text-align:center;padding:6px;background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border-radius:8px;font-weight:700;font-size:15px;letter-spacing:1px}
+
+/* WIND */
+#windBtn{width:100%;padding:12px;border:none;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#1e88e5,#1565c0);color:#fff;transition:all .25s;box-shadow:0 3px 10px rgba(21,101,192,.3)}
+#windBtn:hover:not(:disabled){transform:scale(1.03)}
+#windBtn:disabled{opacity:.3;cursor:not-allowed;transform:none}
+
+/* HEIGHT */
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.hbtn{padding:10px 4px;border:2px solid rgba(255,255,255,.15);border-radius:8px;background:rgba(255,255,255,.04);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .25s;text-align:center}
+.hbtn:hover:not(:disabled){background:rgba(255,255,255,.12)}
+.hbtn.sel{border-color:#66bb6a;background:rgba(76,175,80,.2);box-shadow:0 0 12px rgba(76,175,80,.25)}
+.hbtn:disabled{opacity:.25;cursor:not-allowed}
+
+/* PREDICTION — BIG VISUAL BUTTONS */
+.predGrid{display:flex;gap:8px}
+.predBtn{flex:1;padding:12px 6px;border:3px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.04);color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all .3s;text-align:center;line-height:1.2}
+.predBtn .arrow{font-size:22px;display:block;margin-bottom:2px}
+.predBtn:hover:not(:disabled){background:rgba(255,255,255,.1)}
+.predBtn.sel{border-color:#ffc107;background:rgba(255,193,7,.15);box-shadow:0 0 14px rgba(255,193,7,.2)}
+.predBtn:disabled{opacity:.25;cursor:not-allowed}
+
+/* LAUNCH */
+#launchBtn{width:100%;padding:14px;border:none;border-radius:10px;font-size:18px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#616161,#424242);color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:2px;transition:all .3s;margin-top:2px}
+#launchBtn.go{background:linear-gradient(135deg,#43a047,#2e7d32);color:#fff;box-shadow:0 4px 18px rgba(76,175,80,.4);animation:lPulse 1.5s infinite}
+#launchBtn.go:hover{transform:scale(1.04)}
+#launchBtn:disabled{cursor:not-allowed;transform:none;animation:none}
+@keyframes lPulse{0%,100%{box-shadow:0 4px 18px rgba(76,175,80,.4)}50%{box-shadow:0 4px 28px rgba(76,175,80,.7)}}
+
+.abtn{flex:1;padding:7px;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;color:#fff;transition:all .2s}
+#resetBtn{background:linear-gradient(135deg,#e53935,#c62828)}
+#newRunBtn{background:linear-gradient(135deg,#1e88e5,#1565c0)}
+
+/* RIGHT PANEL */
+.ptitle{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px;opacity:.6;text-align:center;margin-bottom:3px}
+.hudg{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.hi{background:rgba(255,255,255,.06);border-radius:6px;padding:5px;text-align:center}
+.hv{font-size:22px;font-weight:800}
+.hl{font-size:8px;text-transform:uppercase;opacity:.5;letter-spacing:1px}
+#msgBar{text-align:center;font-size:12px;padding:6px;min-height:24px;font-weight:600}
+.gaugeRow{display:flex;justify-content:space-around;padding:2px 0}
+.gc{display:flex;flex-direction:column;align-items:center}
+.gauge{height:80px;width:28px;background:rgba(0,0,0,.3);border-radius:14px;position:relative;overflow:hidden;border:2px solid rgba(255,255,255,.15)}
+.gfill{position:absolute;bottom:0;width:100%;border-radius:0 0 12px 12px;transition:height 1.2s ease}
+.glbl{font-size:10px;margin-top:2px;font-weight:700;opacity:.8}
+#dtWrap{flex:1;overflow-y:auto;margin-top:3px}
+#dtWrap table{width:100%;border-collapse:collapse;font-size:9px}
+#dtWrap th{background:rgba(76,175,80,.25);padding:4px 2px;font-size:8px;text-transform:uppercase;position:sticky;top:0;z-index:2}
+#dtWrap td{padding:3px 2px;text-align:center;border-bottom:1px solid rgba(255,255,255,.06)}
+.rowNew{animation:rF .8s}
+@keyframes rF{0%{background:rgba(76,175,80,.4)}100%{background:transparent}}
+#copyBtn{padding:4px 10px;border:none;border-radius:5px;background:linear-gradient(135deg,#7c4dff,#651fff);color:#fff;font-size:10px;font-weight:600;cursor:pointer}
+
+/* RECAP BOX */
+#recapBox{background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.04));border-radius:10px;padding:10px;margin-top:4px;display:none;border:1px solid rgba(255,255,255,.1);font-size:11px;line-height:1.5;text-align:center}
+#recapBox .recapTitle{font-weight:700;font-size:13px;margin-bottom:4px}
+#recapBox .recapDetail{opacity:.8}
+
+/* OVERLAYS */
+.ov{position:absolute;top:0;left:0;right:0;bottom:0;display:none;justify-content:center;align-items:center;z-index:30;background:rgba(0,0,0,.8);flex-direction:column;gap:14px;text-align:center;padding:20px}
+.ov h2{font-size:28px;text-shadow:0 2px 8px rgba(0,0,0,.6)}.ov .big{font-size:60px}
+#banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);padding:16px 32px;border-radius:16px;font-size:20px;font-weight:800;z-index:20;display:none;text-align:center;background:rgba(0,0,0,.9);border:3px solid;box-shadow:0 0 30px rgba(0,0,0,.5)}
+#pwBadge{position:absolute;top:10px;right:10px;background:linear-gradient(135deg,#ffc107,#ff9800);color:#000;padding:6px 14px;border-radius:18px;font-weight:800;font-size:13px;z-index:10;display:none;animation:pB 1s infinite;box-shadow:0 3px 12px rgba(255,152,0,.4)}
+@keyframes pB{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+#fireIco{position:absolute;top:8px;left:10px;font-size:24px;display:none;z-index:10;animation:fW .5s infinite alternate}
+@keyframes fW{0%{transform:scale(1) rotate(-5deg)}100%{transform:scale(1.2) rotate(5deg)}}
+#dblAlert{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(135deg,rgba(121,85,72,.95),rgba(78,52,46,.95));padding:22px 40px;border-radius:18px;font-size:22px;font-weight:800;z-index:25;display:none;text-align:center;border:3px solid #a1887f;box-shadow:0 0 40px rgba(0,0,0,.6)}
+#dblAlert span{font-size:14px;display:block;margin-top:6px;opacity:.8;font-weight:400}
+
+/* TUTORIAL */
+#tutorial{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:40;display:flex;justify-content:center;align-items:center;flex-direction:column;gap:16px;text-align:center;padding:30px}
+#tutorial h2{font-size:30px;margin-bottom:4px}
+#tutorial .tutStep{background:rgba(255,255,255,.08);border-radius:12px;padding:14px 20px;font-size:16px;max-width:500px;line-height:1.5;text-align:left}
+#tutorial .tutStep b{color:#a5d6a7}
+#tutorial .tutNum{display:inline-block;background:#4caf50;color:#fff;width:26px;height:26px;border-radius:50%;text-align:center;line-height:26px;font-weight:800;font-size:14px;margin-right:8px}
+#tutStart{padding:14px 36px;border:none;border-radius:12px;background:linear-gradient(135deg,#43a047,#2e7d32);color:#fff;font-size:18px;font-weight:800;cursor:pointer;margin-top:8px;box-shadow:0 4px 18px rgba(76,175,80,.4);letter-spacing:1px}
+#tutStart:hover{transform:scale(1.05)}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="topBar"><h1>Mr. Jawad's Simulations</h1><span>Rain Shadow Effect — Why Does Rain Hit One Side and Miss the Other?</span></div>
+<div id="main">
+<!-- LEFT PANEL -->
+<div id="leftPanel">
+<div id="roundBox">Round 1 of 8</div>
+<!-- STEP INDICATOR -->
+<div id="steps">
+<div class="step" id="st1"><span class="stepNum">1</span>Set Up</div>
+<div class="step" id="st2"><span class="stepNum">2</span>Predict</div>
+<div class="step" id="st3"><span class="stepNum">3</span>Launch</div>
+<div class="step" id="st4"><span class="stepNum">4</span>Record</div>
+</div>
+
+<!-- STEP 1: CONTROLS -->
+<div class="sec" id="secWind">
+<div class="secTitle"><span class="ico">💨</span> Wind Direction</div>
+<div class="secHelp" id="windHelp">Tap to flip which way wind blows</div>
+<button id="windBtn">⬅ Left-to-Right ➡</button>
+</div>
+<div class="sec" id="secHeight">
+<div class="secTitle"><span class="ico">⛰️</span> Mountain Height</div>
+<div class="secHelp" id="htHelp">Pick how tall the mountain is</div>
+<div class="hgrid" id="hGrid"></div>
+</div>
+
+<!-- STEP 2: PREDICT -->
+<div class="sec" id="secPred">
+<div class="secTitle"><span class="ico">🤔</span> Which Side Gets MORE Rain?</div>
+<div class="secHelp" id="predHelp">Look at the wind arrow — guess which side!</div>
+<div class="predGrid">
+<button class="predBtn" id="pLeft"><span class="arrow">⬅</span>Left Side</button>
+<button class="predBtn" id="pRight"><span class="arrow">➡</span>Right Side</button>
+</div>
+</div>
+
+<!-- STEP 3: LAUNCH -->
+<button id="launchBtn" disabled>🚀 LAUNCH</button>
+
+<div style="display:flex;gap:5px;margin-top:2px">
+<button class="abtn" id="resetBtn">Reset</button>
+<button class="abtn" id="newRunBtn">New Run</button>
+</div>
+</div>
+
+<!-- CENTER: CANVAS -->
+<div id="centerPanel">
+<canvas id="arena"></canvas>
+<div id="pwBadge">⚡ MOISTURE SURGE</div>
+<div id="banner"></div>
+<div id="fireIco">🔥</div>
+<div id="dblAlert">⛰️⛰️ Double Mountain! ⛰️⛰️<span>A second range appears — watch the valley!</span></div>
+<div class="ov" id="compOv">
+<div class="big" id="cIcon">🏆</div>
+<h2 id="cTitle"></h2>
+<p id="cSub"></p>
+<button id="playAgainBtn" style="padding:12px 28px;border:none;border-radius:10px;background:linear-gradient(135deg,#1e88e5,#1565c0);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;box-shadow:0 3px 12px rgba(21,101,192,.4)">Play Again</button>
+</div>
+<!-- TUTORIAL -->
+<div id="tutorial">
+<h2>⛰️ Rain Shadow Simulator</h2>
+<p style="opacity:.7;font-size:14px;margin-bottom:8px">You are a Weather Engineer! Figure out why rain hits one side of a mountain and skips the other.</p>
+<div class="tutStep"><span class="tutNum">1</span> <b>Set your wind direction</b> and <b>mountain height</b></div>
+<div class="tutStep"><span class="tutNum">2</span> <b>Predict</b> which side gets more rain — Left or Right?</div>
+<div class="tutStep"><span class="tutNum">3</span> Press <b>LAUNCH</b> and watch where rain falls!</div>
+<div class="tutStep"><span class="tutNum">4</span> Check your answer, then <b>record your data</b></div>
+<p style="opacity:.6;font-size:12px;margin-top:4px">Complete 5 rounds (all 8 = extra credit)</p>
+<button id="tutStart">GOT IT — LET'S GO!</button>
+</div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div id="rightPanel">
+<div class="ptitle">Progress</div>
+<div class="hudg">
+<div class="hi"><div class="hv" id="hS" style="color:#4caf50">0</div><div class="hl">Score</div></div>
+<div class="hi"><div class="hv" id="hK" style="color:#ffc107">0</div><div class="hl">Streak</div></div>
+<div class="hi"><div class="hv" id="hD" style="color:#42a5f5">0/8</div><div class="hl">Rounds</div></div>
+<div class="hi"><div class="hv" id="hA" style="color:#ce93d8">—</div><div class="hl">Accuracy</div></div>
+</div>
+<div id="msgBar" style="color:#66bb6a">Complete 5 rounds!</div>
+
+<!-- RECAP BOX -->
+<div id="recapBox">
+<div class="recapTitle" id="recapTitle"></div>
+<div class="recapDetail" id="recapDetail"></div>
+</div>
+
+<div class="gaugeRow">
+<div class="gc"><div class="gauge"><div class="gfill" id="gL" style="height:0%;background:linear-gradient(0deg,#0d47a1,#42a5f5)"></div></div><div class="glbl">Left</div></div>
+<div class="gc"><div class="gauge"><div class="gfill" id="gR" style="height:0%;background:linear-gradient(0deg,#0d47a1,#42a5f5)"></div></div><div class="glbl">Right</div></div>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+<div class="ptitle" style="margin:0">Data Table</div>
+<button id="copyBtn">📋 Copy</button>
+</div>
+<div id="dtWrap"><table><thead><tr><th>#</th><th>Wind</th><th>Mtn</th><th>Left Rain</th><th>Right Rain</th></tr></thead><tbody id="dtBody"></tbody></table></div>
+</div>
+</div>
+</div>
+<script>
+(function(){
+"use strict";
+try{
+
+var cv=document.getElementById("arena"),cx=cv.getContext("2d"),W,H,DPR=window.devicePixelRatio||1;
+var needDraw=true;
+function resize(){W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);needDraw=true;}
+window.addEventListener("resize",resize);resize();
+
+var HV={Flat:0,Low:.22,Medium:.52,Tall:.85};
+var RM={Flat:["Light","Light"],Low:["Moderate","Light"],Medium:["Heavy","Very Light"],Tall:["Heavy","None"]};
+function rPct(r){return r==="Heavy"?95:r==="Moderate"?60:r==="Light"?30:r==="Very Light"?12:0;}
+
+var S={rnd:1,wind:"LR",mH:null,pred:null,vLock:null,
+sc:0,stk:0,cor:0,tot:0,rows:[],
+ph:"tut",pw:false,stm:false,dbl:false,
+aT:0,aS:0,drops:[],dust:[],flows:[],ac:[],wT:0,lF:0,freeFirst:null,
+varChanged:false,safetyTimer:null,currentStep:1};
+
+for(var ci=0;ci<7;ci++)S.ac.push({x:Math.random()*1600,y:15+Math.random()*50,s:.08+Math.random()*.15,z:18+Math.random()*30,o:.08+Math.random()*.1});
+
+// Height buttons
+var hNames=["Flat","Low","Medium","Tall"];
+var hG=document.getElementById("hGrid");
+hNames.forEach(function(n){var b=document.createElement("button");b.className="hbtn";b.textContent=n;b.dataset.h=n;
+b.addEventListener("click",function(){setH(n);});hG.appendChild(b);});
+
+document.getElementById("windBtn").addEventListener("click",togWind);
+document.getElementById("pLeft").addEventListener("click",function(){setPred("left");});
+document.getElementById("pRight").addEventListener("click",function(){setPred("right");});
+document.getElementById("launchBtn").addEventListener("click",doLaunch);
+document.getElementById("resetBtn").addEventListener("click",doReset);
+document.getElementById("newRunBtn").addEventListener("click",doReset);
+document.getElementById("copyBtn").addEventListener("click",doCopy);
+document.getElementById("playAgainBtn").addEventListener("click",doReset);
+document.getElementById("tutStart").addEventListener("click",function(){
+el("tutorial").style.display="none";S.ph="setup";applySetup();
+});
+
+/* ===== STEP INDICATOR ===== */
+function setStep(n){
+S.currentStep=n;
+for(var i=1;i<=4;i++){
+var st=el("st"+i);
+st.classList.remove("active","done");
+if(i<n)st.classList.add("done");
+else if(i===n)st.classList.add("active");
+}
+// Glow active section, dim others
+var secW=el("secWind"),secH=el("secHeight"),secP=el("secPred");
+secW.classList.remove("glow","dim");secH.classList.remove("glow","dim");secP.classList.remove("glow","dim");
+if(n===1){secW.classList.add("glow");secH.classList.add("glow");secP.classList.add("dim");}
+else if(n===2){secW.classList.add("dim");secH.classList.add("dim");secP.classList.add("glow");}
+else{secW.classList.add("dim");secH.classList.add("dim");secP.classList.add("dim");}
+}
+
+/* ===== ROUND LOCK ===== */
+function getRLock(r){
+if(r<=2)return{lk:"wind",hint:"Wind is locked. Pick a mountain height!"};
+if(r<=4)return{lk:"height",hint:"Height is locked at Tall. Flip the wind!"};
+return{lk:null,hint:"Your choice — change one thing!"};
+}
+
+function applySetup(){
+var lk=getRLock(S.rnd);S.pred=null;S.freeFirst=null;S.varChanged=false;
+el("pLeft").classList.remove("sel");el("pRight").classList.remove("sel");
+qa(".predBtn",function(b){b.disabled=false;});
+S.dbl=(S.rnd>=7);
+el("recapBox").style.display="none";
+
+if(S.rnd===7){el("dblAlert").style.display="block";setTimeout(function(){el("dblAlert").style.display="none";},3000);}
+
+if(lk.lk==="wind"){
+S.wind="LR";updWind();el("windBtn").disabled=true;
+qa(".hbtn",function(b){b.disabled=false;b.classList.remove("sel");});
+S.mH=null;S.vLock="wind";
+el("windHelp").textContent="🔒 Locked this round";el("windHelp").style.color="#ffc107";
+el("htHelp").textContent="👆 Pick how tall the mountain is";el("htHelp").style.color="#a5d6a7";
+}else if(lk.lk==="height"){
+S.mH="Tall";
+qa(".hbtn",function(b){b.disabled=true;b.classList.toggle("sel",b.dataset.h==="Tall");});
+el("windBtn").disabled=false;S.vLock="height";
+el("htHelp").textContent="🔒 Locked at Tall this round";el("htHelp").style.color="#ffc107";
+el("windHelp").textContent="👆 Tap to flip wind direction";el("windHelp").style.color="#a5d6a7";
+}else{
+el("windBtn").disabled=false;
+qa(".hbtn",function(b){b.disabled=false;b.classList.remove("sel");});
+if(S.rows.length>0){var last=S.rows[S.rows.length-1];S.wind=last.wR;updWind();S.mH=last.mH;
+qa(".hbtn",function(b){b.classList.toggle("sel",b.dataset.h===S.mH);});}
+else{S.wind="LR";updWind();S.mH=null;}
+S.vLock="free";
+el("windHelp").textContent="Change ONE of these two controls";el("windHelp").style.color="#a5d6a7";
+el("htHelp").textContent="";el("htHelp").style.color="#a5d6a7";
+}
+el("predHelp").textContent="Look at the wind arrow — guess which side!";el("predHelp").style.color="#a5d6a7";
+el("launchBtn").disabled=true;el("launchBtn").className="";
+el("gL").style.height="0%";el("gR").style.height="0%";
+el("roundBox").textContent="Round "+S.rnd+" of 8";
+setStep(1);
+needDraw=true;
+}
+
+function updWind(){el("windBtn").textContent=S.wind==="LR"?"⬅ Left-to-Right ➡":"➡ Right-to-Left ⬅";}
+
+function freeCheck(which){
+if(S.vLock!=="free")return true;
+if(!S.freeFirst){S.freeFirst=which;
+if(which==="wind"){qa(".hbtn",function(b){b.disabled=true;});el("htHelp").textContent="🔒 Locked this round";el("htHelp").style.color="#ffc107";}
+else{el("windBtn").disabled=true;el("windHelp").textContent="🔒 Locked this round";el("windHelp").style.color="#ffc107";}
+return true;}
+return S.freeFirst===which;
+}
+
+function togWind(){
+if(S.ph!=="setup")return;if(!freeCheck("wind"))return;
+S.wind=S.wind==="LR"?"RL":"LR";updWind();
+S.varChanged=true;
+// Auto-advance to step 2 if height already set
+if(S.mH)setStep(2);
+chkReady();needDraw=true;
+}
+
+function setH(h){
+if(S.ph!=="setup")return;
+if(!freeCheck("height"))return;
+S.mH=h;qa(".hbtn",function(b){b.classList.toggle("sel",b.dataset.h===h);});
+S.varChanged=true;
+// Auto-advance to step 2
+setStep(2);
+chkReady();needDraw=true;
+}
+
+function setPred(side){
+if(S.ph!=="setup")return;
+S.pred=side;
+el("pLeft").classList.toggle("sel",side==="left");
+el("pRight").classList.toggle("sel",side==="right");
+// Advance to step 3
+if(S.mH)setStep(3);
+chkReady();
+}
+
+function chkReady(){
+var ok=S.mH&&S.pred;
+if(S.vLock==="height")ok=ok&&S.varChanged;
+else if(S.vLock==="free")ok=ok&&S.varChanged;
+el("launchBtn").disabled=!ok;el("launchBtn").className=ok?"go":"";
+}
+
+function calcRain(){
+var base=RM[S.mH]||RM.Flat;var w=base[0],l=base[1];
+if(S.pw){if(w==="Moderate")w="Heavy";if(w==="Light")w="Moderate";}
+if(S.wind==="LR")return{lR:w,rR:l,wS:"left"};
+return{lR:l,rR:w,wS:"right"};
+}
+
+function doLaunch(){
+if(S.ph!=="setup"||!S.mH||!S.pred)return;
+S.ph="anim";setStep(4);
+el("launchBtn").disabled=true;el("launchBtn").className="";
+el("windBtn").disabled=true;qa(".hbtn",function(b){b.disabled=true;});qa(".predBtn",function(b){b.disabled=true;});
+S.pw=false;S.stm=false;
+if(S.rnd>=3&&Math.random()<.2){S.pw=true;el("pwBadge").style.display="block";setTimeout(function(){el("pwBadge").style.display="none";},3500);}
+if(S.rnd>=6&&Math.random()<.25)S.stm=true;
+S.drops=[];S.dust=[];S.flows=[];S.aT=0;S.aS=performance.now();S.lF=0;
+if(S.safetyTimer)clearTimeout(S.safetyTimer);
+S.safetyTimer=setTimeout(function(){if(S.ph==="anim")finishRound();},7000);
+requestAnimationFrame(animStep);
+}
+
+function animStep(ts){
+try{
+var elapsed=ts-S.aS,dur=5200;S.aT=Math.min(elapsed/dur,1);var p=S.aT;
+var rain=calcRain();
+if(p>.45){
+var rp=(p-.45)/.55;
+el("gL").style.height=rPct(rain.lR)*rp+"%";el("gR").style.height=rPct(rain.rR)*rp+"%";
+var mx=W*.5,gy=H*.72,hF=HV[S.mH]||0,mt=gy-hF*(H*.45);
+if(Math.random()<.45){var rx,ry;
+if(rain.wS==="left"){rx=mx-40-Math.random()*Math.min(140,mx-40);ry=mt+Math.random()*(gy-mt)*.3;}
+else{rx=mx+40+Math.random()*Math.min(140,W-mx-40);ry=mt+Math.random()*(gy-mt)*.3;}
+S.drops.push({x:rx,y:ry,vy:3+Math.random()*4,l:1,s:2+Math.random()*2.5});}
+if(rp>.4&&Math.random()<.08&&hF>.2){var fL2=rain.wS==="left";
+var fx=fL2?mx-10-Math.random()*60:mx+10+Math.random()*60;
+S.flows.push({x:fx,y:mt+(gy-mt)*.4+Math.random()*(gy-mt)*.3,vx:fL2?-1.5:1.5,vy:1.2,l:1,s:1.5});}
+if(Math.random()<.15&&rp>.3){var lSide=rain.wS==="left"?"right":"left";
+var dx=lSide==="right"?mx+60+Math.random()*Math.min(170,W-mx-60):mx-60-Math.random()*Math.min(170,mx-60);
+S.dust.push({x:dx,y:gy-3-Math.random()*10,vy:-.4-Math.random()*.6,vx:(Math.random()-.5)*2.5,l:1,s:2+Math.random()*3});}
+}
+if(S.stm&&p>.35&&Math.random()<.02)S.lF=5;
+needDraw=true;
+if(S.aT<1)requestAnimationFrame(animStep);
+else{if(S.safetyTimer){clearTimeout(S.safetyTimer);S.safetyTimer=null;}finishRound();}
+}catch(e){if(S.safetyTimer){clearTimeout(S.safetyTimer);S.safetyTimer=null;}finishRound();}
+}
+
+function finishRound(){
+S.ph="result";var rain=calcRain();var hF=HV[S.mH]||0;
+// Determine correct answer: which SIDE gets more rain
+var moreSide=rain.wS; // "left" or "right"
+if(hF===0)moreSide="both"; // flat = equal
+var ok=(hF===0)?true:(S.pred===moreSide);
+var pts=S.pw?20:10;
+if(ok){S.sc+=pts;S.stk++;S.cor++;}else S.stk=0;
+S.tot++;
+var row={rnd:S.rnd,wR:S.wind,wD:S.wind==="LR"?"L→R":"R→L",mH:S.mH,lR:rain.lR,rR:rain.rR};
+S.rows.push(row);addRow(row);updHUD();
+if(ok)showBan("✅ Correct! +"+(S.pw?20:10),"#4caf50");
+else showBan("❌ The "+moreSide+" side got more rain!","#f44336");
+
+// ACCESSIBILITY: Show plain-language recap
+showRecap(rain,ok,moreSide);
+
+if(S.stm)setTimeout(function(){showBan("⛈ Storm Front!","#ffc107");},900);
+if(S.rnd===5&&S.rows.length===5)setTimeout(function(){el("msgBar").innerHTML="✅ Required done! <b>Extra Credit?</b>";el("msgBar").style.color="#ffc107";},2200);
+if(S.rnd>=8){S.ph="done";setTimeout(showComp,1800);return;}
+needDraw=true;
+setTimeout(function(){S.rnd++;S.ph="setup";applySetup();},3200);
+}
+
+function showRecap(rain,ok,moreSide){
+var rb=el("recapBox");rb.style.display="block";
+var windLabel=S.wind==="LR"?"left to right":"right to left";
+var title=ok?"✅ You got it!":"❌ Not quite!";
+var detail="Wind blew <b>"+windLabel+"</b>. Mountain was <b>"+S.mH+"</b>.<br>"+
+"Left side got <b>"+rain.lR+"</b> rain. Right side got <b>"+rain.rR+"</b> rain.<br>";
+if(S.mH==="Flat"){detail+="With no mountain, both sides get the same rain.";}
+else{
+var wSideLabel=S.wind==="LR"?"left":"right";
+var lSideLabel=S.wind==="LR"?"right":"left";
+detail+="The <b>"+wSideLabel+"</b> side faced the wind (windward) and got more rain.<br>The <b>"+lSideLabel+"</b> side was hidden (leeward) and stayed dry.";
+}
+el("recapTitle").textContent=title;
+el("recapDetail").innerHTML=detail;
+}
+
+function showComp(){
+el("compOv").style.display="flex";
+var pct=Math.round(S.cor/S.tot*100);
+el("cTitle").textContent=S.cor>=6?"🌟 Rain Shadow Scientist!":"Extra Credit Complete!";
+el("cIcon").textContent=S.cor>=6?"🏆":"⭐";
+el("cSub").textContent="Score: "+S.sc+" | Accuracy: "+pct+"%";
+}
+function showBan(t,c){var b=el("banner");b.textContent=t;b.style.color=c;b.style.borderColor=c;b.style.display="block";setTimeout(function(){b.style.display="none";},2400);}
+
+function addRow(r){var tb=el("dtBody"),tr=document.createElement("tr");tr.className="rowNew";
+tr.innerHTML="<td>"+r.rnd+"</td><td>"+r.wD+"</td><td>"+r.mH+"</td><td>"+r.lR+"</td><td>"+r.rR+"</td>";
+tb.appendChild(tr);el("dtWrap").scrollTop=9999;}
+
+function updHUD(){el("hS").textContent=S.sc;el("hK").textContent=S.stk;
+el("hD").textContent=S.rows.length+"/8";el("hA").textContent=S.tot?Math.round(S.cor/S.tot*100)+"%":"—";
+el("fireIco").style.display=S.stk>=3?"block":"none";
+if(S.rows.length<5){el("msgBar").textContent=(5-S.rows.length)+" more to go!";el("msgBar").style.color="#42a5f5";}}
+
+function doReset(){
+if(S.safetyTimer){clearTimeout(S.safetyTimer);S.safetyTimer=null;}
+S.rnd=1;S.sc=0;S.stk=0;S.cor=0;S.tot=0;S.rows=[];
+S.ph="setup";S.wind="LR";S.mH=null;S.pred=null;S.drops=[];S.dust=[];S.flows=[];
+S.pw=false;S.stm=false;S.dbl=false;S.lF=0;S.freeFirst=null;S.varChanged=false;
+el("dtBody").innerHTML="";el("compOv").style.display="none";
+el("banner").style.display="none";el("pwBadge").style.display="none";
+el("fireIco").style.display="none";el("dblAlert").style.display="none";
+el("recapBox").style.display="none";el("tutorial").style.display="none";
+el("msgBar").textContent="Complete 5 rounds!";el("msgBar").style.color="#66bb6a";
+qa(".hbtn",function(b){b.classList.remove("sel");});
+applySetup();
+}
+
+function doCopy(){
+if(!S.rows.length)return;
+var h="Round\tWind Direction\tMountain Height\tLeft Side Rain\tRight Side Rain";
+var ls=S.rows.map(function(r){return r.rnd+"\t"+(r.wR==="LR"?"Left-to-Right":"Right-to-Left")+"\t"+r.mH+"\t"+r.lR+"\t"+r.rR;});
+var txt=h+"\n"+ls.join("\n");
+try{navigator.clipboard.writeText(txt).then(function(){fc();}).catch(function(){fb(txt);});}catch(e){fb(txt);}
+}
+function fb(t){try{var ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);fc();}catch(e2){}}
+function fc(){var b=el("copyBtn");b.textContent="✅ Copied!";setTimeout(function(){b.textContent="📋 Copy";},2000);}
+
+/* ============================================ */
+/* ============= DRAWING ENGINE =============== */
+/* ============================================ */
+
+function draw(){
+cx.clearRect(0,0,W,H);
+var gy=H*.72,hF=HV[S.mH]||0,mx=W*.5,mw=W*.24,mt=gy-hF*(H*.45);
+
+drawSky(gy);drawDistantHills(gy);
+var oS=S.wind==="LR"?"left":"right";
+drawOcean(oS,gy);drawTerrain(gy,hF,mx,mw,mt);
+if(S.dbl)drawMtn2(gy);
+drawAmbientClouds();
+if(S.ph==="anim")drawAirMass(gy,hF,mx,mw,mt);
+drawParticles(gy);drawLabels(gy,hF,mx,mt);
+if(S.pred&&S.ph==="setup"&&hF>0)drawPredBadge(gy,hF,mx);
+drawWindArrow(gy);
+S.wT+=.018;
+}
+
+function drawSky(gy){
+var sg=cx.createLinearGradient(0,0,0,gy);
+if(S.stm&&S.ph==="anim"&&S.aT>.3){sg.addColorStop(0,"#1a237e");sg.addColorStop(.4,"#37474f");sg.addColorStop(1,"#546e7a");}
+else{sg.addColorStop(0,"#4fc3f7");sg.addColorStop(.35,"#81d4fa");sg.addColorStop(.7,"#b3e5fc");sg.addColorStop(1,"#e1f5fe");}
+cx.fillStyle=sg;cx.fillRect(0,0,W,gy+10);
+if(S.lF>0){cx.fillStyle="rgba(255,255,255,"+S.lF*.1+")";cx.fillRect(0,0,W,H);S.lF--;}
+if(!(S.stm&&S.ph==="anim")){
+var sunX=W*.87,sunY=H*.08;cx.save();
+var sg2=cx.createRadialGradient(sunX,sunY,0,sunX,sunY,80);
+sg2.addColorStop(0,"rgba(255,249,196,.5)");sg2.addColorStop(.3,"rgba(255,241,118,.25)");sg2.addColorStop(1,"rgba(255,241,118,0)");
+cx.fillStyle=sg2;cx.beginPath();cx.arc(sunX,sunY,80,0,Math.PI*2);cx.fill();
+sg2=cx.createRadialGradient(sunX,sunY,0,sunX,sunY,22);sg2.addColorStop(0,"#fff9c4");sg2.addColorStop(1,"#fff176");
+cx.fillStyle=sg2;cx.beginPath();cx.arc(sunX,sunY,22,0,Math.PI*2);cx.fill();
+cx.strokeStyle="rgba(255,241,118,.15)";cx.lineWidth=1.5;
+for(var ri=0;ri<12;ri++){var ra=ri*Math.PI/6+S.wT*.3;cx.beginPath();cx.moveTo(sunX+Math.cos(ra)*28,sunY+Math.sin(ra)*28);cx.lineTo(sunX+Math.cos(ra)*55,sunY+Math.sin(ra)*55);cx.stroke();}
+cx.restore();}
+}
+function drawDistantHills(gy){
+cx.fillStyle="rgba(144,164,174,.15)";cx.beginPath();cx.moveTo(0,gy);
+for(var x=0;x<=W;x+=4)cx.lineTo(x,gy-15-Math.sin(x*.006)*12-Math.sin(x*.015)*5);
+cx.lineTo(W,gy);cx.closePath();cx.fill();
+cx.fillStyle="rgba(120,144,156,.1)";cx.beginPath();cx.moveTo(0,gy);
+for(var x2=0;x2<=W;x2+=4)cx.lineTo(x2,gy-8-Math.sin(x2*.008+2)*8-Math.sin(x2*.02)*3);
+cx.lineTo(W,gy);cx.closePath();cx.fill();
+}
+function drawOcean(side,gy){
+var ow=W*.17,ox=side==="left"?0:W-ow;
+var og=cx.createLinearGradient(ox,gy-12,ox,H);og.addColorStop(0,"#039be5");og.addColorStop(.15,"#0288d1");og.addColorStop(.5,"#0277bd");og.addColorStop(1,"#01579b");
+cx.fillStyle=og;cx.beginPath();cx.moveTo(ox,gy-6);
+for(var x=ox;x<=ox+ow;x+=3)cx.lineTo(x,gy-6+Math.sin((x+S.wT*60)*.06)*2.5);
+cx.lineTo(ox+ow,H);cx.lineTo(ox,H);cx.closePath();cx.fill();
+cx.save();cx.globalAlpha=.3;cx.strokeStyle="#e1f5fe";cx.lineWidth=1.5;
+for(var w=0;w<4;w++){cx.beginPath();var wy=gy+1+w*8;for(var x2=ox;x2<ox+ow;x2+=2)cx.lineTo(x2,wy+Math.sin((x2+S.wT*90+w*35)*.055)*2.5);cx.stroke();}
+cx.restore();cx.fillStyle="rgba(255,255,255,.6)";cx.font="bold 11px sans-serif";cx.textAlign="center";cx.fillText("🌊 Ocean",ox+ow/2,gy+28);
+}
+function drawTerrain(gy,hF,mx,mw,mt){
+cx.beginPath();cx.moveTo(0,gy);
+for(var x=0;x<=W;x+=2){var dd=Math.abs(x-mx),y=gy;if(dd<mw&&hF>0)y=gy-Math.pow(1-dd/mw,.65)*hF*(H*.45);cx.lineTo(x,y);}
+cx.lineTo(W,H);cx.lineTo(0,H);cx.closePath();
+var tg=cx.createLinearGradient(0,mt-20,0,H);tg.addColorStop(0,"#66bb6a");tg.addColorStop(.2,"#43a047");tg.addColorStop(.5,"#2e7d32");tg.addColorStop(1,"#1b5e20");
+cx.fillStyle=tg;cx.fill();
+if(hF>0){cx.save();cx.beginPath();cx.moveTo(0,gy);for(var x2=0;x2<=mx;x2+=2){var d2=Math.abs(x2-mx),y2=gy;if(d2<mw&&hF>0)y2=gy-Math.pow(1-d2/mw,.65)*hF*(H*.45);cx.lineTo(x2,y2);}cx.lineTo(mx,H);cx.lineTo(0,H);cx.closePath();cx.fillStyle="rgba(0,0,0,.06)";cx.fill();cx.restore();
+cx.save();cx.strokeStyle="rgba(0,0,0,.07)";cx.lineWidth=1;for(var ri=0;ri<7;ri++){var frac=.12+ri*.12;var rY=mt+(gy-mt)*frac;var rW=mw*Math.pow(frac,.6);cx.beginPath();for(var rx=mx-rW;rx<=mx+rW;rx+=3)cx.lineTo(rx,rY+Math.sin(rx*.15+ri)*1.5);cx.stroke();}cx.restore();
+if(hF>.4){cx.fillStyle="rgba(121,85,72,.3)";for(var ro=0;ro<4;ro++){cx.beginPath();cx.arc(mx-15+ro*10+Math.sin(ro*2.7)*5,mt+5+ro*4,3+Math.sin(ro*1.3)*.8,0,Math.PI*2);cx.fill();}}
+if(hF>=.5){var snG=cx.createRadialGradient(mx,mt-2,0,mx,mt+8,15+hF*12);snG.addColorStop(0,"rgba(255,255,255,.65)");snG.addColorStop(1,"rgba(255,255,255,0)");cx.fillStyle=snG;cx.beginPath();cx.arc(mx,mt+2,12+hF*10,Math.PI,0);cx.fill();}}
+// Dry overlay
+if(hF>0&&(S.ph==="anim"||S.ph==="result")){var wS=S.wind==="LR"?"left":"right";
+cx.save();cx.beginPath();if(wS==="left")cx.rect(mx,0,W,H);else cx.rect(0,0,mx,H);cx.clip();
+var inten=Math.min(S.aT||1,1)*hF;cx.beginPath();cx.moveTo(0,gy);
+for(var x3=0;x3<=W;x3+=2){var d3=Math.abs(x3-mx),y3=gy;if(d3<mw&&hF>0)y3=gy-Math.pow(1-d3/mw,.65)*hF*(H*.45);cx.lineTo(x3,y3);}
+cx.lineTo(W,H);cx.lineTo(0,H);cx.closePath();var dG=cx.createLinearGradient(0,mt,0,H);dG.addColorStop(0,"rgba(188,170,140,"+inten*.7+")");dG.addColorStop(.4,"rgba(210,180,140,"+inten*.85+")");dG.addColorStop(1,"rgba(160,120,60,"+inten+")");cx.fillStyle=dG;cx.fill();
+if(inten>.25){var cSide2=wS==="left"?"right":"left";var cB=cSide2==="right"?mx+mw*.65:mx-mw*.65;drawCactus(cB,gy-2,inten);if(inten>.5)drawCactus(cB+(cSide2==="right"?50:-50),gy-2,inten*.8);}
+cx.restore();}
+// Lush overlay
+if(hF>0&&(S.ph==="anim"||S.ph==="result")){var wSv=S.wind==="LR"?"left":"right";
+cx.save();cx.beginPath();if(wSv==="left")cx.rect(0,0,mx,H);else cx.rect(mx,0,W,H);cx.clip();
+var gI=Math.min(S.aT||1,1)*hF;cx.beginPath();cx.moveTo(0,gy);
+for(var x4=0;x4<=W;x4+=2){var d4=Math.abs(x4-mx),y4=gy;if(d4<mw&&hF>0)y4=gy-Math.pow(1-d4/mw,.65)*hF*(H*.45);cx.lineTo(x4,y4);}
+cx.lineTo(W,H);cx.lineTo(0,H);cx.closePath();cx.fillStyle="rgba(56,142,60,"+gI*.25+")";cx.fill();
+var tB=wSv==="left"?mx-mw*.6:mx+mw*.6;var tDir=wSv==="left"?-1:1;
+for(var ti=0;ti<4;ti++)drawTree(tB+tDir*ti*28,gy-2,gI,.7+Math.sin(ti*1.5)*.3);
+cx.restore();}
+if(hF<=0&&S.ph==="setup"&&!S.mH){cx.fillStyle="rgba(100,100,100,.5)";cx.font="bold 14px sans-serif";cx.textAlign="center";cx.fillText("👆 Pick a mountain height to start!",mx,gy-20);}
+else if(hF<=0&&S.mH==="Flat"){cx.fillStyle="rgba(100,100,100,.5)";cx.font="bold 13px sans-serif";cx.textAlign="center";cx.fillText("Flat — no mountain",mx,gy-15);}
+}
+function drawCactus(x,baseY,op){op=Math.min(op*1.5,1);cx.fillStyle="rgba(46,125,50,"+op+")";
+cx.beginPath();cx.moveTo(x-3,baseY);cx.lineTo(x-2.5,baseY-30);cx.arc(x,baseY-30,3,Math.PI,0);cx.lineTo(x+3,baseY);cx.closePath();cx.fill();
+cx.beginPath();cx.moveTo(x-3,baseY-18);cx.lineTo(x-12,baseY-18);cx.lineTo(x-12,baseY-26);cx.arc(x-9,baseY-26,3,Math.PI,0);cx.lineTo(x-3,baseY-15);cx.closePath();cx.fill();
+cx.beginPath();cx.moveTo(x+3,baseY-12);cx.lineTo(x+11,baseY-12);cx.lineTo(x+11,baseY-22);cx.arc(x+8,baseY-22,3,Math.PI,0);cx.lineTo(x+3,baseY-10);cx.closePath();cx.fill();}
+function drawTree(x,baseY,opacity,scale){var op=Math.min(opacity*1.8,.85),s=scale||1;cx.fillStyle="rgba(62,39,35,"+op+")";cx.fillRect(x-2*s,baseY-8*s,4*s,8*s);
+[{dy:-12,r:10},{dy:-18,r:8},{dy:-23,r:6}].forEach(function(layer){var cg=cx.createRadialGradient(x,baseY+layer.dy*s,0,x,baseY+layer.dy*s,layer.r*s);cg.addColorStop(0,"rgba(46,125,50,"+op+")");cg.addColorStop(1,"rgba(27,94,32,"+op*.7+")");cx.fillStyle=cg;cx.beginPath();cx.arc(x,baseY+layer.dy*s,layer.r*s,0,Math.PI*2);cx.fill();});}
+function drawMtn2(gy){
+var m2x=W*.78,m2w=W*.14,m2h=.65,m2t=gy-m2h*(H*.45);cx.beginPath();
+for(var x=m2x-m2w;x<=m2x+m2w;x+=2){var dd=Math.abs(x-m2x),t=1-dd/m2w;var y=gy-Math.pow(t,.65)*m2h*(H*.45);if(x===m2x-m2w)cx.moveTo(x,y);else cx.lineTo(x,y);}
+cx.lineTo(m2x+m2w,gy);cx.lineTo(m2x-m2w,gy);cx.closePath();var mg=cx.createLinearGradient(m2x,m2t,m2x,gy);mg.addColorStop(0,"#8d6e63");mg.addColorStop(.3,"#795548");mg.addColorStop(1,"#5d4037");cx.fillStyle=mg;cx.fill();
+cx.fillStyle="rgba(255,255,255,.35)";cx.beginPath();cx.arc(m2x,m2t+3,8,Math.PI,0);cx.fill();
+var vx=(W*.5+m2x)/2;cx.fillStyle="rgba(194,154,96,.4)";cx.beginPath();for(var vxi=W*.5+10;vxi<m2x-10;vxi+=2)cx.lineTo(vxi,gy-1);cx.lineTo(m2x-10,gy+5);cx.lineTo(W*.5+10,gy+5);cx.closePath();cx.fill();
+roundRect(vx-28,gy-20,56,16,4,"rgba(0,0,0,.55)");cx.fillStyle="#ffcc80";cx.font="bold 11px sans-serif";cx.textAlign="center";cx.fillText("Valley",vx,gy-8);
+roundRect(m2x-28,m2t-18,56,14,4,"rgba(0,0,0,.45)");cx.fillStyle="rgba(255,255,255,.7)";cx.font="bold 9px sans-serif";cx.fillText("Range 2",m2x,m2t-8);
+}
+function drawAmbientClouds(){S.ac.forEach(function(c){cx.fillStyle="rgba(255,255,255,"+c.o+")";cloudShape(c.x,c.y,c.z);c.x+=c.s;if(c.x>W+80)c.x=-80;});}
+function cloudShape(x,y,sz){cx.beginPath();cx.arc(x,y,sz*.5,0,Math.PI*2);cx.arc(x-sz*.4,y+sz*.08,sz*.38,0,Math.PI*2);cx.arc(x+sz*.4,y+sz*.08,sz*.38,0,Math.PI*2);cx.arc(x-sz*.15,y-sz*.2,sz*.42,0,Math.PI*2);cx.arc(x+sz*.15,y-sz*.15,sz*.35,0,Math.PI*2);cx.fill();}
+function drawAirMass(gy,hF,mx,mw,mt){
+var p=S.aT,fL=S.wind==="LR";var sX=fL?W*.04:W*.96,eX=fL?W*.96:W*.04;var curX=sX+(eX-sX)*Math.min(p*1.1,1);
+var airY=gy-30;if(hF>0){var dd=Math.abs(curX-mx);if(dd<mw)airY=gy-Math.pow(1-dd/mw,.65)*hF*(H*.45)-40;}
+var mOp=Math.max(0,1-p*1.6);if((fL&&curX>mx)||(!fL&&curX<mx))mOp*=.1;
+cx.save();var amG=cx.createRadialGradient(curX,airY,0,curX,airY,45);amG.addColorStop(0,"rgba(100,180,255,"+mOp*.35+")");amG.addColorStop(1,"rgba(100,180,255,0)");cx.fillStyle=amG;cx.beginPath();cx.arc(curX,airY,45,0,Math.PI*2);cx.fill();
+for(var i=0;i<14;i++){var px=curX-40+Math.sin(i*1.1+p*10)*35;var py=airY-15+Math.cos(i*1.5+p*8)*20;cx.fillStyle="rgba(130,200,255,"+(mOp*(.2+Math.sin(i+p*5)*.15))+")";cx.beginPath();cx.arc(px,py,3+Math.sin(i+p*6),0,Math.PI*2);cx.fill();}cx.restore();
+if(p>.18&&hF>0){var ccX=mx+(fL?-mw*.3:mw*.3);var ccY=mt-30;var cSz=40+hF*50;var cA=Math.min((p-.18)/.28,1)*.82;if(S.stm)cA=Math.min(cA*1.4,.95);if(S.pw)cSz*=1.3;
+var cG=cx.createRadialGradient(ccX,ccY,cSz*.1,ccX,ccY+10,cSz);cG.addColorStop(0,"rgba(100,100,120,"+cA+")");cG.addColorStop(.6,"rgba(70,70,95,"+cA*.7+")");cG.addColorStop(1,"rgba(50,50,70,0)");cx.fillStyle=cG;cloudShape(ccX,ccY,cSz);
+if(hF>=.4){cx.fillStyle="rgba(80,80,105,"+cA*.55+")";cloudShape(ccX+(fL?-40:40),ccY+12,cSz*.6);}
+if(S.stm&&cA>.5){cx.fillStyle="rgba(55,55,75,"+cA*.7+")";cloudShape(ccX+(fL?-20:20),ccY-15,cSz*.5);}
+if(p>.4){var wX=mx+(fL?mw*.5:-mw*.5);cx.fillStyle="rgba(200,200,215,"+Math.max(0,(1-p)*.18)+")";cloudShape(wX,mt-8,cSz*.2);}}
+}
+function drawParticles(gy){
+for(var i=S.drops.length-1;i>=0;i--){var p=S.drops[i];cx.fillStyle="rgba(30,136,229,"+p.l+")";cx.beginPath();cx.ellipse(p.x,p.y,p.s*.4,p.s*1.4,0,0,Math.PI*2);cx.fill();cx.fillStyle="rgba(100,200,255,"+p.l*.15+")";cx.beginPath();cx.arc(p.x,p.y,p.s*3,0,Math.PI*2);cx.fill();p.y+=p.vy;p.l-=.006;if(p.l<=0||p.y>H){if(p.y>=gy-10&&p.l>0){for(var sp=0;sp<2;sp++)S.drops.push({x:p.x-3+Math.random()*6,y:gy-2,vy:-1-Math.random(),l:.3,s:1});}S.drops.splice(i,1);}}
+if(S.drops.length>400)S.drops.splice(0,80);
+for(var fi=S.flows.length-1;fi>=0;fi--){var f=S.flows[fi];cx.strokeStyle="rgba(30,136,229,"+f.l*.5+")";cx.lineWidth=f.s;cx.beginPath();cx.moveTo(f.x,f.y);cx.lineTo(f.x+f.vx*4,f.y+f.vy*4);cx.stroke();f.x+=f.vx;f.y+=f.vy;f.l-=.015;if(f.l<=0||f.y>H)S.flows.splice(fi,1);}
+if(S.flows.length>100)S.flows.splice(0,30);
+for(var di=S.dust.length-1;di>=0;di--){var d=S.dust[di];cx.fillStyle="rgba(210,180,140,"+d.l*.6+")";cx.beginPath();cx.arc(d.x,d.y,d.s,0,Math.PI*2);cx.fill();cx.fillStyle="rgba(210,180,140,"+d.l*.2+")";cx.beginPath();cx.arc(d.x-d.vx*2,d.y-d.vy*2,d.s*.6,0,Math.PI*2);cx.fill();d.y+=d.vy;d.x+=d.vx;d.l-=.009;if(d.l<=0)S.dust.splice(di,1);}
+if(S.dust.length>200)S.dust.splice(0,50);
+}
+function drawLabels(gy,hF,mx,mt){
+if(hF<=0)return;var fL=S.wind==="LR";
+var wX=mx+(fL?-W*.13:W*.13),lX=mx+(fL?W*.13:-W*.13);var ly=gy-hF*(H*.22);
+// ACCESSIBILITY: Two-line labels — vocab word + plain English
+roundRect(wX-62,ly-20,124,28,6,"rgba(46,125,50,.75)");
+cx.fillStyle="#fff";cx.font="bold 12px sans-serif";cx.textAlign="center";
+cx.fillText("💨 WINDWARD",wX,ly-6);
+cx.font="10px sans-serif";cx.fillStyle="#c8e6c9";
+cx.fillText("(wind hits here)",wX,ly+6);
+roundRect(lX-55,ly-20,110,28,6,"rgba(141,110,99,.75)");
+cx.fillStyle="#fff";cx.font="bold 12px sans-serif";
+cx.fillText("🏜️ LEEWARD",lX,ly-6);
+cx.font="10px sans-serif";cx.fillStyle="#d7ccc8";
+cx.fillText("(dry + hidden)",lX,ly+6);
+// Left/Right
+roundRect(W*.1-32,gy+4,64,16,4,"rgba(0,0,0,.35)");
+cx.fillStyle="rgba(200,220,255,.7)";cx.font="bold 9px sans-serif";cx.fillText("← Left Side",W*.1,gy+15);
+roundRect(W*.9-36,gy+4,72,16,4,"rgba(0,0,0,.35)");cx.fillText("Right Side →",W*.9,gy+15);
+}
+function drawPredBadge(gy,hF,mx){
+var fL=S.wind==="LR";var bx=S.pred==="left"?mx-W*.12:mx+W*.12;
+var by=gy-hF*(H*.33)-28;cx.save();
+var gs=18+Math.sin(Date.now()*.005)*4;cx.shadowColor="#ffc107";cx.shadowBlur=20;cx.fillStyle="rgba(255,193,7,.2)";cx.beginPath();cx.arc(bx,by,gs,0,Math.PI*2);cx.fill();cx.shadowBlur=0;
+var bG=cx.createRadialGradient(bx-3,by-3,0,bx,by,14);bG.addColorStop(0,"#ffee58");bG.addColorStop(1,"#ffc107");cx.fillStyle=bG;cx.beginPath();cx.arc(bx,by,14,0,Math.PI*2);cx.fill();
+cx.strokeStyle="rgba(255,160,0,.6)";cx.lineWidth=2;cx.beginPath();cx.arc(bx,by,14,0,Math.PI*2);cx.stroke();
+cx.fillStyle="#000";cx.font="bold 14px sans-serif";cx.textBaseline="middle";cx.textAlign="center";cx.fillText("?",bx,by);cx.restore();
+}
+function drawWindArrow(gy){
+var fL=S.wind==="LR",ax=fL?W*.09:W*.91,ay=gy-48,dir=fL?1:-1;
+roundRect(ax-5+(dir<0?-50:0),ay-10,60,20,6,"rgba(13,71,161,.5)");cx.save();
+cx.strokeStyle="#42a5f5";cx.lineWidth=3.5;cx.lineCap="round";cx.beginPath();cx.moveTo(ax,ay);cx.lineTo(ax+dir*45,ay);cx.stroke();
+cx.fillStyle="#42a5f5";cx.beginPath();cx.moveTo(ax+dir*48,ay);cx.lineTo(ax+dir*38,ay-8);cx.lineTo(ax+dir*38,ay+8);cx.closePath();cx.fill();
+var pulse=Date.now()*.003;for(var di=0;di<3;di++){var dotP=(pulse+di*.33)%1;cx.fillStyle="rgba(66,165,245,"+(1-dotP)*.7+")";cx.beginPath();cx.arc(ax+dir*dotP*42,ay,2.5,0,Math.PI*2);cx.fill();}
+cx.restore();cx.fillStyle="#90caf9";cx.font="bold 10px sans-serif";cx.textAlign="center";cx.fillText("Wind",ax+dir*22,ay+16);
+}
+function roundRect(x,y,w,h,r,fill){cx.fillStyle=fill;cx.beginPath();cx.moveTo(x+r,y);cx.lineTo(x+w-r,y);cx.quadraticCurveTo(x+w,y,x+w,y+r);cx.lineTo(x+w,y+h-r);cx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);cx.lineTo(x+r,y+h);cx.quadraticCurveTo(x,y+h,x,y+h-r);cx.lineTo(x,y+r);cx.quadraticCurveTo(x,y,x+r,y);cx.closePath();cx.fill();}
+
+function el(id){return document.getElementById(id);}
+function qa(sel,fn){document.querySelectorAll(sel).forEach(fn);}
+
+var lastDraw=0;
+function tick(ts){if(S.ph==="anim"||needDraw||ts-lastDraw>66){draw();needDraw=false;lastDraw=ts;}requestAnimationFrame(tick);}
+requestAnimationFrame(tick);
+
+}catch(e){document.body.innerHTML="<div style='padding:40px;color:red;font-size:18px'>Error: "+e.message+"<br>"+e.stack+"</div>";}
+})();
+</script>
+</body>
+</html>
