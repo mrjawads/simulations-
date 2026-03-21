@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulations — Ozempic, Insulin, Diabetes</title>
+<style>
+:root {
+  --bg1:#FFF8F0;--bg2:#FFEFD5;--accent1:#F59E0B;--accent2:#EF6C6C;--accent3:#2D8B4E;
+  --text:#2D2006;--textLight:#5C4A2A;--white:#FFFFFF;--card:#FFFDF8;
+  --correct:#22C55E;--wrong:#EF4444;--hint1:#FFF9C4;--hint2:#FFE0B2;
+  --shadow:0 2px 12px rgba(0,0,0,0.08);--radius:12px;
+  --glucose:#F7C948;--insulin:#34D399;--receptor:#60A5FA;--hormone:#A78BFA;
+  --cellDim:#6B7280;--cellLit:#FBBF24;--bloodNormal:#FDE68A;--bloodCrisis:#DC8A0A;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);min-height:100vh;overflow:hidden;-webkit-tap-highlight-color:transparent;}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;-webkit-tap-highlight-color:transparent;}
+button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px;}
+
+/* ===== WELCOME ===== */
+#welcomeScreen{position:fixed;inset:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:9999;display:flex;align-items:center;justify-content:center;overflow-y:auto;}
+.welcome-card{background:var(--white);border-radius:20px;padding:36px 32px;max-width:440px;width:92%;box-shadow:0 8px 40px rgba(0,0,0,0.12);text-align:center;}
+.welcome-card h1{font-size:24px;font-weight:800;color:var(--accent1);margin-bottom:4px;line-height:1.3;}
+.welcome-card .subtitle{font-size:14px;color:var(--textLight);margin-bottom:20px;line-height:1.4;}
+.welcome-card label{display:block;text-align:left;font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;margin-top:12px;}
+.welcome-card input{width:100%;padding:11px 14px;border:2px solid #E5D5B8;border-radius:10px;font-size:16px;transition:border-color .2s;}
+.welcome-card input:focus{border-color:var(--accent1);outline:none;}
+.welcome-card .opt{font-size:11px;color:var(--textLight);}
+#startBtn{margin-top:20px;width:100%;padding:14px;background:var(--accent1);color:var(--white);font-size:17px;font-weight:700;border-radius:12px;transition:transform .15s,background .2s;}
+#startBtn:hover{background:#E08E09;}
+#startBtn:active{transform:scale(0.97);}
+#startBtn:disabled{opacity:0.5;cursor:not-allowed;}
+
+/* ===== GAME CONTAINER ===== */
+#gameContainer{display:none;height:100vh;height:100dvh;flex-direction:column;overflow:hidden;}
+
+/* ===== TOP BAR ===== */
+#topBar{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:linear-gradient(90deg,var(--accent1),#E8890A);color:var(--white);min-height:42px;flex-shrink:0;gap:6px;}
+#levelBadge{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50%;}
+#scoreDisplay{font-weight:700;font-size:13px;background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:20px;white-space:nowrap;}
+#progressWrap{display:flex;gap:3px;align-items:center;}
+.prog-dot{width:24px;height:7px;border-radius:4px;background:rgba(255,255,255,0.3);transition:background .4s;}
+.prog-dot.done{background:var(--white);}
+.prog-dot.current{background:var(--white);animation:dotPulse 1.2s ease infinite;}
+@keyframes dotPulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+
+/* ===== MAIN AREA ===== */
+#mainArea{display:flex;flex:1;min-height:0;overflow:hidden;}
+
+/* ===== NARRATIVE PANEL ===== */
+#narrativePanel{width:35%;min-width:200px;max-width:340px;background:var(--card);border-right:2px solid #F0E6D2;padding:12px 14px;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;justify-content:flex-start;word-wrap:break-word;overflow-wrap:break-word;}
+#narrativePanel h3{font-size:13px;color:var(--accent1);margin-bottom:6px;font-weight:700;}
+#narrativeText{font-size:14px;line-height:1.65;color:var(--text);flex:1;overflow-wrap:break-word;word-wrap:break-word;hyphens:auto;}
+#narrativeText strong{color:var(--accent1);font-weight:700;}
+#readAloudBtn{margin-top:8px;padding:7px 12px;background:var(--accent1);color:var(--white);border-radius:8px;font-size:12px;font-weight:600;align-self:flex-start;min-height:36px;flex-shrink:0;}
+#readAloudBtn.off{background:#D4C5A9;color:var(--text);}
+
+/* ===== ARENA WRAP ===== */
+#arenaWrap{flex:1;position:relative;overflow:hidden;background:linear-gradient(180deg,#FFF9F0,#FFF0D6);display:flex;flex-direction:column;}
+#focusPromptBanner{position:absolute;top:0;left:0;right:0;padding:8px 14px;background:rgba(245,158,11,0.92);color:var(--white);font-size:13px;font-weight:600;text-align:center;z-index:10;transition:opacity .8s;pointer-events:none;line-height:1.4;word-wrap:break-word;overflow-wrap:break-word;}
+#arena{flex:1;position:relative;min-height:180px;overflow:hidden;}
+#arenaSVG{width:100%;height:100%;display:block;}
+
+/* ===== INTERACTION ZONE ===== */
+#interactionZone{border-top:2px solid #F0E6D2;padding:10px 14px 12px;background:var(--white);min-height:100px;max-height:45vh;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;flex-shrink:0;word-wrap:break-word;overflow-wrap:break-word;}
+#izPrompt{font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px;text-align:center;word-wrap:break-word;overflow-wrap:break-word;max-width:100%;line-height:1.45;}
+#izOptions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%;margin-bottom:6px;}
+.opt-card{padding:10px 14px;background:var(--card);border:2px solid #E5D5B8;border-radius:10px;font-size:13px;font-weight:600;color:var(--text);min-height:48px;min-width:100px;text-align:center;transition:border-color .2s,transform .15s,opacity .3s,background .2s;cursor:pointer;word-wrap:break-word;overflow-wrap:break-word;flex:1 1 120px;max-width:280px;line-height:1.35;display:flex;align-items:center;justify-content:center;}
+.opt-card:hover{border-color:var(--accent1);transform:translateY(-1px);}
+.opt-card.selected{border-color:var(--accent1);background:#FFF6E0;}
+.opt-card.correct-flash{border-color:var(--correct);background:#D1FAE5;animation:correctPop .5s ease;}
+.opt-card.wrong-flash{border-color:var(--wrong);background:#FEE2E2;animation:wrongShake .5s ease;}
+.opt-card.dimmed{opacity:0.35;pointer-events:none;text-decoration:line-through;}
+.opt-card.glow-hint{border-color:var(--accent1);box-shadow:0 0 12px rgba(245,158,11,0.4);}
+@keyframes correctPop{0%{transform:scale(1);}50%{transform:scale(1.06);}100%{transform:scale(1);}}
+@keyframes wrongShake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+#lockInBtn{padding:10px 28px;background:var(--accent3);color:var(--white);font-size:15px;font-weight:700;border-radius:10px;min-height:48px;transition:opacity .3s,transform .15s;margin-top:4px;}
+#lockInBtn:disabled{opacity:0.35;cursor:not-allowed;}
+#lockInBtn:not(:disabled):active{transform:scale(0.96);}
+#coachingBar{display:none;width:100%;padding:10px 14px;background:var(--hint1);border-radius:8px;font-size:13px;color:#78350F;margin-top:6px;text-align:center;line-height:1.5;word-wrap:break-word;overflow-wrap:break-word;}
+#tryAgainBtn{display:none;padding:10px 28px;background:var(--accent1);color:var(--white);font-size:15px;font-weight:700;border-radius:10px;min-height:48px;margin-top:6px;transition:transform .15s;}
+#tryAgainBtn:active{transform:scale(0.96);}
+
+/* Sequence display */
+#sequenceDisplay{display:none;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;justify-content:center;width:100%;}
+.seq-step{padding:7px 12px;background:#FEF3C7;border:2px solid var(--accent1);border-radius:8px;font-size:12px;font-weight:600;color:var(--text);text-align:center;line-height:1.3;}
+.seq-step.mystery{background:#F3F4F6;border-color:#D1D5DB;color:#9CA3AF;font-size:18px;min-width:48px;}
+
+/* Evidence strip / claim frame */
+#evidenceStrip{width:100%;padding:10px 12px;background:#FEF9EE;border:2px solid #E5D5B8;border-radius:8px;margin-bottom:8px;font-size:13px;color:var(--text);text-align:center;display:none;line-height:1.4;word-wrap:break-word;overflow-wrap:break-word;}
+#claimFrame{font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;display:none;line-height:1.4;text-align:center;word-wrap:break-word;overflow-wrap:break-word;}
+
+/* Hotspot overlay */
+#hotspotPrompt{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);padding:7px 14px;background:rgba(245,158,11,0.92);color:var(--white);font-size:13px;font-weight:600;border-radius:8px;z-index:5;display:none;pointer-events:none;text-align:center;max-width:90%;word-wrap:break-word;overflow-wrap:break-word;}
+
+/* ===== BOTTOM BAR ===== */
+#bottomBar{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:var(--card);border-top:2px solid #F0E6D2;min-height:42px;flex-shrink:0;flex-wrap:wrap;gap:4px;}
+.bb-btn{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;min-height:36px;transition:background .2s;}
+#vocabBtn{background:#FEF3C7;color:#92400E;}
+#hintBtn{background:#FEF3C7;color:#92400E;}
+#resetLevelBtn{background:#FEE2E2;color:#991B1B;}
+#resetLevelBtn:disabled{opacity:0.3;cursor:not-allowed;}
+#levelCounter{font-size:12px;color:var(--textLight);font-weight:600;}
+
+/* ===== VOCAB POPUP ===== */
+#vocabPopup{position:fixed;top:0;right:-340px;width:300px;height:100%;background:var(--white);box-shadow:-4px 0 24px rgba(0,0,0,0.15);z-index:500;transition:right .3s;padding:16px;overflow-y:auto;}
+#vocabPopup.open{right:0;}
+#vocabPopup h3{font-size:17px;margin-bottom:14px;color:var(--accent1);}
+.vocab-item{padding:10px;border-radius:8px;margin-bottom:8px;border:2px solid #E5D5B8;}
+.vocab-item .vt{font-weight:700;font-size:14px;margin-bottom:2px;}
+.vocab-item .vd{font-size:12px;color:var(--textLight);line-height:1.4;}
+.vocab-item.glucose{border-left:4px solid var(--glucose);}
+.vocab-item.insulin{border-left:4px solid var(--insulin);}
+.vocab-item.receptor{border-left:4px solid var(--receptor);}
+.vocab-item.hormone{border-left:4px solid var(--hormone);}
+#vocabClose{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;background:#F3F4F6;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--text);}
+
+/* ===== HINT OVERLAY ===== */
+#hintOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:600;display:none;align-items:center;justify-content:center;}
+#hintModal{background:var(--white);border-radius:16px;padding:24px 20px;max-width:420px;width:90%;text-align:center;}
+#hintModal h3{font-size:17px;margin-bottom:10px;color:var(--accent1);}
+#hintModalText{font-size:14px;line-height:1.55;color:var(--text);margin-bottom:14px;word-wrap:break-word;overflow-wrap:break-word;}
+#hintModalBtn{padding:10px 24px;background:var(--accent1);color:var(--white);border-radius:10px;font-size:14px;font-weight:700;min-height:44px;}
+
+/* ===== CELEBRATION ===== */
+#celebOverlay{position:fixed;inset:0;z-index:700;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);}
+#celebContent{text-align:center;color:var(--white);animation:celebPop .5s ease;}
+#celebContent h2{font-size:30px;font-weight:800;text-shadow:0 2px 12px rgba(0,0,0,0.3);margin-bottom:6px;}
+#celebContent p{font-size:18px;text-shadow:0 1px 6px rgba(0,0,0,0.3);}
+@keyframes celebPop{0%{transform:scale(0.5);opacity:0;}100%{transform:scale(1);opacity:1;}}
+
+/* ===== CHOICE ===== */
+#choiceOverlay{position:fixed;inset:0;z-index:800;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);}
+.choice-card{background:var(--white);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;}
+.choice-card h2{font-size:20px;color:var(--accent1);margin-bottom:6px;}
+.choice-card p{font-size:14px;color:var(--textLight);margin-bottom:16px;line-height:1.4;}
+.choice-card button{display:block;width:100%;padding:12px;border-radius:10px;font-size:15px;font-weight:700;margin-bottom:8px;min-height:48px;}
+.choice-primary{background:var(--accent3);color:var(--white);}
+.choice-secondary{background:#F3F4F6;color:var(--text);}
+
+/* ===== PARTICLES ===== */
+#particleLayer{position:fixed;inset:0;pointer-events:none;z-index:650;overflow:hidden;}
+.particle{position:absolute;width:10px;height:10px;border-radius:50%;display:none;opacity:0;}
+
+/* ===== RECEIPT ===== */
+#receiptScreen{display:none;position:fixed;inset:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:9000;overflow-y:auto;padding:16px;}
+.receipt-inner{max-width:580px;margin:0 auto;background:var(--white);border-radius:20px;padding:28px 24px;box-shadow:var(--shadow);}
+.receipt-inner h1{font-size:20px;color:var(--accent1);text-align:center;margin-bottom:2px;line-height:1.3;}
+.receipt-inner .rsub{text-align:center;font-size:13px;color:var(--textLight);margin-bottom:14px;}
+.receipt-name-row{display:flex;gap:8px;align-items:center;margin-bottom:14px;}
+.receipt-name-row input{flex:1;padding:9px 12px;border:2px solid #E5D5B8;border-radius:8px;font-size:14px;}
+.receipt-name-row input:disabled{background:#F9FAFB;color:var(--text);}
+.receipt-name-row button{padding:9px 14px;background:var(--accent1);color:var(--white);border-radius:8px;font-size:13px;font-weight:600;min-height:40px;}
+.big-score{text-align:center;margin:14px 0;}
+.big-score .pct{font-size:52px;font-weight:800;}
+.big-score .label{font-size:15px;font-weight:600;margin-top:2px;}
+.score-green .pct{color:var(--correct);}
+.score-yellow .pct{color:var(--accent1);}
+.score-red .pct{color:var(--wrong);}
+.receipt-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12px;}
+.receipt-table th{background:var(--accent1);color:var(--white);padding:7px 8px;text-align:left;font-weight:600;}
+.receipt-table td{padding:7px 8px;border-bottom:1px solid #F0E6D2;word-wrap:break-word;overflow-wrap:break-word;}
+.receipt-table tr:nth-child(even){background:#FFFBF2;}
+.receipt-table .bonus-row td{font-style:italic;}
+.receipt-footer{text-align:center;margin-top:14px;font-size:13px;color:var(--textLight);}
+.receipt-btns{display:flex;gap:10px;justify-content:center;margin-top:14px;}
+.receipt-btns button{padding:10px 22px;border-radius:10px;font-size:14px;font-weight:600;min-height:44px;}
+#printBtn{background:var(--accent1);color:var(--white);}
+#startOverBtn{background:#FEE2E2;color:#991B1B;}
+.upload-note{text-align:center;margin-top:10px;font-size:13px;color:var(--accent1);font-weight:600;}
+
+/* ===== CONFIRM ===== */
+#confirmDialog{position:fixed;inset:0;z-index:9500;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);}
+.confirm-card{background:var(--white);border-radius:16px;padding:24px;max-width:340px;width:90%;text-align:center;}
+.confirm-card p{font-size:14px;margin-bottom:14px;line-height:1.4;}
+.confirm-card button{padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;margin:0 5px;min-height:40px;}
+
+/* ===== AFFIRMATION ===== */
+.affirmation-text{position:fixed;bottom:30%;left:50%;transform:translateX(-50%);font-size:22px;font-weight:700;color:var(--white);text-shadow:0 2px 12px rgba(0,0,0,0.4);z-index:710;pointer-events:none;opacity:0;transition:opacity .5s;text-align:center;max-width:90%;word-wrap:break-word;}
+.affirmation-text.show{opacity:1;}
+
+/* ===== COACHING OVERLAY ===== */
+#coachingOverlay{position:fixed;inset:0;z-index:750;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);}
+.coaching-card{background:var(--white);border-radius:16px;padding:24px;max-width:360px;width:90%;text-align:center;}
+.coaching-card p{font-size:14px;color:var(--text);margin-bottom:10px;line-height:1.45;word-wrap:break-word;overflow-wrap:break-word;}
+.coaching-timer{font-size:28px;font-weight:800;color:var(--accent1);}
+
+/* ===== SVG ARENA ANIMATIONS ===== */
+@keyframes svgGlowPulse{0%,100%{opacity:0.5;}50%{opacity:1;}}
+@keyframes svgBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+@keyframes svgCellBreathe{0%,100%{transform:scale(1);}50%{transform:scale(1.015);}}
+@keyframes emptyPulseAnim{0%,100%{stroke:var(--receptor);stroke-width:2;}50%{stroke:var(--wrong);stroke-width:3;}}
+@keyframes crisisFlash{0%,100%{opacity:1;}50%{opacity:0.6;}}
+
+.svg-glow-pulse{animation:svgGlowPulse 2s ease infinite;}
+.svg-bob{animation:svgBob 3s ease infinite;}
+.svg-cell-breathe{animation:svgCellBreathe 4s ease infinite;}
+.svg-empty-pulse{animation:emptyPulseAnim 1.2s ease infinite;}
+.svg-crisis-flash{animation:crisisFlash 1s ease infinite;}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+  #mainArea{flex-direction:column;}
+  #narrativePanel{width:100%;max-width:100%;min-width:0;max-height:25vh;border-right:none;border-bottom:2px solid #F0E6D2;}
+  #arenaWrap{width:100%;min-height:180px;}
+  #interactionZone{max-height:40vh;}
+  .opt-card{flex:1 1 90px;min-width:70px;font-size:12px;padding:8px 10px;}
+  #levelBadge{max-width:40%;font-size:12px;}
+}
+@media(max-width:500px){
+  #narrativePanel{padding:8px 10px;max-height:22vh;}
+  #narrativeText{font-size:13px;}
+  #interactionZone{padding:8px 10px;}
+  .opt-card{font-size:11px;padding:7px 8px;min-width:60px;}
+  #izPrompt{font-size:13px;}
+}
+
+/* ===== PRINT ===== */
+@media print{
+  body{background:white!important;overflow:visible!important;}
+  #gameContainer,#welcomeScreen,#vocabPopup,#hintOverlay,#celebOverlay,#choiceOverlay,#particleLayer,#coachingOverlay,#confirmDialog,.bb-btn,#bottomBar,#topBar{display:none!important;}
+  #receiptScreen{position:static!important;display:block!important;padding:10px!important;overflow:visible!important;}
+  .receipt-inner{box-shadow:none!important;max-width:100%!important;}
+  .receipt-btns{display:none!important;}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+}
+</style>
+</head>
+<body>
+
+<div id="welcomeScreen">
+  <div class="welcome-card">
+    <h1>Mr. Jawad's Simulations</h1>
+    <div class="subtitle">Ozempic, Insulin, Diabetes — Monday Story Map</div>
+    <label for="studentNameInput">Your Name</label>
+    <input type="text" id="studentNameInput" placeholder="First and Last Name" maxlength="60" autocomplete="off">
+    <label for="teacherNameInput">Teacher Name <span class="opt">(optional)</span></label>
+    <input type="text" id="teacherNameInput" placeholder="e.g. Mr. Rivera" maxlength="60" autocomplete="off" value="Mr. Jawad">
+    <button id="startBtn" disabled>Start</button>
+  </div>
+</div>
+
+<div id="gameContainer">
+  <div id="topBar">
+    <div id="levelBadge">Level 1 of 6</div>
+    <div id="scoreDisplay">Score: 0</div>
+    <div id="progressWrap"></div>
+  </div>
+  <div id="mainArea">
+    <div id="narrativePanel">
+      <h3 id="narrativeTitle">Story</h3>
+      <div id="narrativeText"></div>
+      <button id="readAloudBtn">Read Aloud: ON</button>
+    </div>
+    <div id="arenaWrap">
+      <div id="focusPromptBanner"></div>
+      <div id="arena"></div>
+      <div id="hotspotPrompt"></div>
+    </div>
+  </div>
+  <div id="interactionZone">
+    <div id="sequenceDisplay"></div>
+    <div id="evidenceStrip"></div>
+    <div id="claimFrame"></div>
+    <div id="izPrompt"></div>
+    <div id="izOptions"></div>
+    <button id="lockInBtn" disabled>Lock In</button>
+    <div id="coachingBar"></div>
+    <button id="tryAgainBtn">Try Again</button>
+  </div>
+  <div id="bottomBar">
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+      <button class="bb-btn" id="vocabBtn">&#128214; Vocab</button>
+      <button class="bb-btn" id="hintBtn">&#128161; Hint</button>
+      <button class="bb-btn" id="resetLevelBtn">Reset Level</button>
+    </div>
+    <div id="levelCounter">Level 1 of 6</div>
+  </div>
+</div>
+
+<div id="vocabPopup">
+  <button id="vocabClose">&times;</button>
+  <h3>Key Vocabulary</h3>
+  <div class="vocab-item glucose"><div class="vt">GLUCOSE</div><div class="vd">Sugar cells use for energy</div></div>
+  <div class="vocab-item insulin"><div class="vt">INSULIN</div><div class="vd">Hormone that unlocks cells</div></div>
+  <div class="vocab-item receptor"><div class="vt">RECEPTOR</div><div class="vd">Cell part that receives signals</div></div>
+  <div class="vocab-item hormone"><div class="vt">HORMONE</div><div class="vd">Chemical messenger carried in blood</div></div>
+</div>
+
+<div id="hintOverlay"><div id="hintModal"><h3 id="hintModalTitle"></h3><div id="hintModalText"></div><button id="hintModalBtn">Got It</button></div></div>
+<div id="celebOverlay"><div id="celebContent"><h2 id="celebTitle"></h2><p id="celebSub"></p></div></div>
+<div id="choiceOverlay"><div class="choice-card"><h2 id="choiceTitle"></h2><p id="choiceSub"></p><button class="choice-primary" id="choiceKeepGoing">Keep Going</button><button class="choice-secondary" id="choiceSeeScore">See My Score</button></div></div>
+<div id="coachingOverlay"><div class="coaching-card"><p id="coachingMsg"></p><div class="coaching-timer" id="coachingTimer">5</div></div></div>
+<div class="affirmation-text" id="affirmationText"></div>
+<div id="particleLayer"></div>
+<div id="receiptScreen"></div>
+<div id="confirmDialog"><div class="confirm-card"><p id="confirmMsg"></p><button id="confirmYes" style="background:var(--wrong);color:white;">Yes, Start Over</button><button id="confirmNo" style="background:#F3F4F6;color:var(--text);">Cancel</button></div></div>
+
+<script>
+/* ===== UTILITIES ===== */
+function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function $(id){return document.getElementById(id);}
+function qs(sel,ctx){return(ctx||document).querySelector(sel);}
+function qsa(sel,ctx){return(ctx||document).querySelectorAll(sel);}
+function hide(el){if(el)el.style.display='none';}
+function show(el,d){if(el)el.style.display=d||'flex';}
+
+let audioCtx=null;
+function getAudioCtx(){if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return audioCtx;}
+function playTone(freq,dur){try{const c=getAudioCtx();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=freq;g.gain.value=0.12;o.connect(g);g.connect(c.destination);o.start();g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+dur);o.stop(c.currentTime+dur);}catch(e){}}
+function playCorrectSound(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.15),200);}
+
+/* ===== STATE ===== */
+const GS={studentName:'',teacherName:'Mr. Jawad',currentLevel:0,phase:'',levels:[],overallScore:0,totalTimeMs:0,startTime:0,readAloud:true,vocabOpen:false,wrongCount:0,hintsUsed:0,resets:0,levelResets:0,selectedOption:null,processing:false,consecutiveFastWrongs:0,phaseStartTime:0,levelStartTime:0,attempts:0,requiredCompleteShown:false,bonusCompleteShown:false,receiptRendered:false,hotspotWrongs:0};
+let transitionTimeout=null,speechTimeout=null,resumeInterval=null,celebTimeout=null,coachingInterval=null,arenaGen=0;
+
+function clearAllTimers(){
+  [transitionTimeout,speechTimeout,celebTimeout].forEach(t=>{if(t)clearTimeout(t);});
+  if(coachingInterval)clearInterval(coachingInterval);
+  if(resumeInterval)clearInterval(resumeInterval);resumeInterval=null;
+  try{if(window.speechSynthesis)window.speechSynthesis.cancel();}catch(e){}
+}
+
+/* ===== AFFIRMATIONS ===== */
+let lastAffirmIdx=-1;
+function getAffirmation(){
+  const pool=[`${GS.teacherName} is proud of you!`,`${GS.teacherName} knew you could do it!`,`That's the kind of thinking ${GS.teacherName} loves to see!`,`${GS.teacherName} says: you're getting it!`,`Strong work — ${GS.teacherName} sees your effort!`,`${GS.teacherName} is impressed right now!`,`You're showing ${GS.teacherName} what you can do!`,`${GS.teacherName} says: keep that energy!`];
+  let idx;do{idx=Math.floor(Math.random()*pool.length);}while(idx===lastAffirmIdx&&pool.length>1);
+  lastAffirmIdx=idx;return pool[idx];
+}
+function showAffirmation(){const el=$('affirmationText');el.textContent=getAffirmation();el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);}
+
+/* ===== PARTICLES ===== */
+const PARTICLES=[];
+function initParticles(){const layer=$('particleLayer');for(let i=0;i<15;i++){const p=document.createElement('div');p.className='particle';p.style.display='none';layer.appendChild(p);PARTICLES.push({el:p,active:false,birth:0});}}
+function fireConfetti(count){const colors=['#F59E0B','#EF6C6C','#2D8B4E','#60A5FA','#A78BFA','#FBBF24'];const now=Date.now();let used=0;for(let i=0;i<PARTICLES.length&&used<Math.min(count,15);i++){const p=PARTICLES[i];if(!p.active||now-p.birth>3000){p.active=true;p.birth=now;used++;const el=p.el;el.style.display='block';el.style.left=Math.random()*100+'%';el.style.top='-10px';el.style.width=(6+Math.random()*8)+'px';el.style.height=el.style.width;el.style.background=colors[Math.floor(Math.random()*colors.length)];el.style.opacity='1';el.style.transition=`top ${1.5+Math.random()}s ease, opacity 1.5s ease`;requestAnimationFrame(()=>{el.style.top=(60+Math.random()*40)+'%';el.style.opacity='0';});setTimeout(()=>{el.style.display='none';p.active=false;},3000);}}}
+
+/* ===== LEVEL DATA ===== */
+const LEVELS=[
+{num:1,name:"The Fuel Your Cells Need",required:true,scienceSkill:"Identify a component of a body subsystem (SC1)",
+focusPrompt:"Watch the yellow hexagon shapes moving through the bloodstream.",
+watch:{text:'Your body runs on a sugar called <strong>glucose</strong>. Every single cell needs <strong>glucose</strong> to make energy. Yellow hexagons are flowing through the bloodstream right now. Each hexagon is one <strong>glucose</strong> molecule heading for your cells.',duration:12000,arenaState:'healthy-intro'},
+doPhase:{mechanic:'coach-click',prompt:'What are the yellow hexagons in the bloodstream?',options:['White blood cells','Glucose molecules','Insulin keys'],correct:1,wrongFeedback:['White blood cells fight germs — look at the color and shape of these hexagons.',null,'Insulin keys are green — these yellow shapes are something else.']},
+prove:{question:'Look at the battery icon inside the cell. What fills it?',options:['Insulin keys','Glucose from the bloodstream','White blood cells'],correct:1,wrongFeedback:["Insulin is the KEY that opens the cell. But what flows IN after the door opens? Watch the yellow shapes.",null,"White blood cells fight germs. Look at the yellow hexagons entering the cell — what are they?"]},
+hints:{hint1:{text:'Look at the label floating above the yellow shapes in the bloodstream.',visualTarget:'glucose-label'},hint2:{text:"It's not insulin — insulin is green. The yellow shapes carry a different name.",dimOption:2},stepByStep:[{text:'See the yellow hexagons? They are floating through the blood.',target:'glucose'},{text:'The label says GLUCOSE. Glucose is sugar.',target:'glucose-label'},{text:'Now tap the answer that matches: glucose molecules.',target:'option-1'}]}},
+{num:2,name:"The Key That Opens the Door",required:true,scienceSkill:"Describe the function of system components (SC1, SC2)",
+focusPrompt:"Watch what happens when the green key reaches the blue lock on the cell.",
+watch:{text:'A <strong>hormone</strong> called <strong>insulin</strong> acts like a key in your blood. The pancreas releases <strong>insulin</strong> into the bloodstream. Watch the green keys travel toward blue locks on the cells. Those locks are <strong>receptors</strong> — <strong>insulin</strong> fits in, and the cell opens.',duration:18000,arenaState:'healthy-keys'},
+doPhase:{mechanic:'pick-the-match',prompt:'Which part acts as the KEY that unlocks cells?',options:['Glucose','Receptor','Insulin'],correct:2,wrongFeedback:['Glucose is the FUEL, not the key. Look at the green shape — what does it look like?','The receptor is the LOCK. What fits INTO a lock?',null]},
+prove:{question:'What must happen BEFORE glucose can enter a cell?',options:['Insulin must bind to a receptor','Glucose must change shape','The cell must send a signal'],correct:0,wrongFeedback:[null,"Glucose doesn't change shape. Look at the lock on the cell — what opened it?","The cell doesn't send a signal. Something from the BLOOD had to reach the cell first. Watch the green key."]},
+hints:{hint1:{text:'Look at the green shape traveling from the pancreas — what does it look like?',visualTarget:'insulin'},hint2:{text:"Glucose is yellow and it's the fuel. Receptor is the lock. That leaves one option.",dimOption:0},stepByStep:[{text:'The green shapes are INSULIN. They look like keys.',target:'insulin'},{text:'Insulin keys travel to the blue RECEPTOR locks on cells.',target:'receptor'},{text:'Insulin fits into the receptor, and the cell opens for glucose. Tap INSULIN.',target:'option-2'}]}},
+{num:3,name:"Hollywood's Favorite Drug",required:true,scienceSkill:"Trace cause-and-effect in a body system (SC2)",
+focusPrompt:"Watch the pancreas on the left side when the Ozempic label appears.",
+watch:{text:'Ozempic is everywhere — TikTok, celebrities, weight-loss stories. It is actually a diabetes drug. Watch the pancreas — Ozempic forces it to pump out extra <strong>insulin</strong>. More green keys flood the blood and fill more <strong>receptors</strong> on cells.',duration:16000,arenaState:'ozempic'},
+doPhase:{mechanic:'hotspot',prompt:'Tap where Ozempic acts to force more insulin production.',options:[],correct:0,wrongFeedback:{blood:"That's the bloodstream where insulin travels — but Ozempic acts on the ORGAN that MAKES insulin.",cells:"Those are cells that RECEIVE insulin — Ozempic targets the organ that PRODUCES it.",receptors:"Receptors receive insulin — Ozempic works on the organ that creates the keys.",generic:"That area is not where Ozempic acts. Look for the organ that MAKES insulin."}},
+prove:{question:'Look at the model. What changed when Ozempic appeared?',options:['Glucose hexagons disappeared from the blood','More insulin keys flooded the bloodstream','Receptors closed and blocked all glucose'],correct:1,wrongFeedback:["Glucose is still in the blood — look at the yellow hexagons. What GREEN shapes changed?",null,"The receptors actually OPENED more. Look at the blue locks — are they open or closed now?"]},
+hints:{hint1:{text:'Look at the organ on the LEFT side of the model — what label just appeared next to it?',visualTarget:'pancreas'},hint2:{text:"Ozempic doesn't act on the cells or the blood. It targets the organ that MAKES insulin.",dimOption:-1},stepByStep:[{text:'The Ozempic label is pointing at the PANCREAS.',target:'pancreas'},{text:'Ozempic forces the pancreas to produce MORE insulin keys.',target:'insulin'},{text:'Tap the pancreas — the organ on the left.',target:'pancreas-zone'}]}},
+{num:4,name:"Twenty-Seven Days",required:true,scienceSkill:"Predict outcomes when a system component fails (SC3)",
+focusPrompt:"Watch the green keys — count how many are left in the bloodstream.",
+watch:{text:'Watch the green keys fade — one by one. The <strong>receptors</strong> have nothing to grab. <strong>Glucose</strong> piles up in the blood with nowhere to go. This is what happened inside Alec Smith\'s body when he ran out of <strong>insulin</strong>.',duration:20000,arenaState:'crisis'},
+doPhase:{mechanic:'what-comes-next',prompt:'Insulin disappears. What happens to glucose next?',sequence:['Insulin disappears','Receptors stay empty'],options:['Cells fill with energy','Glucose floods the blood','Pancreas makes more keys'],correct:1,wrongFeedback:["Cells CAN'T fill with energy — look at the receptors. Are they open or closed?",null,"Alec's pancreas can't make insulin — that's Type 1 diabetes. Look at what's piling up in the blood."]},
+prove:{question:"Why were Alec's cells starving with blood full of glucose?",options:['No insulin meant receptors stayed empty','His cells were already full of glucose','Glucose was the wrong type for his cells'],correct:0,wrongFeedback:[null,"His cells had ZERO energy — look at the dark energy meters. Glucose never got IN.","There's only one type of glucose. The problem isn't the glucose — look at the empty locks on the cells."]},
+hints:{hint1:{text:'Look at the blue locks on the cells — are they filled with green keys or empty?',visualTarget:'receptors'},hint2:{text:"The receptors are empty because there are no insulin keys. Without keys, the locks can't open.",dimOption:2},stepByStep:[{text:"Alec's pancreas made zero insulin. Watch — no green keys appear.",target:'pancreas'},{text:'Without insulin keys, the receptor locks stay CLOSED. Glucose can\'t get in.',target:'receptors'},{text:"Glucose floods the blood because the doors are locked. Tap 'Glucose floods the blood.'",target:'option-1'}]}},
+{num:5,name:"Drowning in Sugar",required:false,scienceSkill:"Interpret data from a failing body system (SC1, SC3)",
+focusPrompt:"Watch the number above the bloodstream — that is Alec's blood glucose level.",
+watch:{text:'A normal blood <strong>glucose</strong> level is about 100. Alec\'s hit 550 — five times higher. Now look at the cells — zero energy. All that <strong>glucose</strong> is stuck in the blood because there are no <strong>insulin</strong> keys.',duration:15000,arenaState:'crisis-data'},
+doPhase:{mechanic:'pick-the-match',prompt:'What does a blood glucose level of 550 tell you?',options:['Insulin is working perfectly','Glucose is trapped outside the cells','Receptors are fully occupied by insulin'],correct:1,wrongFeedback:["If insulin were working, glucose would be INSIDE the cells. Look at the energy meters — they're at zero.",null,"Look at the receptors — do you see any green keys in the locks? They're EMPTY."]},
+prove:{question:'What evidence shows the hormone-receptor system failed?',options:["Alec's cells had too much energy","Receptors were full but glucose couldn't enter","Blood glucose was extremely high while cell energy was zero"],correct:2,wrongFeedback:["His cells had ZERO energy — look at the dark meters. That's the opposite of too much.","The receptors were EMPTY, not full. No insulin keys were there to fill them.",null]},
+hints:{hint1:{text:'Look at two things: the blood glucose number above the bloodstream AND the energy meters inside the cells.',visualTarget:'glucose-counter'},hint2:{text:'The blood is full of glucose (550) but the cells have zero energy. That means glucose never made it inside.',dimOption:0},stepByStep:[{text:'Blood glucose is 550 — five times normal. That means tons of sugar in the blood.',target:'glucose-counter'},{text:'But the cell energy meters show 0%. The cells got NONE of that sugar.',target:'energy-meters'},{text:"Glucose is trapped outside because the receptor locks are empty. Tap 'Glucose is trapped outside the cells.'",target:'option-1'}]}},
+{num:6,name:"What If He Had Insulin?",required:false,scienceSkill:"Construct a scientific explanation connecting multiple system components (SC2, SC3)",
+focusPrompt:"Watch the energy meters inside the cells as insulin returns to the bloodstream.",
+watch:{text:'Now watch what happens when <strong>insulin</strong> comes back. Green keys flood the bloodstream from the pancreas. <strong>Receptors</strong> fill up, cell doors swing open, <strong>glucose</strong> rushes inside. Energy meters light up — the system works when the <strong>hormone</strong> is present.',duration:18000,arenaState:'recovery'},
+doPhase:{mechanic:'claim-builder',prompt:"Finish it: Alec's cells were starving because...",evidenceHTML:'<strong>Evidence:</strong> Blood packed with glucose (550) | Receptor locks empty (no insulin) | Cell energy at 0%',claimFrame:"Alec's cells were starving because ___.",options:['glucose was too low to reach the cells','receptors blocked insulin from entering cells','insulin was missing so receptors couldn\'t open for glucose'],correct:2,wrongFeedback:["Look at the evidence strip — blood glucose was 550. That's WAY too HIGH, not too low. The sugar was there, but something else was missing.","Receptors don't block insulin — they RECEIVE it. Look at the evidence strip: the receptors are EMPTY because no insulin arrived.",null]},
+prove:{question:'Why can missing insulin actually kill someone?',options:['Without insulin, glucose stays locked outside cells forever','Receptors control how fast your heart beats','Hormones produce glucose for the brain only'],correct:0,wrongFeedback:[null,"Heart rate is controlled by a different system. This system controls whether cells get ENERGY from glucose.","Hormones don't produce glucose. Hormones like insulin are MESSENGERS that help glucose get where it needs to go."]},
+hints:{hint1:{text:"Look at the evidence strip — what's missing from the model? No green keys anywhere.",visualTarget:'evidence'},hint2:{text:"Option A says glucose was 'too low' — but the strip shows the blood PACKED with yellow hexagons. That's too HIGH. Eliminate it.",dimOption:0},stepByStep:[{text:'The evidence strip shows EMPTY receptors — no insulin keys. That\'s the starting problem.',target:'evidence'},{text:"Without insulin in the locks, the cell doors stay shut. Glucose can't enter.",target:'receptors'},{text:"The answer is: 'insulin was missing so receptors couldn't open for glucose.' Tap that option.",target:'option-2'}]}}
+];
+
+/* ===== INIT ===== */
+function initGameState(){GS.levels=LEVELS.map(l=>({num:l.num,name:l.name,required:l.required,completed:false,score:0,attempts:0,hintsUsed:0,resets:0,timeMs:0}));GS.currentLevel=0;GS.overallScore=0;GS.totalTimeMs=0;GS.requiredCompleteShown=false;GS.bonusCompleteShown=false;GS.receiptRendered=false;}
+
+/* ===== HUD ===== */
+function buildProgressDots(){const w=$('progressWrap');w.innerHTML='';LEVELS.forEach((_,i)=>{const d=document.createElement('div');d.className='prog-dot'+(i<GS.currentLevel?' done':'')+(i===GS.currentLevel?' current':'');w.appendChild(d);});}
+function updateHUD(){const lv=LEVELS[GS.currentLevel];const bt=lv.required?'':' (BONUS)';$('levelBadge').textContent=`Level ${lv.num}: ${lv.name}${bt}`;const ts=GS.levels.filter(l=>l.completed).reduce((s,l)=>s+l.score,0);$('scoreDisplay').textContent='Score: '+ts;$('levelCounter').textContent=`Level ${lv.num} of 6`;buildProgressDots();}
+
+/* ===== SPEECH ===== */
+function speakText(txt,onEnd){
+  if(!GS.readAloud){if(onEnd)onEnd();return;}
+  try{if(!window.speechSynthesis){if(onEnd)onEnd();return;}
+  window.speechSynthesis.cancel();const plain=txt.replace(/<[^>]*>/g,'');const u=new SpeechSynthesisUtterance(plain);u.rate=0.85;u.pitch=1;
+  if(resumeInterval)clearInterval(resumeInterval);
+  resumeInterval=setInterval(()=>{try{if(window.speechSynthesis&&window.speechSynthesis.speaking)window.speechSynthesis.resume();}catch(e){}},10000);
+  u.onend=()=>{clearInterval(resumeInterval);resumeInterval=null;if(onEnd)onEnd();};
+  u.onerror=()=>{clearInterval(resumeInterval);resumeInterval=null;if(onEnd)onEnd();};
+  window.speechSynthesis.speak(u);
+  const est=plain.length*65+3000;
+  speechTimeout=setTimeout(()=>{try{window.speechSynthesis.cancel();}catch(e){}clearInterval(resumeInterval);resumeInterval=null;if(onEnd)onEnd();},est);
+  }catch(e){if(onEnd)onEnd();}
+}
+
+/* ===== TYPEWRITER ===== */
+function typewriterHTML(container,html){container.innerHTML=html;container.style.opacity='0';container.style.transition='opacity 0.5s';requestAnimationFrame(()=>{container.style.opacity='1';});}
+
+/* ===== SVG ARENA BUILDER ===== */
+function clearArena(){const a=$('arena');while(a.firstChild)a.removeChild(a.firstChild);arenaGen++;}
+
+function svgE(tag){return document.createElementNS('http://www.w3.org/2000/svg',tag);}
+function svgAttr(el,attrs){for(const[k,v]of Object.entries(attrs))el.setAttribute(k,v);return el;}
+
+function buildArena(state){
+  clearArena();
+  const arena=$('arena');const gen=arenaGen;
+  const isCrisis=(state==='crisis-data'||state==='recovery');
+  const isCrisisAnim=(state==='crisis');
+  /*
+   * LAYOUT ZONES (viewBox 700x420):
+   * y:  35-80   Pancreas body
+   * y:  88-108  Ozempic badge
+   * y: 108-128  Vocabulary labels (INSULIN / GLUCOSE / HORMONE) — clear zone above bloodstream
+   * y: 130-145  Glucose counter badge
+   * y: 148-228  BLOODSTREAM tube (keys upper half ~155-180, hexagons lower half ~190-220)
+   * y: 240-260  RECEPTOR label (cell 0 only)
+   * y: 252-288  Receptor locks on cell tops
+   * y: 290-370  Cells with energy meters
+   * y: 386-410  Memorial text
+   */
+
+  const svg=svgE('svg');svg.setAttribute('id','arenaSVG');
+  svg.setAttribute('viewBox','0 0 700 420');svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  svg.style.width='100%';svg.style.height='100%';
+
+  const defs=svgE('defs');
+  const grads=[
+    {id:'bloodGrad',type:'linear',x1:'0%',y1:'0%',x2:'100%',y2:'0%',stops:isCrisis?[['0%','#B45309'],['100%','#92400E']]:[['0%','#FDE68A'],['100%','#FCD34D']]},
+    {id:'cellGradLit',type:'linear',x1:'0%',y1:'0%',x2:'0%',y2:'100%',stops:[['0%','#FEF3C7'],['100%','#FDE68A']]},
+    {id:'cellGradDim',type:'linear',x1:'0%',y1:'0%',x2:'0%',y2:'100%',stops:[['0%','#E5E7EB'],['100%','#D1D5DB']]},
+    {id:'cellGradDark',type:'linear',x1:'0%',y1:'0%',x2:'0%',y2:'100%',stops:[['0%','#4B5563'],['100%','#374151']]},
+    {id:'pancGrad',type:'radial',stops:[['0%','#FBBF24'],['100%','#D97706']]},
+    {id:'energyGrad',type:'linear',x1:'0%',y1:'0%',x2:'100%',y2:'0%',stops:[['0%','#FBBF24'],['100%','#F59E0B']]},
+    {id:'tissueGrad',type:'linear',x1:'0%',y1:'0%',x2:'0%',y2:'100%',stops:[['0%','#FFF5E6'],['60%','#FFE8C4'],['100%','#FFD9A0']]}
+  ];
+  grads.forEach(g=>{
+    const gr=svgE(g.type==='radial'?'radialGradient':'linearGradient');gr.setAttribute('id',g.id);
+    if(g.x1){gr.setAttribute('x1',g.x1);gr.setAttribute('y1',g.y1);gr.setAttribute('x2',g.x2);gr.setAttribute('y2',g.y2);}
+    g.stops.forEach(s=>{const st=svgE('stop');st.setAttribute('offset',s[0]);st.setAttribute('stop-color',s[1]);gr.appendChild(st);});
+    defs.appendChild(gr);
+  });
+  svg.appendChild(defs);
+
+  // Background
+  svg.appendChild(svgAttr(svgE('rect'),{width:'700',height:'420',fill:'url(#tissueGrad)'}));
+  // Vein network
+  [[30,30,120,50],[580,25,660,48],[100,380,200,395],[500,385,600,395],[350,15,420,35]].forEach(v=>{
+    svg.appendChild(svgAttr(svgE('line'),{x1:v[0],y1:v[1],x2:v[2],y2:v[3],stroke:'#E8D5B8','stroke-width':'1.5',opacity:'0.35'}));
+  });
+
+  // === PANCREAS (y:35-95) ===
+  const pancG=svgE('g');pancG.setAttribute('id','svgPancreas');
+  const pancShape=svgAttr(svgE('path'),{d:'M28,52 C16,42 10,60 14,78 C10,92 16,108 32,112 C42,116 58,114 68,106 C78,96 82,80 76,66 C72,54 58,44 42,48 Z',fill:'url(#pancGrad)',stroke:'#B45309','stroke-width':'2.5'});
+  pancG.appendChild(pancShape);
+  [[32,68],[48,80],[37,94],[52,66],[56,90]].forEach(p=>{pancG.appendChild(svgAttr(svgE('circle'),{cx:p[0],cy:p[1],r:'6',fill:'#E8A308',opacity:'0.5'}));});
+  const pLbl=svgAttr(svgE('text'),{x:'44',y:'128','text-anchor':'middle','font-size':'11','font-weight':'700',fill:'#92400E'});pLbl.textContent='PANCREAS';pancG.appendChild(pLbl);
+  if(isCrisis||isCrisisAnim)pancG.setAttribute('opacity',isCrisisAnim?'1':'0.4');
+  svg.appendChild(pancG);
+
+  // === OZEMPIC (y:88-108) ===
+  const ozG=svgE('g');ozG.setAttribute('id','svgOzempic');ozG.setAttribute('opacity','0');
+  ozG.appendChild(svgAttr(svgE('rect'),{x:'5',y:'20',width:'72',height:'22',rx:'6',fill:'#EF6C6C',opacity:'0.9'}));
+  const ozT=svgAttr(svgE('text'),{x:'41',y:'35','text-anchor':'middle','font-size':'11','font-weight':'800',fill:'white'});ozT.textContent='OZEMPIC';ozG.appendChild(ozT);
+  ozG.appendChild(svgAttr(svgE('line'),{x1:'41',y1:'42',x2:'41',y2:'48',stroke:'#EF6C6C','stroke-width':'2.5'}));
+  ozG.appendChild(svgAttr(svgE('polygon'),{points:'41,55 36,46 46,46',fill:'#EF6C6C'}));
+  svg.appendChild(ozG);
+
+  // === VOCABULARY LABELS (y:108-128, above bloodstream) ===
+  function makeLabelBadge(id,x,w,color,text,opacity){
+    const g=svgE('g');g.setAttribute('id',id);g.setAttribute('opacity',opacity);
+    g.appendChild(svgAttr(svgE('rect'),{x:x,y:'108',width:w,height:'20',rx:'4',fill:color}));
+    const t=svgAttr(svgE('text'),{x:String(Number(x)+Number(w)/2),y:'122','text-anchor':'middle','font-size':'11','font-weight':'700',fill:'white'});
+    t.textContent=text;g.appendChild(t);return g;
+  }
+  const showGluLabel=(state!=='healthy-intro')?'1':'0';
+  const showInsLabel=(state==='healthy-keys'||state==='ozempic')?'1':'0';
+  const showHorLabel=(state==='healthy-keys'||state==='recovery')?'1':'0';
+  svg.appendChild(makeLabelBadge('svgInsulinLabel',100,68,'rgba(52,211,153,0.9)','INSULIN',showInsLabel));
+  svg.appendChild(makeLabelBadge('svgGlucoseLabel',185,72,'rgba(247,201,72,0.9)','GLUCOSE',showGluLabel));
+  svg.appendChild(makeLabelBadge('svgHormoneLabel',274,78,'rgba(167,139,250,0.9)','HORMONE',showHorLabel));
+
+  // === GLUCOSE COUNTER (y:130-150) ===
+  const gcG=svgE('g');gcG.setAttribute('id','svgGlucoseCounter');
+  gcG.setAttribute('opacity',(state==='crisis-data'||state==='recovery')?'1':'0');
+  gcG.appendChild(svgAttr(svgE('rect'),{x:'462',y:'130',width:'210',height:'22',rx:'11',fill:isCrisis?'#991B1B':'#166534',opacity:'0.9'}));
+  const gcTxt=svgAttr(svgE('text'),{id:'svgGCText',x:'567',y:'146','text-anchor':'middle','font-size':'12','font-weight':'800',fill:'white'});
+  gcTxt.textContent=isCrisis?'BLOOD GLUCOSE: 550':'BLOOD GLUCOSE: ~100';
+  if(isCrisis)gcG.classList.add('svg-crisis-flash');
+  gcG.appendChild(gcTxt);svg.appendChild(gcG);
+
+  // === BLOODSTREAM (y:148-228) ===
+  const bsG=svgE('g');bsG.setAttribute('id','svgBloodstream');
+  bsG.appendChild(svgAttr(svgE('rect'),{x:'88',y:'148',width:'598',height:'80',rx:'40',fill:'url(#bloodGrad)',stroke:'#D4A017','stroke-width':'2.5'}));
+  [172,198].forEach(y=>{bsG.appendChild(svgAttr(svgE('line'),{x1:'115',y1:y,x2:'660',y2:y,stroke:'rgba(255,255,255,0.3)','stroke-width':'1','stroke-dasharray':'12 8'}));});
+  svg.appendChild(bsG);
+
+  // === INSULIN KEYS (upper bloodstream y:158-180) ===
+  const showKeys=(state!=='crisis-data'&&state!=='recovery');
+  const keyCount=(state==='ozempic')?8:4;
+  if(showKeys){
+    for(let i=0;i<keyCount;i++){
+      const kx=115+i*(state==='ozempic'?58:90);const ky=168+((i%2)*8);
+      const keyG=svgE('g');keyG.setAttribute('id','svgKey'+i);
+      keyG.appendChild(svgAttr(svgE('circle'),{cx:kx,cy:ky,r:'8',fill:'#34D399',stroke:'#059669','stroke-width':'1.5'}));
+      keyG.appendChild(svgAttr(svgE('rect'),{x:kx-2.5,y:ky+5,width:'5',height:'12',rx:'1',fill:'#34D399',stroke:'#059669','stroke-width':'1'}));
+      keyG.appendChild(svgAttr(svgE('rect'),{x:kx+2,y:ky+12,width:'5',height:'3',rx:'1',fill:'#059669'}));
+      keyG.appendChild(svgAttr(svgE('circle'),{cx:kx,cy:ky,r:'3',fill:'#6EE7B7',opacity:'0.7'}));
+      svg.appendChild(keyG);
+    }
+  }
+
+  // === GLUCOSE HEXAGONS (lower bloodstream y:195-220) ===
+  const gCount=isCrisis?12:6;
+  for(let i=0;i<gCount;i++){
+    const gx=135+i*(isCrisis?42:70);const gy=207+Math.sin(i*1.2)*8;
+    const hex=svgE('g');hex.classList.add('svg-bob');hex.setAttribute('id','svgGlu'+i);hex.style.animationDelay=(i*0.3)+'s';
+    const s=11;const pts=[];for(let a=0;a<6;a++){const angle=Math.PI/3*a-Math.PI/6;pts.push((gx+s*Math.cos(angle)).toFixed(1)+','+(gy+s*Math.sin(angle)).toFixed(1));}
+    hex.appendChild(svgAttr(svgE('polygon'),{points:pts.join(' '),fill:'#F7C948',stroke:'#D4A017','stroke-width':'1.5'}));
+    hex.appendChild(svgAttr(svgE('circle'),{cx:gx,cy:gy,r:'5',fill:'#FDE68A',opacity:'0.6'}));
+    svg.appendChild(hex);
+  }
+
+  // === CELLS (y:290-370, centers at x:155,300,445,590) ===
+  const cellCfg={
+    'healthy-intro':{fill:'url(#cellGradDim)',recFill:'#DBEAFE',recStroke:'#60A5FA',energy:0,recClass:''},
+    'healthy-keys':{fill:'url(#cellGradLit)',recFill:'#34D399',recStroke:'#059669',energy:90,recClass:''},
+    'ozempic':{fill:'url(#cellGradLit)',recFill:'#34D399',recStroke:'#059669',energy:100,recClass:''},
+    'crisis':{fill:'url(#cellGradLit)',recFill:'#34D399',recStroke:'#059669',energy:80,recClass:''},
+    'crisis-data':{fill:'url(#cellGradDark)',recFill:'#374151',recStroke:'#EF4444',energy:0,recClass:'svg-empty-pulse'},
+    'recovery':{fill:'url(#cellGradDark)',recFill:'#374151',recStroke:'#EF4444',energy:0,recClass:'svg-empty-pulse'}
+  };
+  const cc=cellCfg[state]||cellCfg['healthy-intro'];
+  const cellXs=[155,300,445,590];
+
+  for(let i=0;i<4;i++){
+    const cx=cellXs[i];const cy=330;
+    const cG=svgE('g');cG.setAttribute('id','svgCell'+i);
+    cG.classList.add('svg-cell-breathe');cG.style.transformOrigin=cx+'px '+cy+'px';
+
+    // Cell body
+    cG.appendChild(svgAttr(svgE('rect'),{x:cx-50,y:cy-35,width:'100',height:'70',rx:'18',fill:cc.fill,stroke:cc.energy>0?'#D97706':'#9CA3AF','stroke-width':'2.5'}));
+    cG.appendChild(svgAttr(svgE('rect'),{x:cx-43,y:cy-28,width:'86',height:'56',rx:'14',fill:'none',stroke:cc.energy>0?'rgba(217,119,6,0.3)':'rgba(156,163,175,0.3)','stroke-width':'1','stroke-dasharray':'4 3'}));
+
+    // Receptor lock (y:cy-52 to cy-34 = 278 to 296)
+    const recG=svgE('g');recG.setAttribute('id','svgRec'+i);
+    const lockBody=svgAttr(svgE('rect'),{x:cx-10,y:cy-52,width:'20',height:'18',rx:'3',fill:cc.recFill,stroke:cc.recStroke,'stroke-width':'2'});
+    if(cc.recClass)lockBody.classList.add(cc.recClass);recG.appendChild(lockBody);
+    recG.appendChild(svgAttr(svgE('path'),{d:`M${cx-5},${cy-52} L${cx-5},${cy-60} Q${cx-5},${cy-66} ${cx},${cy-66} Q${cx+5},${cy-66} ${cx+5},${cy-60} L${cx+5},${cy-52}`,fill:'none',stroke:cc.recStroke,'stroke-width':'2.5','stroke-linecap':'round'}));
+    recG.appendChild(svgAttr(svgE('circle'),{cx:cx,cy:cy-45,r:'3',fill:cc.energy>0?'#059669':'#6B7280'}));
+    cG.appendChild(recG);
+
+    // RECEPTOR label on SECOND cell (i===1) with connector line — avoids crowding cell 0
+    if(i===1){
+      const rlG=svgE('g');rlG.setAttribute('id','svgReceptorLabel');
+      rlG.setAttribute('opacity',(state!=='healthy-intro')?'1':'0');
+      rlG.appendChild(svgAttr(svgE('rect'),{x:cx-36,y:'244',width:'72',height:'19',rx:'4',fill:'rgba(96,165,250,0.9)'}));
+      const rlT=svgAttr(svgE('text'),{x:cx,y:'258','text-anchor':'middle','font-size':'11','font-weight':'700',fill:'white'});rlT.textContent='RECEPTOR';rlG.appendChild(rlT);
+      // Connector line from label to receptor
+      rlG.appendChild(svgAttr(svgE('line'),{x1:cx,y1:'263',x2:cx,y2:String(cy-66),stroke:'#60A5FA','stroke-width':'1.5','stroke-dasharray':'3 2',opacity:'0.7'}));
+      cG.appendChild(rlG);
+    }
+
+    // Energy meter
+    cG.appendChild(svgAttr(svgE('rect'),{x:cx-30,y:cy+8,width:'60',height:'10',rx:'5',fill:'#E5E7EB'}));
+    const mFill=svgAttr(svgE('rect'),{id:'svgEFill'+i,x:cx-30,y:cy+8,width:'0',height:'10',rx:'5',fill:'url(#energyGrad)'});
+    cG.appendChild(mFill);
+    cG.appendChild(svgAttr(svgE('rect'),{x:cx+32,y:cy+10,width:'4',height:'6',rx:'1',fill:'#9CA3AF'}));
+    const eTxt=svgAttr(svgE('text'),{id:'svgEText'+i,x:cx,y:cy+30,'text-anchor':'middle','font-size':'9','font-weight':'600',fill:cc.energy>0?'#78350F':'#9CA3AF'});
+    eTxt.textContent='ENERGY';cG.appendChild(eTxt);
+
+    svg.appendChild(cG);
+  }
+
+  // === ALEC MEMORIAL (Level 4+) ===
+  if(state==='crisis'||state==='crisis-data'){
+    const memG=svgE('g');memG.setAttribute('id','svgMemorial');
+    memG.setAttribute('opacity',state==='crisis'?'0':'0.8');
+    const memT=svgAttr(svgE('text'),{x:'350',y:'408','text-anchor':'middle','font-size':'10','font-weight':'600',fill:'#991B1B'});
+    memT.textContent='Alec Smith, age 26 — June 2017';memG.appendChild(memT);svg.appendChild(memG);
+  }
+
+  arena.appendChild(svg);
+
+  // Animate energy fill
+  requestAnimationFrame(()=>{
+    if(arenaGen!==gen)return;
+    for(let i=0;i<4;i++){const f=$('svgEFill'+i);if(f)f.setAttribute('width',String(Math.round(cc.energy*0.6)));}
+  });
+}
+
+/* ===== ARENA ANIMATION ===== */
+function animateArena(action,cb){
+  const gen=arenaGen;
+  const safeCb=()=>{if(arenaGen===gen&&cb)cb();};
+  const el=(id)=>document.getElementById(id);
+  const arena=$('arena');
+  switch(action){
+    case 'show-glucose-label':{
+      const l=el('svgGlucoseLabel');if(l)l.setAttribute('opacity','1');
+      setTimeout(safeCb,1500);break;}
+    case 'flash-glucose':{
+      arena.querySelectorAll('[id^="svgGlu"]').forEach(h=>{const p=h.querySelector('polygon');if(p){p.setAttribute('fill','#FBBF24');p.setAttribute('stroke','#B45309');}});
+      setTimeout(()=>{arena.querySelectorAll('[id^="svgGlu"]').forEach(h=>{const p=h.querySelector('polygon');if(p){p.setAttribute('fill','#F7C948');p.setAttribute('stroke','#D4A017');}});safeCb();},1200);break;}
+    case 'show-insulin-flow':{
+      const il=el('svgInsulinLabel');if(il)il.setAttribute('opacity','1');
+      const hl=el('svgHormoneLabel');if(hl)hl.setAttribute('opacity','1');
+      const rl=el('svgReceptorLabel');if(rl)rl.setAttribute('opacity','1');
+      setTimeout(()=>{if(arenaGen!==gen)return;
+        for(let i=0;i<4;i++){
+          const rec=el('svgRec'+i);if(rec){const lb=rec.querySelector('rect');if(lb){lb.setAttribute('fill','#34D399');lb.setAttribute('stroke','#059669');}}
+          const cell=el('svgCell'+i);if(cell){const r=cell.querySelector('rect');if(r)r.setAttribute('fill','url(#cellGradLit)');}
+          const f=el('svgEFill'+i);if(f)f.setAttribute('width','54');
+        }
+      },2500);setTimeout(safeCb,4000);break;}
+    case 'highlight-insulin':{
+      arena.querySelectorAll('[id^="svgKey"]').forEach(k=>{const c=k.querySelector('circle');if(c){c.setAttribute('r','10');c.setAttribute('fill','#10B981');}});
+      const il=el('svgInsulinLabel');if(il)il.setAttribute('opacity','1');
+      setTimeout(safeCb,1000);break;}
+    case 'highlight-glucose-nudge':{
+      const gl=el('svgGlucoseLabel');if(gl)gl.setAttribute('opacity','1');
+      setTimeout(safeCb,2000);break;}
+    case 'correct-glucose':{
+      const gl=el('svgGlucoseLabel');if(gl)gl.setAttribute('opacity','1');
+      playCorrectSound();setTimeout(safeCb,1000);break;}
+    case 'correct-insulin':{
+      const il=el('svgInsulinLabel');if(il)il.setAttribute('opacity','1');
+      playCorrectSound();setTimeout(safeCb,1000);break;}
+    case 'pancreas-glow':{
+      const pg=el('svgPancreas');if(pg){const s=pg.querySelector('path');if(s){s.setAttribute('stroke','#22C55E');s.setAttribute('stroke-width','4');}}
+      setTimeout(safeCb,1000);break;}
+    case 'ozempic-surge':{
+      const oz=el('svgOzempic');if(oz)oz.setAttribute('opacity','1');
+      const gl=el('svgGlucoseLabel');if(gl)gl.setAttribute('opacity','1');
+      setTimeout(()=>{if(arenaGen!==gen)return;
+        const pg=el('svgPancreas');if(pg){const s=pg.querySelector('path');if(s)s.setAttribute('stroke-width','4');}
+        for(let i=0;i<4;i++){
+          const rec=el('svgRec'+i);if(rec){const lb=rec.querySelector('rect');if(lb){lb.setAttribute('fill','#34D399');lb.setAttribute('stroke','#059669');}}
+          const f=el('svgEFill'+i);if(f)f.setAttribute('width','60');
+        }
+      },3000);setTimeout(safeCb,5000);break;}
+    case 'crisis-unfold':{
+      const keys=arena.querySelectorAll('[id^="svgKey"]');
+      keys.forEach((k,i)=>{setTimeout(()=>{if(arenaGen!==gen)return;k.setAttribute('opacity','0');},i*800);});
+      const pg=el('svgPancreas');if(pg)setTimeout(()=>{if(arenaGen!==gen)return;pg.setAttribute('opacity','0.4');},500);
+      setTimeout(()=>{if(arenaGen!==gen)return;
+        for(let i=0;i<4;i++){
+          const rec=el('svgRec'+i);if(rec){const lb=rec.querySelector('rect');if(lb){lb.setAttribute('fill','#374151');lb.setAttribute('stroke','#EF4444');lb.classList.add('svg-empty-pulse');}}
+          const cell=el('svgCell'+i);if(cell){const r=cell.querySelector('rect');if(r)r.setAttribute('fill','url(#cellGradDark)');}
+          const f=el('svgEFill'+i);if(f)f.setAttribute('width','0');
+          const et=el('svgEText'+i);if(et)et.setAttribute('fill','#9CA3AF');
+        }
+        const bs=arena.querySelector('#svgBloodstream rect');
+        if(bs){bs.setAttribute('fill','#B45309');bs.setAttribute('stroke','#92400E');}
+        const mem=el('svgMemorial');if(mem)mem.setAttribute('opacity','0.8');
+      },4000);setTimeout(safeCb,7000);break;}
+    case 'crisis-data-reveal':{
+      const gc=el('svgGlucoseCounter');if(gc){gc.setAttribute('opacity','1');gc.classList.add('svg-crisis-flash');}
+      setTimeout(safeCb,4000);break;}
+    case 'recovery-animate':{
+      const pg=el('svgPancreas');if(pg){pg.setAttribute('opacity','1');const s=pg.querySelector('path');if(s)s.setAttribute('stroke','#059669');}
+      const il=el('svgInsulinLabel');if(il)setTimeout(()=>{if(arenaGen!==gen)return;il.setAttribute('opacity','1');},1500);
+      const hl=el('svgHormoneLabel');if(hl)setTimeout(()=>{if(arenaGen!==gen)return;hl.setAttribute('opacity','1');},1500);
+      setTimeout(()=>{if(arenaGen!==gen)return;
+        for(let i=0;i<4;i++){
+          const rec=el('svgRec'+i);if(rec){const lb=rec.querySelector('rect');if(lb){lb.setAttribute('fill','#34D399');lb.setAttribute('stroke','#059669');lb.classList.remove('svg-empty-pulse');}}
+          const cell=el('svgCell'+i);if(cell){const r=cell.querySelector('rect');if(r)r.setAttribute('fill','url(#cellGradLit)');}
+          const f=el('svgEFill'+i);if(f)f.setAttribute('width','60');
+          const et=el('svgEText'+i);if(et)et.setAttribute('fill','#78350F');
+        }
+        const bs=arena.querySelector('#svgBloodstream rect');
+        if(bs){bs.setAttribute('fill','url(#bloodGrad)');bs.setAttribute('stroke','#D4A017');}
+        const gc=el('svgGlucoseCounter');
+        if(gc){gc.classList.remove('svg-crisis-flash');const t=el('svgGCText');if(t)t.textContent='BLOOD GLUCOSE: ~100';const bg=gc.querySelector('rect');if(bg)bg.setAttribute('fill','#166534');}
+      },4000);setTimeout(safeCb,6000);break;}
+    case 'highlight-receptors-empty':{
+      for(let i=0;i<4;i++){const rec=el('svgRec'+i);if(rec){const lb=rec.querySelector('rect');if(lb)lb.classList.add('svg-empty-pulse');}}
+      setTimeout(safeCb,1000);break;}
+    case 'highlight-crisis-data':{
+      const gc=el('svgGlucoseCounter');if(gc)gc.classList.add('svg-crisis-flash');
+      setTimeout(safeCb,1000);break;}
+    default:setTimeout(safeCb,500);
+  }
+}
+
+/* ===== OVERLAYS ===== */
+function closeAllOverlays(){hide($('hintOverlay'));hide($('celebOverlay'));hide($('choiceOverlay'));hide($('coachingOverlay'));$('affirmationText').classList.remove('show');}
+
+/* ===== LEVEL FLOW ===== */
+function startLevel(idx){
+  if(idx>=LEVELS.length){showReceipt();return;}
+  clearAllTimers();closeAllOverlays();
+  // Clean up any lingering hotspot handler
+  $('arena').style.cursor='default';if($('arena')._hotspotHandler){$('arena').removeEventListener('click',$('arena')._hotspotHandler);$('arena')._hotspotHandler=null;}
+  GS.currentLevel=idx;GS.phase='intro';GS.wrongCount=0;GS.hintsUsed=0;GS.levelResets=0;GS.selectedOption=null;GS.processing=false;GS.consecutiveFastWrongs=0;GS.attempts=0;GS.levelStartTime=Date.now();
+  const lv=LEVELS[idx];updateHUD();
+  $('izPrompt').textContent='';$('izOptions').innerHTML='';hide($('lockInBtn'));hide($('coachingBar'));hide($('tryAgainBtn'));
+  $('sequenceDisplay').innerHTML='';$('sequenceDisplay').style.display='none';hide($('evidenceStrip'));hide($('claimFrame'));$('hotspotPrompt').style.display='none';
+  $('resetLevelBtn').disabled=false;
+  $('narrativeText').innerHTML='';$('narrativeTitle').textContent=lv.required?'Story':'Story (BONUS)';
+  buildArena(lv.watch.arenaState);
+  const fp=$('focusPromptBanner');fp.textContent=(idx===0)?lv.focusPrompt+" You'll be asked about this next.":lv.focusPrompt;fp.style.opacity='1';
+  transitionTimeout=setTimeout(()=>{fp.style.opacity='0.4';startWatch();},3000);
+}
+
+function startWatch(){
+  const lv=LEVELS[GS.currentLevel];GS.phase='watch';GS.phaseStartTime=Date.now();
+  typewriterHTML($('narrativeText'),lv.watch.text);
+  let watchDoneFired=false;
+  const watchDone=()=>{
+    if(watchDoneFired)return;watchDoneFired=true;
+    if(speechTimeout){clearTimeout(speechTimeout);speechTimeout=null;}
+    if(transitionTimeout){clearTimeout(transitionTimeout);transitionTimeout=null;}
+    if(GS.currentLevel===0){showCoachingBrief("Did you see the yellow hexagons? Now show me what they are.",()=>startDo());}
+    else{transitionTimeout=setTimeout(()=>startDo(),1500);}
+  };
+  const as=lv.watch.arenaState;
+  if(as==='healthy-intro')animateArena('show-glucose-label',null);
+  else if(as==='healthy-keys')animateArena('show-insulin-flow',null);
+  else if(as==='ozempic')animateArena('ozempic-surge',null);
+  else if(as==='crisis')animateArena('crisis-unfold',null);
+  else if(as==='crisis-data')animateArena('crisis-data-reveal',null);
+  else if(as==='recovery')animateArena('recovery-animate',null);
+  speakText(lv.watch.text,watchDone);
+  transitionTimeout=setTimeout(()=>{try{if(window.speechSynthesis)window.speechSynthesis.cancel();}catch(e){}watchDone();},lv.watch.duration+5000);
+}
+
+function showCoachingBrief(msg,cb){$('izPrompt').textContent=msg;$('izPrompt').style.color='var(--accent1)';show($('interactionZone'),'flex');transitionTimeout=setTimeout(()=>{$('izPrompt').style.color='var(--text)';if(cb)cb();},2500);}
+
+function startDo(){
+  const lv=LEVELS[GS.currentLevel];GS.phase='do';GS.phaseStartTime=Date.now();GS.selectedOption=null;GS.processing=false;
+  $('focusPromptBanner').style.opacity='0';$('narrativePanel').style.opacity='0.6';
+  const m=lv.doPhase.mechanic;
+  $('izPrompt').textContent=lv.doPhase.prompt;$('izOptions').innerHTML='';
+  hide($('coachingBar'));hide($('tryAgainBtn'));
+  $('sequenceDisplay').innerHTML='';$('sequenceDisplay').style.display='none';hide($('evidenceStrip'));hide($('claimFrame'));$('hotspotPrompt').style.display='none';
+  if(m==='coach-click'||m==='pick-the-match'){
+    buildOptionCards(lv.doPhase.options,lv.doPhase.correct,'do');
+    const btn=$('lockInBtn');show(btn,'block');btn.disabled=true;btn.textContent='Lock In';btn.onclick=()=>lockInDo();
+    if(GS.currentLevel===0)setTimeout(()=>{const cards=qsa('.opt-card',$('izOptions'));if(cards[lv.doPhase.correct])cards[lv.doPhase.correct].classList.add('glow-hint');},2000);
+  } else if(m==='hotspot'){startHotspot(lv);}
+  else if(m==='what-comes-next'){startWhatComesNext(lv);}
+  else if(m==='claim-builder'){startClaimBuilder(lv);}
+}
+
+/* ===== OPTION CARDS ===== */
+function buildOptionCards(opts,correctIdx,phase){const c=$('izOptions');c.innerHTML='';opts.forEach((o,i)=>{const card=document.createElement('button');card.className='opt-card';card.textContent=o;card.dataset.idx=i;card.dataset.phase=phase;card.addEventListener('click',()=>selectOption(i));c.appendChild(card);});}
+function selectOption(idx){if(GS.processing)return;GS.selectedOption=idx;const cards=qsa('.opt-card',$('izOptions'));cards.forEach(c=>{c.classList.remove('selected','glow-hint');});if(cards[idx])cards[idx].classList.add('selected');$('lockInBtn').disabled=false;}
+
+/* ===== LOCK IN (DO) ===== */
+function lockInDo(){
+  if(GS.processing)return;GS.processing=true;if(GS.selectedOption===null){GS.processing=false;return;}
+  const lv=LEVELS[GS.currentLevel];const correct=lv.doPhase.correct;const sel=GS.selectedOption;GS.attempts++;
+  const timeSince=Date.now()-GS.phaseStartTime;const cards=qsa('.opt-card',$('izOptions'));
+  if(sel===correct){
+    cards[sel].classList.add('correct-flash');hide($('lockInBtn'));
+    const mystery=$('mysteryStep');if(mystery&&lv.doPhase.mechanic==='what-comes-next'){mystery.textContent=lv.doPhase.options[sel];mystery.classList.remove('mystery');mystery.classList.add('correct-flash');}
+    if(lv.doPhase.mechanic==='claim-builder'){$('claimFrame').innerHTML="Alec's cells were starving because <strong style='color:var(--correct)'>"+escHtml(lv.doPhase.options[sel])+"</strong>.";}
+    const aa=['correct-glucose','correct-insulin','pancreas-glow','flash-glucose','highlight-crisis-data','correct-insulin'];
+    animateArena(aa[GS.currentLevel]||'flash-glucose',null);playCorrectSound();
+    let score=100;if(GS.hintsUsed>=3)score=60;else if(GS.hintsUsed===2)score=70;else if(GS.hintsUsed===1)score=85;if(GS.levelResets>0)score=50;
+    GS.levels[GS.currentLevel].score=score;
+    if(GS.hintsUsed===0&&GS.levelResets===0)showAffirmation();
+    transitionTimeout=setTimeout(()=>{GS.processing=false;startProve();},1500);
+  } else {
+    cards[sel].classList.add('wrong-flash');GS.wrongCount++;
+    if(timeSince<2000){GS.consecutiveFastWrongs++;if(GS.consecutiveFastWrongs>=2){showAntiGuessCoaching('Slow down — look at the model before you answer.',()=>{GS.consecutiveFastWrongs=0;resetCurrentLevel();});return;}}else{GS.consecutiveFastWrongs=0;}
+    const fb=lv.doPhase.wrongFeedback[sel]||'Look at the model again carefully.';
+    showWrongFeedback(fb,sel,cards);
+  }
+}
+
+function showWrongFeedback(msg,selIdx,cards){
+  $('coachingBar').textContent=msg;show($('coachingBar'),'block');cards[selIdx].classList.add('dimmed');
+  show($('tryAgainBtn'),'block');hide($('lockInBtn'));
+  const wh=['highlight-glucose-nudge','highlight-insulin','pancreas-glow','highlight-receptors-empty','highlight-crisis-data','highlight-receptors-empty'];
+  animateArena(wh[GS.currentLevel]||'flash-glucose',null);
+  $('tryAgainBtn').onclick=()=>{
+    hide($('tryAgainBtn'));hide($('coachingBar'));GS.selectedOption=null;show($('lockInBtn'),'block');$('lockInBtn').disabled=true;GS.processing=false;GS.phaseStartTime=Date.now();
+    if(GS.wrongCount===1&&GS.hintsUsed===0)deliverHint(1);else if(GS.wrongCount===2&&GS.hintsUsed<=1)deliverHint(2);else if(GS.wrongCount>=3&&GS.hintsUsed<=2)deliverStepByStep();
+  };GS.processing=false;
+}
+
+/* ===== PROVE ===== */
+function startProve(){
+  const lv=LEVELS[GS.currentLevel];GS.phase='prove';GS.phaseStartTime=Date.now();GS.selectedOption=null;GS.wrongCount=0;GS.processing=false;
+  $('narrativePanel').style.opacity='1';
+  $('sequenceDisplay').innerHTML='';$('sequenceDisplay').style.display='none';hide($('evidenceStrip'));hide($('claimFrame'));$('hotspotPrompt').style.display='none';$('arena').style.cursor='default';
+  $('izPrompt').textContent=lv.prove.question;buildOptionCards(lv.prove.options,lv.prove.correct,'prove');
+  const btn=$('lockInBtn');show(btn,'block');btn.disabled=true;btn.textContent='Lock In';btn.onclick=()=>lockInProve();
+  hide($('coachingBar'));hide($('tryAgainBtn'));
+}
+
+function lockInProve(){
+  if(GS.processing)return;GS.processing=true;if(GS.selectedOption===null){GS.processing=false;return;}
+  const lv=LEVELS[GS.currentLevel];const correct=lv.prove.correct;const sel=GS.selectedOption;const cards=qsa('.opt-card',$('izOptions'));
+  if(sel===correct){
+    cards[sel].classList.add('correct-flash');hide($('lockInBtn'));playCorrectSound();
+    const ls=GS.levels[GS.currentLevel];ls.completed=true;ls.timeMs=Date.now()-GS.levelStartTime;ls.attempts=GS.attempts;ls.hintsUsed=GS.hintsUsed;ls.resets=GS.levelResets;
+    if(ls.score===0)ls.score=100;
+    transitionTimeout=setTimeout(()=>{GS.processing=false;onLevelComplete();},1500);
+  } else {
+    cards[sel].classList.add('wrong-flash');GS.wrongCount++;
+    const fb=lv.prove.wrongFeedback[sel]||'Look at the model and try again.';
+    $('coachingBar').textContent=fb;show($('coachingBar'),'block');cards[sel].classList.add('dimmed');
+    show($('tryAgainBtn'),'block');hide($('lockInBtn'));
+    $('tryAgainBtn').onclick=()=>{hide($('tryAgainBtn'));hide($('coachingBar'));GS.selectedOption=null;show($('lockInBtn'),'block');$('lockInBtn').disabled=true;GS.processing=false;GS.phaseStartTime=Date.now();};
+    GS.processing=false;
+  }
+}
+
+/* ===== HOTSPOT ===== */
+function startHotspot(lv){$('izPrompt').textContent=lv.doPhase.prompt;$('izOptions').innerHTML='';hide($('lockInBtn'));$('hotspotPrompt').textContent=lv.doPhase.prompt;$('hotspotPrompt').style.display='block';GS.hotspotWrongs=0;
+  const arena=$('arena');arena.style.cursor='crosshair';
+  arena._hotspotHandler=function(e){if(GS.processing)return;const rect=arena.getBoundingClientRect();const xPct=((e.clientX-rect.left)/rect.width)*100;const yPct=((e.clientY-rect.top)/rect.height)*100;handleHotspotClick(xPct,yPct,lv);};
+  arena.addEventListener('click',arena._hotspotHandler);
+}
+function handleHotspotClick(x,y,lv){
+  const isPancreas=(x<18&&y<38&&y>4);
+  if(isPancreas){
+    GS.processing=true;GS.attempts++;$('hotspotPrompt').style.display='none';$('arena').style.cursor='default';$('arena').removeEventListener('click',$('arena')._hotspotHandler);
+    animateArena('pancreas-glow',null);playCorrectSound();
+    let sc=100;if(GS.hintsUsed>=3)sc=60;else if(GS.hintsUsed===2)sc=70;else if(GS.hintsUsed===1)sc=85;if(GS.levelResets>0)sc=50;
+    GS.levels[GS.currentLevel].score=sc;if(GS.hintsUsed===0&&GS.levelResets===0)showAffirmation();
+    transitionTimeout=setTimeout(()=>{GS.processing=false;startProve();},1500);
+  } else {
+    GS.processing=true;GS.hotspotWrongs++;GS.wrongCount++;GS.attempts++;
+    // Wrong ring via SVG
+    const svg=$('arena').querySelector('svg');if(svg){
+      const vb=svg.viewBox.baseVal;const rect=svg.getBoundingClientRect();
+      const sx=(x/100)*vb.width;const sy=(y/100)*vb.height;
+      const circ=document.createElementNS('http://www.w3.org/2000/svg','circle');circ.setAttribute('cx',sx);circ.setAttribute('cy',sy);circ.setAttribute('r','15');circ.setAttribute('fill','none');circ.setAttribute('stroke','#EF4444');circ.setAttribute('stroke-width','3');circ.setAttribute('opacity','0.8');svg.appendChild(circ);
+      setTimeout(()=>circ.remove(),1500);
+    }
+    const wf=lv.doPhase.wrongFeedback;let fb=wf.generic||'Look for the organ that MAKES insulin.';
+    if(x>15&&x<95&&y>34&&y<56)fb=wf.blood||fb;else if(y>65)fb=wf.cells||fb;
+    $('coachingBar').textContent=fb;show($('coachingBar'),'block');setTimeout(()=>{hide($('coachingBar'));GS.processing=false;},3500);
+    if(GS.hotspotWrongs>=3){animateArena('pancreas-glow',null);if(GS.hintsUsed<1){GS.hintsUsed=1;deliverHint(2);}}
+  }
+}
+
+/* ===== WHAT-COMES-NEXT ===== */
+function startWhatComesNext(lv){
+  const sd=$('sequenceDisplay');sd.innerHTML='';show(sd,'flex');
+  if(lv.doPhase.sequence)lv.doPhase.sequence.forEach(s=>{const st=document.createElement('div');st.className='seq-step';st.textContent=s;sd.appendChild(st);});
+  const m=document.createElement('div');m.className='seq-step mystery';m.textContent='?';m.id='mysteryStep';sd.appendChild(m);
+  buildOptionCards(lv.doPhase.options,lv.doPhase.correct,'do');show($('lockInBtn'),'block');$('lockInBtn').disabled=true;$('lockInBtn').onclick=()=>lockInDo();
+}
+
+/* ===== CLAIM BUILDER ===== */
+function startClaimBuilder(lv){
+  show($('evidenceStrip'),'block');$('evidenceStrip').innerHTML=lv.doPhase.evidenceHTML||'';
+  show($('claimFrame'),'block');$('claimFrame').textContent=lv.doPhase.claimFrame||'';
+  buildOptionCards(lv.doPhase.options,lv.doPhase.correct,'do');show($('lockInBtn'),'block');$('lockInBtn').disabled=true;$('lockInBtn').onclick=()=>lockInDo();
+}
+
+/* ===== HINT SYSTEM ===== */
+function deliverHint(level){GS.hintsUsed=Math.max(GS.hintsUsed,level);const lv=LEVELS[GS.currentLevel];
+  $('hintModalBtn').onclick=defaultHintClose;$('hintModalBtn').textContent='Got It';
+  if(level===1){$('hintModalTitle').textContent='Hint';$('hintModalText').textContent=lv.hints.hint1.text;$('hintModal').style.background='var(--hint1)';show($('hintOverlay'),'flex');}
+  else if(level===2){$('hintModalTitle').textContent='Another Hint';$('hintModalText').textContent=lv.hints.hint2.text;$('hintModal').style.background='var(--hint2)';show($('hintOverlay'),'flex');
+    if(typeof lv.hints.hint2.dimOption==='number'&&lv.hints.hint2.dimOption>=0){const cards=qsa('.opt-card',$('izOptions'));if(cards[lv.hints.hint2.dimOption])cards[lv.hints.hint2.dimOption].classList.add('dimmed');}
+  }
+}
+function deliverStepByStep(){const lv=LEVELS[GS.currentLevel];GS.hintsUsed=3;const steps=lv.hints.stepByStep;let si=0;
+  function showSt(){if(si>=steps.length){hide($('hintOverlay'));$('hintModalBtn').onclick=defaultHintClose;return;}$('hintModalTitle').textContent='Step '+(si+1)+' of '+steps.length;$('hintModalText').textContent=steps[si].text;$('hintModal').style.background='var(--hint2)';$('hintModalBtn').textContent=(si<steps.length-1)?'Next':'Got It';show($('hintOverlay'),'flex');si++;}
+  $('hintModalBtn').onclick=()=>{showSt();};showSt();
+}
+function defaultHintClose(){hide($('hintOverlay'));}
+$('hintModalBtn').onclick=defaultHintClose;
+$('hintBtn').addEventListener('click',()=>{if(GS.phase==='do'||GS.phase==='prove'){const n=GS.hintsUsed+1;if(n<=2)deliverHint(n);else deliverStepByStep();}});
+
+/* ===== ANTI-GUESS ===== */
+function showAntiGuessCoaching(msg,cb){GS.processing=true;closeAllOverlays();$('coachingMsg').textContent=msg;show($('coachingOverlay'),'flex');let s=5;$('coachingTimer').textContent=s;
+coachingInterval=setInterval(()=>{s--;$('coachingTimer').textContent=s;if(s<=0){clearInterval(coachingInterval);hide($('coachingOverlay'));GS.processing=false;if(cb)cb();}},1000);}
+
+/* ===== LEVEL COMPLETE ===== */
+function onLevelComplete(){const idx=GS.currentLevel;const done=GS.levels.filter(l=>l.completed).length;
+  if(done%2===0&&done>0)showCelebration(getAffirmation(),2000,()=>checkMilestones(idx));else checkMilestones(idx);}
+function checkMilestones(idx){
+  const rd=GS.levels.filter((l,i)=>LEVELS[i].required&&l.completed).length;const ar=LEVELS.filter(l=>l.required).length;const td=GS.levels.filter(l=>l.completed).length;
+  if(rd>=ar&&!GS.requiredCompleteShown){GS.requiredCompleteShown=true;showChoiceScreen("You did it!","You finished the required levels. Try the BONUS levels for extra credit?",()=>{hide($('choiceOverlay'));startLevel(idx+1);},()=>{hide($('choiceOverlay'));showReceipt();});return;}
+  if(td>=LEVELS.length&&!GS.bonusCompleteShown){GS.bonusCompleteShown=true;showCelebration("BONUS COMPLETE!",3000,()=>showReceipt());fireConfetti(15);return;}
+  startLevel(idx+1);
+}
+function showCelebration(msg,dur,cb){closeAllOverlays();$('celebTitle').textContent=msg;$('celebSub').textContent=getAffirmation();show($('celebOverlay'),'flex');fireConfetti(12);celebTimeout=setTimeout(()=>{hide($('celebOverlay'));if(cb)cb();},dur);}
+function showChoiceScreen(title,sub,onKeep,onScore){closeAllOverlays();$('choiceTitle').textContent=title;$('choiceSub').textContent=sub;show($('choiceOverlay'),'flex');fireConfetti(15);$('choiceKeepGoing').onclick=onKeep;$('choiceSeeScore').onclick=onScore;}
+
+function advanceAfterFail(){showCoachingBrief("Let's move on — you'll see this idea again.",()=>{const ls=GS.levels[GS.currentLevel];ls.completed=true;ls.score=50;ls.timeMs=Date.now()-GS.levelStartTime;ls.attempts=GS.attempts;ls.hintsUsed=GS.hintsUsed;ls.resets=GS.levelResets;onLevelComplete();});}
+
+/* ===== RESET ===== */
+function resetCurrentLevel(){GS.levelResets++;clearAllTimers();closeAllOverlays();$('arena').style.cursor='default';if($('arena')._hotspotHandler)$('arena').removeEventListener('click',$('arena')._hotspotHandler);GS.wrongCount=0;GS.selectedOption=null;GS.processing=false;GS.consecutiveFastWrongs=0;
+  if(GS.levelResets>=3){const ls=GS.levels[GS.currentLevel];ls.score=50;ls.completed=true;ls.timeMs=Date.now()-GS.levelStartTime;ls.attempts=GS.attempts;ls.hintsUsed=GS.hintsUsed;ls.resets=GS.levelResets;advanceAfterFail();return;}
+  startLevel(GS.currentLevel);
+}
+$('resetLevelBtn').addEventListener('click',()=>{if(GS.levels[GS.currentLevel]&&GS.levels[GS.currentLevel].completed)return;resetCurrentLevel();});
+
+/* ===== RECEIPT ===== */
+function showReceipt(){
+  if(GS.receiptRendered)return;GS.receiptRendered=true;clearAllTimers();closeAllOverlays();hide($('gameContainer'));$('resetLevelBtn').disabled=true;GS.totalTimeMs=Date.now()-GS.startTime;
+  const rq=GS.levels.filter((_,i)=>LEVELS[i].required&&GS.levels[i].completed);const ra=rq.length>0?rq.reduce((s,l)=>s+l.score,0)/rq.length:0;
+  const bd=GS.levels.filter((_,i)=>!LEVELS[i].required&&GS.levels[i].completed).length;const ov=Math.min(100,Math.round(ra+bd*5));
+  const cc=ov>=85?'score-green':ov>=70?'score-yellow':'score-red';const lb=ov>=85?'Strong Mastery':ov>=70?'Approaching Mastery':'Needs More Practice';
+  const ts=Math.floor(GS.totalTimeMs/1000);const mn=Math.floor(ts/60);const sc=ts%60;
+  const ad=GS.levels.every(l=>l.completed);const rd=GS.levels.filter((_,i)=>LEVELS[i].required).every(l=>l.completed);
+  let rows='';GS.levels.forEach((l,i)=>{const lv=LEVELS[i];const t=l.timeMs?Math.floor(l.timeMs/1000):0;const tm=Math.floor(t/60)+':'+String(t%60).padStart(2,'0');const bc=lv.required?'':'bonus-row';const st=lv.required?'':'&#11088; ';const s=l.completed?l.score+'%':'—';const sC=l.score>=85?'color:var(--correct)':l.score>=70?'color:var(--accent1)':'color:var(--wrong)';rows+=`<tr class="${bc}"><td>${lv.num}</td><td>${st}${escHtml(lv.name)}${lv.required?'':' (Bonus)'}</td><td style="${l.completed?sC:''}">${s}</td><td>${l.completed?l.attempts:'—'}</td><td>${l.completed?tm:'—'}</td></tr>`;});
+  const status=ad?'All Complete (Bonus!)':rd?'Required Complete':'In Progress';
+  $('receiptScreen').innerHTML=`<div class="receipt-inner"><h1>Mr. Jawad's Simulations</h1><div class="rsub">Ozempic, Insulin, Diabetes — Monday Score Report</div><div class="receipt-name-row"><input type="text" id="receiptName" value="${escHtml(GS.studentName)}" placeholder="Your Name"><button id="lockNameBtn">Lock</button></div><div class="big-score ${cc}"><div class="pct">${ov}%</div><div class="label">${lb}</div></div><table class="receipt-table"><thead><tr><th>#</th><th>Level</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead><tbody>${rows}</tbody></table><div class="receipt-footer">Total Time: ${mn}:${String(sc).padStart(2,'0')} &nbsp;|&nbsp; Status: ${status}</div><div class="upload-note">Take a screenshot and upload to Google Classroom</div><div class="receipt-btns"><button id="printBtn">Print</button><button id="startOverBtn">Start Over</button></div></div>`;
+  show($('receiptScreen'),'block');
+  $('lockNameBtn').addEventListener('click',()=>{$('receiptName').disabled=true;$('lockNameBtn').disabled=true;$('lockNameBtn').textContent='Locked';});
+  $('printBtn').addEventListener('click',()=>{try{window.print();}catch(e){}});
+  $('startOverBtn').addEventListener('click',()=>{$('confirmMsg').textContent='Start over? All progress will be lost.';show($('confirmDialog'),'flex');});
+}
+$('confirmYes').addEventListener('click',()=>{hide($('confirmDialog'));hide($('receiptScreen'));GS.receiptRendered=false;initGameState();show($('welcomeScreen'),'flex');});
+$('confirmNo').addEventListener('click',()=>hide($('confirmDialog')));
+
+/* ===== VOCAB ===== */
+$('vocabBtn').addEventListener('click',()=>{$('vocabPopup').classList.toggle('open');});
+$('vocabClose').addEventListener('click',()=>{$('vocabPopup').classList.remove('open');});
+
+/* ===== READ ALOUD ===== */
+$('readAloudBtn').addEventListener('click',()=>{GS.readAloud=!GS.readAloud;$('readAloudBtn').textContent='Read Aloud: '+(GS.readAloud?'ON':'OFF');$('readAloudBtn').className=GS.readAloud?'':'off';if(!GS.readAloud){try{if(window.speechSynthesis)window.speechSynthesis.cancel();}catch(e){}}});
+
+/* ===== START ===== */
+$('studentNameInput').addEventListener('input',()=>{$('startBtn').disabled=!$('studentNameInput').value.trim();});
+$('startBtn').addEventListener('click',()=>{GS.studentName=escHtml($('studentNameInput').value.trim());const tn=$('teacherNameInput').value.trim();GS.teacherName=tn?escHtml(tn):'Your teacher';hide($('welcomeScreen'));show($('gameContainer'),'flex');initGameState();GS.startTime=Date.now();initParticles();startLevel(0);});
+
+/* ===== VISIBILITY ===== */
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}try{if(window.speechSynthesis)window.speechSynthesis.pause();}catch(e){}}});
+</script>
+</body>
+</html>

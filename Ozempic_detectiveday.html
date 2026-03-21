@@ -1,0 +1,2162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Ozempic, Insulin, Diabetes</title>
+<style>
+:root {
+  --bg1:#1A1A2E;--bg2:#16213E;--accent1:#00D4FF;--accent2:#FFD93D;--accent3:#FF4757;
+  --text:#E8E8F0;--textDim:#8899AA;--correct:#2ECC71;--wrong:#FF4757;
+  --panel:#0F3460;--panelLight:#1A4A7A;--cork:#3E2723;--corkLight:#5D4037;
+  --card:#1E2A45;--cardBorder:#2A3A5A;--overlay:rgba(10,10,30,0.88);
+  --yellow:#FFD93D;--green:#2ECC71;--blue:#00D4FF;--red:#FF4757;
+  --fontMain:'Segoe UI',Tahoma,Geneva,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:var(--fontMain);background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);user-select:none;-webkit-user-select:none;}
+button{font-family:var(--fontMain);cursor:pointer;border:none;outline:none;-webkit-tap-highlight-color:transparent;}
+.hidden{display:none!important;}
+
+/* GAME CONTAINER — full height flex column */
+#gameContainer{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;}
+
+/* TOP BAR */
+#topBar{background:rgba(15,52,96,0.95);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--accent1);position:relative;z-index:10;flex-shrink:0;min-height:48px;}
+#levelBadge{background:var(--accent1);color:var(--bg1);padding:4px 12px;border-radius:20px;font-weight:700;font-size:13px;white-space:nowrap;}
+#levelName{font-size:14px;font-weight:600;color:var(--text);margin-left:8px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#scoreDisp{font-size:14px;font-weight:700;color:var(--accent2);margin-right:10px;white-space:nowrap;}
+#progressWrap{width:100px;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;flex-shrink:0;}
+#progressFill{height:100%;background:linear-gradient(90deg,var(--accent1),var(--accent2));width:0%;transition:width 0.5s ease;border-radius:4px;}
+
+/* MAIN CONTENT — takes remaining space, split horiz */
+#mainContent{display:flex;flex:1;min-height:0;overflow:hidden;}
+#evidenceBoard{width:280px;min-width:200px;max-width:320px;background:linear-gradient(180deg,#2C1810,#3E2723);padding:10px;overflow-y:auto;border-right:2px solid rgba(0,212,255,0.3);position:relative;flex-shrink:0;}
+#evidenceBoard::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 19px,rgba(255,255,255,0.015) 19px,rgba(255,255,255,0.015) 20px),repeating-linear-gradient(0deg,transparent,transparent 19px,rgba(255,255,255,0.015) 19px,rgba(255,255,255,0.015) 20px);pointer-events:none;}
+.board-title{font-size:12px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;text-align:center;}
+.ev-counter{font-size:11px;color:var(--textDim);text-align:center;margin-bottom:8px;}
+.ev-card{background:var(--card);border:2px solid var(--cardBorder);border-radius:8px;padding:8px 10px;margin-bottom:6px;position:relative;opacity:0.25;transition:all 0.5s ease;transform:translateX(-20px);}
+.ev-card.pinned{opacity:1;transform:translateX(0);}
+.ev-card.current{border-color:var(--accent1);box-shadow:0 0 12px rgba(0,212,255,0.3);}
+.ev-card .pin{position:absolute;top:-5px;right:10px;font-size:14px;opacity:0;transition:opacity 0.3s;}
+.ev-card.pinned .pin{opacity:1;}
+.ev-card-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.ev-card-desc{font-size:10px;color:var(--textDim);line-height:1.3;}
+.ev-card[data-type="blood"]{border-left:3px solid #3B82F6;}
+.ev-card[data-type="cell"]{border-left:3px solid #2ECC71;}
+.ev-card[data-type="receptor"]{border-left:3px solid #FF4757;}
+.ev-card[data-type="pathway"]{border-left:3px solid #F59E0B;}
+.ev-card[data-type="medical"]{border-left:3px solid #8B5CF6;}
+
+/* CONCLUSION METER */
+#conclusionMeter{margin-top:8px;background:rgba(0,0,0,0.3);border-radius:6px;padding:6px 8px;text-align:center;}
+#conclusionMeter .meter-label{font-size:10px;color:var(--textDim);margin-bottom:3px;letter-spacing:1px;}
+#conclusionMeter .meter-bar{height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
+#conclusionMeter .meter-fill{height:100%;background:linear-gradient(90deg,var(--accent1),var(--accent2));width:0%;transition:width 0.6s ease;border-radius:3px;}
+#conclusionMeter .meter-status{font-size:10px;color:var(--accent2);margin-top:3px;font-weight:600;}
+
+/* ARENA COLUMN */
+#arenaWrap{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
+#focusPrompt{background:rgba(0,212,255,0.1);border-bottom:1px solid rgba(0,212,255,0.15);padding:6px 12px;font-size:13px;color:var(--accent1);font-weight:600;text-align:center;flex-shrink:0;min-height:0;line-height:1.3;transition:opacity 0.5s;overflow-wrap:break-word;word-wrap:break-word;}
+#focusPrompt:empty{display:none;}
+#arena{flex:1;position:relative;overflow:hidden;background:linear-gradient(180deg,#0A1628,#0F1F3A);min-height:0;border:1px solid rgba(0,212,255,0.06);}
+#arena::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,212,255,0.03) 39px,rgba(0,212,255,0.03) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,212,255,0.03) 39px,rgba(0,212,255,0.03) 40px);pointer-events:none;z-index:1;}
+#arena svg{width:100%;height:100%;display:block;position:relative;z-index:2;}
+
+/* INTERACTION ZONE — scrollable, never clips */
+#interZone{background:rgba(12,24,48,0.97);border-top:2px solid var(--accent1);padding:12px 16px 14px;min-height:120px;max-height:40vh;overflow-y:auto;overflow-wrap:break-word;word-wrap:break-word;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;flex-shrink:0;gap:4px;}
+#interZone .phase-label{font-size:11px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;flex-shrink:0;}
+#interZone .prompt-text{font-size:15px;color:var(--text);text-align:center;margin-bottom:8px;line-height:1.45;max-width:640px;overflow-wrap:break-word;word-wrap:break-word;flex-shrink:0;}
+.options-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:720px;width:100%;flex-shrink:0;}
+.opt-card{background:var(--card);border:2px solid var(--cardBorder);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--text);cursor:pointer;transition:all 0.15s;min-width:130px;max-width:300px;flex:1;text-align:center;min-height:48px;display:flex;align-items:center;justify-content:center;line-height:1.3;overflow-wrap:break-word;word-wrap:break-word;}
+.opt-card:hover,.opt-card:active{border-color:var(--accent1);background:rgba(0,212,255,0.08);}
+.opt-card.selected{border-color:var(--accent1);background:rgba(0,212,255,0.15);box-shadow:0 0 10px rgba(0,212,255,0.25);}
+.opt-card.correct{border-color:var(--correct)!important;background:rgba(46,204,113,0.18)!important;box-shadow:0 0 14px rgba(46,204,113,0.35)!important;}
+.opt-card.wrong{border-color:var(--wrong)!important;background:rgba(255,71,87,0.18)!important;}
+.opt-card.dimmed{opacity:0.3;pointer-events:none;text-decoration:line-through;}
+.opt-card.disabled{pointer-events:none;opacity:0.5;}
+.opt-card.hint-glow{box-shadow:0 0 18px rgba(0,212,255,0.5);border-color:var(--accent1);}
+
+#lockInBtn{background:linear-gradient(135deg,var(--accent1),#0099CC);color:var(--bg1);font-size:16px;font-weight:700;padding:10px 28px;border-radius:10px;margin-top:6px;min-height:48px;transition:all 0.15s;opacity:0.35;pointer-events:none;flex-shrink:0;}
+#lockInBtn.active{opacity:1;pointer-events:auto;box-shadow:0 4px 16px rgba(0,212,255,0.35);}
+#lockInBtn.active:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(0,212,255,0.45);}
+
+/* TRY AGAIN */
+#tryAgainBtn{background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;font-size:16px;font-weight:700;padding:10px 28px;border-radius:10px;margin-top:6px;min-height:48px;box-shadow:0 4px 16px rgba(59,130,246,0.35);flex-shrink:0;}
+#tryAgainBtn:hover{transform:translateY(-1px);}
+
+/* COACHING */
+.coaching-bar{background:rgba(255,249,196,0.95);color:#333;padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.4;margin-top:4px;max-width:580px;text-align:center;border-left:4px solid var(--accent2);flex-shrink:0;overflow-wrap:break-word;word-wrap:break-word;width:100%;}
+.coaching-bar.hint1{background:rgba(255,249,196,0.95);border-left-color:#FFD93D;}
+.coaching-bar.hint2{background:rgba(255,224,178,0.95);border-left-color:#FF9800;}
+.coaching-bar.gate{background:rgba(200,220,255,0.95);border-left-color:var(--accent1);}
+
+/* BOTTOM BAR */
+#bottomBar{background:rgba(15,52,96,0.95);padding:6px 14px;display:flex;align-items:center;justify-content:space-between;border-top:2px solid rgba(0,212,255,0.3);min-height:44px;position:relative;z-index:10;flex-shrink:0;gap:6px;}
+.bar-btn{background:var(--panel);color:var(--text);padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--cardBorder);min-height:34px;transition:all 0.15s;white-space:nowrap;}
+.bar-btn:hover{background:var(--panelLight);border-color:var(--accent1);}
+.bar-btn:disabled{opacity:0.3;pointer-events:none;}
+#levelCounter{font-size:12px;color:var(--textDim);font-weight:600;white-space:nowrap;}
+
+/* WELCOME SCREEN */
+#welcomeScreen{position:fixed;inset:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+.welcome-title{font-size:26px;font-weight:800;color:var(--accent1);margin-bottom:6px;text-align:center;}
+.welcome-sub{font-size:15px;color:var(--accent2);margin-bottom:4px;text-align:center;}
+.welcome-hook{font-size:14px;color:var(--textDim);margin:14px 0 22px;text-align:center;max-width:480px;line-height:1.5;font-style:italic;}
+.welcome-input{background:rgba(255,255,255,0.07);border:2px solid var(--cardBorder);border-radius:8px;padding:11px 14px;font-size:16px;color:var(--text);width:270px;margin-bottom:8px;text-align:center;font-family:var(--fontMain);}
+.welcome-input:focus{border-color:var(--accent1);outline:none;box-shadow:0 0 8px rgba(0,212,255,0.2);}
+.welcome-input::placeholder{color:var(--textDim);}
+.welcome-label{font-size:12px;color:var(--textDim);margin-bottom:3px;}
+#startBtn{background:linear-gradient(135deg,var(--accent1),#0099CC);color:var(--bg1);font-size:17px;font-weight:700;padding:13px 36px;border-radius:12px;margin-top:18px;min-height:50px;transition:all 0.15s;}
+#startBtn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,212,255,0.4);}
+
+/* REFRESHER */
+#refresherOverlay{position:fixed;inset:0;background:var(--overlay);z-index:900;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+.refresher-title{font-size:18px;color:var(--accent1);font-weight:700;margin-bottom:14px;text-align:center;}
+.refresher-prompt{font-size:15px;color:var(--text);margin-bottom:12px;text-align:center;max-width:480px;line-height:1.4;}
+.refresher-options{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.refresher-card{background:var(--card);border:2px solid var(--cardBorder);border-radius:10px;padding:12px 22px;font-size:16px;font-weight:700;color:var(--text);cursor:pointer;min-width:130px;text-align:center;min-height:50px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.refresher-card:hover{border-color:var(--accent1);}
+.refresher-card.r-correct{border-color:var(--correct)!important;background:rgba(46,204,113,0.18)!important;}
+.refresher-card.r-wrong{border-color:var(--wrong)!important;background:rgba(255,71,87,0.18)!important;}
+.refresher-feedback{font-size:13px;color:var(--accent2);margin-top:10px;text-align:center;min-height:18px;max-width:480px;line-height:1.3;}
+
+/* VOCAB POPUP */
+#vocabPopup{position:fixed;top:0;right:-360px;width:320px;height:100%;background:rgba(12,24,48,0.98);border-left:2px solid var(--accent1);z-index:800;padding:14px;overflow-y:auto;transition:right 0.3s ease;}
+#vocabPopup.open{right:0;}
+#vocabPopup .close-btn{position:absolute;top:8px;right:12px;font-size:22px;color:var(--text);background:none;cursor:pointer;}
+.vocab-title{font-size:15px;color:var(--accent1);font-weight:700;margin-bottom:12px;}
+.vocab-item{background:var(--card);border-radius:8px;padding:10px;margin-bottom:6px;border-left:3px solid var(--accent1);}
+.vocab-term{font-size:13px;font-weight:700;color:var(--accent2);}
+.vocab-def{font-size:12px;color:var(--textDim);margin-top:3px;}
+
+/* HINT OVERLAY (Step-by-Step) */
+#hintOverlay{position:fixed;inset:0;background:var(--overlay);z-index:700;display:flex;align-items:center;justify-content:center;padding:20px;}
+.hint-panel{background:var(--panel);border:2px solid var(--accent1);border-radius:12px;padding:20px;max-width:480px;width:100%;text-align:center;}
+.hint-panel-title{font-size:13px;color:var(--accent2);font-weight:700;margin-bottom:8px;}
+.hint-panel-text{font-size:15px;color:var(--text);line-height:1.5;margin-bottom:12px;}
+.hint-panel-btn{background:var(--accent1);color:var(--bg1);padding:10px 24px;border-radius:8px;font-size:15px;font-weight:700;min-height:44px;}
+
+/* CELEBRATION */
+#celebOverlay{position:fixed;inset:0;background:var(--overlay);z-index:750;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+.celeb-msg{font-size:22px;font-weight:800;color:var(--accent2);text-align:center;margin-bottom:6px;text-shadow:0 2px 12px rgba(255,217,61,0.4);}
+.celeb-sub{font-size:15px;color:var(--text);text-align:center;margin-bottom:14px;max-width:400px;line-height:1.4;}
+.celeb-affirmation{font-size:20px;color:#fff;text-align:center;margin-bottom:14px;text-shadow:0 2px 8px rgba(0,0,0,0.5);opacity:0;animation:fadeAffirm 2s ease forwards;}
+@keyframes fadeAffirm{0%{opacity:0;transform:translateY(8px);}20%{opacity:1;transform:translateY(0);}80%{opacity:1;}100%{opacity:0;}}
+.celeb-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.celeb-btn{padding:11px 24px;border-radius:10px;font-size:15px;font-weight:700;min-height:48px;}
+.celeb-btn.primary{background:linear-gradient(135deg,var(--accent1),#0099CC);color:var(--bg1);}
+.celeb-btn.secondary{background:var(--panel);color:var(--text);border:2px solid var(--cardBorder);}
+
+/* RECEIPT */
+#receiptScreen{position:fixed;inset:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:900;overflow-y:auto;padding:20px;display:flex;flex-direction:column;align-items:center;}
+.receipt-header{font-size:20px;font-weight:800;color:var(--accent1);text-align:center;margin-bottom:4px;}
+.receipt-sub{font-size:13px;color:var(--textDim);text-align:center;margin-bottom:14px;}
+.receipt-name-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;justify-content:center;}
+#receiptNameInput{background:rgba(255,255,255,0.07);border:2px solid var(--cardBorder);border-radius:8px;padding:9px 12px;font-size:15px;color:var(--text);width:240px;font-family:var(--fontMain);}
+#receiptNameInput:focus{border-color:var(--accent1);outline:none;}
+#lockNameBtn{background:var(--accent1);color:var(--bg1);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;}
+.receipt-grade{font-size:48px;font-weight:800;text-align:center;margin:6px 0 2px;}
+.receipt-grade.green{color:var(--correct);}
+.receipt-grade.yellow{color:var(--accent2);}
+.receipt-grade.red{color:var(--wrong);}
+.receipt-label{font-size:15px;font-weight:700;text-align:center;margin-bottom:14px;}
+.receipt-table{width:100%;max-width:580px;border-collapse:collapse;margin-bottom:14px;}
+.receipt-table th{background:var(--panel);color:var(--accent1);padding:7px 8px;font-size:11px;text-align:left;border-bottom:2px solid var(--accent1);}
+.receipt-table td{padding:7px 8px;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.receipt-table tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+.receipt-table .bonus-row td{color:var(--accent2);}
+.receipt-table .score-cell.green{color:var(--correct);}
+.receipt-table .score-cell.yellow{color:var(--accent2);}
+.receipt-table .score-cell.red{color:var(--wrong);}
+.receipt-status{font-size:13px;text-align:center;margin-bottom:14px;font-weight:600;}
+.receipt-upload{font-size:13px;color:var(--textDim);text-align:center;margin-bottom:10px;}
+.receipt-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;}
+.receipt-btn{padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;min-height:44px;}
+.receipt-btn.print{background:var(--accent1);color:var(--bg1);}
+.receipt-btn.restart{background:var(--panel);color:var(--text);border:2px solid var(--cardBorder);}
+
+/* PARTICLES */
+#particleLayer{position:fixed;inset:0;pointer-events:none;z-index:760;}
+.particle{position:absolute;width:8px;height:8px;border-radius:50%;display:none;animation:particleFly 1.5s ease-out forwards;}
+@keyframes particleFly{0%{opacity:1;transform:translate(0,0) scale(1);}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0.3);}}
+
+/* HOTSPOT */
+.hotspot-area{position:absolute;cursor:pointer;border-radius:8px;transition:all 0.2s;}
+.hotspot-area:hover{background:rgba(0,212,255,0.1);}
+.hotspot-area.hs-correct{background:rgba(46,204,113,0.25);border:3px solid var(--correct);animation:hsPulse 0.6s ease;}
+.hotspot-area.hs-wrong{background:rgba(255,71,87,0.2);border:2px solid var(--wrong);}
+.hotspot-area.hs-hint{border:3px solid var(--accent1);animation:hsPulse 1s ease infinite;}
+@keyframes hsPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,255,0.5);}50%{box-shadow:0 0 0 10px rgba(0,212,255,0);}}
+
+/* ANIMATIONS */
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes greenBurst{0%{box-shadow:0 0 0 0 rgba(46,204,113,0.5);}100%{box-shadow:0 0 0 20px rgba(46,204,113,0);}}
+@keyframes scoreFloat{0%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-30px);}}
+.pulsing{animation:pulse 1.2s ease infinite;}
+.slide-up{animation:slideUp 0.4s ease;}
+
+/* CONFIRM DIALOG */
+#confirmDialog{position:fixed;inset:0;background:var(--overlay);z-index:950;display:flex;align-items:center;justify-content:center;padding:20px;}
+.confirm-box{background:var(--panel);border:2px solid var(--accent1);border-radius:12px;padding:22px;max-width:380px;text-align:center;}
+.confirm-text{font-size:15px;color:var(--text);margin-bottom:14px;line-height:1.4;}
+.confirm-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.confirm-btn{padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;min-height:44px;}
+
+/* PRINT */
+@media print{
+  #topBar,#bottomBar,#interZone,.bar-btn,#lockInBtn,#tryAgainBtn,.coaching-bar,#particleLayer{display:none!important;}
+  #receiptScreen{position:static!important;padding:20px!important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+
+/* RESPONSIVE */
+@media(max-width:820px){
+  #mainContent{flex-direction:column;}
+  #evidenceBoard{width:100%;max-width:none;max-height:130px;min-width:auto;border-right:none;border-bottom:2px solid rgba(0,212,255,0.3);flex-direction:row;flex-wrap:wrap;}
+  #evidenceBoard .ev-card{margin-bottom:4px;padding:6px 8px;}
+  #arena{min-height:160px;}
+  .opt-card{min-width:110px;font-size:13px;padding:8px 10px;}
+  #interZone{max-height:45vh;padding:10px 12px;}
+}
+@media(max-width:480px){
+  #levelName{font-size:12px;}
+  #scoreDisp{font-size:12px;}
+  .opt-card{min-width:90px;font-size:12px;padding:8px;}
+  #interZone .prompt-text{font-size:14px;}
+}
+</style>
+</head>
+<body>
+
+<!-- WELCOME -->
+<div id="welcomeScreen">
+  <div class="welcome-title">Mr. Jawad's Simulations</div>
+  <div class="welcome-sub">Ozempic, Insulin, Diabetes — Tuesday Investigation</div>
+  <div class="welcome-hook">"His blood sugar was five times normal. His cells had zero energy. How is someone drowning in fuel and starving at the same time?"</div>
+  <label class="welcome-label">Student Name</label>
+  <input class="welcome-input" id="studentNameInput" placeholder="Enter your name" maxlength="40" autocomplete="off">
+  <label class="welcome-label" style="margin-top:6px;">Teacher Name (optional)</label>
+  <input class="welcome-input" id="teacherNameInput" placeholder="Mr. Jawad" maxlength="40" autocomplete="off">
+  <button id="startBtn" onclick="startSim()">Start Investigation</button>
+</div>
+
+<!-- REFRESHER -->
+<div id="refresherOverlay" class="hidden"></div>
+
+<!-- MAIN UI — wrapped in flex column container -->
+<div id="gameContainer" class="hidden">
+<div id="topBar">
+  <div style="display:flex;align-items:center;flex:1;overflow:hidden;">
+    <span id="levelBadge">Evidence #1</span>
+    <span id="levelName">The Crime Scene</span>
+  </div>
+  <span id="scoreDisp">Score: 0</span>
+  <div id="progressWrap"><div id="progressFill"></div></div>
+</div>
+
+<div id="mainContent">
+  <div id="evidenceBoard">
+    <div class="board-title">Evidence Board</div>
+    <div class="ev-counter" id="evCounter">Evidence 0 of 5 collected</div>
+    <div id="evCards"></div>
+    <div id="conclusionMeter">
+      <div class="meter-label">CONCLUSION</div>
+      <div class="meter-bar"><div class="meter-fill" id="conclusionFill"></div></div>
+      <div class="meter-status" id="conclusionStatus">Investigating...</div>
+    </div>
+  </div>
+  <div id="arenaWrap">
+    <div id="focusPrompt"></div>
+    <div id="arena"></div>
+  </div>
+</div>
+
+<div id="interZone"></div>
+
+<div id="bottomBar">
+  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+    <button class="bar-btn" onclick="toggleVocab()">&#128214; Vocab</button>
+    <button class="bar-btn" id="hintBtn" onclick="useHint()" disabled>&#128161; Hint</button>
+    <button class="bar-btn" id="resetLevelBtn" onclick="resetCurrentLevel()" disabled>Reset Level</button>
+  </div>
+  <span id="levelCounter">Evidence 1 of 6</span>
+  <button class="bar-btn" id="settingsBtn" onclick="toggleReadAloud()">&#9881;</button>
+</div>
+</div><!-- end gameContainer -->
+
+<!-- VOCAB POPUP -->
+<div id="vocabPopup">
+  <button class="close-btn" onclick="toggleVocab()">&times;</button>
+  <div class="vocab-title">Key Vocabulary</div>
+  <div class="vocab-item"><div class="vocab-term">GLUCOSE</div><div class="vocab-def">Sugar cells use for energy</div></div>
+  <div class="vocab-item"><div class="vocab-term">INSULIN</div><div class="vocab-def">Hormone that unlocks cells</div></div>
+  <div class="vocab-item"><div class="vocab-term">RECEPTOR</div><div class="vocab-def">Cell part that receives signals</div></div>
+  <div class="vocab-item"><div class="vocab-term">HORMONE</div><div class="vocab-def">Chemical messenger carried in blood</div></div>
+</div>
+
+<!-- OVERLAYS -->
+<div id="hintOverlay" class="hidden"></div>
+<div id="celebOverlay" class="hidden"></div>
+<div id="receiptScreen" class="hidden"></div>
+<div id="confirmDialog" class="hidden"></div>
+<div id="particleLayer"></div>
+
+<script>
+// ============ GLOBALS ============
+let audioCtx=null;
+function getAudioCtx(){if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return audioCtx;}
+
+let studentName='',teacherName='Mr. Jawad',readAloud=false;
+let processing=false,receiptRendered=false,requiredCompleteShown=false,bonusCompleteShown=false;
+let currentLevel=0,currentPhase='',selectedOpt=null,wrongCount=0,levelResets=0;
+let consecutiveFastWrongs=0,phaseStartTime=0,levelStartTime=0;
+let arenaGen=0,transitionTimeout=null,fastGuessGateId=0;
+let ambientInterval=null,resumeInterval=null;
+
+function escHtml(s){let d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+const affirmations=[
+  ()=>`${teacherName} is proud of you!`,
+  ()=>`${teacherName} knew you could do it!`,
+  ()=>`That's the kind of thinking ${teacherName} loves to see!`,
+  ()=>`${teacherName} says: you're getting it!`,
+  ()=>`Strong work — ${teacherName} sees your effort!`,
+  ()=>`${teacherName} is impressed right now!`,
+  ()=>`You're showing ${teacherName} what you can do!`,
+  ()=>`${teacherName} says: keep that energy!`
+];
+let lastAffirmIdx=-1;
+function getAffirmation(){
+  let idx;
+  do{idx=Math.floor(Math.random()*affirmations.length);}while(idx===lastAffirmIdx&&affirmations.length>1);
+  lastAffirmIdx=idx;
+  return affirmations[idx]();
+}
+
+// ============ GAME STATE ============
+const gameState={
+  levels:[],overallScore:0,totalTimeSeconds:0,
+  requiredComplete:false,allComplete:false,evidenceCollected:0
+};
+
+// ============ EVIDENCE CARDS DATA ============
+const evidenceCards=[
+  {id:1,type:'blood',title:'Blood Glucose Graph',desc:'Alec\'s glucose over 27 days vs. healthy baseline'},
+  {id:2,type:'cell',title:'Cell Energy Comparison',desc:'Healthy cell vs. Alec\'s cell — glucose location and energy'},
+  {id:3,type:'receptor',title:'Receptor Occupancy',desc:'Close-up: healthy receptor (85%) vs. Alec\'s (3%)'},
+  {id:4,type:'pathway',title:'Hormone Pathway',desc:'The cause-and-effect chain — where it breaks'},
+  {id:5,type:'medical',title:'Medical Summary',desc:'Diabetic ketoacidosis — the full picture'}
+];
+
+// ============ LEVEL DATA ============
+const levels=[
+// LEVEL 1
+{
+  num:1,name:'The Crime Scene',required:true,phase:'Observe',
+  mechanic:'coach-click',
+  focusPrompt:'Watch Alec\'s blood glucose line — does it stay in the green zone or leave it?',
+  evidenceIdx:0,
+  watchDuration:13000,
+  doPrompt:'What do you notice about Alec\'s glucose level?',
+  doOptions:[
+    {id:'A',text:'It stays in the normal range the whole time'},
+    {id:'B',text:'It rises far above the healthy zone'},
+    {id:'C',text:'It drops below normal over 27 days'}
+  ],
+  doCorrect:'B',
+  doWrongFeedback:{
+    A:'Look again — does Alec\'s line stay inside the green zone?',
+    C:'Check the direction — is the line going up or down?'
+  },
+  provePrompt:'Alec\'s glucose reached 550 mg/dL. A healthy level is around 100. What does this tell us about his blood?',
+  proveOptions:[
+    {id:'A',text:'His blood had far too much glucose'},
+    {id:'B',text:'His blood had too little glucose'}
+  ],
+  proveCorrect:'A',
+  proveWrongFeedback:{
+    B:'His glucose was 550 — that\'s five times the healthy level. Is that too little or too much?'
+  },
+  hintLadder:{
+    hint1:{text:'Look at the two lines on the graph — the green dashed one is healthy. Where is Alec\'s red line compared to it?'},
+    hint2:{text:'Alec\'s line is in the RED zone. The healthy line is in the GREEN zone. Which option describes a line that moved into the danger zone?'},
+    stepByStep:[
+      {text:'Here is the healthy line. It stays at about 100 mg/dL.'},
+      {text:'Here is Alec\'s line. It climbed to 550 mg/dL — into the red danger zone.'},
+      {text:'Now answer: What do you notice about Alec\'s glucose level?'}
+    ]
+  },
+  conclusionPct:17,conclusionLabel:'Investigating...',
+  isFirstLevel:true
+},
+// LEVEL 2
+{
+  num:2,name:'The Paradox',required:true,phase:'Observe',
+  mechanic:'pick-the-match',
+  focusPrompt:'Watch where the glucose ends up — inside the cell or stuck outside it.',
+  evidenceIdx:1,
+  watchDuration:15000,
+  doPrompt:'Which observation matches what is happening to ALEC\'s cells?',
+  doOptions:[
+    {id:'A',text:'Glucose flows into cells, energy meter full'},
+    {id:'B',text:'No glucose anywhere in the body'},
+    {id:'C',text:'Glucose locked outside cells, energy meter empty'}
+  ],
+  doCorrect:'C',
+  doWrongFeedback:{
+    A:'That describes the healthy cell. Look at ALEC\'s side — is glucose getting inside his cells?',
+    B:'Look at the hexagons around Alec\'s cell — is glucose missing, or is it there but stuck?'
+  },
+  provePrompt:'Alec\'s blood was full of glucose. His cells had almost no energy. What does this mean?',
+  proveOptions:[
+    {id:'A',text:'Glucose could not get inside his cells'},
+    {id:'B',text:'Alec did not eat enough food'}
+  ],
+  proveCorrect:'A',
+  proveWrongFeedback:{
+    B:'Look at the glucose hexagons around his cell — there\'s plenty of fuel there. The problem isn\'t the amount of food.'
+  },
+  hintLadder:{
+    hint1:{text:'Look at Alec\'s cell on the right side of the arena. Where are the yellow hexagons — inside or outside the cell?'},
+    hint2:{text:'Option A describes the healthy cell. Alec\'s cell is the opposite.'},
+    stepByStep:[
+      {text:'The healthy cell has glucose INSIDE it. Energy meter: 95%.'},
+      {text:'Alec\'s cell has glucose stuck OUTSIDE. Energy meter: 2%.'},
+      {text:'Which option describes Alec\'s cell — glucose locked outside, energy empty?'}
+    ]
+  },
+  conclusionPct:33,conclusionLabel:'Building the case...'
+},
+// LEVEL 3
+{
+  num:3,name:'The Missing Key',required:true,phase:'Analyze',
+  mechanic:'hotspot',
+  focusPrompt:'Watch the two receptor close-ups — one has a key docked, one is empty. Which cell lets glucose in?',
+  evidenceIdx:2,
+  watchDuration:15000,
+  doPrompt:'Tap the part of Alec\'s cell that explains why glucose cannot enter.',
+  doOptions:[],
+  doCorrect:'receptor',
+  doWrongFeedback:{
+    glucose:'That\'s the glucose — it\'s definitely there. But what part of the cell is supposed to OPEN and let it in?',
+    cellwall:'Close — you\'re on the right cell. Look for the specific LOCK shape that opens and closes.',
+    insulin:'That\'s the insulin key on the HEALTHY cell. Look at ALEC\'s cell — what\'s missing from his lock?'
+  },
+  provePrompt:'Alec\'s receptors were almost all empty — only 3% occupied. What do receptors need in order to let glucose into the cell?',
+  proveOptions:[
+    {id:'A',text:'More glucose in the blood'},
+    {id:'B',text:'Insulin to bind to them'},
+    {id:'C',text:'A higher body temperature'}
+  ],
+  proveCorrect:'B',
+  proveWrongFeedback:{
+    A:'Alec already has plenty of glucose — 550 mg/dL. The problem is at the receptor. What docks into the lock to open it?',
+    C:'Temperature doesn\'t open receptor locks. Look at the healthy receptor — what\'s docked inside it that Alec\'s receptor is missing?'
+  },
+  hintLadder:{
+    hint1:{text:'Look at the receptor on Alec\'s cell — the blue lock shape. Is anything docked inside it?'},
+    hint2:{text:'Compare the two receptors. The healthy one has a green key inside it. Alec\'s has nothing. Tap the empty part.'},
+    stepByStep:[
+      {text:'This is a RECEPTOR — it\'s the lock on the cell wall.'},
+      {text:'The healthy receptor has an insulin KEY docked. The lock is open. Glucose flows in.'},
+      {text:'Alec\'s receptor has NO key. The lock is closed. Tap Alec\'s EMPTY receptor.'}
+    ]
+  },
+  conclusionPct:50,conclusionLabel:'Key evidence found!'
+},
+// LEVEL 4
+{
+  num:4,name:'The Chain Reaction',required:true,phase:'Analyze',
+  mechanic:'what-comes-next',
+  focusPrompt:'Watch the chain build step by step. Notice WHERE the chain breaks when insulin disappears.',
+  evidenceIdx:3,
+  watchDuration:17000,
+  doPrompt:'Alec\'s body stopped making insulin. What happens NEXT?',
+  doOptions:[
+    {id:'A',text:'Receptor locks stay shut, so glucose piles up in blood'},
+    {id:'B',text:'Cells produce extra energy to compensate'},
+    {id:'C',text:'Glucose disappears from the blood'}
+  ],
+  doCorrect:'A',
+  doWrongFeedback:{
+    B:'Look at Alec\'s cells in the animation — did they gain energy or lose it when insulin disappeared?',
+    C:'Check the bloodstream — when insulin vanished, did the glucose leave or pile up?'
+  },
+  provePrompt:'When insulin is missing, receptors stay empty. What happens to the glucose?',
+  proveOptions:[
+    {id:'A',text:'It enters cells through a different pathway'},
+    {id:'B',text:'It builds up in the blood with nowhere to go'}
+  ],
+  proveCorrect:'B',
+  proveWrongFeedback:{
+    A:'In the animation, did glucose find another way in — or did it pile up outside the closed locks?'
+  },
+  hintLadder:{
+    hint1:{text:'Look at the break point in the hormone pathway — the red X. What happens to the chain AFTER that point?'},
+    hint2:{text:'After "no insulin produced," look at the receptors. Do they open or stay closed? And look at the glucose — does it enter the cells or pile up?'},
+    stepByStep:[
+      {text:'Step 1: Alec\'s pancreas stops making insulin.'},
+      {text:'Step 2: No insulin reaches the receptors. The locks stay closed. Glucose piles up.'},
+      {text:'Now answer: What happens NEXT after insulin disappears?'}
+    ]
+  },
+  conclusionPct:75,conclusionLabel:'CASE NEARLY SOLVED'
+},
+// LEVEL 5
+{
+  num:5,name:'Side by Side',required:false,phase:'Extend',
+  mechanic:'pick-the-match',
+  focusPrompt:'Watch the data overlays — compare the NUMBERS on the healthy side to Alec\'s side.',
+  evidenceIdx:4,
+  watchDuration:12000,
+  doPrompt:'Look at the healthy side. WHY does that system keep cells alive?',
+  doOptions:[
+    {id:'A',text:'Glucose is lower, so cells need less energy'},
+    {id:'B',text:'Receptors are 85% filled with insulin, so glucose flows into cells'},
+    {id:'C',text:'The blood moves faster in a healthy person'}
+  ],
+  doCorrect:'B',
+  doWrongFeedback:{
+    A:'95 mg/dL is low because glucose is ENTERING the cells, not because the body needs less. Look at the receptors — what\'s filling them?',
+    C:'Blood speed isn\'t the difference here. Compare the receptor numbers — 85% vs. 3%. What does THAT tell you?'
+  },
+  provePrompt:'In the healthy system, most receptors have insulin docked. What does this allow the cells to do?',
+  proveOptions:[
+    {id:'A',text:'Take in glucose and produce energy'},
+    {id:'B',text:'Store glucose in the blood for later'}
+  ],
+  proveCorrect:'A',
+  proveWrongFeedback:{
+    B:'Glucose stored in the blood means it\'s NOT reaching cells. Look at the healthy cell\'s energy meter — is it full or empty?'
+  },
+  hintLadder:{
+    hint1:{text:'Look at the receptor occupancy number on the healthy side — 85%. What does it mean when most receptors have insulin docked?'},
+    hint2:{text:'When receptors are filled with insulin, the locks are OPEN. What flows through an open lock?'},
+    stepByStep:[
+      {text:'Healthy receptor occupancy: 85%. Most locks have insulin keys docked.'},
+      {text:'When the lock opens, glucose flows into the cell. That\'s where cell energy comes from.'},
+      {text:'Now answer: WHY does the healthy system keep cells alive?'}
+    ]
+  },
+  conclusionPct:90,conclusionLabel:'CASE CLOSED'
+},
+// LEVEL 6
+{
+  num:6,name:'The Final Report',required:false,phase:'Extend',
+  mechanic:'claim-builder',
+  focusPrompt:'All five evidence cards are on the board. Watch the full broken chain one more time — then build the conclusion.',
+  evidenceIdx:-1,
+  watchDuration:12000,
+  doPrompt:'Alec\'s cells starved because ___',
+  doOptions:[
+    {id:'A',text:'insulin, the hormone, never reached his receptors'},
+    {id:'B',text:'his blood did not contain enough glucose'},
+    {id:'C',text:'his cells did not have any receptors'}
+  ],
+  doCorrect:'A',
+  doWrongFeedback:{
+    B:'Look at the glucose overlay — 550 mg/dL. Was glucose missing from his blood, or was there too much?',
+    C:'Alec had receptors — look at the receptor image. They were there, but what was missing FROM them?'
+  },
+  provePrompt:'If Alec HAD received insulin, what would have changed FIRST in the chain?',
+  proveOptions:[
+    {id:'A',text:'His cells would have made more receptors'},
+    {id:'B',text:'Insulin would have docked into his receptors'},
+    {id:'C',text:'Glucose would have left his blood on its own'}
+  ],
+  proveCorrect:'B',
+  proveWrongFeedback:{
+    A:'Alec already had receptors — they were just empty. What fills an empty receptor?',
+    C:'Glucose doesn\'t leave the blood on its own — something has to OPEN the cell door first. What opens receptors?'
+  },
+  hintLadder:{
+    hint1:{text:'Look at step 1 in the chain — "Alec\'s body makes NO INSULIN." Now imagine it WAS produced. What\'s the first thing it does?'},
+    hint2:{text:'Insulin is a key. Receptors are locks. If the key showed up, what happens at the lock?'},
+    stepByStep:[
+      {text:'The chain broke at step 1: "Alec\'s body makes NO INSULIN." If insulin WAS there, it would enter the blood.'},
+      {text:'Insulin\'s job: travel through blood and dock into receptors. That\'s the FIRST thing that changes.'},
+      {text:'Now answer: If Alec HAD received insulin, what changes first?'}
+    ]
+  },
+  conclusionPct:100,conclusionLabel:'ALL EVIDENCE ANALYZED'
+}
+];
+
+// Initialize gameState levels
+levels.forEach((l,i)=>{
+  gameState.levels.push({
+    levelNum:l.num,levelName:l.name,required:l.required,
+    completed:false,score:0,attempts:0,hintsUsed:0,resets:0,timeSeconds:0
+  });
+});
+
+// ============ PARTICLE POOL ============
+const PARTICLES=[];
+(function initParticles(){
+  const layer=document.getElementById('particleLayer');
+  for(let i=0;i<15;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.style.display='none';
+    layer.appendChild(p);
+    PARTICLES.push(p);
+  }
+})();
+let particleIdx=0;
+function fireParticles(x,y,count,color){
+  try{
+    for(let i=0;i<Math.min(count,15);i++){
+      const p=PARTICLES[particleIdx%15];
+      particleIdx++;
+      p.style.display='block';
+      p.style.left=x+'px';
+      p.style.top=y+'px';
+      p.style.background=color||'var(--accent2)';
+      p.style.setProperty('--dx',(Math.random()*200-100)+'px');
+      p.style.setProperty('--dy',(Math.random()*-150-50)+'px');
+      p.style.width=(4+Math.random()*6)+'px';
+      p.style.height=p.style.width;
+      p.style.animation='none';
+      void p.offsetWidth;
+      p.style.animation='particleFly '+(1+Math.random()*0.8)+'s ease-out forwards';
+      setTimeout(()=>{p.style.display='none';},2000);
+    }
+  }catch(e){}
+}
+
+// ============ SOUND ============
+function playTone(freq,dur){
+  try{
+    const ctx=getAudioCtx();
+    if(!ctx)return;
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.type='sine';osc.frequency.value=freq;
+    gain.gain.setValueAtTime(0.15,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.start();osc.stop(ctx.currentTime+dur);
+  }catch(e){}
+}
+function playCorrect(){playTone(523,0.1);setTimeout(()=>playTone(659,0.1),100);setTimeout(()=>playTone(784,0.15),200);}
+function playWrong(){playTone(220,0.2);}
+
+// ============ CLOSEALL ============
+function closeAllOverlays(){
+  document.querySelectorAll('.coaching-bar,.feedback-popup').forEach(el=>el.remove());
+  document.getElementById('hintOverlay').classList.add('hidden');
+  document.getElementById('celebOverlay').classList.add('hidden');
+  document.getElementById('confirmDialog').classList.add('hidden');
+}
+
+// ============ CLEANUP ============
+function cleanupArena(){
+  arenaGen++;
+  const arena=document.getElementById('arena');
+  arena.onclick=null; // Clear hotspot handler from previous level
+  while(arena.firstChild)arena.removeChild(arena.firstChild);
+  if(transitionTimeout){clearTimeout(transitionTimeout);transitionTimeout=null;}
+}
+
+function arenaTimeout(fn,ms){
+  const gen=arenaGen;
+  return setTimeout(()=>{if(arenaGen===gen)try{fn();}catch(e){console.error('arenaTimeout err',e);}},ms);
+}
+
+// ============ START ============
+function startSim(){
+  if(processing)return;processing=true;
+  studentName=escHtml(document.getElementById('studentNameInput').value.trim())||'Student';
+  const tn=document.getElementById('teacherNameInput').value.trim();
+  teacherName=tn?escHtml(tn):'Mr. Jawad';
+  document.getElementById('welcomeScreen').classList.add('hidden');
+  runRefresher();
+}
+
+// ============ REFRESHER ============
+function runRefresher(){
+  const overlay=document.getElementById('refresherOverlay');
+  overlay.classList.remove('hidden');
+  const tasks=[
+    {prompt:'Tap the name for the yellow sugar shapes.',options:['GLUCOSE','RECEPTOR'],correct:'GLUCOSE',wrong:'These are the sugar molecules — they\'re called GLUCOSE.'},
+    {prompt:'Tap the name for the green keys.',options:['GLUCOSE','INSULIN'],correct:'INSULIN',wrong:'These keys are INSULIN — the hormone that unlocks cells.'},
+    {prompt:'Tap the name for the blue locks on cell walls.',options:['RECEPTOR','GLUCOSE'],correct:'RECEPTOR',wrong:'These locks on the cell wall are RECEPTORS.'},
+    {prompt:'What kind of messenger travels through the blood?',options:['HORMONE','RECEPTOR'],correct:'HORMONE',wrong:'A chemical messenger in the blood is a HORMONE. Insulin is a hormone.'}
+  ];
+  let taskIdx=0;
+  function showTask(){
+    if(taskIdx>=tasks.length){
+      overlay.innerHTML=`<div class="refresher-title">You know the system.</div><div style="color:var(--text);font-size:15px;margin:12px 0;">Now investigate what went wrong.</div><button class="celeb-btn primary" onclick="finishRefresher()" style="margin-top:16px;">Begin Investigation</button>`;
+      return;
+    }
+    const t=tasks[taskIdx];
+    overlay.innerHTML=`
+      <div class="refresher-title">Quick Recall — Term ${taskIdx+1} of 4</div>
+      <div class="refresher-prompt">${t.prompt}</div>
+      <div class="refresher-options">${t.options.map(o=>`<div class="refresher-card" onclick="handleRefresher(this,'${o}','${t.correct}')">${o}</div>`).join('')}</div>
+      <div class="refresher-feedback" id="rFeedback"></div>`;
+  }
+  window.handleRefresher=function(el,picked,correct){
+    if(el.classList.contains('r-correct')||el.classList.contains('r-wrong'))return;
+    const cards=overlay.querySelectorAll('.refresher-card');
+    if(picked===correct){
+      el.classList.add('r-correct');
+      document.getElementById('rFeedback').textContent='';
+      cards.forEach(c=>{if(c!==el)c.style.pointerEvents='none';});
+      setTimeout(()=>{taskIdx++;showTask();},800);
+    }else{
+      el.classList.add('r-wrong');
+      el.style.pointerEvents='none';
+      const t=tasks[taskIdx];
+      document.getElementById('rFeedback').textContent=t.wrong;
+      setTimeout(()=>{
+        cards.forEach(c=>{
+          if(!c.classList.contains('r-wrong'))c.classList.add('r-correct');
+        });
+        setTimeout(()=>{taskIdx++;showTask();},800);
+      },1200);
+    }
+  };
+  showTask();
+}
+
+function finishRefresher(){
+  document.getElementById('refresherOverlay').classList.add('hidden');
+  document.getElementById('gameContainer').classList.remove('hidden');
+  buildEvidenceCards();
+  processing=false;
+  loadLevel(0);
+}
+
+// ============ EVIDENCE BOARD ============
+function buildEvidenceCards(){
+  const container=document.getElementById('evCards');
+  container.innerHTML='';
+  evidenceCards.forEach((c,i)=>{
+    const div=document.createElement('div');
+    div.className='ev-card';
+    div.setAttribute('data-type',c.type);
+    div.id='evCard'+i;
+    div.innerHTML=`<span class="pin">&#128204;</span><div class="ev-card-title">${c.title}</div><div class="ev-card-desc">${c.desc}</div>`;
+    container.appendChild(div);
+  });
+}
+
+function pinEvidence(idx){
+  if(idx<0||idx>=evidenceCards.length)return;
+  const card=document.getElementById('evCard'+idx);
+  if(!card||card.classList.contains('pinned'))return;
+  card.classList.add('pinned');
+  card.classList.add('current');
+  gameState.evidenceCollected++;
+  document.getElementById('evCounter').textContent=`Evidence ${gameState.evidenceCollected} of 5 collected`;
+  // Remove current from previous
+  document.querySelectorAll('.ev-card.current').forEach(c=>{if(c!==card)c.classList.remove('current');});
+}
+
+function updateConclusion(pct,label){
+  document.getElementById('conclusionFill').style.width=pct+'%';
+  document.getElementById('conclusionStatus').textContent=label;
+}
+
+// ============ SCORE ============
+function updateScore(){
+  let total=0,count=0;
+  gameState.levels.forEach(l=>{
+    if(l.required&&l.completed){total+=l.score;count++;}
+  });
+  const base=count>0?Math.round(total/4):0;
+  let bonus=0;
+  gameState.levels.forEach(l=>{if(!l.required&&l.completed)bonus+=5;});
+  gameState.overallScore=Math.min(100,base+bonus);
+  document.getElementById('scoreDisp').textContent='Score: '+gameState.overallScore;
+}
+
+function updateProgress(){
+  const completed=gameState.levels.filter(l=>l.completed).length;
+  document.getElementById('progressFill').style.width=(completed/levels.length*100)+'%';
+}
+
+function calcLevelScore(hintsUsed,resets){
+  if(resets>=1)return 50;
+  if(hintsUsed>=3)return 60;
+  if(hintsUsed>=2)return 70;
+  if(hintsUsed>=1)return 85;
+  return 100;
+}
+
+// ============ HUD ============
+function updateHUD(){
+  const l=levels[currentLevel];
+  document.getElementById('levelBadge').textContent=`Evidence #${l.num}`;
+  document.getElementById('levelName').textContent=l.name;
+  document.getElementById('levelCounter').textContent=`Evidence ${l.num} of ${levels.length}`;
+  document.getElementById('hintBtn').disabled=false;
+  document.getElementById('resetLevelBtn').disabled=false;
+}
+
+// ============ LEVEL LOADING ============
+function loadLevel(idx){
+  if(processing&&idx!==currentLevel)return;
+  processing=true;
+  closeAllOverlays();
+  cleanupArena();
+  currentLevel=idx;
+  wrongCount=0;consecutiveFastWrongs=0;selectedOpt=null;
+  const lState=gameState.levels[idx];
+  if(lState.completed){lState.completed=false;lState.score=0;lState.attempts=0;lState.hintsUsed=0;lState.resets=0;lState.timeSeconds=0;}
+  levelResets=lState.resets; // Preserve accumulated resets across Reset Level presses
+  levelStartTime=Date.now();
+  updateHUD();updateProgress();
+  const l=levels[idx];
+  // Level intro
+  const iz=document.getElementById('interZone');
+  iz.innerHTML=`<div class="phase-label" style="font-size:18px;color:var(--accent1);">Evidence #${l.num}</div><div class="prompt-text" style="font-size:20px;font-weight:700;">${escHtml(l.name)}</div>`;
+  transitionTimeout=setTimeout(()=>{
+    startWatch(idx);
+  },1500);
+  processing=false;
+}
+
+// ============ WATCH PHASE ============
+function startWatch(idx){
+  if(idx!==currentLevel)return;
+  processing=true;
+  const l=levels[idx];
+  currentPhase='watch';
+  
+  // Pin evidence
+  if(l.evidenceIdx>=0)pinEvidence(l.evidenceIdx);
+  
+  // Focus prompt
+  document.getElementById('focusPrompt').textContent=l.focusPrompt;
+  document.getElementById('focusPrompt').style.opacity='1';
+  
+  // Build arena visual
+  buildArenaVisual(idx);
+  
+  // Interaction zone shows WATCH label
+  const iz=document.getElementById('interZone');
+  iz.innerHTML=`<div class="phase-label">WATCH</div><div class="prompt-text" style="color:var(--textDim);">Observe the evidence...</div>`;
+  
+  // Auto-advance after watch duration + safety buffer
+  const gen=arenaGen;
+  transitionTimeout=setTimeout(()=>{
+    if(arenaGen===gen&&currentLevel===idx){
+      startDO(idx);
+    }
+  },l.watchDuration+3000);
+  processing=false;
+}
+
+// ============ ARENA BUILDERS ============
+function buildArenaVisual(idx){
+  const arena=document.getElementById('arena');
+  const w=arena.clientWidth||600;
+  const h=arena.clientHeight||300;
+  
+  try{
+    switch(idx){
+      case 0: buildArena1(arena,w,h); break;
+      case 1: buildArena2(arena,w,h); break;
+      case 2: buildArena3(arena,w,h); break;
+      case 3: buildArena4(arena,w,h); break;
+      case 4: buildArena5(arena,w,h); break;
+      case 5: buildArena6(arena,w,h); break;
+    }
+  }catch(e){
+    console.error('Arena build error',e);
+    arena.innerHTML=`<div style="color:var(--textDim);text-align:center;padding:40px;">Evidence loading...</div>`;
+  }
+}
+
+// ARENA 1: Blood glucose graph + bloodstream visual
+function buildArena1(arena,w,h){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 700 400');
+  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  svg.innerHTML=`
+    <defs>
+      <linearGradient id="dangerGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#FF4757" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#FF4757" stop-opacity="0.03"/>
+      </linearGradient>
+      <linearGradient id="safeGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2ECC71" stop-opacity="0.16"/>
+        <stop offset="100%" stop-color="#2ECC71" stop-opacity="0.03"/>
+      </linearGradient>
+      <linearGradient id="bloodGrad1" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#8B0000" stop-opacity="0.12"/>
+        <stop offset="50%" stop-color="#B22222" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#8B0000" stop-opacity="0.12"/>
+      </linearGradient>
+    </defs>
+    <!-- Title -->
+    <text x="355" y="24" fill="var(--accent1)" font-size="17" font-weight="700" text-anchor="middle">BLOOD GLUCOSE OVER 27 DAYS (mg/dL)</text>
+    <!-- GRAPH AREA -->
+    <rect x="82" y="36" width="535" height="230" rx="6" fill="rgba(0,0,0,0.22)" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+    <!-- Danger zone -->
+    <rect x="82" y="36" width="535" height="92" fill="url(#dangerGrad)"/>
+    <text x="92" y="56" fill="#FF4757" font-size="13" font-weight="700" opacity="0.85">DANGER ZONE</text>
+    <!-- Safe zone -->
+    <rect x="82" y="176" width="535" height="90" fill="url(#safeGrad)"/>
+    <text x="92" y="258" fill="#2ECC71" font-size="13" font-weight="700" opacity="0.85">NORMAL</text>
+    <!-- 200 line -->
+    <line x1="82" y1="176" x2="617" y2="176" stroke="#FF4757" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.45"/>
+    <!-- Axes -->
+    <line x1="82" y1="266" x2="617" y2="266" stroke="rgba(255,255,255,0.22)" stroke-width="1.5"/>
+    <line x1="82" y1="36" x2="82" y2="266" stroke="rgba(255,255,255,0.22)" stroke-width="1.5"/>
+    <!-- Y labels -->
+    <text x="72" y="270" fill="var(--textDim)" font-size="13" text-anchor="end">0</text>
+    <text x="72" y="222" fill="var(--textDim)" font-size="13" text-anchor="end">100</text>
+    <text x="72" y="178" fill="var(--textDim)" font-size="13" text-anchor="end">200</text>
+    <text x="72" y="130" fill="var(--textDim)" font-size="13" text-anchor="end">350</text>
+    <text x="72" y="60" fill="var(--textDim)" font-size="13" text-anchor="end">550</text>
+    <!-- X labels -->
+    <text x="82" y="284" fill="var(--textDim)" font-size="11" text-anchor="start">Day 0</text>
+    <text x="350" y="284" fill="var(--textDim)" font-size="11" text-anchor="middle">Day 14</text>
+    <text x="617" y="284" fill="var(--textDim)" font-size="11" text-anchor="end">Day 27</text>
+    <!-- Healthy baseline -->
+    <line id="healthyLine" x1="82" y1="222" x2="617" y2="222" stroke="#2ECC71" stroke-width="2.5" stroke-dasharray="8,5" opacity="0">
+      <animate attributeName="opacity" from="0" to="0.8" dur="0.8s" begin="0.5s" fill="freeze"/>
+    </line>
+    <text x="615" y="218" fill="#2ECC71" font-size="12" font-weight="700" text-anchor="end" opacity="0">Healthy ~100
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="1.2s" fill="freeze"/>
+    </text>
+    <!-- Alec's line (animated) -->
+    <polyline id="alecLine" points="82,222" stroke="#FF4757" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <!-- 550 overlay -->
+    <text id="glucoseOverlay" x="560" y="60" fill="var(--accent2)" font-size="20" font-weight="800" text-anchor="end" opacity="0">550 mg/dL</text>
+    <!-- BLOODSTREAM below graph (Beat 2) -->
+    <g id="bloodstreamGroup" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="1.2s" begin="10s" fill="freeze"/>
+      <rect x="50" y="305" width="600" height="40" rx="20" fill="url(#bloodGrad1)" stroke="rgba(180,50,50,0.15)" stroke-width="1"/>
+      <text x="60" y="330" fill="rgba(255,180,180,0.45)" font-size="11" font-weight="600">BLOODSTREAM</text>
+      <!-- Glucose hexagons flooding the blood -->
+      ${Array.from({length:12},(_,i)=>{
+        const cx=110+i*44;const cy=323+Math.sin(i*0.9)*5;
+        return `<polygon points="${hexPoints(cx,cy,11)}" fill="#FFD93D" opacity="${0.45+Math.random()*0.3}"/>`;
+      }).join('')}
+    </g>
+    <text x="350" y="368" fill="var(--accent2)" font-size="14" font-weight="700" text-anchor="middle" opacity="0">Glucose flooding Alec's blood
+      <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="11s" fill="freeze"/>
+    </text>
+  `;
+  arena.appendChild(svg);
+  
+  // Animate Alec's line
+  const alecLine=svg.querySelector('#alecLine');
+  const glucOverlay=svg.querySelector('#glucoseOverlay');
+  const pts=[];
+  const startX=82,endX=617,startY=222,endY=56;
+  const steps=40;
+  let step=0;
+  const gen=arenaGen;
+  
+  function animateLine(){
+    if(arenaGen!==gen)return;
+    if(step<=steps){
+      const x=startX+(endX-startX)*(step/steps);
+      const progress=step/steps;
+      const y=startY-(startY-endY)*Math.pow(progress,1.3);
+      pts.push(`${x},${y}`);
+      alecLine.setAttribute('points',pts.join(' '));
+      step++;
+      arenaTimeout(animateLine,190);
+    }
+  }
+  arenaTimeout(()=>animateLine(),1500);
+  
+  // Beat 2: show overlay
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    glucOverlay.setAttribute('opacity','1');
+  },10000);
+}
+
+
+function hexPoints(cx,cy,r){
+  let pts=[];
+  for(let i=0;i<6;i++){
+    const angle=Math.PI/3*i-Math.PI/6;
+    pts.push(`${cx+r*Math.cos(angle)},${cy+r*Math.sin(angle)}`);
+  }
+  return pts.join(' ');
+}
+
+// ARENA 2: Cell energy comparison
+function buildArena2(arena,w,h){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 620 330');
+  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  svg.innerHTML=`
+    <!-- Title -->
+    <text x="310" y="22" fill="var(--accent1)" font-weight="700" text-anchor="middle" font-size="20">CELL ENERGY COMPARISON</text>
+    <!-- Divider -->
+    <line x1="310" y1="30" x2="310" y2="310" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="4,4"/>
+    
+    <!-- HEALTHY CELL (left) -->
+    <text x="155" y="46" fill="#2ECC71" font-weight="700" text-anchor="middle" font-size="18">Healthy Person</text>
+    <!-- Cell body -->
+    <ellipse id="hCell" cx="155" cy="180" rx="90" ry="70" fill="rgba(46,204,113,0.08)" stroke="#2ECC71" stroke-width="2.5" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="1s" begin="0.5s" fill="freeze"/>
+    </ellipse>
+    <!-- Receptor locks (healthy - filled) -->
+    <g id="hReceptors" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="1s" fill="freeze"/>
+      <rect x="86" y="160" width="16" height="22" rx="3" fill="#00D4FF" stroke="#0099CC" stroke-width="1.5"/>
+      <rect x="90" y="155" width="8" height="10" rx="2" fill="#2ECC71"/><!-- key -->
+      <rect x="206" y="160" width="16" height="22" rx="3" fill="#00D4FF" stroke="#0099CC" stroke-width="1.5"/>
+      <rect x="210" y="155" width="8" height="10" rx="2" fill="#2ECC71"/><!-- key -->
+    </g>
+    <!-- Glucose INSIDE healthy cell -->
+    <g id="hGlucIn" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="1s" begin="3s" fill="freeze"/>
+      ${[0,1,2,3,4].map(i=>{const cx=120+i*18;const cy=175+((i%2)*20);return `<polygon points="${hexPoints(cx,cy,7)}" fill="#FFD93D" opacity="0.85"/>`}).join('')}
+    </g>
+    <!-- Battery -->
+    <rect x="130" y="218" width="50" height="18" rx="3" fill="rgba(0,0,0,0.4)" stroke="rgba(255,255,255,0.2)" stroke-width="1" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="4s" fill="freeze"/>
+    </rect>
+    <rect id="hBatFill" x="132" y="220" width="0" height="14" rx="2" fill="#2ECC71">
+      <animate attributeName="width" from="0" to="46" dur="1.5s" begin="4.5s" fill="freeze"/>
+    </rect>
+    <text x="155" y="231" fill="#fff" font-size="10" font-weight="700" text-anchor="middle" opacity="0">95%
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5.5s" fill="freeze"/>
+    </text>
+    <text x="155" y="258" fill="#2ECC71" font-size="13" font-weight="600" text-anchor="middle" opacity="0">Cell Energy: 95%
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5.5s" fill="freeze"/>
+    </text>
+    
+    <!-- ALEC'S CELL (right) -->
+    <text x="465" y="46" fill="#FF4757" font-size="16" font-weight="700" text-anchor="middle">Alec</text>
+    <!-- Cell body -->
+    <ellipse id="aCell" cx="465" cy="180" rx="90" ry="70" fill="rgba(255,71,87,0.05)" stroke="#FF4757" stroke-width="2.5" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="1s" begin="1.5s" fill="freeze"/>
+    </ellipse>
+    <!-- Receptor locks (empty) -->
+    <g id="aReceptors" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="2s" fill="freeze"/>
+      <rect x="396" y="160" width="16" height="22" rx="3" fill="#00D4FF" stroke="#555" stroke-width="1.5" opacity="0.5"/>
+      <rect x="516" y="160" width="16" height="22" rx="3" fill="#00D4FF" stroke="#555" stroke-width="1.5" opacity="0.5"/>
+    </g>
+    <!-- Glucose OUTSIDE Alec's cell -->
+    <g id="aGlucOut" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="1s" begin="5s" fill="freeze"/>
+      ${[0,1,2,3,4,5,6,7].map(i=>{
+        const angle=Math.PI*2/8*i;
+        const cx=465+100*Math.cos(angle);const cy=180+80*Math.sin(angle);
+        return `<polygon points="${hexPoints(cx,cy,8)}" fill="#FFD93D" opacity="0.7"/>`;
+      }).join('')}
+    </g>
+    <!-- Battery (empty) -->
+    <rect x="440" y="218" width="50" height="18" rx="3" fill="rgba(0,0,0,0.4)" stroke="rgba(255,255,255,0.2)" stroke-width="1" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="6s" fill="freeze"/>
+    </rect>
+    <rect x="442" y="220" width="2" height="14" rx="2" fill="#FF4757" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="6.5s" fill="freeze"/>
+    </rect>
+    <text x="465" y="258" fill="#FF4757" font-size="13" font-weight="600" text-anchor="middle" opacity="0">Cell Energy: 2%
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="6.5s" fill="freeze"/>
+    </text>
+    
+    <!-- Labels -->
+    <text x="310" y="300" fill="var(--accent2)" font-size="14" font-weight="600" text-anchor="middle" opacity="0">Both have glucose. Only one cell gets energy.
+      <animate attributeName="opacity" from="0" to="1" dur="1s" begin="8s" fill="freeze"/>
+    </text>
+  `;
+  arena.appendChild(svg);
+}
+
+// ARENA 3: Receptor occupancy
+function buildArena3(arena,w,h){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 620 300');
+  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  svg.id='arena3svg';
+  svg.innerHTML=`
+    <text x="310" y="22" fill="var(--accent1)" font-weight="700" text-anchor="middle" font-size="20">RECEPTOR CLOSE-UP COMPARISON</text>
+    <line x1="310" y1="30" x2="310" y2="300" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="4,4"/>
+    
+    <!-- HEALTHY RECEPTOR (left) -->
+    <text x="155" y="48" fill="#2ECC71" font-weight="700" text-anchor="middle" font-size="18">Healthy Receptor</text>
+    <!-- Cell membrane bar -->
+    <rect x="55" y="130" width="200" height="12" rx="4" fill="rgba(100,180,255,0.15)" stroke="rgba(100,180,255,0.4)" stroke-width="1.5"/>
+    <text x="155" y="152" fill="var(--textDim)" font-size="10" text-anchor="middle">CELL MEMBRANE</text>
+    <!-- Lock (receptor) - FILLED -->
+    <rect x="130" y="105" width="50" height="55" rx="6" fill="rgba(0,180,255,0.2)" stroke="#00D4FF" stroke-width="2.5" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="1s" fill="freeze"/>
+    </rect>
+    <text x="155" y="100" fill="#00D4FF" font-size="16" font-weight="700" text-anchor="middle" opacity="0">RECEPTOR
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="1.5s" fill="freeze"/>
+    </text>
+    <!-- Insulin key inside -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="2s" fill="freeze"/>
+      <rect x="141" y="110" width="28" height="14" rx="4" fill="#2ECC71" stroke="#1A9B4E" stroke-width="1.5"/>
+      <rect x="149" y="124" width="12" height="12" rx="2" fill="#2ECC71" stroke="#1A9B4E" stroke-width="1"/>
+      <text x="155" y="120" fill="#fff" font-size="9" font-weight="700" text-anchor="middle">KEY</text>
+    </g>
+    <!-- Gate OPEN -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="3s" fill="freeze"/>
+      <rect x="145" y="148" width="20" height="18" rx="2" fill="rgba(46,204,113,0.3)" stroke="#2ECC71" stroke-width="1.5"/>
+      <text x="155" y="160" fill="#2ECC71" font-size="9" font-weight="700" text-anchor="middle">OPEN</text>
+    </g>
+    <!-- Glucose flowing through -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="1s" begin="4s" fill="freeze"/>
+      ${[0,1,2].map(i=>`<polygon points="${hexPoints(145+i*12,180+i*14,6)}" fill="#FFD93D" opacity="0.8"/>`).join('')}
+      <text x="155" y="228" fill="#FFD93D" font-size="12" text-anchor="middle">Glucose flowing IN</text>
+    </g>
+    <!-- Occupancy readout -->
+    <rect x="85" y="250" width="140" height="28" rx="6" fill="rgba(46,204,113,0.1)" stroke="#2ECC71" stroke-width="1.5" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5s" fill="freeze"/>
+    </rect>
+    <text x="155" y="268" fill="#2ECC71" font-weight="700" text-anchor="middle" opacity="0" font-size="18">Occupancy: 85%
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5.2s" fill="freeze"/>
+    </text>
+    
+    <!-- ALEC'S RECEPTOR (right) -->
+    <text x="465" y="48" fill="#FF4757" font-weight="700" text-anchor="middle" font-size="18">Alec's Receptor</text>
+    <!-- Cell membrane bar -->
+    <rect x="365" y="130" width="200" height="12" rx="4" fill="rgba(100,180,255,0.1)" stroke="rgba(100,180,255,0.25)" stroke-width="1.5"/>
+    <text x="465" y="152" fill="var(--textDim)" font-size="10" text-anchor="middle">CELL MEMBRANE</text>
+    <!-- Lock (receptor) - EMPTY -->
+    <rect id="alecReceptorLock" x="440" y="105" width="50" height="55" rx="6" fill="rgba(0,180,255,0.08)" stroke="#555" stroke-width="2.5" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="1s" fill="freeze"/>
+    </rect>
+    <text x="465" y="100" fill="#555" font-size="16" font-weight="700" text-anchor="middle" opacity="0">RECEPTOR
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="1.5s" fill="freeze"/>
+    </text>
+    <!-- NO key - empty interior -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="2s" fill="freeze"/>
+      <text x="465" y="135" fill="#FF4757" font-size="12" font-weight="700" text-anchor="middle">EMPTY</text>
+    </g>
+    <!-- Gate CLOSED -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="3s" fill="freeze"/>
+      <rect x="455" y="148" width="20" height="18" rx="2" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="1.5"/>
+      <line x1="457" y1="150" x2="473" y2="164" stroke="#FF4757" stroke-width="1.5"/>
+      <line x1="473" y1="150" x2="457" y2="164" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="465" y="160" fill="#FF4757" font-size="9" font-weight="700" text-anchor="middle">SHUT</text>
+    </g>
+    <!-- Glucose bouncing off -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="1s" begin="4s" fill="freeze"/>
+      ${[0,1,2,3].map(i=>{const cx=420+i*25;const cy=85-i*4;return `<polygon points="${hexPoints(cx,cy,7)}" fill="#FFD93D" opacity="0.6"/>`}).join('')}
+      <text x="465" y="68" fill="#FFD93D" font-size="12" text-anchor="middle">Glucose LOCKED OUT</text>
+    </g>
+    <!-- Occupancy readout -->
+    <rect x="395" y="250" width="140" height="28" rx="6" fill="rgba(255,71,87,0.1)" stroke="#FF4757" stroke-width="1.5" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5s" fill="freeze"/>
+    </rect>
+    <text x="465" y="268" fill="#FF4757" font-weight="700" text-anchor="middle" opacity="0" font-size="18">Occupancy: 3%
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5.2s" fill="freeze"/>
+    </text>
+  `;
+  arena.appendChild(svg);
+}
+function buildArena4(arena,w,h){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 620 295');
+  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  svg.id='arena4svg';
+  
+  // Build the chain with step-by-step freeze animation
+  svg.innerHTML=`
+    <text x="310" y="20" fill="var(--accent1)" font-weight="700" text-anchor="middle" font-size="19">HORMONE PATHWAY — CAUSE AND EFFECT CHAIN</text>
+    
+    <!-- HEALTHY PASS (quick, 5s) -->
+    <g id="healthyPass" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="0.5s" fill="freeze"/>
+      <rect x="20" y="35" width="580" height="38" rx="6" fill="rgba(46,204,113,0.06)" stroke="rgba(46,204,113,0.2)" stroke-width="1"/>
+      <text x="30" y="56" fill="#2ECC71" font-size="12" font-weight="600">HEALTHY:</text>
+      <!-- Chain icons -->
+      <circle cx="100" cy="54" r="12" fill="rgba(46,204,113,0.15)" stroke="#2ECC71" stroke-width="1.5"/>
+      <text x="100" y="58" fill="#2ECC71" font-size="10" text-anchor="middle" font-weight="700">P</text>
+      <line x1="114" y1="54" x2="140" y2="54" stroke="#2ECC71" stroke-width="1.5" marker-end="url(#arrowG)"/>
+      <rect x="145" y="45" width="18" height="18" rx="3" fill="#2ECC71" opacity="0.6"/>
+      <line x1="167" y1="54" x2="193" y2="54" stroke="#2ECC71" stroke-width="1.5"/>
+      <rect x="198" y="45" width="20" height="18" rx="3" fill="#00D4FF" opacity="0.4" stroke="#2ECC71" stroke-width="1"/>
+      <line x1="222" y1="54" x2="248" y2="54" stroke="#2ECC71" stroke-width="1.5"/>
+      <polygon points="${hexPoints(262,54,8)}" fill="#FFD93D" opacity="0.6"/>
+      <line x1="274" y1="54" x2="300" y2="54" stroke="#2ECC71" stroke-width="1.5"/>
+      <rect x="305" y="46" width="24" height="16" rx="3" fill="rgba(46,204,113,0.3)" stroke="#2ECC71" stroke-width="1"/>
+      <text x="317" y="57" fill="#2ECC71" font-size="10" font-weight="700" text-anchor="middle">E</text>
+      <text x="400" y="58" fill="#2ECC71" font-size="12" font-weight="600">SYSTEM WORKING</text>
+    </g>
+    
+    <!-- BROKEN CHAIN — Step by step freeze build -->
+    <text x="30" y="98" fill="#FF4757" font-size="14" font-weight="700" opacity="0">ALEC'S BROKEN CHAIN:
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5.5s" fill="freeze"/>
+    </text>
+    
+    <!-- Step 1 -->
+    <g id="chain1" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="6s" fill="freeze"/>
+      <rect x="20" y="110" width="135" height="65" rx="8" fill="rgba(255,71,87,0.06)" stroke="rgba(255,71,87,0.3)" stroke-width="1.5"/>
+      <circle cx="48" cy="132" r="8" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="48" y="135" fill="#FF4757" font-size="12" text-anchor="middle" font-weight="800">1</text>
+      <circle cx="100" cy="138" r="18" fill="rgba(255,71,87,0.08)" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/>
+      <text x="100" y="142" fill="#555" font-size="9" text-anchor="middle">DIM</text>
+      <text x="88" y="164" fill="#FF4757" font-size="12" font-weight="600" text-anchor="middle">No INSULIN</text>
+      <text x="88" y="176" fill="var(--textDim)" font-size="10" text-anchor="middle">HORMONE</text>
+    </g>
+    
+    <!-- Arrow 1->2 -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="9s" fill="freeze"/>
+      <line x1="158" y1="142" x2="178" y2="142" stroke="#FF4757" stroke-width="2"/>
+      <polygon points="178,137 188,142 178,147" fill="#FF4757"/>
+    </g>
+    
+    <!-- Step 2 -->
+    <g id="chain2" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="9s" fill="freeze"/>
+      <rect x="190" y="110" width="130" height="65" rx="8" fill="rgba(255,71,87,0.06)" stroke="rgba(255,71,87,0.3)" stroke-width="1.5"/>
+      <circle cx="218" cy="132" r="8" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="218" y="135" fill="#FF4757" font-size="12" text-anchor="middle" font-weight="800">2</text>
+      <line x1="240" y1="140" x2="290" y2="140" stroke="#555" stroke-width="2" stroke-dasharray="4,3"/>
+      <text x="255" y="164" fill="#FF4757" font-size="12" font-weight="600" text-anchor="middle">No insulin</text>
+      <text x="255" y="176" fill="var(--textDim)" font-size="10" text-anchor="middle">in the blood</text>
+    </g>
+    
+    <!-- RED X between 1 and 2 -->
+    <g id="redX" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="12s" fill="freeze"/>
+      <circle cx="173" cy="142" r="14" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="2"/>
+      <line x1="166" y1="135" x2="180" y2="149" stroke="#FF4757" stroke-width="2.5"/>
+      <line x1="180" y1="135" x2="166" y2="149" stroke="#FF4757" stroke-width="2.5"/>
+      <text x="173" y="168" fill="#FF4757" font-size="9" font-weight="700" text-anchor="middle">BREAK</text>
+    </g>
+    
+    <!-- Arrow 2->3 -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="11s" fill="freeze"/>
+      <line x1="323" y1="142" x2="343" y2="142" stroke="#FF4757" stroke-width="2"/>
+      <polygon points="343,137 353,142 343,147" fill="#FF4757"/>
+    </g>
+    
+    <!-- Step 3 -->
+    <g id="chain3" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="11s" fill="freeze"/>
+      <rect x="355" y="110" width="130" height="80" rx="8" fill="rgba(255,71,87,0.06)" stroke="rgba(255,71,87,0.3)" stroke-width="1.5"/>
+      <circle cx="383" cy="132" r="8" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="383" y="135" fill="#FF4757" font-size="12" text-anchor="middle" font-weight="800">3</text>
+      <!-- Lock closed icon -->
+      <rect x="405" y="128" width="18" height="14" rx="3" fill="rgba(0,180,255,0.1)" stroke="#555" stroke-width="1.5"/>
+      <!-- Glucose piled up icon -->
+      ${[0,1,2].map(i=>`<polygon points="${hexPoints(445+i*14,138,5)}" fill="#FFD93D" opacity="0.5"/>`).join('')}
+      <text id="chain3label" x="420" y="164" fill="#FF4757" font-size="11" font-weight="600" text-anchor="middle">Receptors EMPTY.</text>
+      <text x="420" y="178" fill="#FF4757" font-size="11" font-weight="600" text-anchor="middle">Glucose locked out.</text>
+    </g>
+    
+    <!-- Step 4 -->
+    <g id="chain4" opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="15s" fill="freeze"/>
+      <rect x="190" y="210" width="240" height="70" rx="8" fill="rgba(255,71,87,0.08)" stroke="rgba(255,71,87,0.4)" stroke-width="1.5"/>
+      <circle cx="218" cy="234" r="8" fill="rgba(255,71,87,0.3)" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="218" y="237" fill="#FF4757" font-size="12" text-anchor="middle" font-weight="800">4</text>
+      <!-- Dim cell icons -->
+      <rect x="250" y="226" width="24" height="16" rx="3" fill="rgba(80,80,80,0.3)" stroke="#555" stroke-width="1"/>
+      <rect x="280" y="226" width="24" height="16" rx="3" fill="rgba(80,80,80,0.3)" stroke="#555" stroke-width="1"/>
+      <text id="chain4label" x="310" y="256" fill="#FF4757" font-size="12" font-weight="600" text-anchor="middle">Cells starve — no energy.</text>
+      <text x="310" y="272" fill="#FF4757" font-size="14" font-weight="800" text-anchor="middle" opacity="0">KETOACIDOSIS
+        <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="16s" fill="freeze"/>
+      </text>
+    </g>
+    
+    <!-- Arrow 3->4 -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="14.5s" fill="freeze"/>
+      <line x1="420" y1="192" x2="380" y2="210" stroke="#FF4757" stroke-width="2"/>
+      <polygon points="375,206 382,214 386,205" fill="#FF4757"/>
+    </g>
+  `;
+  arena.appendChild(svg);
+  
+  // For DO phase: blur step 3 and 4 labels
+  window.blurChainLabels=function(){
+    try{
+      const l3=document.getElementById('chain3label');
+      const l4=document.getElementById('chain4label');
+      const step3texts=document.querySelectorAll('#chain3 text');
+      const step4texts=document.querySelectorAll('#chain4 text');
+      step3texts.forEach(t=>{if(t.textContent.includes('Receptors')||t.textContent.includes('Glucose'))t.style.filter='blur(4px)';});
+      step4texts.forEach(t=>{if(t.textContent.includes('Cells')||t.textContent.includes('KETOACIDOSIS'))t.style.filter='blur(4px)';});
+    }catch(e){}
+  };
+  window.unblurChainLabels=function(){
+    try{
+      document.querySelectorAll('#chain3 text, #chain4 text').forEach(t=>t.style.filter='none');
+    }catch(e){}
+  };
+}
+function buildArena5(arena,w,h){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 620 330');
+  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  svg.innerHTML=`
+    <text x="310" y="20" fill="var(--accent1)" font-weight="700" text-anchor="middle" font-size="20">FULL SYSTEM COMPARISON</text>
+    <line x1="310" y1="28" x2="310" y2="310" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="4,4"/>
+    
+    <!-- HEALTHY SYSTEM (left) -->
+    <text x="155" y="42" fill="#2ECC71" font-weight="700" text-anchor="middle" font-size="18">Healthy System</text>
+    <!-- Bloodstream -->
+    <rect x="30" y="70" width="250" height="20" rx="6" fill="rgba(255,100,100,0.08)" stroke="rgba(255,100,100,0.2)" stroke-width="1"/>
+    <text x="40" y="65" fill="var(--textDim)" font-size="15">BLOODSTREAM</text>
+    <!-- Glucose in blood (few) -->
+    ${[0,1,2].map(i=>`<polygon points="${hexPoints(80+i*50,80,5)}" fill="#FFD93D" opacity="0.5"/>`).join('')}
+    <!-- Data overlay - blood glucose -->
+    <rect x="60" y="50" width="100" height="16" rx="4" fill="rgba(46,204,113,0.1)" stroke="#2ECC71" stroke-width="1" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="2s" fill="freeze"/>
+    </rect>
+    <text x="110" y="62" fill="#2ECC71" font-size="16" font-weight="700" text-anchor="middle" opacity="0">95 mg/dL
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="2.2s" fill="freeze"/>
+    </text>
+    <!-- Cell with receptor -->
+    <ellipse cx="155" cy="160" rx="70" ry="50" fill="rgba(46,204,113,0.06)" stroke="#2ECC71" stroke-width="2" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="1s" fill="freeze"/>
+    </ellipse>
+    <!-- Receptor filled -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="3s" fill="freeze"/>
+      <rect x="115" y="120" width="14" height="18" rx="3" fill="#00D4FF" stroke="#0099CC" stroke-width="1"/>
+      <rect x="118" y="115" width="8" height="8" rx="2" fill="#2ECC71"/>
+    </g>
+    <!-- Glucose inside cell -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="4s" fill="freeze"/>
+      ${[0,1,2,3].map(i=>`<polygon points="${hexPoints(130+i*16,158+((i%2)*12),5)}" fill="#FFD93D" opacity="0.7"/>`).join('')}
+    </g>
+    <!-- Battery -->
+    <rect x="130" y="188" width="50" height="14" rx="3" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.15)" stroke-width="1" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5s" fill="freeze"/>
+    </rect>
+    <rect x="132" y="190" width="46" height="10" rx="2" fill="#2ECC71" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="5.2s" fill="freeze"/>
+    </rect>
+    <!-- Data overlays -->
+    <text x="155" y="224" fill="#2ECC71" font-size="13" font-weight="600" text-anchor="middle" opacity="0">Receptor: 85%
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="6s" fill="freeze"/>
+    </text>
+    <text x="155" y="238" fill="#2ECC71" font-size="13" font-weight="600" text-anchor="middle" opacity="0">Cell Energy: 95%
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="6.5s" fill="freeze"/>
+    </text>
+    
+    <!-- ALEC'S SYSTEM (right) -->
+    <text x="465" y="42" fill="#FF4757" font-size="15" font-weight="700" text-anchor="middle">Alec — Ketoacidosis</text>
+    <!-- Bloodstream -->
+    <rect x="340" y="70" width="250" height="20" rx="6" fill="rgba(255,100,100,0.12)" stroke="rgba(255,100,100,0.3)" stroke-width="1"/>
+    <!-- Glucose flooding blood -->
+    ${[0,1,2,3,4,5,6].map(i=>`<polygon points="${hexPoints(360+i*30,80,6)}" fill="#FFD93D" opacity="0.7"/>`).join('')}
+    <!-- Data overlay - blood glucose -->
+    <rect x="400" y="50" width="120" height="16" rx="4" fill="rgba(255,71,87,0.15)" stroke="#FF4757" stroke-width="1" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="2s" fill="freeze"/>
+    </rect>
+    <text x="460" y="62" fill="#FF4757" font-weight="700" text-anchor="middle" opacity="0" font-size="20">550 mg/dL
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="2.2s" fill="freeze"/>
+    </text>
+    <!-- Cell -->
+    <ellipse cx="465" cy="160" rx="70" ry="50" fill="rgba(255,71,87,0.04)" stroke="#FF4757" stroke-width="2" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="1s" fill="freeze"/>
+    </ellipse>
+    <!-- Receptor empty -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.6s" begin="3s" fill="freeze"/>
+      <rect x="425" y="120" width="14" height="18" rx="3" fill="rgba(0,180,255,0.1)" stroke="#555" stroke-width="1"/>
+    </g>
+    <!-- Glucose outside cell -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="4s" fill="freeze"/>
+      ${[0,1,2,3,4].map(i=>{const a=Math.PI*2/5*i;const cx=465+80*Math.cos(a);const cy=160+58*Math.sin(a);return `<polygon points="${hexPoints(cx,cy,6)}" fill="#FFD93D" opacity="0.5"/>`;}).join('')}
+    </g>
+    <!-- Battery (empty) -->
+    <rect x="440" y="188" width="50" height="14" rx="3" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.15)" stroke-width="1" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5s" fill="freeze"/>
+    </rect>
+    <rect x="442" y="190" width="2" height="10" rx="2" fill="#FF4757" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="5.2s" fill="freeze"/>
+    </rect>
+    <!-- Data overlays -->
+    <text x="465" y="224" fill="#FF4757" font-size="13" font-weight="600" text-anchor="middle" opacity="0">Receptor: 3%
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="6s" fill="freeze"/>
+    </text>
+    <text x="465" y="238" fill="#FF4757" font-size="13" font-weight="600" text-anchor="middle" opacity="0">Cell Energy: 2%
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="6.5s" fill="freeze"/>
+    </text>
+    
+    <!-- Medical summary label -->
+    <rect x="340" y="270" width="250" height="35" rx="6" fill="rgba(255,71,87,0.08)" stroke="#FF4757" stroke-width="1" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="8s" fill="freeze"/>
+    </rect>
+    <text x="465" y="288" fill="#FF4757" font-size="12" font-weight="600" text-anchor="middle" opacity="0">Cause of death: Ketoacidosis
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="8.5s" fill="freeze"/>
+    </text>
+    <text x="465" y="300" fill="var(--textDim)" font-size="10" text-anchor="middle" opacity="0">Cells could not access glucose for energy
+      <animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="9s" fill="freeze"/>
+    </text>
+  `;
+  arena.appendChild(svg);
+}
+function buildArena6(arena,w,h){
+  // Reuses Level 4 chain structure with vocabulary/data annotations
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 540 260');
+  svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+  svg.innerHTML=`
+    <text x="270" y="16" fill="var(--accent2)" font-weight="700" text-anchor="middle" font-size="14">COMPLETE CHAIN — ALL EVIDENCE</text>
+    
+    <!-- Step 1 -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="0.5s" fill="freeze"/>
+      <rect x="15" y="35" width="140" height="72" rx="8" fill="rgba(255,71,87,0.06)" stroke="rgba(255,71,87,0.3)" stroke-width="1.5"/>
+      <circle cx="38" cy="52" r="8" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="38" y="55" fill="#FF4757" font-size="12" text-anchor="middle" font-weight="800">1</text>
+      <circle cx="95" cy="60" r="16" fill="rgba(80,80,80,0.2)" stroke="#555" stroke-width="1.5" stroke-dasharray="3,2"/>
+      <text x="95" y="63" fill="#555" font-size="9" text-anchor="middle">DIM</text>
+      <text x="85" y="82" fill="#FF4757" font-size="11" font-weight="600" text-anchor="middle">No INSULIN</text>
+      <text x="85" y="96" fill="var(--accent2)" font-size="9" font-weight="700" text-anchor="middle">HORMONE</text>
+    </g>
+    
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="2s" fill="freeze"/>
+      <line x1="158" y1="70" x2="178" y2="70" stroke="#FF4757" stroke-width="2"/>
+      <polygon points="178,65 188,70 178,75" fill="#FF4757"/>
+    </g>
+    
+    <!-- Step 2 -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="2s" fill="freeze"/>
+      <rect x="190" y="35" width="130" height="72" rx="8" fill="rgba(255,71,87,0.06)" stroke="rgba(255,71,87,0.3)" stroke-width="1.5"/>
+      <circle cx="213" cy="52" r="8" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="213" y="55" fill="#FF4757" font-size="12" text-anchor="middle" font-weight="800">2</text>
+      <line x1="235" y1="65" x2="290" y2="65" stroke="#555" stroke-width="2" stroke-dasharray="4,3"/>
+      <text x="255" y="82" fill="#FF4757" font-size="11" font-weight="600" text-anchor="middle">No insulin</text>
+      <text x="255" y="96" fill="var(--textDim)" font-size="9" text-anchor="middle">0 keys in blood</text>
+    </g>
+    
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="3.5s" fill="freeze"/>
+      <line x1="323" y1="70" x2="343" y2="70" stroke="#FF4757" stroke-width="2"/>
+      <polygon points="343,65 353,70 343,75" fill="#FF4757"/>
+    </g>
+    
+    <!-- Step 3 -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="3.5s" fill="freeze"/>
+      <rect x="355" y="35" width="150" height="82" rx="8" fill="rgba(255,71,87,0.06)" stroke="rgba(255,71,87,0.3)" stroke-width="1.5"/>
+      <circle cx="378" cy="52" r="8" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="378" y="55" fill="#FF4757" font-size="12" text-anchor="middle" font-weight="800">3</text>
+      <rect x="400" y="50" width="14" height="14" rx="3" fill="rgba(0,180,255,0.08)" stroke="#555" stroke-width="1.5"/>
+      ${[0,1,2].map(i=>`<polygon points="${hexPoints(440+i*13,58,5)}" fill="#FFD93D" opacity="0.4"/>`).join('')}
+      <text x="430" y="80" fill="#FF4757" font-size="10" font-weight="600" text-anchor="middle">Receptors EMPTY</text>
+      <text x="430" y="93" fill="var(--accent2)" font-size="9" font-weight="700" text-anchor="middle">RECEPTOR: 3%</text>
+      <text x="430" y="105" fill="var(--accent2)" font-size="9" font-weight="700" text-anchor="middle">GLUCOSE: 550 mg/dL</text>
+    </g>
+    
+    <!-- Arrow 3->4 -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="5.5s" fill="freeze"/>
+      <line x1="430" y1="120" x2="370" y2="145" stroke="#FF4757" stroke-width="2"/>
+      <polygon points="365,141 372,149 376,140" fill="#FF4757"/>
+    </g>
+    
+    <!-- Step 4 -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="5.5s" fill="freeze"/>
+      <rect x="190" y="140" width="240" height="70" rx="8" fill="rgba(255,71,87,0.08)" stroke="rgba(255,71,87,0.4)" stroke-width="1.5"/>
+      <circle cx="213" cy="162" r="8" fill="rgba(255,71,87,0.3)" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="213" y="165" fill="#FF4757" font-size="12" text-anchor="middle" font-weight="800">4</text>
+      <rect x="240" y="155" width="22" height="14" rx="3" fill="rgba(80,80,80,0.3)" stroke="#555" stroke-width="1"/>
+      <rect x="268" y="155" width="22" height="14" rx="3" fill="rgba(80,80,80,0.3)" stroke="#555" stroke-width="1"/>
+      <text x="280" y="180" fill="#FF4757" font-size="11" font-weight="600" text-anchor="middle">Cells starve — no energy</text>
+      <text x="280" y="194" fill="var(--accent2)" font-size="10" font-weight="700" text-anchor="middle">Cell energy: 2%</text>
+      <text x="400" y="180" fill="#FF4757" font-size="12" font-weight="800" text-anchor="start">KETOACIDOSIS</text>
+    </g>
+    
+    <!-- Red X -->
+    <g opacity="0"><animate attributeName="opacity" from="0" to="1" dur="0.5s" begin="7s" fill="freeze"/>
+      <circle cx="173" cy="70" r="12" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="2"/>
+      <line x1="167" y1="64" x2="179" y2="76" stroke="#FF4757" stroke-width="2.5"/>
+      <line x1="179" y1="64" x2="167" y2="76" stroke="#FF4757" stroke-width="2.5"/>
+    </g>
+    
+    <!-- Summary -->
+    <text x="270" y="230" fill="var(--accent2)" font-size="12" font-weight="600" text-anchor="middle" opacity="0">Chain breaks at step 1 — all downstream effects follow.
+      <animate attributeName="opacity" from="0" to="1" dur="0.8s" begin="8s" fill="freeze"/>
+    </text>
+  `;
+  arena.appendChild(svg);
+}
+
+// ============ DO PHASE ============
+function startDO(idx){
+  if(idx!==currentLevel)return;
+  processing=true;
+  currentPhase='do';
+  phaseStartTime=Date.now();
+  selectedOpt=null;
+  const l=levels[idx];
+  
+  // Fade focus prompt
+  document.getElementById('focusPrompt').style.opacity='0.4';
+  
+  // Guided first level coaching
+  let coachMsg='';
+  if(l.isFirstLevel){
+    coachMsg=`<div class="coaching-bar" style="margin-bottom:10px;background:rgba(0,212,255,0.1);border-left-color:var(--accent1);color:var(--text);">Did you see the red line climb? Now show me what you noticed.</div>`;
+  }
+  
+  const iz=document.getElementById('interZone');
+  
+  // HOTSPOT (Level 3)
+  if(l.mechanic==='hotspot'){
+    iz.innerHTML=`<div class="phase-label">DO</div>${coachMsg}<div class="prompt-text">${l.doPrompt}</div><div style="font-size:13px;color:var(--textDim);">Tap on the arena above</div>`;
+    setupHotspot(idx);
+    processing=false;
+    return;
+  }
+  
+  // WHAT-COMES-NEXT (Level 4) - blur chain labels before showing options
+  if(l.mechanic==='what-comes-next'){
+    if(typeof window.blurChainLabels==='function')try{window.blurChainLabels();}catch(e){}
+    iz.innerHTML=`
+      <div class="phase-label">DO</div>
+      <div class="prompt-text">${l.doPrompt}</div>
+      <div style="font-size:12px;color:var(--textDim);margin-bottom:8px;">Partial sequence: No insulin produced &#8594; ___</div>
+      <div class="options-row" id="doOptionsRow">
+        ${l.doOptions.map(o=>`<div class="opt-card" data-id="${o.id}" onclick="selectDOOption(this,'${o.id}')">${o.text}</div>`).join('')}
+      </div>
+      <button id="lockInBtn" onclick="lockInDO()">Lock In</button>
+      <div id="tryAgainBtn" class="hidden" onclick="retryDO()">Try Again</div>
+    `;
+    processing=false;
+    return;
+  }
+  
+  // CLAIM BUILDER (Level 6)
+  if(l.mechanic==='claim-builder'){
+    // Spotlight evidence cards 3 and 4 (receptor + pathway)
+    document.querySelectorAll('.ev-card').forEach((c,i)=>{
+      if(i===2||i===3)c.style.opacity='1';
+      else if(c.classList.contains('pinned'))c.style.opacity='0.4';
+    });
+    iz.innerHTML=`
+      <div class="phase-label">DO — CLAIM BUILDER</div>
+      <div class="prompt-text">${l.doPrompt}</div>
+      <div style="font-size:12px;color:var(--textDim);margin-bottom:8px;">Use the evidence cards to choose the correct claim.</div>
+      <div class="options-row" id="doOptionsRow">
+        ${l.doOptions.map(o=>`<div class="opt-card" data-id="${o.id}" onclick="selectDOOption(this,'${o.id}')">${o.text}</div>`).join('')}
+      </div>
+      <button id="lockInBtn" onclick="lockInDO()">Lock In</button>
+      <div id="tryAgainBtn" class="hidden" onclick="retryDO()">Try Again</div>
+    `;
+    processing=false;
+    return;
+  }
+  
+  // Standard option-based mechanics (Coach-Click, Pick-the-Match)
+  iz.innerHTML=`
+    <div class="phase-label">DO</div>
+    ${coachMsg}
+    <div class="prompt-text">${l.doPrompt}</div>
+    <div class="options-row" id="doOptionsRow">
+      ${l.doOptions.map((o,i)=>`<div class="opt-card${l.isFirstLevel&&o.id===l.doCorrect?' hint-glow':''}" data-id="${o.id}" onclick="selectDOOption(this,'${o.id}')">${o.text}</div>`).join('')}
+    </div>
+    <button id="lockInBtn" onclick="lockInDO()">Lock In</button>
+    <div id="tryAgainBtn" class="hidden" onclick="retryDO()">Try Again</div>
+  `;
+  processing=false;
+}
+
+function selectDOOption(el,id){
+  if(processing)return;
+  document.querySelectorAll('#doOptionsRow .opt-card').forEach(c=>c.classList.remove('selected'));
+  if(!el.classList.contains('dimmed')){
+    el.classList.add('selected');
+    selectedOpt=id;
+    document.getElementById('lockInBtn').classList.add('active');
+  }
+}
+
+function lockInDO(){
+  if(processing||!selectedOpt)return;
+  processing=true;
+  const l=levels[currentLevel];
+  const elapsed=Date.now()-phaseStartTime;
+  gameState.levels[currentLevel].attempts++;
+  
+  if(selectedOpt===l.doCorrect){
+    // CORRECT
+    handleDOCorrect(l);
+  }else{
+    // WRONG
+    // Fast guess check
+    if(elapsed<2000){
+      consecutiveFastWrongs++;
+      if(consecutiveFastWrongs>=2){
+        showGate();
+        return;
+      }
+    }else{
+      consecutiveFastWrongs=0;
+    }
+    wrongCount++;
+    handleDOWrong(l);
+  }
+}
+
+function handleDOCorrect(l){
+  playCorrect();
+  const card=document.querySelector(`#doOptionsRow .opt-card[data-id="${l.doCorrect}"]`);
+  if(card)card.classList.add('correct');
+  document.getElementById('lockInBtn').classList.remove('active');
+  
+  // Score float — preview what the score will be based on current state
+  const ls=gameState.levels[currentLevel];
+  const previewScore=calcLevelScore(ls.hintsUsed,ls.resets);
+  showScoreFloat('+'+previewScore);
+  
+  // Update conclusion
+  updateConclusion(l.conclusionPct,l.conclusionLabel);
+  
+  // Level-specific correct actions
+  if(currentLevel===3&&typeof window.unblurChainLabels==='function'){
+    try{window.unblurChainLabels();}catch(e){}
+  }
+  if(currentLevel===5){
+    // Restore evidence card opacity
+    document.querySelectorAll('.ev-card.pinned').forEach(c=>c.style.opacity='1');
+  }
+  
+  // Affirmation if first try and no hints
+  if(wrongCount===0&&ls.hintsUsed===0){
+    showBriefAffirmation();
+  }
+  
+  transitionTimeout=setTimeout(()=>{
+    startPROVE(currentLevel);
+  },1500);
+}
+
+function handleDOWrong(l){
+  playWrong();
+  const card=document.querySelector(`#doOptionsRow .opt-card.selected`);
+  if(card){card.classList.add('wrong');setTimeout(()=>card.classList.remove('wrong'),500);}
+  
+  document.getElementById('lockInBtn').classList.remove('active');
+  
+  // Show coaching
+  const fb=l.doWrongFeedback[selectedOpt]||'Look more carefully at the evidence.';
+  showCoaching(fb,wrongCount);
+  
+  // Show try again
+  document.getElementById('tryAgainBtn').classList.remove('hidden');
+  document.getElementById('tryAgainBtn').style.display='block';
+  
+  // Dim wrong option
+  if(card)card.classList.add('dimmed');
+  
+  selectedOpt=null;
+  processing=false;
+}
+
+function retryDO(){
+  if(processing)return;
+  // Remove coaching bars
+  document.querySelectorAll('.coaching-bar').forEach(el=>el.remove());
+  document.getElementById('tryAgainBtn').classList.add('hidden');
+  selectedOpt=null;
+  phaseStartTime=Date.now();
+  processing=false;
+}
+
+// ============ HOTSPOT ============
+function setupHotspot(idx){
+  const arena=document.getElementById('arena');
+  // Add clickable overlay areas for Level 3
+  if(idx===2){
+    // Wait for SVG to render
+    setTimeout(()=>{
+      const svg=document.getElementById('arena3svg');
+      if(!svg)return;
+      // Add invisible clickable hotspot areas via HTML overlays
+      // Alec's receptor area (correct) - right side, around x=440-490, y=105-160 in SVG coords
+      const svgRect=arena.getBoundingClientRect();
+      addHotspotOverlays(arena);
+    },500);
+  }
+  arena.onclick=function(e){handleHotspotClick(e,idx);};
+}
+
+function addHotspotOverlays(arena){
+  // Remove any existing
+  arena.querySelectorAll('.hotspot-area').forEach(el=>el.remove());
+  // We use percentage-based positioning relative to arena
+  // Alec's receptor: in SVG viewBox 620x320, it's around x=440,y=105 w=50,h=55
+  // As percentages: left≈71%, top≈33%, w≈8%, h≈17%
+  const areas=[
+    {id:'receptor',left:'69%',top:'32%',width:'12%',height:'22%',label:'Alec receptor'},
+    {id:'glucose',left:'65%',top:'18%',width:'16%',height:'14%',label:'glucose outside'},
+    {id:'cellwall',left:'56%',top:'38%',width:'10%',height:'20%',label:'cell wall'},
+    {id:'insulin',left:'18%',top:'32%',width:'10%',height:'16%',label:'healthy key'}
+  ];
+  areas.forEach(a=>{
+    const div=document.createElement('div');
+    div.className='hotspot-area';
+    div.dataset.target=a.id;
+    div.style.cssText=`position:absolute;left:${a.left};top:${a.top};width:${a.width};height:${a.height};z-index:5;`;
+    arena.appendChild(div);
+  });
+}
+
+let hotspotWrongCount=0;
+function handleHotspotClick(e,idx){
+  if(processing||currentPhase!=='do')return;
+  const target=e.target.closest('.hotspot-area');
+  if(!target)return;
+  processing=true;
+  const tgt=target.dataset.target;
+  const l=levels[idx];
+  
+  if(tgt===l.doCorrect){
+    // Correct
+    target.classList.add('hs-correct');
+    playCorrect();
+    hotspotWrongCount=0;
+    const ls=gameState.levels[currentLevel];
+    const previewScore=calcLevelScore(ls.hintsUsed,ls.resets);
+    showScoreFloat('+'+previewScore);
+    updateConclusion(l.conclusionPct,l.conclusionLabel);
+    if(wrongCount===0&&ls.hintsUsed===0)showBriefAffirmation();
+    const iz=document.getElementById('interZone');
+    iz.innerHTML=`<div class="phase-label">DO</div><div class="prompt-text" style="color:var(--correct);">Correct! The empty receptor is why glucose can't enter.</div>`;
+    document.getElementById('arena').onclick=null;
+    transitionTimeout=setTimeout(()=>startPROVE(currentLevel),1500);
+  }else{
+    // Wrong
+    target.classList.add('hs-wrong');
+    setTimeout(()=>target.classList.remove('hs-wrong'),500);
+    playWrong();
+    wrongCount++;hotspotWrongCount++;
+    
+    const fb=l.doWrongFeedback[tgt]||'Look more carefully at the evidence.';
+    showCoaching(fb,wrongCount>=2?1:0);
+    
+    if(hotspotWrongCount>=3){
+      // Show hint - highlight correct area
+      const correctArea=document.querySelector('.hotspot-area[data-target="receptor"]');
+      if(correctArea)correctArea.classList.add('hs-hint');
+      hotspotWrongCount=0;
+    }
+    processing=false;
+  }
+}
+
+// ============ PROVE PHASE ============
+function startPROVE(idx){
+  if(idx!==currentLevel)return;
+  processing=true;
+  currentPhase='prove';
+  phaseStartTime=Date.now();
+  selectedOpt=null;
+  const l=levels[idx];
+  
+  const iz=document.getElementById('interZone');
+  iz.innerHTML=`
+    <div class="phase-label">PROVE</div>
+    <div class="prompt-text">${l.provePrompt}</div>
+    <div class="options-row" id="proveOptionsRow">
+      ${l.proveOptions.map(o=>`<div class="opt-card" data-id="${o.id}" onclick="selectPROVEOption(this,'${o.id}')">${o.text}</div>`).join('')}
+    </div>
+    <button id="lockInBtn" onclick="lockInPROVE()">Lock In</button>
+    <div id="tryAgainBtn" class="hidden" onclick="retryPROVE()">Try Again</div>
+  `;
+  processing=false;
+}
+
+function selectPROVEOption(el,id){
+  if(processing)return;
+  document.querySelectorAll('#proveOptionsRow .opt-card').forEach(c=>c.classList.remove('selected'));
+  if(!el.classList.contains('dimmed')){
+    el.classList.add('selected');
+    selectedOpt=id;
+    document.getElementById('lockInBtn').classList.add('active');
+  }
+}
+
+function lockInPROVE(){
+  if(processing||!selectedOpt)return;
+  processing=true;
+  const l=levels[currentLevel];
+  
+  if(selectedOpt===l.proveCorrect){
+    handlePROVECorrect(l);
+  }else{
+    handlePROVEWrong(l);
+  }
+}
+
+function handlePROVECorrect(l){
+  playCorrect();
+  const card=document.querySelector(`#proveOptionsRow .opt-card[data-id="${l.proveCorrect}"]`);
+  if(card)card.classList.add('correct');
+  
+  // Complete level
+  completeLevel();
+}
+
+function handlePROVEWrong(l){
+  playWrong();
+  const card=document.querySelector('#proveOptionsRow .opt-card.selected');
+  if(card){card.classList.add('wrong');setTimeout(()=>{card.classList.remove('wrong');card.classList.add('dimmed');},500);}
+  
+  const fb=l.proveWrongFeedback[selectedOpt]||'Look at the evidence again.';
+  showCoaching(fb,0);
+  
+  document.getElementById('lockInBtn').classList.remove('active');
+  document.getElementById('tryAgainBtn').classList.remove('hidden');
+  document.getElementById('tryAgainBtn').style.display='block';
+  
+  selectedOpt=null;
+  processing=false;
+}
+
+function retryPROVE(){
+  if(processing)return;
+  document.querySelectorAll('.coaching-bar').forEach(el=>el.remove());
+  document.getElementById('tryAgainBtn').classList.add('hidden');
+  selectedOpt=null;
+  phaseStartTime=Date.now();
+  processing=false;
+}
+
+// ============ LEVEL COMPLETION ============
+function completeLevel(){
+  const ls=gameState.levels[currentLevel];
+  const l=levels[currentLevel];
+  ls.completed=true;
+  ls.score=calcLevelScore(ls.hintsUsed,ls.resets);
+  ls.timeSeconds=Math.round((Date.now()-levelStartTime)/1000);
+  updateScore();updateProgress();
+  
+  document.getElementById('hintBtn').disabled=true;
+  document.getElementById('resetLevelBtn').disabled=true;
+  
+  // Check milestones
+  const completedCount=gameState.levels.filter(l=>l.completed).length;
+  const requiredDone=gameState.levels.filter((l,i)=>levels[i].required&&l.completed).length;
+  
+  if(requiredDone===4&&!requiredCompleteShown){
+    requiredCompleteShown=true;
+    transitionTimeout=setTimeout(()=>showRequiredComplete(),1500);
+  }else if(completedCount===6&&!bonusCompleteShown){
+    bonusCompleteShown=true;
+    transitionTimeout=setTimeout(()=>showBonusComplete(),1500);
+  }else if(completedCount%2===0&&completedCount>0){
+    transitionTimeout=setTimeout(()=>showMilestone(),1200);
+  }else{
+    transitionTimeout=setTimeout(()=>advanceToNext(),1500);
+  }
+  processing=false;
+}
+
+function advanceToNext(){
+  const next=currentLevel+1;
+  if(next<levels.length){
+    loadLevel(next);
+  }else{
+    showReceipt();
+  }
+}
+
+function autoAdvance50(){
+  const ls=gameState.levels[currentLevel];
+  ls.completed=true;ls.score=50;ls.resets=3;
+  ls.timeSeconds=Math.round((Date.now()-levelStartTime)/1000);
+  updateScore();updateProgress();
+  
+  const iz=document.getElementById('interZone');
+  iz.innerHTML=`<div class="prompt-text" style="color:var(--accent2);">Let's move on — you'll see this idea again.</div>`;
+  processing=false;
+  transitionTimeout=setTimeout(()=>{
+    const completedCount=gameState.levels.filter(l=>l.completed).length;
+    const requiredDone=gameState.levels.filter((l,i)=>levels[i].required&&l.completed).length;
+    if(requiredDone===4&&!requiredCompleteShown){
+      requiredCompleteShown=true;
+      showRequiredComplete();
+    }else{
+      advanceToNext();
+    }
+  },2000);
+}
+
+// ============ COACHING & HINTS ============
+function showCoaching(text,hintLevel){
+  document.querySelectorAll('.coaching-bar').forEach(el=>el.remove());
+  const bar=document.createElement('div');
+  bar.className='coaching-bar'+(hintLevel>=2?' hint2':hintLevel>=1?' hint1':'');
+  bar.textContent=text;
+  document.getElementById('interZone').appendChild(bar);
+}
+
+function useHint(){
+  if(processing)return;
+  const l=levels[currentLevel];
+  const ls=gameState.levels[currentLevel];
+  ls.hintsUsed++;
+  
+  if(ls.hintsUsed===1){
+    showCoaching(l.hintLadder.hint1.text,1);
+    // If hotspot level, add subtle visual nudge
+    if(l.mechanic==='hotspot'){
+      const correctArea=document.querySelector('.hotspot-area[data-target="'+l.doCorrect+'"]');
+      if(correctArea)correctArea.classList.add('hs-hint');
+    }
+  }else if(ls.hintsUsed===2){
+    showCoaching(l.hintLadder.hint2.text,2);
+  }else if(ls.hintsUsed>=3){
+    showStepByStep(l.hintLadder.stepByStep);
+  }
+}
+
+function showStepByStep(panels){
+  let panelIdx=0;
+  const overlay=document.getElementById('hintOverlay');
+  overlay.classList.remove('hidden');
+  
+  function showPanel(){
+    if(panelIdx>=panels.length){
+      overlay.classList.add('hidden');
+      return;
+    }
+    const p=panels[panelIdx];
+    overlay.innerHTML=`
+      <div class="hint-panel">
+        <div class="hint-panel-title">Step ${panelIdx+1} of ${panels.length}</div>
+        <div class="hint-panel-text">${p.text}</div>
+        <button class="hint-panel-btn" onclick="this.closest('.hint-panel').dataset.next='1'">${panelIdx<panels.length-1?'Next':'Got it'}</button>
+      </div>
+    `;
+    const btn=overlay.querySelector('.hint-panel-btn');
+    btn.onclick=()=>{panelIdx++;showPanel();};
+  }
+  showPanel();
+}
+
+function showGate(){
+  // Gate blocks further answers but Reset Level must still work
+  const iz=document.getElementById('interZone');
+  const coachDiv=document.createElement('div');
+  coachDiv.className='coaching-bar gate';
+  coachDiv.textContent='The evidence is reloading — watch what it shows you.';
+  iz.appendChild(coachDiv);
+  
+  // Disable option cards during gate
+  iz.querySelectorAll('.opt-card').forEach(c=>c.classList.add('disabled'));
+  
+  const gateId=++fastGuessGateId;
+  processing=false; // Allow Reset Level to work during gate
+  setTimeout(()=>{
+    if(fastGuessGateId===gateId){
+      coachDiv.remove();
+      // Re-enable non-dimmed option cards
+      iz.querySelectorAll('.opt-card.disabled:not(.dimmed)').forEach(c=>c.classList.remove('disabled'));
+      consecutiveFastWrongs=0;
+      selectedOpt=null;
+      phaseStartTime=Date.now();
+    }
+  },5000);
+}
+
+// ============ CELEBRATIONS ============
+function showMilestone(){
+  closeAllOverlays();
+  const overlay=document.getElementById('celebOverlay');
+  overlay.classList.remove('hidden');
+  overlay.innerHTML=`
+    <div class="celeb-msg">Nice work!</div>
+    <div class="celeb-affirmation">${getAffirmation()}</div>
+  `;
+  fireParticles(window.innerWidth/2,window.innerHeight/2,12,'var(--accent2)');
+  playTone(523,0.1);setTimeout(()=>playTone(659,0.1),150);setTimeout(()=>playTone(784,0.2),300);
+  
+  setTimeout(()=>{
+    overlay.classList.add('hidden');
+    advanceToNext();
+  },2000);
+}
+
+function showRequiredComplete(){
+  closeAllOverlays();
+  updateConclusion(83,'CASE CRACKED');
+  const overlay=document.getElementById('celebOverlay');
+  overlay.classList.remove('hidden');
+  overlay.innerHTML=`
+    <div class="celeb-msg">You figured out why the cells couldn't get energy.</div>
+    <div class="celeb-sub">Can you prove it with ALL the evidence?</div>
+    <div class="celeb-affirmation">${getAffirmation()}</div>
+    <div class="celeb-btns">
+      <button class="celeb-btn primary" onclick="closeCelebAndContinue()">Prove It — Bonus Levels</button>
+      <button class="celeb-btn secondary" onclick="closeCelebAndReceipt()">See My Score</button>
+    </div>
+  `;
+  fireParticles(window.innerWidth/2,window.innerHeight/2,15,'var(--correct)');
+  
+  // Safety timeout — buttons are present, so just leave open
+}
+
+function showBonusComplete(){
+  closeAllOverlays();
+  const overlay=document.getElementById('celebOverlay');
+  overlay.classList.remove('hidden');
+  overlay.innerHTML=`
+    <div class="celeb-msg" style="color:var(--accent2);">BONUS COMPLETE!</div>
+    <div class="celeb-sub">Bonus done. You proved insulin never reached the receptors — and you showed what would fix it.</div>
+    <div class="celeb-affirmation">${getAffirmation()}</div>
+  `;
+  fireParticles(window.innerWidth/2,window.innerHeight/2,15,'gold');
+  
+  setTimeout(()=>{
+    overlay.classList.add('hidden');
+    showReceipt();
+  },3000);
+}
+
+function closeCelebAndContinue(){
+  document.getElementById('celebOverlay').classList.add('hidden');
+  advanceToNext();
+}
+function closeCelebAndReceipt(){
+  document.getElementById('celebOverlay').classList.add('hidden');
+  showReceipt();
+}
+
+function showBriefAffirmation(){
+  try{
+    const el=document.createElement('div');
+    el.style.cssText='position:fixed;bottom:180px;left:50%;transform:translateX(-50%);font-size:22px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.5);z-index:600;pointer-events:none;opacity:0;animation:fadeAffirm 2s ease forwards;white-space:nowrap;';
+    el.textContent=getAffirmation();
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),2500);
+  }catch(e){}
+}
+
+function showScoreFloat(text){
+  try{
+    const el=document.createElement('div');
+    el.style.cssText='position:fixed;top:60px;right:80px;font-size:20px;font-weight:700;color:var(--accent2);z-index:600;pointer-events:none;animation:scoreFloat 1.2s ease forwards;';
+    el.textContent=text;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),1500);
+  }catch(e){}
+}
+
+// ============ RECEIPT ============
+function showReceipt(){
+  if(receiptRendered)return;
+  receiptRendered=true;
+  
+  // Clear intervals
+  if(ambientInterval){clearInterval(ambientInterval);ambientInterval=null;}
+  if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}
+  
+  closeAllOverlays();
+  document.getElementById('gameContainer').classList.add('hidden');
+  
+  gameState.totalTimeSeconds=Math.round((Date.now()-levelStartTime)/1000);
+  updateScore();
+  
+  const pct=gameState.overallScore;
+  const colorClass=pct>=85?'green':pct>=70?'yellow':'red';
+  const label=pct>=85?'MASTERY':pct>=70?'APPROACHING MASTERY':'NEEDS MORE PRACTICE';
+  
+  const requiredDone=gameState.levels.filter((l,i)=>levels[i].required&&l.completed).length;
+  const allDone=gameState.levels.filter(l=>l.completed).length;
+  const statusText=allDone===6?'6/6 All Complete (Bonus!)':requiredDone+'/4 Required Complete';
+  
+  let totalTime=0;
+  gameState.levels.forEach(l=>{totalTime+=l.timeSeconds;});
+  const totalMin=Math.floor(totalTime/60);
+  const totalSec=totalTime%60;
+  
+  const rs=document.getElementById('receiptScreen');
+  rs.classList.remove('hidden');
+  rs.innerHTML=`
+    <div class="receipt-header">${teacherName}'s Simulations</div>
+    <div class="receipt-sub">Ozempic, Insulin, Diabetes — Tuesday Score Report</div>
+    <div class="receipt-name-row">
+      <span style="color:var(--textDim);font-size:13px;">Student Name:</span>
+      <input id="receiptNameInput" value="${escHtml(studentName)}" maxlength="40">
+      <button id="lockNameBtn" onclick="lockReceiptName()">Lock</button>
+    </div>
+    <div class="receipt-grade ${colorClass}">${pct}%</div>
+    <div class="receipt-label">${label}</div>
+    <table class="receipt-table">
+      <thead><tr><th>#</th><th>Level</th><th>Score</th><th>Attempts</th><th>Time</th></tr></thead>
+      <tbody>
+        ${gameState.levels.map((l,i)=>{
+          const lv=levels[i];
+          const sc=l.completed?l.score+'%':'--';
+          const scColor=l.score>=85?'green':l.score>=70?'yellow':'red';
+          const bonus=!lv.required?'bonus-row':'';
+          const star=!lv.required?'&#11088; ':'';
+          const t=l.completed?Math.floor(l.timeSeconds/60)+':'+String(l.timeSeconds%60).padStart(2,'0'):'--';
+          return `<tr class="${bonus}"><td>${star}${lv.num}</td><td>${lv.name}</td><td class="score-cell ${scColor}">${sc}</td><td>${l.completed?l.attempts:'--'}</td><td>${t}</td></tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div class="receipt-status">Total Time: ${totalMin}:${String(totalSec).padStart(2,'0')} &nbsp; Status: ${statusText}</div>
+    <div class="receipt-upload">Take a screenshot and upload to Google Classroom</div>
+    <div class="receipt-btns">
+      <button class="receipt-btn print" onclick="window.print()">&#128424; Print</button>
+      <button class="receipt-btn restart" onclick="confirmRestart()">Start Over</button>
+    </div>
+  `;
+}
+
+function lockReceiptName(){
+  const inp=document.getElementById('receiptNameInput');
+  inp.disabled=true;
+  inp.style.opacity='0.7';
+  document.getElementById('lockNameBtn').disabled=true;
+  document.getElementById('lockNameBtn').textContent='Locked';
+}
+
+function confirmRestart(){
+  const d=document.getElementById('confirmDialog');
+  d.classList.remove('hidden');
+  d.innerHTML=`
+    <div class="confirm-box">
+      <div class="confirm-text">Are you sure? This will erase all your progress and start a new investigation.</div>
+      <div class="confirm-btns">
+        <button class="confirm-btn" style="background:var(--wrong);color:#fff;" onclick="doRestart()">Yes, Start Over</button>
+        <button class="confirm-btn" style="background:var(--panel);color:var(--text);border:2px solid var(--cardBorder);" onclick="document.getElementById('confirmDialog').classList.add('hidden')">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function doRestart(){
+  location.reload();
+}
+
+// ============ RESET LEVEL ============
+function resetCurrentLevel(){
+  if(processing)return;
+  if(gameState.levels[currentLevel].completed)return;
+  const ls=gameState.levels[currentLevel];
+  ls.resets++;
+  levelResets=ls.resets;
+  if(levelResets>=3){
+    autoAdvance50();
+    return;
+  }
+  wrongCount=0;consecutiveFastWrongs=0;selectedOpt=null;
+  closeAllOverlays();
+  loadLevel(currentLevel);
+}
+
+// ============ VOCAB ============
+function toggleVocab(){
+  document.getElementById('vocabPopup').classList.toggle('open');
+}
+
+// ============ READ ALOUD ============
+function toggleReadAloud(){
+  readAloud=!readAloud;
+}
+
+// ============ VISIBILITY HANDLER ============
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    if(ambientInterval){clearInterval(ambientInterval);ambientInterval=null;}
+  }
+});
+
+// ============ KEYBOARD ============
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Escape'){
+    document.getElementById('vocabPopup').classList.remove('open');
+    document.getElementById('hintOverlay').classList.add('hidden');
+  }
+});
+</script>
+</body>
+</html>
