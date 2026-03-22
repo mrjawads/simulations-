@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Decision Challenge — Session 2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#0f1729;--bg2:#162040;--bg3:#1e2d5a;
+--text:#e8ecf4;--text-dim:#8892a8;--text-bright:#ffffff;
+--spot:#00d4aa;--spot-glow:rgba(0,212,170,0.3);
+--regret:#ffb347;--regret-glow:rgba(255,179,71,0.3);
+--doors:#4da6ff;--doors-glow:rgba(77,166,255,0.3);
+--speed:#b388ff;--bold:#ff6b6b;
+--green:#00e676;--red:#ff5252;--gold:#ffd700;
+--card:#1a2744;--card-border:#2a3f6e;
+--btn-a:#00897b;--btn-b:#5c6bc0;
+--radius:12px;--radius-sm:8px;
+}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* Screens — title/end center, game/end scroll from top */
+.screen{display:none;width:100%;min-height:100vh;flex-direction:column;align-items:center;padding:16px;position:relative}
+.screen.active{display:flex}
+.screen.screen-center{justify-content:center}
+.screen.screen-scroll{justify-content:flex-start;overflow-y:auto}
+
+/* Title Screen */
+#titleScreen{background:linear-gradient(135deg,#0a1128 0%,#1a2744 40%,#0f1729 100%);text-align:center}
+.title-brand{font-size:13px;color:var(--gold);letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;opacity:0.85;font-weight:600}
+.title-main{font-size:clamp(32px,7vw,56px);font-weight:900;background:linear-gradient(135deg,var(--spot),var(--doors));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;margin-bottom:8px}
+.title-session{font-size:clamp(16px,3vw,22px);color:var(--text-dim);margin-bottom:32px;font-weight:600}
+.title-hook{font-size:clamp(15px,2.5vw,19px);color:var(--regret);max-width:500px;margin:0 auto 40px;font-style:italic;line-height:1.5}
+.start-btn{background:linear-gradient(135deg,var(--btn-a),#00695c);color:white;border:none;padding:18px 48px;font-size:20px;font-weight:700;border-radius:50px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.3s;box-shadow:0 4px 24px rgba(0,212,170,0.3)}
+.start-btn:hover{transform:translateY(-2px);box-shadow:0 6px 32px rgba(0,212,170,0.5)}
+
+/* HUD */
+#hud{position:fixed;top:0;left:0;right:0;z-index:100;background:linear-gradient(180deg,rgba(15,23,41,0.98),rgba(15,23,41,0.92));backdrop-filter:blur(12px);padding:10px 16px 8px;display:none;border-bottom:1px solid var(--card-border)}
+.hud-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.hud-primary{gap:10px;margin-bottom:4px}
+.hud-secondary{gap:6px;opacity:0.7;transform:scale(0.85)}
+.meter{display:flex;flex-direction:column;align-items:center;min-width:100px;flex:1;max-width:180px}
+.meter-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;white-space:nowrap}
+.meter.primary .meter-label{font-size:11px}
+.meter-bar-bg{width:100%;height:10px;background:var(--bg);border-radius:5px;overflow:hidden;position:relative;border:1px solid var(--card-border)}
+.meter.primary .meter-bar-bg{height:14px;border:2px solid var(--spot);box-shadow:0 0 8px var(--spot-glow)}
+.meter-bar-fill{height:100%;border-radius:5px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1);position:relative}
+.meter-bar-fill::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.2) 50%,transparent 100%);animation:shimmer 2s infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.meter-state{font-size:9px;color:var(--text-dim);margin-top:2px;font-weight:600}
+.meter.primary .meter-state{color:var(--spot);font-size:10px}
+.hud-info{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.05)}
+.hud-round{font-size:12px;font-weight:700;color:var(--text-dim)}
+.hud-xp{font-size:12px;color:var(--gold);font-weight:700}
+.hud-level{font-size:12px;color:var(--green);font-weight:700}
+.hud-powerups{display:flex;gap:6px}
+.powerup-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid transparent;opacity:0.3;transition:all 0.3s}
+.powerup-icon.active{opacity:1;animation:powerGlow 2s infinite}
+@keyframes powerGlow{0%,100%{box-shadow:0 0 4px rgba(255,215,0,0.3)}50%{box-shadow:0 0 12px rgba(255,215,0,0.6)}}
+
+/* Side Indicators — positioned so they don't overlap arena */
+#sideIndicators{position:fixed;right:8px;top:50%;transform:translateY(-50%);z-index:90;display:none;flex-direction:column;gap:6px}
+.side-ind{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-sm);padding:6px 10px;font-size:10px;text-align:center;min-width:80px;transition:all 0.3s}
+.side-ind-label{font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;font-size:8px}
+.side-ind-val{font-weight:700;margin-top:2px;font-size:12px}
+
+/* Game Area — scrollable from top */
+#gameScreen{padding-top:130px;padding-bottom:40px;background:var(--bg)}
+#arena{width:100%;max-width:680px;min-height:200px;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);margin:0 auto 16px;padding:20px;position:relative;overflow:visible;transition:all 0.5s}
+#arena::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at center,rgba(0,212,170,0.03),transparent 70%);pointer-events:none;border-radius:var(--radius)}
+.arena-scene{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;text-align:center;gap:10px}
+.arena-emoji{font-size:56px;transition:all 0.5s;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3))}
+.arena-text{font-size:15px;color:var(--text);line-height:1.5;max-width:580px;word-wrap:break-word}
+.arena-sub{font-size:13px;color:var(--text-dim);line-height:1.4;max-width:580px;word-wrap:break-word}
+
+/* Decision Panel */
+#decisionPanel{width:100%;max-width:680px;margin:0 auto;padding:0 8px}
+.situation-text{font-size:16px;color:var(--text-bright);text-align:center;margin-bottom:16px;line-height:1.55;padding:0 4px;word-wrap:break-word}
+.choice-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.choice-btn{flex:1;min-width:200px;max-width:320px;padding:16px 20px;border:2px solid transparent;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.2s;text-align:center;line-height:1.3}
+.choice-btn:active{transform:scale(0.97)}
+.choice-btn.btn-a{background:linear-gradient(135deg,var(--btn-a),#00695c);color:white;border-color:rgba(0,137,123,0.5)}
+.choice-btn.btn-a:hover{border-color:var(--spot);box-shadow:0 4px 20px rgba(0,212,170,0.3)}
+.choice-btn.btn-b{background:linear-gradient(135deg,var(--btn-b),#3949ab);color:white;border-color:rgba(92,107,192,0.5)}
+.choice-btn.btn-b:hover{border-color:var(--doors);box-shadow:0 4px 20px rgba(77,166,255,0.3)}
+
+/* Tag System */
+#tagPanel{width:100%;max-width:680px;margin:0 auto;text-align:center;padding:0 8px}
+.tag-prompt{font-size:14px;color:var(--text-dim);margin-bottom:12px;font-weight:600}
+.tag-chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:16px}
+.tag-chip{padding:10px 16px;border-radius:50px;font-size:14px;font-weight:600;cursor:pointer;border:2px solid var(--card-border);background:var(--card);color:var(--text);transition:all 0.2s;user-select:none;position:relative;max-width:300px;word-wrap:break-word;text-align:center}
+.tag-chip:hover{border-color:var(--text-dim)}
+.tag-chip.selected{border-color:var(--red);background:rgba(255,82,82,0.15);color:var(--red)}
+.tag-chip.correct{border-color:var(--green);background:rgba(0,230,118,0.15);color:var(--green)}
+.tag-chip.wrong{border-color:var(--red);background:rgba(255,82,82,0.1);color:var(--text-dim);opacity:0.6}
+.tag-chip .chain-icon{position:absolute;top:-6px;right:-6px;font-size:12px;background:var(--gold);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center}
+.tag-submit{background:var(--bg3);color:var(--text);border:2px solid var(--card-border);padding:12px 32px;border-radius:50px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.2s}
+.tag-submit:hover{border-color:var(--spot);color:var(--spot)}
+.tag-submit:disabled{opacity:0.4;cursor:not-allowed}
+
+/* Overlays */
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(10,17,40,0.92);backdrop-filter:blur(8px);padding:16px;overflow-y:auto}
+.overlay.active{display:flex}
+.overlay-card{background:var(--card);border:2px solid var(--card-border);border-radius:var(--radius);padding:28px 24px;max-width:500px;width:100%;text-align:center;animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes popIn{0%{transform:scale(0.8);opacity:0}100%{transform:scale(1);opacity:1}}
+.overlay-emoji{font-size:48px;margin-bottom:12px}
+.overlay-title{font-size:20px;font-weight:800;margin-bottom:8px}
+.overlay-text{font-size:15px;color:var(--text-dim);line-height:1.5;margin-bottom:16px}
+.overlay-btn{background:linear-gradient(135deg,var(--btn-a),#00695c);color:white;border:none;padding:14px 36px;font-size:16px;font-weight:700;border-radius:50px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.2s}
+.overlay-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,212,170,0.3)}
+
+/* Toast (non-blocking brief feedback for routine rounds) */
+#toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:250;display:none;background:var(--card);border:1px solid var(--card-border);border-radius:50px;padding:10px 24px;font-size:14px;font-weight:600;color:var(--text-bright);box-shadow:0 4px 24px rgba(0,0,0,0.4);text-align:center;max-width:420px;animation:toastIn 0.3s ease-out}
+@keyframes toastIn{0%{opacity:0;transform:translateX(-50%) translateY(10px)}100%{opacity:1;transform:translateX(-50%) translateY(0)}}
+#toast.visible{display:block}
+
+/* Ripple Reveal */
+.ripple-card{background:linear-gradient(135deg,#1a2744,#0f1729);border:2px solid var(--regret);border-radius:var(--radius);padding:28px;max-width:500px;width:100%;text-align:center;animation:rippleIn 0.6s ease-out}
+@keyframes rippleIn{0%{transform:translateY(30px) scale(0.9);opacity:0}100%{transform:translateY(0) scale(1);opacity:1}}
+.ripple-label{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--regret);font-weight:700;margin-bottom:12px}
+.ripple-round{font-size:16px;color:var(--text-dim);margin-bottom:8px}
+.ripple-choice{font-size:20px;font-weight:800;color:var(--text-bright);margin-bottom:12px}
+.ripple-consequence{font-size:16px;color:var(--regret);font-weight:600;line-height:1.4}
+
+/* Resolution */
+.resolution-card{background:var(--card);border:2px solid var(--gold);border-radius:var(--radius);padding:24px;max-width:500px;width:100%;text-align:center;animation:resIn 0.8s ease-out}
+@keyframes resIn{0%{transform:scale(0.7);opacity:0}100%{transform:scale(1);opacity:1}}
+.res-emoji{font-size:56px;margin-bottom:8px}
+.res-title{font-size:14px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;font-weight:700;margin-bottom:8px}
+.res-text{font-size:17px;color:var(--text-bright);font-weight:700;margin-bottom:6px;line-height:1.4}
+.res-sub{font-size:14px;color:var(--text-dim)}
+
+/* Feedback flash */
+.meter-flash{animation:meterPulse 0.6s ease-out}
+@keyframes meterPulse{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+
+/* CauseCue */
+.cause-cue{font-size:13px;font-weight:700;padding:6px 16px;border-radius:50px;display:inline-block;margin:8px 0}
+.cause-cue.good{background:rgba(0,230,118,0.15);color:var(--green)}
+.cause-cue.mid{background:rgba(255,179,71,0.15);color:var(--regret)}
+.cause-cue.miss{background:rgba(255,82,82,0.15);color:var(--red)}
+
+/* End Screen — scrollable */
+#endScreen{background:linear-gradient(135deg,#0a1128,#1a2744);padding:30px 16px 40px;text-align:center}
+.end-brand{font-size:12px;color:var(--gold);letter-spacing:3px;text-transform:uppercase;margin-bottom:8px}
+.end-title{font-size:clamp(24px,5vw,36px);font-weight:900;margin-bottom:4px}
+.end-subtitle{font-size:16px;color:var(--text-dim);margin-bottom:20px}
+.end-meters{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-bottom:20px;max-width:700px}
+.end-meter{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-sm);padding:12px;min-width:120px;flex:1}
+.end-meter-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+.end-meter-bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-bottom:4px}
+.end-meter-fill{height:100%;border-radius:4px;transition:width 1s ease-out}
+.end-meter-state{font-size:12px;font-weight:700}
+.end-stats{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
+.end-stat{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-sm);padding:10px 16px;text-align:center}
+.end-stat-val{font-size:22px;font-weight:800;color:var(--gold)}
+.end-stat-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px}
+
+/* Ripple Map */
+.ripple-map{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:16px;max-width:600px;margin:0 auto 20px;text-align:left}
+.ripple-map-title{font-size:14px;font-weight:800;color:var(--regret);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;text-align:center}
+.ripple-link{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;flex-wrap:wrap}
+.ripple-link:last-child{border-bottom:none}
+.ripple-link-arrow{color:var(--regret);font-weight:800;font-size:16px}
+.ripple-link-from{color:var(--text-dim);min-width:40px;font-weight:700}
+.ripple-link-choice{color:var(--text);flex:1;font-weight:600;min-width:80px}
+.ripple-link-to{color:var(--regret);min-width:40px;text-align:right;font-weight:700}
+
+/* Resolutions on end screen */
+.end-resolutions{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:700px;margin:0 auto 20px}
+.end-res{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-sm);padding:12px;flex:1;min-width:180px;text-align:center}
+.end-res-emoji{font-size:28px}
+.end-res-title{font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;margin:4px 0}
+.end-res-text{font-size:13px;font-weight:600}
+
+/* Replay challenge */
+.replay-box{background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.3);border-radius:var(--radius);padding:16px;max-width:500px;margin:0 auto 16px}
+.replay-box-title{font-size:13px;color:var(--gold);font-weight:700;margin-bottom:6px}
+.replay-box-text{font-size:14px;color:var(--text);line-height:1.4}
+.play-again-btn{background:linear-gradient(135deg,var(--btn-a),#00695c);color:white;border:none;padding:16px 44px;font-size:18px;font-weight:700;border-radius:50px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.3s;box-shadow:0 4px 20px rgba(0,212,170,0.3);margin-bottom:12px}
+.play-again-btn:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(0,212,170,0.5)}
+
+/* Data Layer */
+.data-toggle{background:none;border:1px solid var(--card-border);color:var(--text-dim);padding:10px 24px;border-radius:50px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.2s;margin-bottom:12px}
+.data-toggle:hover{border-color:var(--text);color:var(--text)}
+#dataLayer{display:none;max-width:100%;overflow-x:auto;margin-bottom:20px;padding:0 8px}
+#dataLayer.visible{display:block}
+.data-table{width:100%;border-collapse:collapse;font-size:11px;min-width:600px}
+.data-table th{background:var(--bg3);color:var(--text-dim);padding:8px 6px;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:9px;position:sticky;top:0}
+.data-table td{padding:6px;border-bottom:1px solid rgba(255,255,255,0.05);color:var(--text);vertical-align:top}
+.copy-btn{background:var(--bg3);color:var(--text);border:1px solid var(--card-border);padding:8px 20px;border-radius:50px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.2s;margin-top:8px}
+.copy-btn:hover{border-color:var(--spot);color:var(--spot)}
+
+/* Win/lose banner */
+.end-banner{padding:12px 20px;border-radius:var(--radius);margin-bottom:16px;font-size:15px;font-weight:700;max-width:500px}
+.end-banner.win{background:rgba(0,230,118,0.12);border:1px solid var(--green);color:var(--green)}
+.end-banner.lose{background:rgba(255,179,71,0.12);border:1px solid var(--regret);color:var(--regret)}
+.end-banner.bonus{background:rgba(0,212,170,0.12);border:1px solid var(--spot);color:var(--spot);font-size:13px;margin-top:6px}
+
+/* Clear Eyes flash */
+.clear-eyes-flash{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:5;display:flex;justify-content:center;gap:40px;align-items:center;animation:ceFlash 3s ease-out forwards}
+@keyframes ceFlash{0%{opacity:0}10%{opacity:1}90%{opacity:1}100%{opacity:0}}
+.ce-label{font-size:14px;font-weight:800;padding:6px 14px;border-radius:50px}
+.ce-reward{background:rgba(0,230,118,0.2);color:var(--green);border:1px solid var(--green)}
+.ce-cost{background:rgba(255,82,82,0.2);color:var(--red);border:1px solid var(--red)}
+
+/* Level up */
+.level-up-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:300;display:flex;align-items:center;justify-content:center;background:rgba(10,17,40,0.9);animation:lvlFade 2.5s ease-out forwards;pointer-events:none}
+@keyframes lvlFade{0%{opacity:0}15%{opacity:1}75%{opacity:1}100%{opacity:0}}
+.level-up-text{font-size:48px;font-weight:900;color:var(--gold);text-shadow:0 0 40px rgba(255,215,0,0.5);animation:lvlPop 0.6s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes lvlPop{0%{transform:scale(0.3)}100%{transform:scale(1)}}
+
+/* Hindsight peek */
+.peek-card{background:linear-gradient(135deg,var(--card),#1e2d5a);border:2px solid var(--speed);border-radius:var(--radius);padding:20px;max-width:460px;width:100%;text-align:center;animation:peekIn 0.5s ease-out}
+@keyframes peekIn{0%{transform:translateX(-20px);opacity:0}100%{transform:translateX(0);opacity:1}}
+.peek-icon{font-size:36px;margin-bottom:8px}
+.peek-text{font-size:15px;color:var(--text);font-weight:600}
+
+/* Responsive */
+@media(max-width:900px){
+  #sideIndicators{display:none !important}
+}
+@media(max-width:768px){
+  .meter{min-width:80px}
+  .choice-btn{min-width:140px;padding:14px 16px;font-size:14px}
+  .tag-chip{padding:8px 12px;font-size:12px}
+  .hud-secondary{transform:scale(0.75);margin-top:-4px}
+  .situation-text{font-size:15px}
+  #gameScreen{padding-top:120px}
+}
+@media(max-width:480px){
+  .hud-secondary{display:none}
+  .tag-chip{max-width:260px;font-size:11px;padding:8px 10px}
+  .choice-btn{min-width:120px;font-size:13px;padding:12px 14px}
+}
+</style>
+</head>
+<body>
+
+<!-- TITLE SCREEN -->
+<div id="titleScreen" class="screen screen-center active">
+  <div class="title-brand">Mr. Jawad's Simulations</div>
+  <div class="title-main">The Decision Challenge</div>
+  <div class="title-session">Session 2 — Ripple Rounds</div>
+  <div class="title-hook">"The worst decisions you made last month looked perfect at the time."</div>
+  <button class="start-btn" onclick="startGame()">Start Mission</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-row hud-primary">
+    <div class="meter primary" id="m-spot"><div class="meter-label" style="color:var(--spot)">★ Spot the Catch</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="bar-spot" style="width:0%;background:linear-gradient(90deg,var(--spot),#00f5c8)"></div></div><div class="meter-state" id="state-spot">blind</div></div>
+    <div class="meter" id="m-regret"><div class="meter-label" style="color:var(--regret)">Regret Score</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="bar-regret" style="width:0%;background:linear-gradient(90deg,var(--regret),#ffcc80)"></div></div><div class="meter-state" id="state-regret">minimal</div></div>
+    <div class="meter" id="m-doors"><div class="meter-label" style="color:var(--doors)">Doors Open</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="bar-doors" style="width:50%;background:linear-gradient(90deg,var(--doors),#82b1ff)"></div></div><div class="meter-state" id="state-doors">balanced</div></div>
+  </div>
+  <div class="hud-row hud-secondary">
+    <div class="meter" id="m-speed"><div class="meter-label" style="color:var(--speed)">Decision Speed</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="bar-speed" style="width:50%;background:var(--speed)"></div></div><div class="meter-state" id="state-speed">thoughtful</div></div>
+    <div class="meter" id="m-bold"><div class="meter-label" style="color:var(--bold)">Boldness</div><div class="meter-bar-bg"><div class="meter-bar-fill" id="bar-bold" style="width:50%;background:linear-gradient(90deg,var(--bold),#ff8a80)"></div></div><div class="meter-state" id="state-bold">balanced</div></div>
+  </div>
+  <div class="hud-info">
+    <span class="hud-round" id="hudRound">— / 7</span>
+    <div class="hud-powerups">
+      <div class="powerup-icon" id="pu-eyes" title="Clear Eyes" style="border-color:var(--gold);background:rgba(255,215,0,0.1)">👁️</div>
+      <div class="powerup-icon" id="pu-hind" title="Hindsight Lens" style="border-color:var(--speed);background:rgba(179,136,255,0.1)">🔍</div>
+    </div>
+    <span class="hud-xp" id="hudXP">XP: 0</span>
+    <span class="hud-level" id="hudLevel">Lv 1</span>
+  </div>
+</div>
+
+<!-- Side Indicators -->
+<div id="sideIndicators">
+  <div class="side-ind" id="si-wallet"><div class="side-ind-label">Wallet</div><div class="side-ind-val" id="si-wallet-val">—</div></div>
+  <div class="side-ind" id="si-cousin"><div class="side-ind-label">Cousin Flip</div><div class="side-ind-val" id="si-cousin-val">—</div></div>
+  <div class="side-ind" id="si-league"><div class="side-ind-label">League</div><div class="side-ind-val" id="si-league-val">—</div></div>
+  <div class="side-ind" id="si-tryout"><div class="side-ind-label">Tryout</div><div class="side-ind-val" id="si-tryout-val">—</div></div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen" class="screen screen-scroll">
+  <div id="arena"><div class="arena-scene" id="arenaContent"></div></div>
+  <div id="tagPanel" style="display:none"></div>
+  <div id="decisionPanel"></div>
+</div>
+
+<!-- Toast (non-blocking feedback) -->
+<div id="toast"></div>
+
+<!-- Overlay (popups, ripple reveals, etc) -->
+<div class="overlay" id="overlay"><div id="overlayContent"></div></div>
+
+<!-- END SCREEN -->
+<div id="endScreen" class="screen screen-scroll"></div>
+
+<script>
+// ====== GAME STATE ======
+let G = {
+  meters: { spot:0, regret:0, doors:50, speed:50, bold:50 },
+  choices: {},
+  tags: {},
+  round: 0,
+  xp: 0,
+  level: 1,
+  powerUps: { clearEyes:false, hindsightLens:false },
+  wallet: null,
+  cousinFlip: 'pending',
+  leagueStatus: '—',
+  tryoutStatus: '—',
+  resolutions: {},
+  meterSnapshots: {},
+  tagTimestamps: [],
+  roundStartTime: 0,
+  _r6success: false
+};
+
+let audioCtx = null;
+function getAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+function playTone(freq,dur){
+  try{
+    var ctx=getAudioCtx(),o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;g.gain.value=0.08;
+    o.start();g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);o.stop(ctx.currentTime+dur);
+  }catch(e){}
+}
+
+// ====== UTILITY ======
+function show(id){document.getElementById(id).classList.add('active');}
+function hide(id){document.getElementById(id).classList.remove('active');}
+function $(id){return document.getElementById(id);}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  $(id).classList.add('active');
+  // Scroll to top of new screen
+  $(id).scrollTop = 0;
+  window.scrollTo(0,0);
+}
+function shuffle(a){var b=[].concat(a);for(var i=b.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=b[i];b[i]=b[j];b[j]=t;}return b;}
+
+// ====== TOAST (non-blocking feedback) ======
+var toastTimer = null;
+function showToast(text, duration){
+  try{
+    var t = $('toast');
+    t.textContent = text;
+    t.classList.add('visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('visible'); }, duration || 2200);
+  }catch(e){}
+}
+
+// ====== METER FUNCTIONS ======
+function getMeterState(name,val){
+  if(name==='spot') return val<=4?'blind':val<=14?'seeing it':'crystal clear';
+  if(name==='regret') return val>=20?'piling up':val>=10?'some':'minimal';
+  if(name==='doors') return val<40?'missing out':val<=59?'balanced':'maximizing';
+  if(name==='bold') return val<40?'playing safe':val<=59?'balanced':'risk taker';
+  if(name==='speed') return val<35?'snap judgment':val<=65?'thoughtful':'frozen';
+  return '';
+}
+function getMeterPct(name,val){
+  if(name==='spot') return Math.min(100,val/20*100);
+  if(name==='regret') return Math.min(100,val/30*100);
+  if(name==='doors') return Math.min(100, Math.max(0, val));
+  if(name==='bold') return Math.min(100, Math.max(0, val));
+  if(name==='speed') return Math.min(100, Math.max(0, val));
+  return 50;
+}
+function updateMeters(changes,animate){
+  try{
+    var keys = Object.keys(changes || {});
+    for(var i=0;i<keys.length;i++){
+      var k = keys[i];
+      G.meters[k] = Math.max(0,Math.min(100, G.meters[k] + changes[k]));
+    }
+    var allMeters = ['spot','regret','doors','bold','speed'];
+    for(var j=0;j<allMeters.length;j++){
+      var m = allMeters[j];
+      var val = G.meters[m];
+      var pct = getMeterPct(m,val);
+      var state = getMeterState(m,val);
+      var bar = $('bar-'+m);
+      var stateEl = $('state-'+m);
+      if(bar) bar.style.width = pct+'%';
+      if(stateEl) stateEl.textContent = state;
+      if(animate && changes && changes[m]){
+        var meterEl = $('m-'+m);
+        if(meterEl){meterEl.classList.remove('meter-flash');void meterEl.offsetWidth;meterEl.classList.add('meter-flash');}
+      }
+    }
+  }catch(e){console.error('Meter update error:',e);}
+}
+function updateHUD(){
+  try{
+    $('hudRound').textContent = (G.round > 0 ? 'Round '+G.round : 'Warm-Up') + ' / 7';
+    $('hudXP').textContent = 'XP: '+G.xp;
+    $('hudLevel').textContent = 'Lv '+G.level;
+    $('pu-eyes').classList.toggle('active',G.powerUps.clearEyes);
+    $('pu-hind').classList.toggle('active',G.powerUps.hindsightLens);
+  }catch(e){}
+}
+function updateSideIndicators(){
+  try{
+    if(G.wallet!==null) $('si-wallet-val').textContent = '$'+G.wallet;
+    $('si-cousin-val').textContent = G.cousinFlip;
+    $('si-league-val').textContent = G.leagueStatus;
+    $('si-tryout-val').textContent = G.tryoutStatus;
+  }catch(e){}
+}
+function checkLevelUp(){
+  var newLevel = G.level;
+  if(G.round>=7) newLevel=4;
+  else if(G.round>=5) newLevel=3;
+  else if(G.round>=3) newLevel=2;
+  if(newLevel>G.level){
+    G.level=newLevel;
+    showLevelUp(newLevel);
+  }
+}
+function showLevelUp(lv){
+  var names={2:'Decision Maker',3:'Ripple Reader',4:'Consequence Master'};
+  var div=document.createElement('div');
+  div.className='level-up-overlay';
+  div.innerHTML='<div class="level-up-text">\u2B06\uFE0F LEVEL '+lv+'<br><span style="font-size:22px;color:var(--text)">'+(names[lv]||'')+'</span></div>';
+  document.body.appendChild(div);
+  playTone(523,0.15);setTimeout(function(){playTone(659,0.15);},150);setTimeout(function(){playTone(784,0.2);},300);
+  setTimeout(function(){div.remove();},2600);
+}
+function addXP(amount){
+  G.xp+=amount;
+  updateHUD();
+}
+function getRippleMod(){
+  if(G.meters.doors<40) return 5;
+  if(G.meters.doors>60) return -5;
+  return 0;
+}
+
+// ====== START GAME ======
+function startGame(){
+  try{
+    showScreen('gameScreen');
+    $('hud').style.display='block';
+    $('sideIndicators').style.display='flex';
+    updateMeters({},false);
+    updateHUD();
+    updateSideIndicators();
+    showTagRefresher();
+  }catch(e){console.error('Start error:',e);showScreen('gameScreen');}
+}
+
+// ====== TAG REFRESHER ======
+function showTagRefresher(){
+  try{
+    $('decisionPanel').innerHTML='';
+    $('tagPanel').style.display='none';
+    $('arenaContent').innerHTML='<div class="arena-emoji">\uD83C\uDF55\uD83C\uDF2E</div><div class="arena-text" style="font-size:18px;font-weight:700">Quick Warm-Up!</div><div class="arena-sub">Tag the COSTS \u2014 which ones are the downsides?</div>';
+    var chips = shuffle([
+      {text:'Cheesy and filling',type:'reward'},
+      {text:'Crunchy and fresh',type:'reward'},
+      {text:'Might be too greasy',type:'cost'},
+      {text:'Shells break apart',type:'cost'}
+    ]);
+    var html='<div class="tag-prompt">Tap the 2 COSTS (downsides):</div><div class="tag-chips" id="refresherChips">';
+    for(var i=0;i<chips.length;i++){
+      var c=chips[i];
+      html+='<div class="tag-chip" data-type="'+c.type+'" data-idx="'+i+'" onclick="toggleRefresherChip(this)">'+c.text+'</div>';
+    }
+    html+='</div><button class="tag-submit" id="refresherSubmit" onclick="submitRefresher()" disabled>Lock It In</button>';
+    $('tagPanel').innerHTML=html;
+    $('tagPanel').style.display='block';
+    setTimeout(function(){if(G.round===0)submitRefresher(true);},12000);
+  }catch(e){console.error(e);beginRound(1);}
+}
+function toggleRefresherChip(el){
+  if(el.classList.contains('selected')){el.classList.remove('selected');}
+  else if(document.querySelectorAll('#refresherChips .tag-chip.selected').length<2){el.classList.add('selected');}
+  $('refresherSubmit').disabled = document.querySelectorAll('#refresherChips .tag-chip.selected').length!==2;
+}
+function submitRefresher(auto){
+  try{
+    var chips = document.querySelectorAll('#refresherChips .tag-chip');
+    for(var i=0;i<chips.length;i++){
+      var c=chips[i];
+      if(c.dataset.type==='cost') c.classList.add('correct');
+      else if(c.classList.contains('selected')) c.classList.add('wrong');
+    }
+    $('refresherSubmit').style.display='none';
+    setTimeout(function(){$('tagPanel').style.display='none';beginRound(1);},auto?500:1500);
+  }catch(e){beginRound(1);}
+}
+
+// ====== ROUND DATA ======
+function getRoundData(round){
+  var mod = (round>=4)?getRippleMod():0;
+  switch(round){
+    case 1: return {
+      situation:"Your cousin flips sneakers for profit. She offers you a deal: give her $200 now, get $350 back Friday. She\u2019s done it before. Or keep your $200 and have cash all week.",
+      optA:"Give Her the $200", optB:"Keep Your Cash",
+      tags:[
+        {text:"Could come back as $350",type:"reward",match:"A"},
+        {text:"Cash ready for anything",type:"reward",match:"B"},
+        {text:"No money until Friday",type:"cost",match:"A"},
+        {text:"Profit walks away",type:"cost",match:"B"}
+      ],
+      arenaA:{emoji:"\uD83D\uDCB8\u27A1\uFE0F\uD83D\uDC5F",text:"Cousin texts: \u2018I got you Friday.\u2019",sub:"Wallet empty. Monday\u2013Thursday: no cash."},
+      arenaB:{emoji:"\uD83D\uDCB0\uD83E\uDD37\u200D\u2640\uFE0F",text:"Cousin walks off, phone buzzing.",sub:"Cash stays. A faint \u2018what if?\u2019 lingers."},
+      toastA:"Big bet. Hope nothing comes up before Friday.",
+      toastB:"Safe. But she\u2019s making money with someone else\u2019s $200.",
+      effectA:{bold:15,doors:-10,spot:0},
+      effectB:{bold:-10,doors:10,spot:0},
+      afterA:function(){G.wallet=0;G.cousinFlip='pending \uD83D\uDCC8';},
+      afterB:function(){G.wallet=200;G.cousinFlip='no deal';}
+    };
+    case 2: return {
+      situation:"Your crew is starting a Wednesday night basketball league. You\u2019re in if you say yes now. But your aunt asked if you\u2019d come over Wednesday nights \u2014 she\u2019s been alone since your uncle moved.",
+      optA:"Join the League", optB:"Go to Your Aunt\u2019s",
+      tags:[
+        {text:"Locked into the squad",type:"reward",match:"A"},
+        {text:"Family shows up for family",type:"reward",match:"B"},
+        {text:"Aunt asked for you",type:"cost",match:"A"},
+        {text:"Miss the league all month",type:"cost",match:"B"}
+      ],
+      arenaA:{emoji:"\uD83C\uDFC0\uD83D\uDD25",text:"Squad gearing up, your name on the roster.",sub:"Phone shows aunt\u2019s flat text: \u201Cok honey.\u201D"},
+      arenaB:{emoji:"\uD83C\uDFE0\uD83D\uDC9B",text:"Warm lighting, food, laughing at aunt\u2019s place.",sub:"Phone on silent: league group chat stacking highlights without you."},
+      toastA:null,
+      toastB:null,
+      effectA:{bold:10,doors:10,regret:5,spot:0},
+      effectB:{bold:-10,doors:-5,regret:0,spot:0},
+      afterA:function(){G.leagueStatus='In \uD83C\uDFC0';},
+      afterB:function(){G.leagueStatus='Out';}
+    };
+    case 3: return {
+      situation:"Your close friend is having a rough week. They ask if you can hang a couple afternoons. It\u2019ll cut into your talent show tryout practice on Saturday. You\u2019ve been working on your act for weeks.",
+      optA:"Be There for Your Friend", optB:"Focus on Your Tryout",
+      tags:[
+        {text:"You showed up when it counted",type:"reward",match:"A"},
+        {text:"Tryout-ready and sharp",type:"reward",match:"B"},
+        {text:"Practice time cut short",type:"cost",match:"A"},
+        {text:"Friend needed you and you weren\u2019t there",type:"cost",match:"B"}
+      ],
+      arenaA:{emoji:"\uD83E\uDD1D\uD83C\uDFA7",text:"Two friends on steps, sharing headphones.",sub:"Practice room sits half-empty. Calendar shows X\u2019d slots."},
+      arenaB:{emoji:"\uD83C\uDFA4\u2728",text:"Practice room \u2014 getting sharper every rep.",sub:"Friend\u2019s \u201Cnah I\u2019m good\u201D text. Friend icon dims."},
+      toastA:null,
+      toastB:null,
+      effectA:{bold:5,doors:0,regret:0,spot:0},
+      effectB:{bold:5,doors:5,regret:5,spot:0},
+      afterA:function(){G.tryoutStatus='Underprepared';},
+      afterB:function(){G.tryoutStatus='Prepared';}
+    };
+    case 4:{
+      var invested = G.choices[1]==='A';
+      if(invested){return {
+        situation:"Your phone screen cracked this morning. Repair costs $150. You need your phone for everything. The shop needs payment today. Your wallet is empty \u2014 your $200 is with your cousin.",
+        optA:"Ask Cousin for $150 Back Early", optB:"Borrow from Parents",
+        tags:[
+          {text:"No debt to anyone",type:"reward",match:"A"},
+          {text:"Cousin\u2019s deal stays alive",type:"reward",match:"B"},
+          {text:"Your investment is dead",type:"cost",match:"A",delayed:true,fromRound:1},
+          {text:"You owe your parents",type:"cost",match:"B"}
+        ],
+        arenaA:{emoji:"\uD83D\uDCF1\uD83D\uDC94",text:"Cousin\u2019s face drops. She Venmos $150 back.",sub:"Phone fixed. But the sneaker deal icon cracks \u2014 profit chance gone."},
+        arenaB:{emoji:"\uD83D\uDCF1\uD83D\uDE2C",text:"Awkward phone call. Parents sigh, Venmo the money.",sub:"Phone fixed. \u201CIOU: parents\u201D appears. Cousin\u2019s deal stays alive."},
+        popupA:"Remember that bet? It just got complicated.",
+        popupB:"Fixed. But that call wasn\u2019t free.",
+        effectA:{doors:-10-mod,regret:10+mod,bold:0,spot:0},
+        effectB:{bold:-10,regret:5,doors:-5,spot:0},
+        afterA:function(){G.wallet=50;G.cousinFlip='cancelled \u274C';},
+        afterB:function(){G.wallet=0;G.cousinFlip='pending \uD83D\uDCC8';}
+      };}else{return {
+        situation:"Your phone screen cracked this morning. Repair costs $150. You need your phone for everything. The shop needs payment today. You have $200 in your wallet.",
+        optA:"Pay the $150", optB:"Use a Cracked Phone for the Week",
+        tags:[
+          {text:"Phone fixed, no drama",type:"reward",match:"A"},
+          {text:"Save money, tough it out",type:"reward",match:"B"},
+          {text:"Wallet drops to $50",type:"cost",match:"A"},
+          {text:"Cracked phone all week",type:"cost",match:"B"}
+        ],
+        arenaA:{emoji:"\uD83D\uDCF1\u2705",text:"Repair shop \u2014 quick, clean, done.",sub:"Wallet ticks down to $50. No stress."},
+        arenaB:{emoji:"\uD83D\uDCF1\uD83D\uDD28",text:"Cracked screen on everything.",sub:"Texts hard to read. Group chats missed. You squint at every message."},
+        popupA:"This is why you kept cash.",
+        popupB:"Saved money. Lost convenience.",
+        effectA:{bold:-5,doors:0,regret:0,spot:0},
+        effectB:{bold:10,doors:-10-mod,regret:5,spot:0},
+        afterA:function(){G.wallet=50;},
+        afterB:function(){G.wallet=200;}
+      };}
+    }
+    case 5:{
+      var joinedLeague = G.choices[2]==='A';
+      if(joinedLeague){return {
+        situation:"It\u2019s Wednesday. The league has a playoff game tonight \u2014 win and your team makes the finals. Your aunt calls: she\u2019s having a rough night and asks if you can come by.",
+        optA:"Play the Playoff Game", optB:"Go See Your Aunt",
+        tags:[
+          {text:"Team makes the finals",type:"reward",match:"A"},
+          {text:"Aunt gets what she needs",type:"reward",match:"B"},
+          {text:"Aunt is alone on a hard night",type:"cost",match:"A",delayed:true,fromRound:2},
+          {text:"Team plays without you",type:"cost",match:"B"}
+        ],
+        arenaA:{emoji:"\uD83C\uDFC0\uD83C\uDFC6",text:"Intense game, making plays, teammates fired up.",sub:"Phone shows aunt\u2019s missed call, no voicemail."},
+        arenaB:{emoji:"\uD83C\uDFE0\u2615",text:"Aunt\u2019s place \u2014 quiet evening, tea, conversation.",sub:"Phone buzzes with game updates you\u2019re not part of."},
+        effectA:{bold:10,doors:10,regret:5+mod,spot:0},
+        effectB:{bold:-5,doors:-5,regret:0,spot:0},
+        afterA:function(){G.leagueStatus='Playoffs \uD83D\uDD25';},
+        afterB:function(){G.leagueStatus='Sat out';}
+      };}else{return {
+        situation:"It\u2019s Wednesday. Your routine with your aunt is solid. But friends text \u2014 the league playoffs are tonight. You could go watch the game and reconnect.",
+        optA:"Go to Your Aunt\u2019s (Your Routine)", optB:"Ask a Neighbor to Check In \u2014 Go Watch the Game",
+        tags:[
+          {text:"Routine deepens the bond",type:"reward",match:"A"},
+          {text:"Social reconnection at the game",type:"reward",match:"B"},
+          {text:"Friends are in the playoffs without you",type:"cost",match:"A",delayed:true,fromRound:2},
+          {text:"Aunt notices you delegated",type:"cost",match:"B"}
+        ],
+        arenaA:{emoji:"\uD83C\uDFE0\uD83D\uDC9B",text:"Aunt\u2019s place \u2014 comfortable, inside jokes, real connection.",sub:"Phone buzzes with playoff hype you\u2019re outside of."},
+        arenaB:{emoji:"\uD83C\uDFC0\uD83D\uDC40",text:"Gym bleachers \u2014 watching the game, friends wave you over.",sub:"Aunt\u2019s \u201Cneighbor came by, it was fine\u201D text feels off."},
+        effectA:{doors:10,regret:3,spot:0,bold:0},
+        effectB:{bold:10,doors:0,regret:5+mod,spot:0},
+        afterA:function(){},
+        afterB:function(){}
+      };}
+    }
+    case 6:{
+      var helpedFriend = G.choices[3]==='A';
+      if(helpedFriend){return {
+        situation:"Talent show tryout is this afternoon. You didn\u2019t get much practice. Your friend texts: they\u2019re coming to watch. The organizer offers your friend the slot of an act that dropped out.",
+        optA:"Do Your Tryout Anyway (Underprepared)", optB:"Give Your Slot to Your Friend",
+        tags:[
+          {text:"Guts to go anyway",type:"reward",match:"A"},
+          {text:"Made your friend\u2019s day",type:"reward",match:"B"},
+          {text:"Not enough practice",type:"cost",match:"A",delayed:true,fromRound:3},
+          {text:"Gave up your shot",type:"cost",match:"B"}
+        ],
+        arenaA:{emoji:"\uD83C\uDFA4\uD83D\uDE30",text:"Stage \u2014 you step up. Crowd watching.",sub:"Friend in the front row clapping no matter what."},
+        arenaB:{emoji:"\uD83C\uDFA4\uD83E\uDD1D",text:"You hand the slot card to your friend.",sub:"Friend\u2019s face \u2014 shock, gratitude. They perform, crowd loves it."},
+        popupA:"You went up cold. Let\u2019s see what happens.",
+        popupB:"Their moment. Your call.",
+        effectA:function(){
+          var boldAbove = G.meters.bold>=60;
+          var success = Math.random()<(boldAbove?0.6:0.5);
+          var fx = {bold:15,spot:0};
+          if(success){fx.regret=0;fx.doors=10;}else{fx.regret=10+mod;fx.doors=-5;}
+          G._r6success=success;
+          return fx;
+        },
+        effectB:{bold:-10,doors:10,regret:0,spot:0},
+        arenaAPost:function(success){return success?
+          {emoji:"\uD83C\uDFA4\uD83D\uDD25",text:"You pulled it off on pure energy!",sub:"Crowd goes wild. Friend cheering loudest."}:
+          {emoji:"\uD83C\uDFA4\uD83D\uDE2C",text:"Shaky start, but you recovered.",sub:"Rough, but you did it. Friend still clapping."};},
+        afterA:function(){G.tryoutStatus=G._r6success?'Callback \u2B50':'No callback';},
+        afterB:function(){G.tryoutStatus='Gave slot';}
+      };}else{return {
+        situation:"Talent show tryout is this afternoon. Your prep is solid. Your friend texts: they\u2019re coming to watch. The organizer offers your friend the slot of an act that dropped out.",
+        optA:"Crush Your Tryout", optB:"Offer the Extra Slot to Your Friend",
+        tags:[
+          {text:"Prep pays off on stage",type:"reward",match:"A"},
+          {text:"Peace offering closes the gap",type:"reward",match:"B"},
+          {text:"Friend is still a little distant",type:"cost",match:"A",delayed:true,fromRound:3},
+          {text:"Friend\u2019s act gets more love",type:"cost",match:"B"}
+        ],
+        arenaA:{emoji:"\uD83C\uDFA4\uD83D\uDD25",text:"You step on stage. You nail it.",sub:"Friend claps, but the vibe is just a notch below where it was."},
+        arenaB:{emoji:"\uD83C\uDFA4\uD83E\uDD1D",text:"You offer the slot. Friend lights up.",sub:"Friend performs \u2014 crowd goes wild. Then your act \u2014 solid but crowd already peaked."},
+        popupA:"All that work paid off. Almost.",
+        popupB:"You practiced all week. They winged it and won the crowd.",
+        effectA:function(){
+          var great = Math.random()<0.8;
+          G._r6success=true;
+          return {bold:15,doors:great?15:5,regret:3,spot:0};
+        },
+        effectB:{bold:5,doors:10,regret:5,spot:0},
+        afterA:function(){G.tryoutStatus='Callback \u2B50';},
+        afterB:function(){G.tryoutStatus='Callback \u2B50';}
+      };}
+    }
+    case 7: return {
+      situation:"It\u2019s Sunday night. A friend-of-a-friend is hosting a big end-of-week hangout. Everyone\u2019s going. But you\u2019re wiped and Monday starts early.",
+      optA:"Go to the Hangout", optB:"Stay In and Reset",
+      tags:[
+        {text:"End the week strong",type:"reward",match:"A"},
+        {text:"Start fresh Monday",type:"reward",match:"B"},
+        {text:"Monday starts exhausted",type:"cost",match:"A"},
+        {text:"You missed the hangout",type:"cost",match:"B"}
+      ],
+      arenaA:{emoji:"\uD83C\uDF89\uD83D\uDE34",text:"Music, people, laughing. Great night.",sub:"Alarm clock turns red. Monday morning: groggy."},
+      arenaB:{emoji:"\uD83C\uDF19\uD83D\uDE0C",text:"Quiet room, phone on charger.",sub:"Morning: fresh and ready. Group chat has photos you\u2019re not in."},
+      popupA:"Good night. Rough morning.",
+      popupB:"Rested. They had fun without you.",
+      effectA:{bold:10,doors:5,regret:5,spot:0},
+      effectB:{bold:-5,doors:-5,regret:-3,spot:0},
+      afterA:function(){},
+      afterB:function(){}
+    };
+    default: return null;
+  }
+}
+
+// ====== ROUND FLOW ======
+function beginRound(r){
+  try{
+    G.round=r;
+    // Validate meters
+    var allM = ['spot','regret','doors','bold','speed'];
+    for(var i=0;i<allM.length;i++){
+      if(isNaN(G.meters[allM[i]])||G.meters[allM[i]]===undefined) G.meters[allM[i]]=50;
+    }
+    updateHUD();
+    updateSideIndicators();
+    checkLevelUp();
+
+    // Clear Eyes unlock check at start of R4
+    if(r===4 && G.meters.spot>=5 && !G.powerUps.clearEyes){
+      G.powerUps.clearEyes=true;
+      updateHUD();
+      showPowerUpPopup('clearEyes', function(){ proceedToRippleOrRound(r); });
+      return;
+    }
+
+    proceedToRippleOrRound(r);
+  }catch(e){console.error('beginRound error:',e);showRoundUI(r);}
+}
+
+function proceedToRippleOrRound(r){
+  if(r>=4 && r<=7){
+    showRippleReveal(r, function(){
+      if(r===7){ showResolutionSequence(); }
+      else{ checkPeekThenShow(r); }
+    });
+    return;
+  }
+  showRoundUI(r);
+}
+
+function checkPeekThenShow(r){
+  if(G.powerUps.hindsightLens && (r===5||r===6)){
+    var peekText = r===5?"Your Round 2 choice is about to come back.":"What you did in Round 3 is about to matter.";
+    showHindsightPeek(peekText, function(){ showRoundUI(r); });
+  }else{
+    showRoundUI(r);
+  }
+}
+
+function showRippleReveal(r,cb){
+  try{
+    var reveals=[];
+    if(r===4) reveals=[{from:1,choice:G.choices[1]==='A'?'gave your cousin $200':'kept your cash',consequence:G.choices[1]==='A'?'Your wallet is empty and your phone just cracked.':'You have cash to handle what comes.'}];
+    else if(r===5) reveals=[{from:2,choice:G.choices[2]==='A'?'joined the league':'went to your aunt\u2019s',consequence:G.choices[2]==='A'?'Tonight is the playoff game.':'Your Wednesday routine is set.'}];
+    else if(r===6) reveals=[{from:3,choice:G.choices[3]==='A'?'spent time with your friend':'practiced for the tryout',consequence:G.choices[3]==='A'?'Saturday\u2019s here and you\u2019re underprepared.':'Saturday\u2019s here and you\u2019re ready.'}];
+    else if(r===7) reveals=[
+      {from:1,choice:G.choices[1]==='A'?'gave your cousin $200':'kept your cash',consequence:'The flip result is in.'},
+      {from:2,choice:G.choices[2]==='A'?'joined the league':'went to your aunt\u2019s',consequence:'The league season ended.'},
+      {from:3,choice:G.choices[3]==='A'?'spent time with your friend':'practiced for the tryout',consequence:'Tryout results are out.'}
+    ];
+    if(reveals.length===0){cb();return;}
+    var idx=0;
+    function showNext(){
+      if(idx>=reveals.length){hide('overlay');cb();return;}
+      var rv=reveals[idx];
+      $('overlayContent').innerHTML='<div class="ripple-card"><div class="ripple-label">\u26D3\uFE0F Ripple Reveal</div><div class="ripple-round">Round '+rv.from+': You '+rv.choice+'</div><div class="ripple-consequence">\u2192 '+rv.consequence+'</div></div>';
+      show('overlay');
+      playTone(330,0.2);
+      idx++;
+      setTimeout(function(){hide('overlay');setTimeout(showNext,400);},3200);
+    }
+    showNext();
+  }catch(e){console.error(e);cb();}
+}
+
+function showHindsightPeek(text,cb){
+  try{
+    $('overlayContent').innerHTML='<div class="peek-card"><div class="peek-icon">\uD83D\uDD0D\u23F0</div><div class="peek-text">'+text+'</div></div>';
+    show('overlay');
+    setTimeout(function(){hide('overlay');cb();},2500);
+  }catch(e){cb();}
+}
+
+function showPowerUpPopup(type,cb){
+  var data={
+    clearEyes:{emoji:'\uD83D\uDC41\uFE0F\u2728',title:'Clear Eyes Unlocked!',text:"You\u2019ve been calling the catch \u2192 Clear Eyes unlocked."},
+    hindsightLens:{emoji:'\uD83D\uDD0D\u23F0',title:'Hindsight Lens Unlocked!',text:"4 rounds in \u2192 Hindsight unlocked. Now you can see the ripples coming."}
+  }[type];
+  $('overlayContent').innerHTML='<div class="overlay-card" style="border-color:var(--gold)"><div class="overlay-emoji">'+data.emoji+'</div><div class="overlay-title" style="color:var(--gold)">'+data.title+'</div><div class="overlay-text">'+data.text+'</div><button class="overlay-btn" id="puBtn">Got It</button></div>';
+  $('puBtn').onclick=function(){hide('overlay');cb();};
+  show('overlay');
+  playTone(523,0.1);setTimeout(function(){playTone(659,0.1);},120);setTimeout(function(){playTone(784,0.15);},240);
+}
+
+// ====== SHOW ROUND UI ======
+function showRoundUI(r){
+  try{
+    G.roundStartTime=Date.now();
+    var data=getRoundData(r);
+    $('arenaContent').innerHTML='<div class="arena-emoji">\u2753</div><div class="arena-text" style="font-weight:700">Round '+r+'</div>';
+
+    // Clear Eyes flash
+    if(G.powerUps.clearEyes && r>=4){
+      $('arena').insertAdjacentHTML('beforeend','<div class="clear-eyes-flash"><div class="ce-label ce-reward">\u2705 Rewards</div><div class="ce-label ce-cost">\u26A0\uFE0F Costs</div></div>');
+    }
+
+    showTagPhase(r,data);
+  }catch(e){console.error('showRoundUI error:',e);}
+}
+
+function showTagPhase(r,data){
+  try{
+    var rawChips = [];
+    for(var i=0;i<data.tags.length;i++){
+      var t = data.tags[i];
+      rawChips.push({text:t.text, type:t.type, match:t.match, delayed:t.delayed, fromRound:t.fromRound, idx:i});
+    }
+    var chips = shuffle(rawChips);
+    var html='<div class="tag-prompt">\uD83C\uDFAF Tag the 2 COSTS (downsides):</div><div class="tag-chips" id="roundChips">';
+    for(var j=0;j<chips.length;j++){
+      var c=chips[j];
+      var chainIcon = (G.powerUps.clearEyes && c.delayed)?'<span class="chain-icon">\u26D3\uFE0F</span>':'';
+      html+='<div class="tag-chip" data-type="'+c.type+'" data-idx="'+c.idx+'" onclick="toggleRoundChip(this)">'+c.text+chainIcon+'</div>';
+    }
+    html+='</div><button class="tag-submit" id="roundTagSubmit" onclick="submitRoundTags()" disabled>Lock Tags</button>';
+    $('tagPanel').innerHTML=html;
+    $('tagPanel').style.display='block';
+    $('decisionPanel').innerHTML='<div class="situation-text">'+data.situation+'</div>';
+  }catch(e){console.error(e);}
+}
+
+function toggleRoundChip(el){
+  if(el.classList.contains('selected')) el.classList.remove('selected');
+  else if(document.querySelectorAll('#roundChips .tag-chip.selected').length<2) el.classList.add('selected');
+  $('roundTagSubmit').disabled=document.querySelectorAll('#roundChips .tag-chip.selected').length!==2;
+}
+
+function submitRoundTags(){
+  try{
+    var chips=document.querySelectorAll('#roundChips .tag-chip');
+    var correct=0;
+    for(var i=0;i<chips.length;i++){
+      var c=chips[i];
+      if(c.dataset.type==='cost'){
+        c.classList.add('correct');
+        if(c.classList.contains('selected')) correct++;
+      }else{
+        if(c.classList.contains('selected')) c.classList.add('wrong');
+      }
+    }
+    G.tags[G.round]={correct:correct,total:2};
+    var spotGain=correct===2?5:correct===1?3:0;
+    if(G.powerUps.clearEyes && G.round>=4) spotGain+=2;
+    updateMeters({spot:spotGain},true);
+    var cueClass=correct===2?'good':correct===1?'mid':'miss';
+    var cueText=correct===2?'Called it \u2192 +'+spotGain:correct===1?'Half right \u2192 +'+spotGain:'Missed the catch.';
+    $('tagPanel').insertAdjacentHTML('beforeend','<div class="cause-cue '+cueClass+'">'+cueText+'</div>');
+    $('roundTagSubmit').style.display='none';
+    addXP(correct===2?20:correct===1?10:5);
+
+    setTimeout(function(){
+      $('tagPanel').style.display='none';
+      showChoiceButtons();
+    },1400);
+  }catch(e){console.error(e);$('tagPanel').style.display='none';showChoiceButtons();}
+}
+
+function showChoiceButtons(){
+  choiceLocked = false;
+  var data=getRoundData(G.round);
+  $('decisionPanel').innerHTML='<div class="situation-text">'+data.situation+'</div><div class="choice-btns"><button class="choice-btn btn-a" onclick="makeChoice(\'A\')">'+data.optA+'</button><button class="choice-btn btn-b" onclick="makeChoice(\'B\')">'+data.optB+'</button></div>';
+  // Scroll decision panel into view
+  $('decisionPanel').scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+// ====== MAKE CHOICE ======
+var choiceLocked = false;
+function makeChoice(opt){
+  if(choiceLocked) return;
+  choiceLocked = true;
+  // Visually disable buttons
+  var btns = document.querySelectorAll('.choice-btn');
+  for(var b=0;b<btns.length;b++){ btns[b].style.opacity='0.5'; btns[b].style.pointerEvents='none'; }
+  try{
+    var r=G.round;
+    var data=getRoundData(r);
+    G.choices[r]=opt;
+
+    // Decision Speed tracking
+    var elapsed=(Date.now()-G.roundStartTime)/1000;
+    G.tagTimestamps.push(elapsed);
+    if(elapsed<8) G.meters.speed=Math.max(0,G.meters.speed-5);
+    else if(elapsed>30) G.meters.speed=Math.min(100,G.meters.speed+5);
+
+    // Apply effects
+    var effects;
+    if(opt==='A'){
+      effects=typeof data.effectA==='function'?data.effectA():data.effectA;
+    }else{
+      effects=typeof data.effectB==='function'?data.effectB():data.effectB;
+    }
+    updateMeters(effects,true);
+
+    // After effects
+    if(opt==='A' && data.afterA) data.afterA();
+    if(opt==='B' && data.afterB) data.afterB();
+
+    addXP(15);
+
+    // Update arena
+    var arenaData;
+    if(r===6 && opt==='A' && data.arenaAPost){
+      arenaData=data.arenaAPost(G._r6success);
+    }else{
+      arenaData=opt==='A'?data.arenaA:data.arenaB;
+    }
+    if(arenaData){
+      $('arenaContent').innerHTML='<div class="arena-emoji">'+arenaData.emoji+'</div><div class="arena-text">'+arenaData.text+'</div>'+(arenaData.sub?'<div class="arena-sub">'+arenaData.sub+'</div>':'');
+    }
+
+    updateHUD();
+    updateSideIndicators();
+    G.meterSnapshots[r]={spot:G.meters.spot,regret:G.meters.regret,doors:G.meters.doors,bold:G.meters.bold,speed:G.meters.speed};
+
+    // Feedback — choose popup vs toast based on pacing plan
+    // R4, R7: full popup (random events). R6: full popup (key moment).
+    // R1, R2, R3, R5: toast (routine/visual-only).
+    var isFullPopup = (r===4||r===7||r===6);
+    var popupText = opt==='A'?data.popupA:data.popupB;
+    var toastText = opt==='A'?data.toastA:data.toastB;
+
+    if(isFullPopup && popupText){
+      showFeedbackPopup(popupText,r);
+    }else if(toastText){
+      showToast(toastText, 2500);
+      setTimeout(function(){advanceRound();},2000);
+    }else{
+      // Visual-only — just arena + meters
+      setTimeout(function(){advanceRound();},1800);
+    }
+  }catch(e){console.error('Choice error:',e);advanceRound();}
+}
+
+function showFeedbackPopup(text,r){
+  var eventLabel=(r===4||r===7)?'<div style="font-size:11px;color:var(--regret);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">\u26A1 Event</div>':'';
+  $('overlayContent').innerHTML='<div class="overlay-card">'+eventLabel+'<div class="overlay-text" style="font-size:17px;color:var(--text-bright);font-weight:600">'+text+'</div><button class="overlay-btn" onclick="hide(\'overlay\');advanceRound()">Continue</button></div>';
+  show('overlay');
+}
+
+function advanceRound(){
+  try{
+    var r=G.round;
+    // Hindsight Lens unlocks after R4
+    if(r===4 && !G.powerUps.hindsightLens){
+      G.powerUps.hindsightLens=true;
+      updateHUD();
+      showPowerUpPopup('hindsightLens', function(){
+        if(r<7) beginRound(r+1); else goToFinalPopup();
+      });
+      return;
+    }
+    if(r<7){
+      beginRound(r+1);
+    }else{
+      goToFinalPopup();
+    }
+  }catch(e){console.error(e);if(G.round<7)beginRound(G.round+1);else showEndScreen();}
+}
+
+function goToFinalPopup(){
+  $('overlayContent').innerHTML='<div class="overlay-card"><div class="overlay-emoji">\u26D3\uFE0F</div><div class="overlay-text" style="font-size:19px;color:var(--text-bright);font-weight:700">Seven choices. All connected.<br>How\u2019d your week turn out?</div><button class="overlay-btn" onclick="hide(\'overlay\');showEndScreen()">See Results</button></div>';
+  show('overlay');
+}
+
+// ====== RESOLUTION SEQUENCE (R7 Phase 1) ======
+function showResolutionSequence(){
+  try{
+    // Determine outcomes
+    var cousinResult='';
+    if(G.choices[1]==='A'){
+      if(G.choices[4]==='A'){
+        cousinResult='cancelled';
+        G.resolutions.cousin={emoji:'\u274C',text:'Flip cancelled \u2014 you pulled your money back in Round 4.',outcome:'No profit, no loss.'};
+      }else{
+        var success=Math.random()<0.6;
+        if(success){
+          cousinResult='profit';
+          G.wallet=(G.wallet||0)+350;
+          G.resolutions.cousin={emoji:'\uD83D\uDCB0',text:'Cousin sends $350! The flip landed!',outcome:'$350 profit.'};
+        }else{
+          cousinResult='loss';
+          G.wallet=(G.wallet||0)+100;
+          G.resolutions.cousin={emoji:'\uD83D\uDE1E',text:"Cousin sends $100. \u2018Flip didn\u2019t land, I\u2019m sorry.\u2019",outcome:'Lost $100 on the deal.'};
+        }
+      }
+    }else{
+      G.resolutions.cousin={emoji:'\uD83E\uDD37',text:'No flip deal. No update.',outcome:'You kept your cash.'};
+    }
+    G.cousinFlip=cousinResult==='profit'?'$350! \u2705':cousinResult==='loss'?'$100 \uD83D\uDE1E':cousinResult==='cancelled'?'Cancelled \u274C':'No deal';
+
+    if(G.choices[2]==='A'){
+      var madePlayoffs = G.choices[5]==='A';
+      if(madePlayoffs){
+        G.resolutions.league={emoji:'\uD83C\uDFC6',text:'Your team made the finals!',outcome:'League champion run.'};
+        G.leagueStatus='Finals \uD83C\uDFC6';
+      }else{
+        G.resolutions.league={emoji:'\uD83C\uDFC0',text:'Team played without you. They managed.',outcome:'League moved on.'};
+        G.leagueStatus='Sat out playoffs';
+      }
+    }else{
+      G.resolutions.league={emoji:'\uD83C\uDFC0',text:'League wrapped without you. No drama.',outcome:'You were never in it.'};
+      G.leagueStatus='Never joined';
+    }
+
+    if(G.choices[3]==='A'){
+      if(G.choices[6]==='A'){
+        G.resolutions.tryout=G._r6success?
+          {emoji:'\u2B50',text:'You got a callback! Raw energy won them over.',outcome:'Callback list!'}:
+          {emoji:'\uD83D\uDE24',text:'No callback. But you went up there.',outcome:'No callback, but guts.'};
+      }else{
+        G.resolutions.tryout={emoji:'\uD83E\uDD1D',text:'Your friend made the callback list from YOUR slot!',outcome:"Friend\u2019s moment."};
+      }
+    }else{
+      if(G.choices[6]==='A'){
+        G.resolutions.tryout={emoji:'\u2B50',text:'Callback! All that practice paid off.',outcome:'Callback list!'};
+      }else{
+        G.resolutions.tryout={emoji:'\u2B50',text:'Both you and your friend got callbacks!',outcome:'Double callback!'};
+      }
+    }
+    G.tryoutStatus=(G.resolutions.tryout.outcome.indexOf('Callback')>=0)?'Callback \u2B50':'No callback';
+
+    var resArr=[
+      {title:'THE COUSIN\u2019S FLIP',data:G.resolutions.cousin},
+      {title:'THE LEAGUE',data:G.resolutions.league},
+      {title:'THE TRYOUT',data:G.resolutions.tryout}
+    ];
+    var idx=0;
+    function showNextRes(){
+      if(idx>=resArr.length){
+        hide('overlay');
+        setTimeout(function(){ showRoundUI(7); },500);
+        return;
+      }
+      var rv=resArr[idx];
+      $('overlayContent').innerHTML='<div class="resolution-card"><div class="res-title">'+rv.title+'</div><div class="res-emoji">'+rv.data.emoji+'</div><div class="res-text">'+rv.data.text+'</div><div class="res-sub">'+rv.data.outcome+'</div></div>';
+      show('overlay');
+      playTone(440,0.15);
+      idx++;
+      setTimeout(function(){hide('overlay');setTimeout(showNextRes,500);},3500);
+    }
+    showNextRes();
+  }catch(e){console.error(e);showRoundUI(7);}
+}
+
+// ====== END SCREEN ======
+function showEndScreen(){
+  try{
+    $('hud').style.display='none';
+    $('sideIndicators').style.display='none';
+    showScreen('endScreen');
+
+    var spot=G.meters.spot, regret=G.meters.regret, doors=G.meters.doors, bold=G.meters.bold, speed=G.meters.speed;
+    var win = regret<20 && doors>=40;
+    var bonus = spot>=15;
+    var lose = regret>=20 && doors<40;
+
+    var bannerHTML='';
+    if(win) bannerHTML='<div class="end-banner win">\uD83C\uDFC6 Mission Complete! Low regret, doors still open.</div>';
+    else if(lose) bannerHTML='<div class="end-banner lose">Rough week. But now you see how the choices connected.</div>';
+    else bannerHTML='<div class="end-banner" style="background:rgba(77,166,255,0.1);border:1px solid var(--doors);color:var(--doors)">Week survived. Some hits, some wins.</div>';
+    if(bonus) bannerHTML+='<div class="end-banner bonus">\uD83D\uDC41\uFE0F Crystal Clear \u2014 You saw every catch, even the hidden ones!</div>';
+
+    var totalCorrect=0,totalTags=0;
+    var tagKeys=Object.keys(G.tags);
+    for(var ti=0;ti<tagKeys.length;ti++){totalCorrect+=G.tags[tagKeys[ti]].correct;totalTags+=G.tags[tagKeys[ti]].total;}
+
+    var html='<div class="end-brand">Mr. Jawad\u2019s Simulations</div>';
+    html+='<div class="end-title" style="color:var(--text-bright)">Week Complete</div>';
+    html+='<div class="end-subtitle">Seven choices. All connected.</div>';
+    html+=bannerHTML;
+
+    // Meters
+    var meterInfo=[{name:'Spot the Catch',key:'spot',val:spot,color:'var(--spot)'},{name:'Regret Score',key:'regret',val:regret,color:'var(--regret)'},{name:'Doors Open',key:'doors',val:doors,color:'var(--doors)'},{name:'Decision Speed',key:'speed',val:speed,color:'var(--speed)'},{name:'Boldness',key:'bold',val:bold,color:'var(--bold)'}];
+    html+='<div class="end-meters">';
+    for(var mi=0;mi<meterInfo.length;mi++){
+      var m=meterInfo[mi];
+      html+='<div class="end-meter"><div class="end-meter-name" style="color:'+m.color+'">'+m.name+'</div><div class="end-meter-bar"><div class="end-meter-fill" style="width:'+getMeterPct(m.key,m.val)+'%;background:'+m.color+'"></div></div><div class="end-meter-state" style="color:'+m.color+'">'+getMeterState(m.key,m.val)+'</div></div>';
+    }
+    html+='</div>';
+
+    // Stats
+    html+='<div class="end-stats">';
+    html+='<div class="end-stat"><div class="end-stat-val">'+totalCorrect+'/'+totalTags+'</div><div class="end-stat-label">Catches Called</div></div>';
+    html+='<div class="end-stat"><div class="end-stat-val">'+G.xp+'</div><div class="end-stat-label">Total XP</div></div>';
+    html+='<div class="end-stat"><div class="end-stat-val">Lv '+G.level+'</div><div class="end-stat-label">Final Level</div></div>';
+    html+='</div>';
+
+    // Resolutions
+    html+='<div class="end-resolutions">';
+    if(G.resolutions.cousin) html+='<div class="end-res"><div class="end-res-emoji">'+G.resolutions.cousin.emoji+'</div><div class="end-res-title">Cousin\u2019s Flip</div><div class="end-res-text">'+G.resolutions.cousin.outcome+'</div></div>';
+    if(G.resolutions.league) html+='<div class="end-res"><div class="end-res-emoji">'+G.resolutions.league.emoji+'</div><div class="end-res-title">League</div><div class="end-res-text">'+G.resolutions.league.outcome+'</div></div>';
+    if(G.resolutions.tryout) html+='<div class="end-res"><div class="end-res-emoji">'+G.resolutions.tryout.emoji+'</div><div class="end-res-title">Tryout</div><div class="end-res-text">'+G.resolutions.tryout.outcome+'</div></div>';
+    html+='</div>';
+
+    // Ripple Map
+    var choiceLabels={};
+    choiceLabels[1]=G.choices[1]==='A'?'Gave $200':'Kept cash';
+    choiceLabels[2]=G.choices[2]==='A'?'Joined league':'Chose aunt';
+    choiceLabels[3]=G.choices[3]==='A'?'Helped friend':'Practiced';
+    choiceLabels[4]=G.choices[4]==='A'?(G.choices[1]==='A'?'Asked cousin back':'Paid $150'):(G.choices[1]==='A'?'Borrowed from parents':'Cracked phone');
+    choiceLabels[5]=G.choices[5]==='A'?(G.choices[2]==='A'?'Played playoff':'Aunt\u2019s routine'):(G.choices[2]==='A'?'Sat out playoff':'Watched game');
+    choiceLabels[6]=G.choices[6]==='A'?(G.choices[3]==='A'?'Tried anyway':'Crushed tryout'):(G.choices[3]==='A'?'Gave slot':'Offered slot');
+    choiceLabels[7]=G.choices[7]==='A'?'Went to hangout':'Stayed in';
+
+    html+='<div class="ripple-map"><div class="ripple-map-title">\u26D3\uFE0F Ripple Map \u2014 How Your Week Connected</div>';
+    var links=[{from:1,to:4},{from:2,to:5},{from:3,to:6}];
+    for(var li=0;li<links.length;li++){
+      var lk=links[li];
+      html+='<div class="ripple-link"><span class="ripple-link-from">R'+lk.from+'</span><span class="ripple-link-choice">'+(choiceLabels[lk.from]||'\u2014')+'</span><span class="ripple-link-arrow">\u2192</span><span class="ripple-link-to">R'+lk.to+'</span><span class="ripple-link-choice">'+(choiceLabels[lk.to]||'\u2014')+'</span></div>';
+    }
+    html+='<div class="ripple-link"><span class="ripple-link-from">R1\u20133</span><span class="ripple-link-choice">All early choices</span><span class="ripple-link-arrow">\u2192</span><span class="ripple-link-to">R7</span><span class="ripple-link-choice">'+(choiceLabels[7]||'\u2014')+'</span></div>';
+    html+='</div>';
+
+    // Replay
+    html+='<div class="replay-box"><div class="replay-box-title">\uD83D\uDD01 Replay Challenge</div><div class="replay-box-text">The cousin\u2019s flip is random. Can you build a week that works either way?</div></div>';
+    html+='<button class="play-again-btn" onclick="resetGame()">Play Again</button>';
+
+    // Data layer
+    html+='<button class="data-toggle" id="dataToggleBtn" onclick="toggleData(this)">Show Details</button>';
+    html+='<div id="dataLayer">';
+    html+='<div style="overflow-x:auto;margin-bottom:12px"><table class="data-table" id="primaryTable"><thead><tr><th>Round</th><th>Choice</th><th>Tags</th><th>Spot the Catch</th><th>Regret</th><th>Doors Open</th><th>Ripple From</th></tr></thead><tbody>';
+    for(var ri=1;ri<=7;ri++){
+      var tag=G.tags[ri]||{correct:0,total:2};
+      var ripple=ri<=3?'\u2014':ri===4?'R1':ri===5?'R2':ri===6?'R3':'R1+R2+R3';
+      html+='<tr><td>'+ri+'</td><td>'+(choiceLabels[ri]||'\u2014')+'</td><td>'+tag.correct+'/'+tag.total+'</td><td>'+getMeterState('spot',calcMeterAtRound('spot',ri))+'</td><td>'+getMeterState('regret',calcMeterAtRound('regret',ri))+'</td><td>'+getMeterState('doors',calcMeterAtRound('doors',ri))+'</td><td>'+ripple+'</td></tr>';
+    }
+    html+='</tbody></table></div>';
+    html+='<button class="copy-btn" onclick="copyTable(this)">\uD83D\uDCCB Copy Table</button>';
+    html+='</div>';
+
+    html+='<div style="margin-top:20px;font-size:13px;color:var(--text-dim)">Seven choices. All connected. How\u2019d your week turn out?</div>';
+
+    $('endScreen').innerHTML=html;
+  }catch(e){console.error('End screen error:',e);$('endScreen').innerHTML='<h2 style="color:white;margin:40px">Week Complete!</h2><button class="play-again-btn" onclick="resetGame()">Play Again</button>';}
+}
+
+function calcMeterAtRound(meter,round){
+  if(G.meterSnapshots[round]) return G.meterSnapshots[round][meter];
+  return G.meters[meter];
+}
+
+function toggleData(btn){
+  var dl=$('dataLayer');
+  dl.classList.toggle('visible');
+  btn.textContent=dl.classList.contains('visible')?'Hide Details':'Show Details';
+}
+
+function copyTable(btn){
+  try{
+    var table=$('primaryTable');
+    var text='';
+    var rows=table.querySelectorAll('tr');
+    for(var i=0;i<rows.length;i++){
+      var cells=[];
+      var tds=rows[i].querySelectorAll('th,td');
+      for(var j=0;j<tds.length;j++) cells.push(tds[j].textContent);
+      text+=cells.join('\t')+'\n';
+    }
+    navigator.clipboard.writeText(text).then(function(){
+      btn.textContent='\u2705 Copied!';
+      setTimeout(function(){btn.textContent='\uD83D\uDCCB Copy Table';},2000);
+    });
+  }catch(e){console.error(e);}
+}
+
+function resetGame(){
+  G={meters:{spot:0,regret:0,doors:50,speed:50,bold:50},choices:{},tags:{},round:0,xp:0,level:1,powerUps:{clearEyes:false,hindsightLens:false},wallet:null,cousinFlip:'pending',leagueStatus:'\u2014',tryoutStatus:'\u2014',resolutions:{},meterSnapshots:{},tagTimestamps:[],roundStartTime:0,_r6success:false};
+  showScreen('titleScreen');
+  $('hud').style.display='none';
+  $('sideIndicators').style.display='none';
+}
+</script>
+</body>
+</html>

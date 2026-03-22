@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Budget Boss Challenge — Session 2</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-dark:#1a1a2e;--bg-mid:#16213e;--bg-light:#0f3460;
+  --accent-gold:#f0c040;--accent-red:#e74c3c;--accent-green:#2ecc71;--accent-yellow:#f1c40f;--accent-blue:#3498db;
+  --text-light:#f5f5f5;--text-dim:#a0a0b8;
+  --meter-red:#e74c3c;--meter-yellow:#f39c12;--meter-green:#2ecc71;
+  --college-color:#6c5ce7;--work-color:#e17055;
+  --panel-bg:rgba(22,33,62,0.95);--card-bg:rgba(15,52,96,0.8);
+  --font-display:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+}
+html,body{width:100%;height:100%;overflow:hidden;font-family:var(--font-display);background:var(--bg-dark);color:var(--text-light)}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+button:active{transform:scale(0.97)}
+.screen{display:none;width:100%;height:100%;position:absolute;top:0;left:0;flex-direction:column}
+.screen.active{display:flex}
+
+/* TITLE */
+#titleScreen{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 40%,#0f3460 100%);justify-content:center;align-items:center;text-align:center;overflow-y:auto;padding:20px}
+.title-brand{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent-gold);opacity:.85}
+.title-main{font-size:clamp(28px,5vw,48px);font-weight:800;margin:30px 0 8px;background:linear-gradient(90deg,var(--accent-gold),#f7dc6f);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.title-session{font-size:clamp(14px,2.5vw,20px);color:var(--text-dim);margin-bottom:6px}
+.title-hook{font-size:clamp(16px,3vw,24px);color:var(--text-light);margin-bottom:28px;font-style:italic;max-width:500px;line-height:1.4;padding:0 12px}
+.title-fork-preview{display:flex;gap:16px;margin-bottom:28px;max-width:520px;width:90%}
+.fork-card{flex:1;padding:14px 10px;border-radius:12px;text-align:center;font-size:13px;line-height:1.5}
+.fork-card.college{background:rgba(108,92,231,.2);border:2px solid var(--college-color)}
+.fork-card.work{background:rgba(225,112,85,.2);border:2px solid var(--work-color)}
+.fork-card .fork-icon{font-size:32px;margin-bottom:6px}
+.fork-card .fork-label{font-weight:700;font-size:15px;margin-bottom:4px}
+#startBtn{padding:16px 48px;font-size:20px;font-weight:700;border-radius:50px;background:linear-gradient(135deg,var(--accent-gold),#e8a820);color:#1a1a2e;box-shadow:0 4px 20px rgba(240,192,64,.4);transition:all .3s;margin-bottom:20px}
+#startBtn:hover{transform:scale(1.05);box-shadow:0 6px 30px rgba(240,192,64,.6)}
+
+/* GAME */
+#gameScreen{background:linear-gradient(180deg,#1a1a2e,#16213e);overflow:hidden}
+.hud{display:flex;gap:4px;padding:6px 8px;background:rgba(0,0,0,.5);flex-wrap:wrap;justify-content:center;align-items:flex-start;z-index:10;flex-shrink:0}
+.meter-box{display:flex;flex-direction:column;align-items:center;width:clamp(90px,17vw,130px);position:relative}
+.meter-box.primary{width:clamp(105px,19vw,145px)}
+.meter-box.primary .meter-name{font-weight:800;color:var(--accent-gold)}
+.meter-box.primary .meter-bar-outer{border:2px solid var(--accent-gold);box-shadow:0 0 8px rgba(240,192,64,.3)}
+.meter-name{font-size:9px;font-weight:600;text-align:center;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.meter-subtitle{font-size:7px;color:var(--accent-gold);margin-bottom:1px}
+.meter-bar-outer{width:100%;height:14px;background:rgba(0,0,0,.5);border-radius:7px;overflow:hidden}
+.meter-bar-inner{height:100%;border-radius:7px;transition:width .6s ease,background .6s ease;position:relative}
+.meter-bar-inner::after{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:linear-gradient(180deg,rgba(255,255,255,.2),transparent);border-radius:7px 7px 0 0}
+.meter-value{font-size:9px;text-align:center;margin-top:1px;color:var(--text-dim)}
+.meter-label{font-size:7px;text-align:center;color:var(--text-dim);font-style:italic}
+.meter-change-anim{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:800;opacity:0;animation:meterPop 1.2s ease forwards;pointer-events:none;z-index:20;white-space:nowrap}
+@keyframes meterPop{0%{opacity:0;transform:translateX(-50%) translateY(8px)}20%{opacity:1;transform:translateX(-50%) translateY(0)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-12px)}}
+.path-label{font-size:9px;font-weight:700;text-align:center;padding:1px 6px;border-radius:4px;margin-top:1px;display:none}
+.path-label.college{background:var(--college-color);color:#fff}
+.path-label.work{background:var(--work-color);color:#fff}
+.hud-extras{display:flex;justify-content:space-between;align-items:center;padding:3px 12px;background:rgba(0,0,0,.3);flex-shrink:0;font-size:11px}
+.progress-level{color:var(--accent-gold);font-weight:700}
+.round-counter{color:var(--text-dim)}
+.powerup-icons{display:flex;gap:6px;align-items:center}
+.powerup-icon{font-size:18px;opacity:.3;transition:all .3s}
+.powerup-icon.active{opacity:1;filter:drop-shadow(0 0 6px gold)}
+.powerup-icon.progress{opacity:.6;animation:pulseGlow 1.5s infinite}
+@keyframes pulseGlow{0%,100%{filter:drop-shadow(0 0 2px gold)}50%{filter:drop-shadow(0 0 10px gold)}}
+.hustle-toggle{display:none;align-items:center;gap:3px;font-size:10px;cursor:pointer;padding:2px 7px;border-radius:10px;background:rgba(0,0,0,.3);border:1px solid var(--accent-gold);color:var(--accent-gold)}
+.hustle-toggle.on{background:rgba(46,204,113,.2);border-color:var(--accent-green)}
+.hustle-toggle.visible{display:flex}
+
+/* SCROLLABLE GAME BODY */
+.game-body{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;min-height:0;-webkit-overflow-scrolling:touch}
+.arena{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:8px 12px;flex-shrink:0}
+.arena-scene{width:100%;max-width:680px;background:var(--card-bg);border-radius:14px;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:14px 16px;text-align:center;transition:all .5s;min-height:90px}
+.arena-scene .scene-content{display:flex;flex-direction:column;align-items:center;gap:4px}
+.arena-scene .scene-emoji{font-size:clamp(32px,7vw,56px)}
+.arena-scene .scene-text{font-size:clamp(12px,1.8vw,14px);color:var(--text-dim);max-width:500px;line-height:1.4}
+.career-doors{display:flex;gap:6px;justify-content:center;margin-top:5px}
+.career-door{width:36px;height:46px;border-radius:4px 4px 0 0;transition:all .5s;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:2px}
+.career-door .door-icon{font-size:20px;transition:all .5s}
+.career-door .door-label{font-size:6px;color:var(--text-dim);margin-top:1px;white-space:nowrap}
+.career-door.open{background:rgba(46,204,113,.15);border:1px solid var(--accent-green)}
+.career-door.closed{background:rgba(231,76,60,.15);border:1px solid var(--accent-red)}
+.career-door.closed .door-icon{opacity:.4}
+.ripple-banner{position:absolute;top:0;left:0;right:0;padding:6px 8px;background:linear-gradient(90deg,rgba(240,192,64,.95),rgba(232,168,32,.95));color:#1a1a2e;font-weight:800;font-size:12px;text-align:center;display:none;z-index:15}
+.ripple-banner.loud{display:block;animation:ripplePulse .6s ease}
+@keyframes ripplePulse{0%{transform:scaleX(.5);opacity:0}50%{transform:scaleX(1.02)}100%{transform:scaleX(1);opacity:1}}
+.fork-preview{display:none;gap:10px;margin-bottom:6px;width:100%;max-width:580px}
+.fork-preview.visible{display:flex}
+.fork-panel{flex:1;padding:8px;border-radius:10px;font-size:11px;text-align:center;line-height:1.3}
+.fork-panel.hurts-now{background:rgba(231,76,60,.15);border:1px solid var(--accent-red)}
+.fork-panel.hurts-later{background:rgba(243,156,18,.15);border:1px solid var(--accent-yellow)}
+.fork-panel .fork-panel-title{font-weight:800;font-size:13px;margin-bottom:3px}
+
+/* DECISION PANEL */
+.decision-panel{flex-shrink:0;padding:10px 12px 14px;background:rgba(0,0,0,.5);display:flex;flex-direction:column;align-items:center;border-top:1px solid rgba(255,255,255,.06)}
+.situation-text{font-size:clamp(13px,2.2vw,15px);text-align:center;max-width:680px;margin-bottom:8px;line-height:1.45;padding:0 4px;overflow-wrap:break-word;word-wrap:break-word}
+.choices{display:flex;gap:10px;width:100%;max-width:600px;justify-content:center;flex-wrap:wrap}
+.choice-btn{flex:1 1 45%;min-width:180px;max-width:290px;padding:12px 14px;border-radius:14px;font-size:clamp(12px,1.8vw,14px);font-weight:700;color:#fff;transition:all .2s;text-align:center;line-height:1.3}
+.choice-btn.optA{background:linear-gradient(135deg,#2d5aa0,#1e3c72);border:2px solid #3a7bd5}
+.choice-btn.optA:hover{border-color:#5b9aff;box-shadow:0 0 15px rgba(59,123,213,.4)}
+.choice-btn.optB{background:linear-gradient(135deg,#8e4585,#6b2d75);border:2px solid #a855a0}
+.choice-btn.optB:hover{border-color:#c77dbb;box-shadow:0 0 15px rgba(168,85,160,.4)}
+.budget-tag{display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;margin-top:5px;font-weight:600}
+.budget-tag.pos{background:rgba(46,204,113,.25);color:var(--accent-green)}
+.budget-tag.neg{background:rgba(231,76,60,.25);color:var(--accent-red)}
+.budget-tag.zero{background:rgba(160,160,184,.2);color:var(--text-dim)}
+
+/* POPUPS */
+.popup-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.75);display:none;justify-content:center;align-items:center;z-index:100;padding:16px}
+.popup-overlay.active{display:flex}
+.popup-box{background:linear-gradient(135deg,#16213e,#1a1a2e);border:2px solid var(--accent-gold);border-radius:20px;padding:20px 24px;max-width:460px;width:100%;text-align:center;animation:popIn .3s ease;max-height:90vh;overflow-y:auto}
+@keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.popup-box .popup-emoji{font-size:44px;margin-bottom:6px}
+.popup-box .popup-text{font-size:15px;line-height:1.5;margin-bottom:14px}
+.popup-box .popup-meters{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:14px}
+.popup-meter-tag{padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700}
+.popup-meter-tag.up{background:rgba(46,204,113,.2);color:var(--accent-green)}
+.popup-meter-tag.down{background:rgba(231,76,60,.2);color:var(--accent-red)}
+.popup-btn{padding:11px 32px;border-radius:30px;font-size:15px;font-weight:700;background:linear-gradient(135deg,var(--accent-gold),#e8a820);color:#1a1a2e}
+
+/* EVENT */
+.event-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(100,20,20,.4);display:none;justify-content:center;align-items:center;z-index:90;padding:16px}
+.event-overlay.active{display:flex}
+.event-box{background:linear-gradient(135deg,#2d1b1b,#1a1a2e);border:2px solid var(--accent-red);border-radius:20px;padding:20px 22px;max-width:480px;width:100%;text-align:center;animation:popIn .4s ease;max-height:90vh;overflow-y:auto}
+.event-label{background:var(--accent-red);color:#fff;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:800;display:inline-block;margin-bottom:8px;letter-spacing:1px}
+.event-box .popup-emoji{font-size:44px;margin-bottom:6px}
+.event-box .popup-text{font-size:14px;line-height:1.5;margin-bottom:12px}
+.event-choices{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.event-choice-btn{padding:11px 14px;border-radius:14px;font-size:13px;font-weight:700;color:#fff;flex:1 1 45%;min-width:150px;max-width:220px;transition:all .2s;line-height:1.3}
+.event-choice-btn.eA{background:linear-gradient(135deg,#2d5aa0,#1e3c72);border:2px solid #3a7bd5}
+.event-choice-btn.eB{background:linear-gradient(135deg,#8e4585,#6b2d75);border:2px solid #a855a0}
+
+/* END SCREEN */
+#endScreen{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 40%,#0f3460 100%);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.end-content{padding:16px;max-width:700px;margin:0 auto;width:100%}
+.end-brand{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent-gold);opacity:.85;text-align:center;margin:4px 0 8px}
+.end-title{text-align:center;font-size:clamp(22px,4vw,32px);font-weight:800;margin-bottom:4px;background:linear-gradient(90deg,var(--accent-gold),#f7dc6f);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.end-subtitle{text-align:center;font-size:13px;color:var(--text-dim);margin-bottom:14px;font-style:italic}
+.end-path-badge{display:inline-block;padding:5px 16px;border-radius:20px;font-weight:700;font-size:13px;margin-bottom:14px}
+.end-path-badge.college{background:var(--college-color);color:#fff}
+.end-path-badge.work{background:var(--work-color);color:#fff}
+.end-meters{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px}
+.end-meter-card{background:var(--card-bg);border-radius:12px;padding:10px;width:110px;text-align:center;border:1px solid rgba(255,255,255,.1)}
+.end-meter-card .em-name{font-size:10px;font-weight:600;margin-bottom:3px}
+.end-meter-card .em-value{font-size:26px;font-weight:800}
+.end-meter-card .em-label{font-size:9px;font-style:italic;margin-top:2px}
+.end-badge-row{display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
+.end-badge{padding:6px 14px;border-radius:12px;font-size:12px;font-weight:700;background:rgba(240,192,64,.15);border:1px solid var(--accent-gold);color:var(--accent-gold)}
+.end-highlight{background:var(--card-bg);border-radius:12px;padding:12px;margin-bottom:12px;border-left:4px solid var(--accent-gold)}
+.end-highlight .eh-title{font-size:13px;font-weight:700;color:var(--accent-gold);margin-bottom:5px}
+.end-highlight .eh-item{font-size:12px;color:var(--text-dim);margin-bottom:4px;line-height:1.4}
+.end-replay{text-align:center;margin:14px 0;padding:14px;background:rgba(240,192,64,.08);border-radius:12px;border:1px dashed var(--accent-gold)}
+.end-replay p{font-size:12px;color:var(--text-dim);line-height:1.4}
+.end-progress{text-align:center;font-size:15px;font-weight:700;color:var(--accent-gold);margin-bottom:14px}
+.data-toggle{display:block;margin:0 auto 10px;padding:9px 22px;border-radius:30px;font-size:13px;font-weight:700;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:var(--text-light)}
+.data-layer{display:none;margin-bottom:16px}.data-layer.open{display:block}
+.data-table-wrap{overflow-x:auto;margin-bottom:10px;-webkit-overflow-scrolling:touch}
+table.data-table{width:100%;border-collapse:collapse;font-size:10px;min-width:600px}
+.data-table th{background:rgba(240,192,64,.15);color:var(--accent-gold);padding:5px 6px;text-align:left;font-weight:700;white-space:nowrap}
+.data-table td{padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.06);color:var(--text-dim);white-space:nowrap}
+.copy-btn{display:block;margin:0 auto;padding:9px 24px;border-radius:30px;font-size:13px;font-weight:700;background:var(--accent-gold);color:#1a1a2e}
+.play-again-btn{display:block;margin:14px auto 40px;padding:13px 36px;border-radius:50px;font-size:17px;font-weight:700;background:linear-gradient(135deg,var(--accent-gold),#e8a820);color:#1a1a2e;box-shadow:0 4px 20px rgba(240,192,64,.3)}
+@keyframes glow{0%,100%{box-shadow:0 0 5px rgba(240,192,64,.3)}50%{box-shadow:0 0 20px rgba(240,192,64,.6)}}
+.win-glow{animation:glow 1.5s infinite}
+
+@media(max-height:700px){
+  .hud{padding:4px 6px;gap:3px}.meter-box{width:clamp(80px,16vw,110px)}.meter-box.primary{width:clamp(95px,18vw,125px)}
+  .meter-bar-outer{height:12px}.meter-name{font-size:8px}.hud-extras{padding:2px 10px;font-size:10px}
+  .arena{padding:4px 10px}.arena-scene{padding:10px 12px;min-height:70px}
+  .arena-scene .scene-emoji{font-size:clamp(28px,6vw,44px)}.arena-scene .scene-text{font-size:11px}
+  .career-door{width:32px;height:40px}.career-door .door-icon{font-size:16px}
+  .decision-panel{padding:8px 10px 10px}.situation-text{font-size:12px;margin-bottom:6px}
+  .choice-btn{padding:10px 10px;font-size:12px;min-width:160px}
+}
+@media(max-height:600px){.career-doors{display:none}.arena-scene .scene-emoji{font-size:28px}.hud{padding:3px 4px}.meter-bar-outer{height:10px}}
+</style>
+</head>
+<body>
+<div id="titleScreen" class="screen active">
+  <div class="title-brand">Mr. Jawad's Simulations</div>
+  <div class="title-main">Budget Boss Challenge</div>
+  <div class="title-session">Session 2</div>
+  <div class="title-hook">One choice. Eight months. Two completely different lives.</div>
+  <div class="title-fork-preview">
+    <div class="fork-card college"><div class="fork-icon">🎓</div><div class="fork-label">College Path</div>Higher ceiling. Real debt.</div>
+    <div class="fork-card work"><div class="fork-icon">💼</div><div class="fork-label">Work Path</div>Cash now. Lower ceiling.</div>
+  </div>
+  <button id="startBtn">Start Mission</button>
+</div>
+<div id="gameScreen" class="screen">
+  <div class="hud" id="hud"></div>
+  <div class="hud-extras">
+    <span class="progress-level" id="progressLevel">Progress Level 1</span>
+    <div class="powerup-icons">
+      <span class="powerup-icon" id="efIcon" title="Emergency Fund">🛡️</span>
+      <span class="powerup-icon" id="hsIcon" title="Hustle Stack">💻</span>
+      <span class="hustle-toggle" id="hustleToggle" onclick="toggleHustle()">☕ Hustle: OFF</span>
+    </div>
+    <span class="round-counter" id="roundCounter">Round 1 / 8</span>
+  </div>
+  <div class="game-body" id="gameBody">
+    <div class="arena" id="arena">
+      <div class="ripple-banner" id="rippleBanner">⬅ THIS HAPPENED BECAUSE OF ROUND 1</div>
+      <div class="fork-preview" id="forkPreview">
+        <div class="fork-panel hurts-now"><div class="fork-panel-title">🔴 HURTS NOW</div>Budget drops to red, debt starts immediately</div>
+        <div class="fork-panel hurts-later"><div class="fork-panel-title">🟡 HURTS LATER</div>Career ceiling locks, promotion doors shrink</div>
+      </div>
+      <div class="arena-scene" id="arenaScene">
+        <div class="scene-content">
+          <div class="scene-emoji" id="sceneEmoji">🏠</div>
+          <div class="scene-text" id="sceneText">You're 18. The biggest fork of your life is ahead.</div>
+        </div>
+      </div>
+      <div class="career-doors" id="careerDoors"></div>
+    </div>
+    <div class="decision-panel" id="decisionPanel">
+      <div class="situation-text" id="situationText"></div>
+      <div class="choices" id="choices"></div>
+    </div>
+  </div>
+</div>
+<div class="popup-overlay" id="popupOverlay">
+  <div class="popup-box">
+    <div class="popup-emoji" id="popupEmoji"></div>
+    <div class="popup-text" id="popupText"></div>
+    <div class="popup-meters" id="popupMeters"></div>
+    <button class="popup-btn" onclick="dismissPopup()">Continue</button>
+  </div>
+</div>
+<div class="event-overlay" id="eventOverlay">
+  <div class="event-box">
+    <div class="event-label">⚡ RANDOM EVENT</div>
+    <div class="popup-emoji" id="eventEmoji"></div>
+    <div class="popup-text" id="eventText"></div>
+    <div class="event-choices" id="eventChoices"></div>
+  </div>
+</div>
+<div id="endScreen" class="screen">
+  <div class="end-content" id="endContent"></div>
+</div>
+<script>
+let audioCtx=null;
+function getAC(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
+function playTone(f,d,t='sine'){try{const a=getAC(),o=a.createOscillator(),g=a.createGain();o.type=t;o.frequency.value=f;g.gain.value=.08;o.connect(g);g.connect(a.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d);o.stop(a.currentTime+d)}catch(e){}}
+function playUp(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.15),200)}
+function playDown(){playTone(400,.15);setTimeout(()=>playTone(300,.15),150)}
+function playEvent(){playTone(880,.1,'square');setTimeout(()=>playTone(660,.1,'square'),120);setTimeout(()=>playTone(880,.15,'square'),240)}
+function playLevelUp(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.1),200);setTimeout(()=>playTone(1047,.2),300)}
+
+let S={round:1,path:null,switchedR7:false,meters:{budget:40,savings:20,lifeQuality:50,careerGrowth:40,debt:0},prev:{},hustleOn:false,hustleUnlocked:false,efUnlocked:false,decisions:[],savStreak:0,choosing:false};
+function clamp(v){return Math.max(0,Math.min(100,v))}
+function validate(){for(let k in S.meters){if(isNaN(S.meters[k])||S.meters[k]==null)S.meters[k]=S.prev[k]||50;S.meters[k]=clamp(Math.round(S.meters[k]))}}
+function savePrev(){S.prev={...S.meters}}
+
+const M=[
+  {key:'budget',name:'Monthly Budget',low:'drowning',mid:'tight',high:'comfortable',t:[30,60],inv:false,sub:null},
+  {key:'savings',name:'Savings',low:'broke',mid:'building',high:'secure',t:[25,55],inv:false,sub:null},
+  {key:'lifeQuality',name:'Life Quality',low:'stressed',mid:'ok',high:'thriving',t:[30,60],inv:false,sub:null},
+  {key:'careerGrowth',name:'Career Growth',low:'stuck',mid:'advancing',high:'rising',t:[29,60],inv:false,sub:'Your Future Doors',pri:true},
+  {key:'debt',name:'Debt Load',low:'free',mid:'manageable',high:'crushing',t:[15,40],inv:true,sub:null},
+];
+function lbl(m,v){if(m.inv)return v<=m.t[0]?m.low:v<=m.t[1]?m.mid:m.high;return v<=m.t[0]?m.low:v<=m.t[1]?m.mid:m.high}
+function col(m,v){if(m.inv)return v<=m.t[0]?'var(--meter-green)':v<=m.t[1]?'var(--meter-yellow)':'var(--meter-red)';return v<=m.t[0]?'var(--meter-red)':v<=m.t[1]?'var(--meter-yellow)':'var(--meter-green)'}
+function colH(m,v){if(m.inv)return v<=m.t[0]?'#2ecc71':v<=m.t[1]?'#f39c12':'#e74c3c';return v<=m.t[0]?'#e74c3c':v<=m.t[1]?'#f39c12':'#2ecc71'}
+
+function buildHud(){
+  const h=document.getElementById('hud');h.innerHTML='';
+  const ord=[...M].sort((a,b)=>a.pri?-1:b.pri?1:0);
+  ord.forEach(m=>{
+    const b=document.createElement('div');b.className='meter-box'+(m.pri?' primary':'');b.id='mbox_'+m.key;
+    b.innerHTML=(m.sub?'<div class="meter-subtitle">'+m.sub+'</div>':'')+
+      '<div class="meter-name">'+m.name+(m.inv?' ⚠️':'')+'</div>'+
+      '<div class="meter-bar-outer"><div class="meter-bar-inner" id="bar_'+m.key+'"></div></div>'+
+      '<div class="meter-value" id="val_'+m.key+'"></div>'+
+      '<div class="meter-label" id="lbl_'+m.key+'"></div>'+
+      (m.pri?'<div class="path-label" id="pathLabel"></div>':'');
+    h.appendChild(b)});
+  updateHud(false)}
+
+function updateHud(anim){
+  validate();
+  M.forEach(m=>{
+    const v=S.meters[m.key];
+    const bar=document.getElementById('bar_'+m.key);
+    if(bar){bar.style.width=v+'%';bar.style.background=col(m,v)}
+    const ve=document.getElementById('val_'+m.key);if(ve)ve.textContent=v;
+    const le=document.getElementById('lbl_'+m.key);if(le)le.textContent=lbl(m,v);
+    if(anim&&S.prev[m.key]!==undefined){
+      const d=v-S.prev[m.key];
+      if(d!==0){
+        const bx=document.getElementById('mbox_'+m.key);
+        if(bx){const a=document.createElement('div');a.className='meter-change-anim';
+          if(m.inv){a.textContent=(d>0?'▲ +':'▼ ')+Math.abs(d);a.style.color=d>0?'var(--accent-red)':'var(--accent-green)'}
+          else{a.textContent=(d>0?'▲ +':'▼ ')+Math.abs(d);a.style.color=d>0?'var(--accent-green)':'var(--accent-red)'}
+          bx.appendChild(a);setTimeout(()=>{try{bx.removeChild(a)}catch(e){}},1300)}}}});
+  const pl=document.getElementById('pathLabel');
+  if(pl&&S.path){pl.style.display='block';pl.className='path-label '+S.path;pl.textContent=S.path==='college'?'COLLEGE PATH':'WORK PATH'}
+  document.getElementById('roundCounter').textContent='Round '+S.round+' / 8';
+  let l=1;if(S.round>=8)l=4;else if(S.round>=6)l=3;else if(S.round>=3)l=2;
+  document.getElementById('progressLevel').textContent=['Progress Level 1','Progress Level 2','Progress Level 3','Max Level'][l-1]}
+
+function checkPU(){try{
+  if(!S.efUnlocked){if(S.meters.savings>=26){S.savStreak++;if(S.savStreak>=2){S.efUnlocked=true;document.getElementById('efIcon').classList.add('active');document.getElementById('efIcon').classList.remove('progress');qPop('🛡️','Emergency Fund Unlocked! Car repairs cost less.',true)}else{document.getElementById('efIcon').classList.add('progress')}}else{S.savStreak=0;document.getElementById('efIcon').classList.remove('progress')}}
+  if(!S.hustleUnlocked&&S.meters.careerGrowth<=29){S.hustleUnlocked=true;document.getElementById('hsIcon').classList.add('active');document.getElementById('hustleToggle').classList.add('visible');qPop('💻','Hustle Stack Unlocked! Toggle for +10 Savings / -5 Life Quality.',true)}
+}catch(e){}}
+
+function toggleHustle(){try{S.hustleOn=!S.hustleOn;const e=document.getElementById('hustleToggle');e.textContent=S.hustleOn?'☕ Hustle: ON':'☕ Hustle: OFF';S.hustleOn?e.classList.add('on'):e.classList.remove('on')}catch(e){}}
+function applyHustle(){if(S.hustleOn&&S.hustleUnlocked){S.meters.savings=clamp(S.meters.savings+10);S.meters.lifeQuality=clamp(S.meters.lifeQuality-5)}}
+
+const DOORS=[{l:'Better Job'},{l:'Promotion'},{l:'Grad School'},{l:'Leadership'}];
+function updateDoors(){try{const cg=S.meters.careerGrowth,c=document.getElementById('careerDoors');c.innerHTML='';let n=cg>60?4:cg>40?3:cg>29?2:1;DOORS.forEach((d,i)=>{const o=i<n,v=document.createElement('div');v.className='career-door '+(o?'open':'closed');v.innerHTML='<div class="door-icon">'+(o?'🚪':'🔒')+'</div><div class="door-label">'+d.l+'</div>';c.appendChild(v)})}catch(e){}}
+
+let popCb=null;
+function showPop(emoji,text,mc,cb){try{
+  document.getElementById('popupEmoji').textContent=emoji;
+  document.getElementById('popupText').textContent=text;
+  const el=document.getElementById('popupMeters');el.innerHTML='';
+  if(mc)mc.forEach(m=>{if(m.dir===0)return;const t=document.createElement('span');const g=m.inv?(m.dir<0):(m.dir>0);t.className='popup-meter-tag '+(g?'up':'down');t.textContent=(m.dir>0?'▲ +':'▼ ')+Math.abs(m.dir)+' '+m.name;el.appendChild(t)});
+  document.getElementById('popupOverlay').classList.add('active');popCb=cb}catch(e){if(cb)cb()}}
+function dismissPopup(){document.getElementById('popupOverlay').classList.remove('active');if(popCb){const c=popCb;popCb=null;setTimeout(c,200)}}
+function qPop(emoji,text,good){const d=document.createElement('div');d.style.cssText='position:fixed;top:50px;left:50%;transform:translateX(-50%);z-index:200;background:'+(good?'rgba(46,204,113,.92)':'rgba(231,76,60,.92)')+';color:#fff;padding:10px 20px;border-radius:14px;font-weight:700;font-size:13px;text-align:center;max-width:88%;animation:popIn .3s ease;pointer-events:none';d.innerHTML='<span style="font-size:24px">'+emoji+'</span> '+text;document.body.appendChild(d);setTimeout(()=>{d.style.transition='opacity .5s';d.style.opacity='0';setTimeout(()=>{try{document.body.removeChild(d)}catch(e){}},600)},2200)}
+
+function setScene(emoji,text,bg){try{document.getElementById('sceneEmoji').textContent=emoji;document.getElementById('sceneText').textContent=text;const s=document.getElementById('arenaScene');if(bg)s.style.background=bg;s.style.animation='none';void s.offsetHeight;s.style.animation='popIn .4s ease'}catch(e){}}
+function showRipple(){try{const b=document.getElementById('rippleBanner');b.classList.add('loud');b.style.animation='none';void b.offsetHeight;b.style.animation='ripplePulse .6s ease';setTimeout(()=>b.classList.remove('loud'),3000)}catch(e){}}
+
+function RD(r,p){
+  const P=p||S.path;
+  switch(r){
+    case 1:return{sit:"You're 18. State college accepted you — $12,000/year with loans. OR start working full-time at $32,000/year. What do you do?",fork:true,
+      A:{text:"Go to college — take the loans",bt:-15,fn:()=>{S.path='college';S.meters.budget-=15;S.meters.careerGrowth+=20;S.meters.debt+=30;S.meters.lifeQuality+=5},sc:{e:'🎓',t:'Campus gates open. Loan counter ticking. Your future just forked.',b:'linear-gradient(135deg,rgba(108,92,231,.3),rgba(15,52,96,.8))'},pop:{e:'🎓',t:'Doors opening everywhere. Your wallet is already sweating.'},mc:[{name:'Budget',dir:-15},{name:'Career Growth',dir:20},{name:'Debt Load',dir:30,inv:true},{name:'Life Quality',dir:5}]},
+      B:{text:"Skip college — start earning now",bt:15,fn:()=>{S.path='work';S.meters.budget+=15;S.meters.careerGrowth-=15;S.meters.savings+=10;S.meters.lifeQuality-=5},sc:{e:'💼',t:'First paycheck prints. Real money right now. But that ceiling is real.',b:'linear-gradient(135deg,rgba(225,112,85,.3),rgba(15,52,96,.8))'},pop:{e:'💼',t:"Money in your pocket today. That ceiling isn't going anywhere."},mc:[{name:'Budget',dir:15},{name:'Career Growth',dir:-15},{name:'Savings',dir:10},{name:'Life Quality',dir:-5}]},fb:'full'};
+    case 2:
+      if(P==='college')return{sit:"Freshman housing is included — tiny dorm, shared bathroom. OR off-campus apartment, more space, your own dime.",
+        A:{text:"Stay in the dorm — it's covered",bt:10,fn:()=>{S.meters.budget+=10;S.meters.lifeQuality-=10;S.meters.debt+=5},sc:{e:'🏢',t:'Tiny dorm. Bunk bed, shared fridge. But no rent bill.',b:'linear-gradient(135deg,rgba(108,92,231,.2),rgba(15,52,96,.8))'},mc:[{name:'Budget',dir:10},{name:'Life Quality',dir:-10},{name:'Debt',dir:5,inv:true}]},
+        B:{text:"Off-campus — your own space",bt:-10,fn:()=>{S.meters.budget-=10;S.meters.lifeQuality+=10;S.meters.debt+=5},sc:{e:'🏠',t:'Real kitchen, privacy, adult vibes. Rent on top of loans.',b:'linear-gradient(135deg,rgba(108,92,231,.25),rgba(15,52,96,.8))'},mc:[{name:'Budget',dir:-10},{name:'Life Quality',dir:10},{name:'Debt',dir:5,inv:true}]},fb:'visual',rip:true};
+      return{sit:"Steady paycheck. Cheap apartment far from work, or nice place close but costs more?",
+        A:{text:"Cheap place, long commute",bt:10,fn:()=>{S.meters.budget+=10;S.meters.lifeQuality-=10;S.meters.careerGrowth-=5},sc:{e:'🚌',t:'Long bus ride. 2 hrs/day commute eats your evenings.',b:'linear-gradient(135deg,rgba(225,112,85,.2),rgba(15,52,96,.8))'},mc:[{name:'Budget',dir:10},{name:'Life Quality',dir:-10},{name:'Career Growth',dir:-5}]},
+        B:{text:"Nice place, close to work",bt:-10,fn:()=>{S.meters.budget-=10;S.meters.lifeQuality+=10;S.meters.careerGrowth+=5},sc:{e:'🏡',t:'Walkable streets. Extra time to build skills.',b:'linear-gradient(135deg,rgba(225,112,85,.25),rgba(15,52,96,.8))'},mc:[{name:'Budget',dir:-10},{name:'Life Quality',dir:10},{name:'Career Growth',dir:5}]},fb:'visual',rip:true};
+    case 3:
+      if(P==='college')return{sit:"Midterms next week. Drop shifts to study or keep the campus job hours? Grades or money?",
+        A:{text:"Drop shifts, study hard",bt:-10,fn:()=>{S.meters.budget-=10;S.meters.careerGrowth+=10;S.meters.savings-=5},sc:{e:'📚',t:'Library late nights. Grade jumps to B+. No paycheck this period.',b:'linear-gradient(135deg,rgba(108,92,231,.2),rgba(15,52,96,.8))'},mc:[{name:'Budget',dir:-10},{name:'Career Growth',dir:10},{name:'Savings',dir:-5}]},
+        B:{text:"Keep shifts, study when you can",bt:5,fn:()=>{S.meters.budget+=5;S.meters.careerGrowth-=5;S.meters.savings+=5},sc:{e:'🏪',t:'Working register, textbook on break. GPA flat but cash flows.',b:'linear-gradient(135deg,rgba(108,92,231,.2),rgba(15,52,96,.8))'},mc:[{name:'Budget',dir:5},{name:'Career Growth',dir:-5},{name:'Savings',dir:5}]},fb:'visual',rip:true};
+      return{sit:"Boss offers overtime — extra $400/month, every Saturday gone. A coworker with a degree just got promoted over you.",
+        A:{text:"Take the overtime — stack cash",bt:10,fn:()=>{S.meters.budget+=10;S.meters.savings+=10;S.meters.lifeQuality-=15},sc:{e:'⏰',t:'Saturdays gone. Cash stacks but weekends vanish. She got promoted.',b:'linear-gradient(135deg,rgba(225,112,85,.2),rgba(15,52,96,.8))'},mc:[{name:'Budget',dir:10},{name:'Savings',dir:10},{name:'Life Quality',dir:-15}]},
+        B:{text:"Keep weekends — money's fine",bt:0,fn:()=>{S.meters.lifeQuality+=10},sc:{e:'🏀',t:'Weekends back. Friends, rest, human again. Savings stay flat.',b:'linear-gradient(135deg,rgba(225,112,85,.2),rgba(15,52,96,.8))'},mc:[{name:'Life Quality',dir:10}]},fb:'visual',rip:true};
+    case 4:
+      if(P==='college')return{sit:"Spring break trip — everyone's going. $600 for flights, hotel, food. Loan balance staring at you.",
+        A:{text:"Go on the trip",bt:-5,fn:()=>{S.meters.budget-=5;S.meters.lifeQuality+=15;S.meters.savings-=15;S.meters.debt+=10},sc:{e:'🏖️',t:'Beach, group laughs, best week yet. Credit card swiped. Debt climbing.',b:'linear-gradient(135deg,rgba(52,152,219,.3),rgba(15,52,96,.8))'},pop:{e:'🏖️',t:"Best week of college. Your debt doesn't care."},mc:[{name:'Budget',dir:-5},{name:'Life Quality',dir:15},{name:'Savings',dir:-15},{name:'Debt',dir:10,inv:true}]},
+        B:{text:"Stay back — can't afford it",bt:0,fn:()=>{S.meters.savings+=5;S.meters.lifeQuality-=10},sc:{e:'📱',t:"Empty dorm. Phone buzzing with vacation photos. Inside jokes you won't get.",b:'linear-gradient(135deg,rgba(108,92,231,.15),rgba(15,52,96,.8))'},pop:{e:'📱',t:"They're saying 'you had to be there.' You weren't."},mc:[{name:'Savings',dir:5},{name:'Life Quality',dir:-10}]},fb:'moderate'};
+      return{sit:"Coworkers going to a music festival — $300. You can afford it but just started building savings.",
+        A:{text:"Go — you've earned it",bt:-5,fn:()=>{S.meters.budget-=5;S.meters.lifeQuality+=15;S.meters.savings-=15},sc:{e:'🎵',t:'Festival lights, music, bonds. Savings jar drains.',b:'linear-gradient(135deg,rgba(52,152,219,.3),rgba(15,52,96,.8))'},pop:{e:'🎵',t:"Worth every penny. Until Monday's bank check."},mc:[{name:'Budget',dir:-5},{name:'Life Quality',dir:15},{name:'Savings',dir:-15}]},
+        B:{text:"Pass — keep building savings",bt:0,fn:()=>{S.meters.savings+=10;S.meters.lifeQuality-=10},sc:{e:'🎧',t:'Coworkers showing videos. Inside jokes. You at your desk alone.',b:'linear-gradient(135deg,rgba(225,112,85,.15),rgba(15,52,96,.8))'},pop:{e:'💰',t:"Smart money move. Lonely Monday."},mc:[{name:'Savings',dir:10},{name:'Life Quality',dir:-10}]},fb:'moderate'};
+    case 6:
+      if(P==='college')return{sit:"Summer internship — $10/hr (less than campus job) but incredible resume boost. Campus job pays more, teaches nothing.",
+        A:{text:"Take the internship",bt:-10,fn:()=>{S.meters.budget-=10;S.meters.careerGrowth+=15;S.meters.savings-=5},sc:{e:'🏢',t:'Real projects, connections. Resume glows. Paycheck shrinks.',b:'linear-gradient(135deg,rgba(108,92,231,.3),rgba(15,52,96,.8))'},pop:{e:'📋',t:"Getting ahead. Getting paid less to do it."},mc:[{name:'Budget',dir:-10},{name:'Career Growth',dir:15},{name:'Savings',dir:-5}]},
+        B:{text:"Keep campus job — need the money",bt:5,fn:()=>{S.meters.budget+=5;S.meters.careerGrowth-=5;S.meters.savings+=5},sc:{e:'🏪',t:'Same campus job. Bills covered. Classmate posts about their internship.',b:'linear-gradient(135deg,rgba(108,92,231,.15),rgba(15,52,96,.8))'},pop:{e:'👀',t:"Paid the bills. Watched opportunity walk past."},mc:[{name:'Budget',dir:5},{name:'Career Growth',dir:-5},{name:'Savings',dir:5}]},fb:'moderate'};
+      return{sit:"Promotion opened — $5K raise, manage a team. Never done it. Boss says you're ready. You're not sure.",
+        A:{text:"Go for the promotion",bt:10,fn:()=>{S.meters.budget+=10;S.meters.careerGrowth+=15;S.meters.lifeQuality-=15},sc:{e:'📈',t:'Bigger desk, bigger check, team looking at you. Ceiling lifts.',b:'linear-gradient(135deg,rgba(46,204,113,.2),rgba(15,52,96,.8))'},pop:{e:'📈',t:"Bigger check. Bigger pressure. No going back."},mc:[{name:'Budget',dir:10},{name:'Career Growth',dir:15},{name:'Life Quality',dir:-15}]},
+        B:{text:"Stay in your role — keep steady",bt:0,fn:()=>{S.meters.lifeQuality+=5;S.meters.careerGrowth-=5},sc:{e:'🪑',t:'Same desk. Someone else got your shot.',b:'linear-gradient(135deg,rgba(225,112,85,.15),rgba(15,52,96,.8))'},pop:{e:'🪑',t:"Safe. Predictable. Someone else got your shot."},mc:[{name:'Life Quality',dir:5},{name:'Career Growth',dir:-5}]},fb:'moderate'};
+    case 8:
+      if(P==='college'){let pr=S.switchedR7?"You took the job — but here's where your year stands. ":"";
+        return{sit:pr+"End of freshman year. Summer job to attack debt, or recharge before year two?",
+          A:{text:"Summer job — attack the debt",bt:5,fn:()=>{S.meters.budget+=5;S.meters.debt-=10;S.meters.savings+=10;S.meters.lifeQuality-=10},sc:{e:'☀️',t:"Friends vacationing. You're chipping away at debt. Counter DOWN for first time.",b:'linear-gradient(135deg,rgba(46,204,113,.2),rgba(15,52,96,.8))'},pop:{e:'💪',t:"Everyone's on vacation. You're chipping away at $12,000."},mc:[{name:'Budget',dir:5},{name:'Debt',dir:-10,inv:true},{name:'Savings',dir:10},{name:'Life Quality',dir:-10}]},
+          B:{text:"Summer off — you need it",bt:-5,fn:()=>{S.meters.budget-=5;S.meters.lifeQuality+=15;S.meters.debt+=5;S.meters.savings-=5},sc:{e:'🌊',t:"Best summer ever. Sleeping in, road trips. Debt ticking up behind you.",b:'linear-gradient(135deg,rgba(52,152,219,.3),rgba(15,52,96,.8))'},pop:{e:'🌊',t:"Best summer of your life. Loans didn't take a vacation."},mc:[{name:'Budget',dir:-5},{name:'Life Quality',dir:15},{name:'Debt',dir:5,inv:true},{name:'Savings',dir:-5}]},fb:'moderate'}}
+      else{let pr=S.switchedR7?"You applied for the scholarship — but here's where your year stands. ":"";
+        return{sit:pr+"One year on the job. Night classes at community college — certificate in 6 months, $2,000, costs your evenings.",
+          A:{text:"Enroll in night classes",bt:-10,fn:()=>{S.meters.budget-=10;S.meters.careerGrowth+=15;S.meters.lifeQuality-=10;S.meters.savings-=10},sc:{e:'📖',t:"Work all day, class all night. Tired but ceiling just moved.",b:'linear-gradient(135deg,rgba(46,204,113,.2),rgba(15,52,96,.8))'},pop:{e:'📖',t:"Working all day, class all night. Ceiling just moved."},mc:[{name:'Budget',dir:-10},{name:'Career Growth',dir:15},{name:'Life Quality',dir:-10},{name:'Savings',dir:-10}]},
+          B:{text:"Stay the course — life is good",bt:0,fn:()=>{S.meters.lifeQuality+=10;S.meters.savings+=5},sc:{e:'🛋️',t:"Comfortable evenings. Savings growing. Career hasn't moved in months.",b:'linear-gradient(135deg,rgba(225,112,85,.15),rgba(15,52,96,.8))'},pop:{e:'🛋️',t:"Comfortable. Stable. Exactly where you were 12 months ago."},mc:[{name:'Life Quality',dir:10},{name:'Savings',dir:5}]},fb:'moderate'}}
+  }return null}
+
+function ED(r){
+  if(r===5){
+    if(S.path==='college')return{e:'🚗💥',t:'Car breaks down. Repair: $800. Due this week.',
+      A:{text:'Credit card — deal with it later',bt:0,fn:()=>{S.meters.debt+=20},sc:{e:'💳',t:'Swiped. Student loans PLUS credit card. Two debt streams.',b:'linear-gradient(135deg,rgba(231,76,60,.2),rgba(15,52,96,.8))'},pop:{e:'💳',t:"Fixed. Your debt just got a new roommate."},mc:[{name:'Debt',dir:20,inv:true}]},
+      B:{text:'Drain your savings',bt:0,fn:()=>{S.meters.savings=Math.max(0,S.meters.savings-20)},sc:{e:'🫙',t:'Savings jar shatters. No safety net left.',b:'linear-gradient(135deg,rgba(231,76,60,.15),rgba(15,52,96,.8))'},pop:{e:'🫙',t:"Fixed. Zero cushion. Hope nothing else breaks."},mc:[{name:'Savings',dir:-20}]}};
+    const ef=S.efUnlocked;
+    return{e:'🚗💥',t:'Car breaks down. Repair: $800. Due this week.',
+      A:{text:'Pay cash from savings',bt:0,fn:()=>{S.meters.savings=Math.max(0,S.meters.savings-(ef?10:20))},sc:{e:ef?'🛡️':'💵',t:ef?'Emergency Fund absorbed half! Only -10.':'Months of saving — gone in a day.',b:'linear-gradient(135deg,rgba(225,112,85,.2),rgba(15,52,96,.8))'},pop:{e:ef?'🛡️':'💵',t:ef?"Shield held! Only lost 10.":"Fixed. Months of saving — gone."},mc:[{name:'Savings',dir:ef?-10:-20}]},
+      B:{text:'Finance it — monthly payments',bt:ef?-3:-5,fn:()=>{if(ef){S.meters.debt+=8;S.meters.budget-=3}else{S.meters.debt+=15;S.meters.budget-=5}},sc:{e:ef?'🛡️':'📝',t:ef?'Shield softened it. Debt +8, budget -3.':'First debt on Work path. Payments start.',b:'linear-gradient(135deg,rgba(225,112,85,.2),rgba(15,52,96,.8))'},pop:{e:ef?'🛡️':'📝',t:ef?"Shield helped — lighter payments.":"Car fixed. You just met Debt."},mc:ef?[{name:'Debt',dir:8,inv:true},{name:'Budget',dir:-3}]:[{name:'Debt',dir:15,inv:true},{name:'Budget',dir:-5}]}}}
+  if(r===7){
+    if(S.path==='college')return{e:'💻✉️',t:'Tech company: "Hiring devs, $50K/year, no degree needed. Start in 2 weeks." You have $25K in loans.',
+      A:{text:'Take the job — drop out',bt:20,fn:()=>{S.switchedR7=true;S.meters.budget+=20;S.meters.careerGrowth-=20},sc:{e:'📦',t:'Packing up dorm. Paychecks start now. Diploma fades.',b:'linear-gradient(135deg,rgba(225,112,85,.3),rgba(15,52,96,.8))'},pop:{e:'💰',t:"$50K now. Traded 3 years for today's paycheck."},mc:[{name:'Budget',dir:20},{name:'Career Growth',dir:-20}]},
+      B:{text:'Stay in school — finish it',bt:-5,fn:()=>{S.meters.budget-=5;S.meters.careerGrowth+=5;S.meters.debt+=5},sc:{e:'📚',t:'Closed laptop on $50K. Back to library. Degree bar fills.',b:'linear-gradient(135deg,rgba(108,92,231,.3),rgba(15,52,96,.8))'},pop:{e:'📚',t:"Said no to $50K. That better be worth it."},mc:[{name:'Budget',dir:-5},{name:'Career Growth',dir:5},{name:'Debt',dir:5,inv:true}]}};
+    return{e:'🎓✉️',t:'Old teacher: "Full scholarship — 2-year program. Quit job, go back to school. Apply by Friday."',
+      A:{text:'Apply — go back to school',bt:-20,fn:()=>{S.switchedR7=true;S.meters.budget-=20;S.meters.careerGrowth+=20;S.meters.savings-=10},sc:{e:'🎓',t:'Back in class. Savings draining. Career Growth finally moves. Ceiling lifting.',b:'linear-gradient(135deg,rgba(108,92,231,.3),rgba(15,52,96,.8))'},pop:{e:'🎓',t:"No income. But that ceiling just broke open."},mc:[{name:'Budget',dir:-20},{name:'Career Growth',dir:20},{name:'Savings',dir:-10}]},
+      B:{text:"Pass — good thing going",bt:0,fn:()=>{S.meters.savings+=5;S.meters.careerGrowth-=5},sc:{e:'📧',t:'Email deleted. Savings up. Career stuck. Door closed.',b:'linear-gradient(135deg,rgba(225,112,85,.15),rgba(15,52,96,.8))'},pop:{e:'📧',t:"Stable. That door just closed for good."},mc:[{name:'Savings',dir:5},{name:'Career Growth',dir:-5}]}}}
+  return null}
+
+function startGame(){try{document.getElementById('titleScreen').classList.remove('active');document.getElementById('gameScreen').classList.add('active');buildHud();updateDoors();loadRound(1)}catch(e){}}
+
+function loadRound(r){try{
+  S.round=r;S.choosing=false;updateHud(false);
+  if(r===5||r===7){loadEvent(r);return}
+  const d=RD(r);if(!d){endGame();return}
+  const fp=document.getElementById('forkPreview');d.fork?fp.classList.add('visible'):fp.classList.remove('visible');
+  document.getElementById('situationText').textContent=d.sit;
+  setScene('🤔','Make your choice...');
+  const ch=document.getElementById('choices');ch.innerHTML='';
+  [{k:'A',c:'optA'},{k:'B',c:'optB'}].forEach(o=>{
+    const opt=d[o.k],btn=document.createElement('button');btn.className='choice-btn '+o.c;
+    const tc=opt.bt>0?'pos':opt.bt<0?'neg':'zero',tt=opt.bt>0?'▲ +'+opt.bt:opt.bt<0?'▼ '+opt.bt:'— ±0';
+    btn.innerHTML=opt.text+'<br><span class="budget-tag '+tc+'">Budget '+tt+'</span>';
+    btn.onclick=()=>doChoice(o.k,d);ch.appendChild(btn)});
+  document.getElementById('decisionPanel').style.display='flex';
+  setTimeout(()=>{document.getElementById('gameBody').scrollTop=9999},100)
+}catch(e){}}
+
+function doChoice(k,d){try{
+  if(S.choosing)return;S.choosing=true;
+  const o=d[k];savePrev();applyHustle();o.fn();validate();
+  S.decisions.push({r:S.round,sit:d.sit.substring(0,50)+'...',ch:o.text,b:S.meters.budget,s:S.meters.savings,l:S.meters.lifeQuality,c:S.meters.careerGrowth,d:S.meters.debt});
+  document.getElementById('forkPreview').classList.remove('visible');
+  setScene(o.sc.e,o.sc.t,o.sc.b);updateHud(true);updateDoors();
+  const bd=S.meters.budget-(S.prev.budget||0);if(bd>0)playUp();else if(bd<0)playDown();
+  checkPU();
+  if(d.rip&&S.round<=3)showRipple();
+  if((d.fb==='full'||d.fb==='moderate')&&o.pop){setTimeout(()=>showPop(o.pop.e,o.pop.t,o.mc,()=>advRound()),600)}
+  else{const sm=o.mc.filter(m=>m.dir!==0).map(m=>(m.dir>0?'▲':'▼')+' '+m.name).join('  ');if(sm)qPop(o.sc.e,sm,true);setTimeout(()=>advRound(),1600)}
+  chkLvl()}catch(e){advRound()}}
+
+function loadEvent(r){try{
+  playEvent();const ev=ED(r);if(!ev)return;
+  document.getElementById('decisionPanel').style.display='none';
+  document.getElementById('eventEmoji').textContent=ev.e;document.getElementById('eventText').textContent=ev.t;
+  const ec=document.getElementById('eventChoices');ec.innerHTML='';
+  [{k:'A',c:'eA'},{k:'B',c:'eB'}].forEach(o=>{
+    const opt=ev[o.k],btn=document.createElement('button');btn.className='event-choice-btn '+o.c;
+    const tc=opt.bt>0?'pos':opt.bt<0?'neg':'zero',tt=opt.bt>0?'▲ +'+opt.bt:opt.bt<0?'▼ '+opt.bt:'— ±0';
+    btn.innerHTML=opt.text+'<br><span class="budget-tag '+tc+'">Budget '+tt+'</span>';
+    btn.onclick=()=>doEvent(o.k,ev);ec.appendChild(btn)});
+  document.getElementById('eventOverlay').classList.add('active')
+}catch(e){}}
+
+function doEvent(k,ev){try{
+  if(S.choosing)return;S.choosing=true;
+  const o=ev[k];savePrev();applyHustle();o.fn();validate();
+  S.decisions.push({r:S.round,sit:(S.round===5?'⚡ Car Breaks Down':'⚡ The Offer'),ch:o.text,b:S.meters.budget,s:S.meters.savings,l:S.meters.lifeQuality,c:S.meters.careerGrowth,d:S.meters.debt});
+  document.getElementById('eventOverlay').classList.remove('active');
+  setScene(o.sc.e,o.sc.t,o.sc.b);updateHud(true);updateDoors();checkPU();
+  if(o.pop)setTimeout(()=>showPop(o.pop.e,o.pop.t,o.mc,()=>advRound()),500);
+  else setTimeout(()=>advRound(),1500);chkLvl()
+}catch(e){document.getElementById('eventOverlay').classList.remove('active');advRound()}}
+
+function advRound(){try{S.choosing=false;if(S.round>=8){setTimeout(endGame,500);return}S.round++;setTimeout(()=>loadRound(S.round),400)}catch(e){}}
+
+let lastL=1;
+function chkLvl(){let l=1;if(S.round>=8)l=4;else if(S.round>=6)l=3;else if(S.round>=3)l=2;if(l>lastL){lastL=l;playLevelUp();qPop('⭐',['','Progress Level 2','Progress Level 3','Max Level'][l-1]+' reached!',true)}}
+
+function endGame(){try{
+  document.getElementById('gameScreen').classList.remove('active');document.getElementById('endScreen').classList.add('active');
+  const m=S.meters,won=m.budget>30&&m.careerGrowth>29,badge=S.switchedR7?'Changed Direction':'Stayed the Course';
+  let lvl='Max Level';if(S.round<8)lvl=S.round>=6?'Progress Level 3':S.round>=3?'Progress Level 2':'Progress Level 1';
+  let h='<div class="end-brand">Mr. Jawad\'s Simulations</div>';
+  h+='<div class="end-title">'+(won?'🏆 Mission Complete!':'Mission Finished')+'</div>';
+  h+='<div class="end-subtitle">One choice. Eight months. Here\'s what it built.</div>';
+  h+='<div style="text-align:center"><span class="end-path-badge '+S.path+'">'+(S.path==='college'?'🎓 COLLEGE PATH':'💼 WORK PATH')+'</span></div>';
+  h+='<div class="end-meters">';
+  M.forEach(mt=>{const v=m[mt.key];h+='<div class="end-meter-card"><div class="em-name">'+mt.name+'</div><div class="em-value" style="color:'+colH(mt,v)+'">'+v+'</div><div class="em-label" style="color:'+colH(mt,v)+'">'+lbl(mt,v)+'</div></div>'});
+  h+='</div><div class="end-badge-row"><div class="end-badge">🏅 '+badge+'</div><div class="end-badge">📊 '+lvl+'</div>';
+  if(S.efUnlocked)h+='<div class="end-badge">🛡️ Emergency Fund</div>';
+  if(S.hustleUnlocked)h+='<div class="end-badge">💻 Hustle Stack</div>';h+='</div>';
+  h+='<div class="end-highlight"><div class="eh-title">📍 Why This Happened</div>';
+  h+='<div class="eh-item"><strong>The Fork (R1):</strong> '+(S.path==='college'?'College — loans started, ceiling rose':'Work — cash now, ceiling locked')+'</div>';
+  let sac='';S.decisions.forEach(d=>{if(d.r===5)sac='Car Broke Down (R5): '+d.ch;else if(d.r===4&&!sac)sac='Social Pressure (R4): '+d.ch});
+  if(sac)h+='<div class="eh-item"><strong>Biggest Test:</strong> '+sac+'</div>';
+  const r7=S.decisions.find(d=>d.r===7);if(r7)h+='<div class="eh-item"><strong>The Offer (R7):</strong> '+r7.ch+'</div>';
+  h+='<div class="eh-item" style="margin-top:6px;color:var(--accent-gold)">Every meter traces back to Round 1.</div></div>';
+  h+='<div class="end-replay"><p><strong>🔄 Replay Challenge:</strong> Play the OTHER path. Can you keep Debt green AND Career Growth green?</p></div>';
+  h+='<div class="end-progress"'+(won?' class="win-glow"':'')+'>'+lvl+' Achieved</div>';
+  h+='<button class="data-toggle" onclick="toggleData()">📊 Show Details</button>';
+  h+='<div class="data-layer" id="dataLayer"><div style="text-align:center;font-size:12px;font-weight:700;color:var(--accent-gold);margin-bottom:6px">'+(S.path==='college'?'COLLEGE PATH':'WORK PATH')+(S.switchedR7?' → SWITCHED R7':'')+'</div>';
+  h+='<div class="data-table-wrap"><table class="data-table"><thead><tr><th>Rd</th><th>Situation</th><th>Choice</th><th>Budget</th><th>Savings</th><th>Life Q</th><th>Career</th><th>Debt</th></tr></thead><tbody>';
+  S.decisions.forEach(d=>{h+='<tr><td>'+d.r+'</td><td>'+d.sit+'</td><td>'+d.ch+'</td><td style="color:'+colH(M[0],d.b)+'">'+d.b+'</td><td style="color:'+colH(M[1],d.s)+'">'+d.s+'</td><td style="color:'+colH(M[2],d.l)+'">'+d.l+'</td><td style="color:'+colH(M[3],d.c)+'">'+d.c+'</td><td style="color:'+colH(M[4],d.d)+'">'+d.d+'</td></tr>'});
+  h+='</tbody></table></div><button class="copy-btn" onclick="copyData()">📋 Copy Data</button></div>';
+  h+='<button class="play-again-btn" onclick="resetGame()">🔄 Play Again</button>';
+  document.getElementById('endContent').innerHTML=h;if(won)playLevelUp()
+}catch(e){}}
+
+function toggleData(){document.getElementById('dataLayer').classList.toggle('open')}
+function copyData(){try{
+  let t=(S.path==='college'?'COLLEGE PATH':'WORK PATH')+(S.switchedR7?' → SWITCHED R7':'')+'\n';
+  t+='Round\tSituation\tChoice\tBudget\tSavings\tLife Quality\tCareer Growth\tDebt Load\n';
+  S.decisions.forEach(d=>{t+=d.r+'\t'+d.sit+'\t'+d.ch+'\t'+d.b+'\t'+d.s+'\t'+d.l+'\t'+d.c+'\t'+d.d+'\n'});
+  navigator.clipboard.writeText(t).then(()=>qPop('📋','Copied!',true)).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);qPop('📋','Copied!',true)})
+}catch(e){}}
+
+function resetGame(){
+  S={round:1,path:null,switchedR7:false,meters:{budget:40,savings:20,lifeQuality:50,careerGrowth:40,debt:0},prev:{},hustleOn:false,hustleUnlocked:false,efUnlocked:false,decisions:[],savStreak:0,choosing:false};
+  lastL=1;
+  document.getElementById('endScreen').classList.remove('active');document.getElementById('gameScreen').classList.remove('active');document.getElementById('titleScreen').classList.add('active');
+  document.getElementById('efIcon').className='powerup-icon';document.getElementById('hsIcon').className='powerup-icon';
+  document.getElementById('hustleToggle').className='hustle-toggle';document.getElementById('hustleToggle').textContent='☕ Hustle: OFF'}
+
+document.getElementById('startBtn').addEventListener('click',startGame);
+</script>
+</body>
+</html>
