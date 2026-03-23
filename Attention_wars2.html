@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attention Wars — Session 2</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg-dark:#0f1123;--bg-mid:#1a1d3a;--bg-light:#252850;
+--accent:#00d4ff;--accent2:#7c4dff;--amber:#ffa726;--green:#4caf50;--red:#ff5252;
+--text:#f0f0f0;--text-dim:#8a8aac;--gold:#ffd700;
+--meter-h:18px;
+}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--bg-dark);color:var(--text)}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+button:active{transform:scale(0.96)}
+
+/* ===== SCREENS ===== */
+.screen{display:none;width:100%;height:100%;position:absolute;top:0;left:0;flex-direction:column}
+.screen.active{display:flex}
+
+/* TITLE SCREEN */
+#titleScreen{align-items:center;justify-content:center;background:linear-gradient(135deg,#0f1123 0%,#1a1d3a 40%,#2a1848 100%);text-align:center;overflow:hidden}
+#titleScreen .brand{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;opacity:0.7}
+#titleScreen h1{font-size:clamp(28px,5vw,48px);font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px;line-height:1.1}
+#titleScreen .session{font-size:clamp(14px,2.5vw,20px);color:var(--amber);font-weight:600;margin-bottom:24px}
+#titleScreen .tagline{font-size:clamp(13px,2vw,16px);color:var(--text-dim);max-width:400px;line-height:1.4;margin-bottom:32px}
+.start-btn{padding:16px 48px;font-size:18px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:50px;box-shadow:0 4px 24px rgba(0,212,255,0.3);transition:all 0.3s;letter-spacing:1px}
+.start-btn:hover{box-shadow:0 6px 32px rgba(0,212,255,0.5);transform:translateY(-2px) scale(1.02)}
+.title-bg-orbs{position:absolute;width:100%;height:100%;top:0;left:0;pointer-events:none;overflow:hidden}
+.title-bg-orbs .orb{position:absolute;border-radius:50%;filter:blur(60px);opacity:0.15;animation:orbFloat 8s ease-in-out infinite}
+.title-bg-orbs .orb:nth-child(1){width:300px;height:300px;background:var(--accent);top:-80px;right:-60px;animation-delay:0s}
+.title-bg-orbs .orb:nth-child(2){width:200px;height:200px;background:var(--accent2);bottom:-40px;left:-40px;animation-delay:3s}
+.title-bg-orbs .orb:nth-child(3){width:250px;height:250px;background:var(--amber);bottom:30%;right:20%;animation-delay:5s}
+@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(20px,-20px) scale(1.1)}}
+
+/* GAME SCREEN */
+#gameScreen{background:var(--bg-dark)}
+/* Day Timeline */
+.day-timeline{display:flex;align-items:center;height:36px;padding:0 12px;background:var(--bg-mid);border-bottom:1px solid rgba(255,255,255,0.06);gap:2px;flex-shrink:0}
+.tl-segment{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,0.08);position:relative;transition:all 0.5s}
+.tl-segment.past{background:rgba(0,212,255,0.25)}
+.tl-segment.current{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.tl-segment .tl-label{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--text-dim);white-space:nowrap}
+.tl-segment.current .tl-label{color:var(--accent);font-weight:700}
+
+/* HUD */
+.hud{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap;justify-content:center;flex-shrink:0;background:linear-gradient(180deg,var(--bg-mid) 0%,transparent 100%)}
+.meter-box{flex:1;min-width:120px;max-width:180px;background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 8px;border:1px solid rgba(255,255,255,0.06);transition:all 0.3s}
+.meter-box.primary{border-color:rgba(0,212,255,0.3);min-width:130px;max-width:190px}
+.meter-box .meter-name{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);margin-bottom:3px;display:flex;align-items:center;gap:3px}
+.meter-box.primary .meter-name{color:var(--text-dim)}
+.meter-box .meter-name .star{color:var(--gold)}
+.meter-bar-bg{width:100%;height:var(--meter-h);background:rgba(255,255,255,0.08);border-radius:9px;overflow:hidden;position:relative}
+.meter-bar-fill{height:100%;border-radius:9px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1),background 0.4s;position:relative}
+.meter-bar-fill::after{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:linear-gradient(180deg,rgba(255,255,255,0.2),transparent);border-radius:9px 9px 0 0}
+.meter-label{font-size:9px;color:var(--text-dim);margin-top:2px;text-align:center;transition:color 0.3s}
+.meter-box .meter-val{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:8px;font-weight:700;color:rgba(255,255,255,0.7)}
+.meter-pulse{animation:meterPulse 0.6s ease-out}
+@keyframes meterPulse{0%{transform:scale(1)}30%{transform:scale(1.04)}100%{transform:scale(1)}}
+
+/* Indicators row */
+.indicators{display:flex;gap:8px;padding:2px 12px 6px;justify-content:center;flex-wrap:wrap;flex-shrink:0}
+.indicator{font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.06);color:var(--text-dim);display:none;align-items:center;gap:4px}
+.indicator.visible{display:flex}
+.indicator.fatigue{background:rgba(255,152,0,0.15);color:var(--amber);border:1px solid rgba(255,152,0,0.3)}
+.indicator.badge-ind{background:rgba(76,175,80,0.15);color:var(--green);border:1px solid rgba(76,175,80,0.3)}
+.indicator .ind-icon{font-size:12px}
+
+/* Arena */
+.arena{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;transition:background 1s}
+.arena-content{text-align:center;z-index:1;padding:12px}
+.arena-emoji{font-size:clamp(48px,10vw,80px);margin-bottom:8px;transition:all 0.5s}
+.arena-scene-text{font-size:clamp(13px,2vw,16px);color:var(--text);max-width:500px;line-height:1.4;opacity:0.9}
+.arena-notif{position:absolute;font-size:24px;opacity:0;animation:notifFloat 2s ease-out forwards}
+@keyframes notifFloat{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(0.5)}}
+.arena-overlay-text{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--text-dim);background:rgba(0,0,0,0.5);padding:4px 12px;border-radius:12px;white-space:nowrap}
+.flow-glow{position:absolute;inset:0;background:radial-gradient(circle at center,rgba(0,212,255,0.08) 0%,transparent 70%);pointer-events:none;opacity:0;transition:opacity 0.5s}
+.flow-glow.active{opacity:1}
+.flow-glow.fatigued{animation:flickerGlow 2s infinite}
+@keyframes flickerGlow{0%,100%{opacity:0.6}50%{opacity:0.3}}
+
+/* Decision Panel */
+.decision-panel{flex-shrink:0;padding:10px 12px 12px;background:linear-gradient(0deg,var(--bg-dark) 60%,transparent);position:relative}
+.situation-text{font-size:clamp(13px,2vw,15px);color:var(--text);text-align:center;margin-bottom:10px;line-height:1.35}
+.choice-row{display:flex;gap:10px;justify-content:center}
+.choice-btn{flex:1;max-width:280px;padding:14px 12px;font-size:clamp(12px,1.8vw,14px);font-weight:600;color:#fff;border-radius:12px;transition:all 0.2s;line-height:1.3;min-height:48px}
+.choice-btn.opt-a{background:linear-gradient(135deg,#7c4dff,#b47cff)}
+.choice-btn.opt-b{background:linear-gradient(135deg,#00bfa5,#26d9c0)}
+.choice-btn:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.3)}
+.choice-btn:disabled{opacity:0.4;transform:none;cursor:default}
+.round-info{text-align:center;margin-bottom:6px;font-size:11px;color:var(--text-dim)}
+.round-info .round-num{color:var(--accent);font-weight:700}
+.round-info .round-title{color:var(--amber)}
+
+/* CARD SORT OVERLAY */
+#cardSortOverlay{position:absolute;inset:0;background:rgba(15,17,35,0.95);z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+#cardSortOverlay.active{display:flex}
+.cs-title{font-size:16px;font-weight:700;color:var(--accent);margin-bottom:4px}
+.cs-subtitle{font-size:11px;color:var(--text-dim);margin-bottom:12px}
+.cs-timer-bar{width:200px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin-bottom:16px;overflow:hidden}
+.cs-timer-fill{height:100%;background:var(--accent);border-radius:3px;transition:width 0.25s linear}
+.cs-timer-fill.urgent{background:var(--red);animation:timerPulse 0.5s infinite}
+@keyframes timerPulse{0%,100%{opacity:1}50%{opacity:0.6}}
+.cs-cards{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;justify-content:center}
+.cs-card{width:120px;padding:12px 8px;background:var(--bg-light);border:2px solid rgba(255,255,255,0.1);border-radius:12px;text-align:center;cursor:pointer;transition:all 0.3s;user-select:none}
+.cs-card .card-icon{font-size:32px;margin-bottom:4px}
+.cs-card .card-label{font-size:11px;font-weight:600;color:var(--text)}
+.cs-card.selected{border-color:var(--accent);box-shadow:0 0 16px rgba(0,212,255,0.3);transform:scale(1.05)}
+.cs-card.placed{opacity:0.4;pointer-events:none;transform:scale(0.9)}
+.cs-card.hint-a{animation:hintGlowA 1.5s ease-in-out}
+.cs-card.hint-b{animation:hintGlowB 1.5s ease-in-out}
+@keyframes hintGlowA{0%,100%{box-shadow:none}50%{box-shadow:0 0 20px rgba(124,77,255,0.5)}}
+@keyframes hintGlowB{0%,100%{box-shadow:none}50%{box-shadow:0 0 20px rgba(0,191,165,0.5)}}
+.cs-card .read-aloud{margin-top:6px;padding:4px 8px;font-size:10px;background:rgba(255,255,255,0.1);border-radius:6px;color:var(--text-dim);min-height:28px;min-width:28px}
+.cs-card .read-aloud:hover{background:rgba(255,255,255,0.2)}
+.cs-buckets{display:flex;gap:12px;width:100%;max-width:500px}
+.cs-bucket{flex:1;min-height:70px;border:2px dashed rgba(255,255,255,0.15);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 6px;gap:4px;transition:all 0.3s;cursor:pointer}
+.cs-bucket.highlight{border-color:var(--accent);background:rgba(0,212,255,0.05)}
+.cs-bucket .bucket-label{font-size:10px;font-weight:600;text-align:center;line-height:1.3;max-width:100%}
+.cs-bucket.bucket-a{border-color:rgba(124,77,255,0.3)}
+.cs-bucket.bucket-a .bucket-label{color:#b47cff}
+.cs-bucket.bucket-b{border-color:rgba(0,191,165,0.3)}
+.cs-bucket.bucket-b .bucket-label{color:#26d9c0}
+.cs-bucket .placed-card{font-size:10px;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:6px;color:var(--text-dim)}
+.cs-result{font-size:14px;font-weight:700;margin-top:8px;opacity:0;transition:opacity 0.3s}
+.cs-result.show{opacity:1}
+
+/* POPUP OVERLAY */
+#popupOverlay{position:absolute;inset:0;background:rgba(15,17,35,0.85);z-index:60;display:none;align-items:center;justify-content:center;padding:16px}
+#popupOverlay.active{display:flex}
+.popup-box{background:var(--bg-mid);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:420px;text-align:center;animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes popIn{0%{transform:scale(0.8);opacity:0}100%{transform:scale(1);opacity:1}}
+.popup-box.event{border-color:var(--amber);box-shadow:0 0 24px rgba(255,167,38,0.2)}
+.popup-box .popup-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--amber);margin-bottom:8px}
+.popup-box .popup-emoji{font-size:48px;margin-bottom:8px}
+.popup-box .popup-text{font-size:15px;color:var(--text);line-height:1.4;margin-bottom:16px}
+.popup-box .popup-meters{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+.popup-box .pm{font-size:11px;padding:2px 8px;border-radius:8px}
+.pm.up{background:rgba(76,175,80,0.15);color:var(--green)}
+.pm.down{background:rgba(255,82,82,0.15);color:var(--red)}
+.popup-btn{padding:10px 32px;font-size:14px;font-weight:600;color:#fff;background:var(--accent);border-radius:8px}
+.popup-btn:hover{background:var(--accent2)}
+
+/* POWER UP */
+.powerup-toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);z-index:70;background:linear-gradient(135deg,rgba(76,175,80,0.95),rgba(56,142,60,0.95));border-radius:16px;padding:20px 28px;text-align:center;animation:powerUpIn 0.5s 0.1s forwards cubic-bezier(0.34,1.56,0.64,1);pointer-events:none}
+@keyframes powerUpIn{to{transform:translate(-50%,-50%) scale(1)}}
+.powerup-toast .pu-icon{font-size:40px;margin-bottom:4px}
+.powerup-toast .pu-name{font-size:14px;font-weight:700;color:#fff}
+.powerup-toast .pu-desc{font-size:11px;color:rgba(255,255,255,0.8);margin-top:4px;max-width:250px}
+
+/* TOOLTIP (Round 1) */
+.tooltip-bar{position:absolute;bottom:0;left:0;right:0;background:rgba(0,212,255,0.1);border-top:1px solid var(--accent);padding:8px 16px;text-align:center;font-size:12px;color:var(--accent);z-index:40;display:none}
+.tooltip-bar.show{display:block;animation:fadeSlideUp 0.4s}
+@keyframes fadeSlideUp{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+
+/* COIN FLIP */
+.coin-anim{font-size:48px;animation:coinSpin 1.5s ease-out}
+@keyframes coinSpin{0%{transform:rotateY(0)}60%{transform:rotateY(1080deg)}100%{transform:rotateY(1080deg)}}
+
+/* END SCREEN */
+#endScreen{background:linear-gradient(135deg,#0f1123,#1a1d3a,#2a1848);overflow-y:auto;padding:16px;align-items:center}
+#endScreen .brand{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;opacity:0.6}
+.end-title{font-size:clamp(22px,4vw,32px);font-weight:800;background:linear-gradient(90deg,var(--accent),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px;text-align:center}
+.end-subtitle{font-size:13px;color:var(--text-dim);text-align:center;margin-bottom:16px}
+.end-meters{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;width:100%;max-width:600px}
+.end-meter{flex:1;min-width:100px;background:rgba(255,255,255,0.04);border-radius:10px;padding:8px;text-align:center}
+.end-meter .em-name{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px}
+.end-meter .em-bar{height:12px;background:rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;margin-bottom:2px}
+.end-meter .em-fill{height:100%;border-radius:6px;transition:width 1.5s cubic-bezier(0.4,0,0.2,1)}
+.end-meter .em-label{font-size:10px;font-weight:600}
+.end-highlights{width:100%;max-width:500px;margin-bottom:12px}
+.end-highlights h3{font-size:13px;color:var(--amber);margin-bottom:6px;text-align:center}
+.highlight-item{font-size:12px;color:var(--text-dim);padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:6px}
+.highlight-item .hi-icon{font-size:16px}
+.end-challenge{background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:12px;padding:12px 16px;text-align:center;margin-bottom:12px;width:100%;max-width:500px}
+.end-challenge .ch-title{font-size:12px;font-weight:700;color:var(--gold);margin-bottom:4px}
+.end-challenge .ch-text{font-size:11px;color:var(--text-dim);line-height:1.3}
+.end-level{font-size:14px;font-weight:700;margin-bottom:4px;text-align:center}
+.end-level .level-badge{display:inline-block;padding:4px 16px;border-radius:20px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;animation:badgePop 0.6s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes badgePop{0%{transform:scale(0)}100%{transform:scale(1)}}
+.end-card-score{font-size:11px;color:var(--text-dim);margin-bottom:12px;text-align:center}
+.end-btns{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;justify-content:center}
+.end-btn{padding:10px 24px;font-size:13px;font-weight:600;border-radius:10px;color:#fff}
+.end-btn.replay{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.end-btn.details-toggle{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15)}
+.end-btn.details-toggle:hover{background:rgba(255,255,255,0.12)}
+.end-data{display:none;width:100%;max-width:600px;margin-top:8px}
+.end-data.open{display:block}
+.end-data table{width:100%;border-collapse:collapse;font-size:10px}
+.end-data th{background:var(--bg-light);padding:4px 6px;text-align:left;color:var(--accent);font-weight:600;border:1px solid rgba(255,255,255,0.08)}
+.end-data td{padding:4px 6px;border:1px solid rgba(255,255,255,0.06);color:var(--text-dim)}
+.copy-btn{margin-top:8px;padding:8px 20px;font-size:12px;font-weight:600;color:var(--accent);background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:8px}
+.copy-btn:hover{background:rgba(0,212,255,0.2)}
+.end-win-msg{font-size:14px;font-weight:600;text-align:center;margin-bottom:8px;padding:8px 16px;border-radius:10px}
+.end-win-msg.won{background:rgba(76,175,80,0.12);color:var(--green);border:1px solid rgba(76,175,80,0.3)}
+.end-win-msg.close{background:rgba(255,167,38,0.12);color:var(--amber);border:1px solid rgba(255,167,38,0.3)}
+.end-win-msg.lost{background:rgba(255,82,82,0.1);color:var(--red);border:1px solid rgba(255,82,82,0.2)}
+
+/* Animations */
+@keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.shake{animation:shake 0.4s ease-in-out}
+.fadeIn{animation:fadeIn 0.5s}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:3px}
+
+/* Responsive */
+@media(max-height:600px){
+  .hud{padding:4px 8px;gap:4px}
+  .meter-box{padding:4px 6px;min-width:100px}
+  :root{--meter-h:14px}
+  .arena-emoji{font-size:48px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== TITLE SCREEN ===== -->
+<div class="screen active" id="titleScreen">
+  <div class="title-bg-orbs"><div class="orb"></div><div class="orb"></div><div class="orb"></div></div>
+  <div class="brand">Mr. Jawad's Simulations</div>
+  <h1>Attention Wars</h1>
+  <div class="session">Session 2 — The Full Day</div>
+  <div class="tagline">Airplane mode fixes one hour. Navigate the other fifteen — from morning alarm to late-night Discord.</div>
+  <button class="start-btn" onclick="startGame()">Start Mission</button>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div class="screen" id="gameScreen">
+  <!-- Day Timeline -->
+  <div class="day-timeline" id="dayTimeline"></div>
+
+  <!-- HUD Meters -->
+  <div class="hud" id="hud"></div>
+
+  <!-- Indicators -->
+  <div class="indicators" id="indicators">
+    <div class="indicator fatigue" id="indFatigue"><span class="ind-icon">🪫</span> Fatigue: Active</div>
+    <div class="indicator badge-ind" id="indSCI"><span class="ind-icon">⏰✓</span> Strategic Check-In</div>
+    <div class="indicator badge-ind" id="indFOMOImm"><span class="ind-icon">🛡️</span> FOMO Immunity</div>
+    <div class="indicator" id="indNotifBadge" style="background:rgba(255,82,82,0.12);color:var(--red);border:1px solid rgba(255,82,82,0.2)"><span class="ind-icon">🔴</span> Notifications: <span id="notifCount">0</span></div>
+    <div class="indicator" id="indFlowIcon"><span class="ind-icon">✨</span> In the Zone</div>
+    <div class="indicator" id="indInsideJoke" style="background:rgba(255,167,38,0.12);color:var(--amber);border:1px solid rgba(255,167,38,0.2)"><span class="ind-icon">💬❓</span> Out of the Loop</div>
+  </div>
+
+  <!-- Arena -->
+  <div class="arena" id="arena">
+    <div class="flow-glow" id="flowGlow"></div>
+    <div class="arena-content" id="arenaContent">
+      <div class="arena-emoji" id="arenaEmoji">📱</div>
+      <div class="arena-scene-text" id="arenaText"></div>
+    </div>
+  </div>
+
+  <!-- Decision Panel -->
+  <div class="decision-panel" id="decisionPanel">
+    <div class="round-info"><span class="round-num" id="roundNum"></span> · <span class="round-title" id="roundTitle"></span></div>
+    <div class="situation-text" id="situationText"></div>
+    <div class="choice-row">
+      <button class="choice-btn opt-a" id="btnA" onclick="makeChoice('A')"></button>
+      <button class="choice-btn opt-b" id="btnB" onclick="makeChoice('B')"></button>
+    </div>
+  </div>
+
+  <!-- Task Checklist (side) -->
+  <div style="position:absolute;top:70px;right:8px;z-index:10;font-size:10px;background:rgba(255,255,255,0.04);border-radius:8px;padding:4px 8px;border:1px solid rgba(255,255,255,0.06)" id="taskChecklist">
+    <div style="font-size:8px;font-weight:700;color:var(--text-dim);text-transform:uppercase;margin-bottom:2px">Tasks</div>
+    <div id="taskProject" style="color:var(--text-dim)">☐ Project</div>
+    <div id="taskReading" style="color:var(--text-dim)">☐ Reading</div>
+    <div id="taskMath" style="color:var(--text-dim)">☐ Math</div>
+  </div>
+
+  <!-- Tooltip bar (Round 1 only) -->
+  <div class="tooltip-bar" id="tooltipBar"></div>
+
+  <!-- Card Sort Overlay -->
+  <div id="cardSortOverlay">
+    <div class="cs-title">🃏 What's the Real Cost?</div>
+    <div class="cs-subtitle">Each card is something that happens. Tap a card, then tap which choice causes it.</div>
+    <div class="cs-timer-bar"><div class="cs-timer-fill" id="csTimerFill"></div></div>
+    <div class="cs-cards" id="csCards"></div>
+    <div class="cs-buckets">
+      <div class="cs-bucket bucket-a" id="bucketA" onclick="placeToBucket('A')"><div class="bucket-label">Option A</div><div id="bucketACards"></div></div>
+      <div class="cs-bucket bucket-b" id="bucketB" onclick="placeToBucket('B')"><div class="bucket-label">Option B</div><div id="bucketBCards"></div></div>
+    </div>
+    <div class="cs-result" id="csResult"></div>
+  </div>
+
+  <!-- Popup Overlay -->
+  <div id="popupOverlay">
+    <div class="popup-box" id="popupBox">
+      <div class="popup-tag" id="popupTag"></div>
+      <div class="popup-emoji" id="popupEmoji"></div>
+      <div class="popup-text" id="popupText"></div>
+      <div class="popup-meters" id="popupMeters"></div>
+      <button class="popup-btn" id="popupBtn" onclick="dismissPopup()">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== END SCREEN ===== -->
+<div class="screen" id="endScreen"></div>
+
+<script>
+// ===== AUDIO (Lazy) =====
+let audioCtx=null;
+function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
+function playTone(freq,dur,type='sine'){try{const a=getAudio(),o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=freq;g.gain.value=0.08;o.connect(g);g.connect(a.destination);o.start();g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+dur);o.stop(a.currentTime+dur)}catch(e){}}
+function sfxGood(){playTone(523,0.1);setTimeout(()=>playTone(659,0.1),100);setTimeout(()=>playTone(784,0.15),200)}
+function sfxBad(){playTone(330,0.15,'triangle');setTimeout(()=>playTone(262,0.2,'triangle'),150)}
+function sfxLevelUp(){playTone(523,0.1);setTimeout(()=>playTone(659,0.1),100);setTimeout(()=>playTone(784,0.1),200);setTimeout(()=>playTone(1047,0.3),300)}
+function sfxEvent(){playTone(440,0.15,'square');setTimeout(()=>playTone(554,0.15,'square'),150);setTimeout(()=>playTone(659,0.2,'square'),300)}
+function speakText(t){try{if('speechSynthesis' in window){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=0.9;u.pitch=1;window.speechSynthesis.speak(u)}}catch(e){}}
+
+// ===== GAME STATE =====
+const S={
+  meters:{focusQuality:50,timeProtected:40,socialConnection:50,fomoLevel:35,taskProgress:0},
+  round:0,
+  xp:0,
+  level:1,
+  perfectSorts:0,
+  totalCorrectCards:0,
+  choices:[],
+  choiceSides:[], // 'social' or 'focus' per round
+  fomoHistory:[], // FOMO value after each round
+  fatigueActive:false,
+  sciUnlocked:false,
+  fomoImmunity:false,
+  fomoImmunityChecked:false,
+  notifCount:0,
+  highlights:[],
+  coinFlipR7:null,
+  dataLog:[]
+};
+
+const METER_NAMES=['focusQuality','timeProtected','socialConnection','fomoLevel','taskProgress'];
+const METER_DISPLAY={
+  focusQuality:{name:'Focus Quality',low:'scattered',mid:'ok',high:'locked in',thresholds:[30,65],primary:false},
+  timeProtected:{name:'Time Protected',low:'stolen',mid:'fighting',high:'controlled',thresholds:[30,65],primary:true},
+  socialConnection:{name:'Social Connection',low:'out of loop',mid:'balanced',high:'plugged in',thresholds:[30,65],primary:false},
+  fomoLevel:{name:'FOMO Level',low:'confident',mid:'calm',high:'anxious',thresholds:[30,65],primary:false,inverted:true},
+  taskProgress:{name:'Task Progress',low:'behind',mid:'on track',high:'ahead',thresholds:[30,65],primary:false}
+};
+
+const TIMES=['6:45 AM','9:30 AM','12:15 PM','1:45 PM','3:00 PM','3:30 PM','7:30 PM','9:30 PM'];
+const TIME_COLORS=[
+  'linear-gradient(180deg,#0d1b3e 0%,#1a3a5c 100%)',// dawn
+  'linear-gradient(180deg,#1a3a5c 0%,#4a90b8 100%)',// morning
+  'linear-gradient(180deg,#4a90b8 0%,#f5c542 100%)',// lunch
+  'linear-gradient(180deg,#d4a340 0%,#e8973a 100%)',// afternoon
+  'linear-gradient(180deg,#e8973a 0%,#d46a30 100%)',// late afternoon
+  'linear-gradient(180deg,#d46a30 0%,#b84520 100%)',// after school
+  'linear-gradient(180deg,#4a3070 0%,#2a1848 100%)',// dusk
+  'linear-gradient(180deg,#1a1040 0%,#0d0820 100%)' // night
+];
+
+// ===== ROUND DATA =====
+const ROUNDS=[
+  {// Round 1
+    title:'The Morning Scroll',time:'6:45 AM',isEvent:false,
+    situation:'Phone alarm goes off. Group chat is on fire — overnight drama, ride plans for Friday, and a DM from someone you\'ve been texting. Your ride leaves in 40 minutes.',
+    optA:{label:'Check the DM and lock in your ride',
+      changes:{socialConnection:15,fomoLevel:-10,focusQuality:-10,timeProtected:-15},
+      side:'social',primaryMeter:'socialConnection',
+      scene:{emoji:'📱✅',text:'DM handled. Ride locked. You know exactly what went down last night. But the clock jumped — 6:45 to 7:15. No breakfast, shirt wrinkled, charger on the counter.'}},
+    optB:{label:'Get ready first — deal with the chat at school',
+      changes:{focusQuality:10,timeProtected:15,socialConnection:-10,fomoLevel:15},
+      side:'focus',primaryMeter:'timeProtected',
+      scene:{emoji:'☀️😶',text:'Sharp morning — breakfast, bag packed, on time. Then first period hits: "Did you SEE the chat?!" Everyone\'s laughing about something. You have no clue. Nod and fake a smile.'}},
+    cards:[
+      {icon:'📱',label:'DM answered, ride locked',correct:'A'},
+      {icon:'⏰',label:'Morning rushed',correct:'A'},
+      {icon:'🎒',label:'Ready and on time',correct:'B'}
+    ]
+  },
+  {// Round 2
+    title:'Under the Desk',time:'9:30 AM',isEvent:false,
+    situation:'Teacher is breaking down a project worth 20% of your grade — what counts, what\'s due, how groups work. Phone buzzes — group chat: last 2 seats for Friday\'s ride are going NOW.',
+    optA:{label:'Claim your seat before they fill up',
+      changes:{focusQuality:-20,socialConnection:10,fomoLevel:-10,timeProtected:-10},
+      side:'social',primaryMeter:'focusQuality',
+      scene:{emoji:'🚗📱',text:'Seat claimed — you\'re in for Friday. But the teacher paused and looked your way. You missed how the project is graded. What even counts? No idea.'}},
+    optB:{label:'Get the project details — Friday can wait',
+      changes:{focusQuality:15,taskProgress:15,timeProtected:10,socialConnection:-5,fomoLevel:5},
+      side:'focus',primaryMeter:'focusQuality',
+      scene:{emoji:'📋🪑',text:'You know exactly how this project is graded — groups, timeline, what\'s worth the most points. By lunch you text "who has room?" Reply: "shouldve said something earlier lol."'}},
+    cards:[
+      {icon:'🚗',label:'Friday ride secured',correct:'A'},
+      {icon:'📋',label:'Know how it\'s graded',correct:'B'},
+      {icon:'❓',label:'No clue what counts',correct:'A'}
+    ]
+  },
+  {// Round 3
+    title:'The Content Moment',time:'12:15 PM',isEvent:false,
+    situation:'Lunch. Whole crew is here — someone says "TikTok, RIGHT NOW, the trend is perfect." Phones out, counting down. But your project partner just texted: "12:30 to plan? It\'s due Friday."',
+    optA:{label:'Jump in — everyone\'s here and this won\'t happen again',
+      changes:{socialConnection:20,fomoLevel:-10,taskProgress:-10,timeProtected:-10,focusQuality:-5},
+      side:'social',primaryMeter:'socialConnection',
+      scene:{emoji:'🎬🔥',text:'You\'re IN the video. Tagged. Your face in the content — 2,200 views by 3pm. Your partner texted: "I guess I\'ll do the outline myself." That message sits unread.'}},
+    optB:{label:'Meet your partner — the project won\'t plan itself',
+      changes:{taskProgress:20,timeProtected:10,focusQuality:5,socialConnection:-15,fomoLevel:15},
+      side:'focus',primaryMeter:'taskProgress',
+      scene:{emoji:'📝👀',text:'Outline done, roles clear, deadline mapped. Later you watch the TikTok — all your friends in it, 2,200 views. Comment: "squad 🔥." You\'re not in the squad.'}},
+    cards:[
+      {icon:'🎬',label:'Your face in the video',correct:'A'},
+      {icon:'😒',label:'Partner left hanging',correct:'A'},
+      {icon:'📝',label:'Project planned out',correct:'B'}
+    ]
+  },
+  {// Round 4
+    title:'The Post Idea',time:'1:45 PM',isEvent:false,
+    situation:'Study hall. A content idea hits — perfectly timed to a trending sound, inspired by lunch. Your brain is buzzing with how to edit it. But reading is due next period and math is due tomorrow.',
+    optA:{label:'Capture the idea while it\'s fresh',
+      changes:{focusQuality:-15,socialConnection:10,fomoLevel:-5,taskProgress:-10,timeProtected:-15},
+      side:'social',primaryMeter:'focusQuality',
+      scene:{emoji:'✏️🔥',text:'The post is taking shape — clean edit, perfect sound. Creative energy is real. But study hall emptied out. Reading untouched. Math untouched. The kid next to you finished both.'}},
+    optB:{label:'Knock out both assignments — idea can wait till tonight',
+      changes:{focusQuality:10,taskProgress:15,timeProtected:10,socialConnection:-5,fomoLevel:5},
+      side:'focus',primaryMeter:'taskProgress',
+      scene:{emoji:'📚💡',text:'Reading done, math started. Next period: prepared. But by 9pm the idea feels flat. The trending sound already moved on. That electric feeling at 1:45? Gone.'}},
+    cards:[
+      {icon:'✨',label:'Creative moment captured',correct:'A'},
+      {icon:'📚',label:'Both assignments done',correct:'B'},
+      {icon:'💡',label:'Idea fades by tonight',correct:'B'}
+    ]
+  },
+  {// Round 5 — EVENT
+    title:'Your Content Blows Up',time:'3:00 PM',isEvent:true,
+    situation:'Last period. Your content from earlier is going VIRAL — views climbing, comments flooding, DMs from people you barely know. Classmates are watching YOUR thing and looking at you. Teacher is still teaching.',
+    optA:{label:'Ride the wave — your content, your moment',
+      changes:{socialConnection:20,fomoLevel:-15,focusQuality:-25,timeProtected:-15,taskProgress:-5},
+      side:'social',primaryMeter:'socialConnection',
+      scene:{emoji:'📈🔥',text:'1,200 views. 47 comments. You\'re replying to DMs, watching the number climb. Classmates nudging each other. The teacher is talking — you haven\'t looked up in 15 minutes.'},
+      popup:'1,200 views. 47 comments. Zero notes from last period.'},
+    optB:{label:'Let it cook — check the numbers after the bell',
+      changes:{taskProgress:15,timeProtected:10,focusQuality:5,fomoLevel:15,socialConnection:-5},
+      side:'focus',primaryMeter:'taskProgress',
+      scene:{emoji:'😤📲',text:'Phone buzzing face-down. Classmate leans over: "yo your thing is blowing up." You nod, jaw tight, facing forward. 15 minutes of imagining the worst comments. After the bell: 1,400 views. All positive.'},
+      popup:'1,400 views. All good. The worry wasn\'t.'}
+  },
+  {// Round 6
+    title:'The After-School Collision',time:'3:30 PM',isEvent:false,fatigueStart:true,
+    situation:'Bell rings. Best friend is standing right there: "We\'re getting food — you\'re coming, right?" Eyes on you. Phone buzzes — project partner: "We NEED to finish tonight." Math still untouched.',
+    optA:{label:'Go — this is the crew, right now, in person',
+      changes:{socialConnection:20,fomoLevel:-15,taskProgress:-10,timeProtected:-15,focusQuality:-5},
+      side:'social',primaryMeter:'socialConnection',
+      scene:{emoji:'👥📸',text:'Walking together — laughing, filming, posting stories. You\'re in the photos, in the memories. Behind you: project, math, that post — all stacked into tonight\'s schedule.'}},
+    optB:{label:'Head home and start knocking things out',
+      changes:{taskProgress:15,timeProtected:15,focusQuality:10,socialConnection:-20,fomoLevel:20},
+      side:'focus',primaryMeter:'taskProgress',
+      scene:{emoji:'🏠📲',text:'Friend shrugged: "alright, next time." Walked away without looking back. Desk, laptop, project loading. Stories popping up — friends at the restaurant, the group photo. You\'re not in it.'}}
+  },
+  {// Round 7 — EVENT
+    title:'Deep in the Zone',time:'7:30 PM',isEvent:true,hasCoinFlip:true,
+    situation:'You\'re deep in the project — ideas connecting, work actually flowing despite being tired. Then your phone lights up with a hard buzz. Not a regular ping — could be a call or emergency text.',
+    optA:{label:'Stay in the zone — you won\'t get this back tonight',
+      changes:{focusQuality:15,taskProgress:20,timeProtected:15},
+      side:'focus',primaryMeter:'taskProgress',
+      scene:{emoji:'✨💻',text:'You stayed in the zone. Project pages filling fast. The buzz sits unanswered on the desk...'},
+      coinFlip:{
+        nothing:{extra:{fomoLevel:5},popup:'Spam. Good call. Staying locked in was worth it.',scene:{emoji:'✨✅',text:'It was spam. You stayed locked in and the project is nearly done. The buzz meant nothing.'}},
+        important:{extra:{socialConnection:-15},popup:'It was real. You missed something that mattered. The project looks great, though.',scene:{emoji:'✨😔',text:'A friend needed help and you weren\'t there. But the project? Nearly perfect. Both things are true.'}}
+      }},
+    optB:{label:'Check it — if it\'s real, you\'ll regret not knowing',
+      changes:{},
+      side:'social',primaryMeter:'focusQuality',
+      scene:{emoji:'📱💔',text:'The zone is gone. You pick up the phone...'},
+      coinFlip:{
+        nothing:{extra:{focusQuality:-15,timeProtected:-10,taskProgress:-10,fomoLevel:-5},popup:'Spam. You\'re out of the zone now. Good luck getting back in.',scene:{emoji:'😩📱',text:'Spam notification. You lost your focus. Getting back in the zone this tired? Not happening tonight.'}},
+        important:{extra:{focusQuality:-10,timeProtected:-5,taskProgress:-5,socialConnection:10,fomoLevel:-10},popup:'Glad you checked. That focus you had? Not coming back tonight.',scene:{emoji:'📱👍',text:'Friend needed help — you were there. Focus is gone, but the check actually mattered this time.'}}
+      }}
+  },
+  {// Round 8
+    title:'The Night Reckoning',time:'9:30 PM',isEvent:false,
+    situation:'9:30pm. Project needs final touches. Math is half done. The squad just jumped on Discord — gaming, laughing, everyone\'s on. You\'re tired and foggy. You can\'t do all three things well.',
+    optA:{label:'Hop on — the squad\'s all here and you need a break',
+      changes:{socialConnection:20,fomoLevel:-20,taskProgress:-10,focusQuality:-15,timeProtected:-15},
+      side:'social',primaryMeter:'socialConnection',
+      scene:{emoji:'🎮🎙️',text:'Voice chat, game sounds, jokes landing. The stress from today dissolves. Clock: 9:30 → 10:45. When the call ends and the room goes quiet, the homework is still there. Energy isn\'t.'},
+      popup:'Best night of the week. The work didn\'t disappear. It just got later and harder.'},
+    optB:{label:'Finish everything so tomorrow starts clean',
+      changes:{taskProgress:20,timeProtected:15,focusQuality:10,socialConnection:-15,fomoLevel:20},
+      side:'focus',primaryMeter:'taskProgress',
+      scene:{emoji:'📝😴',text:'Project submitted. Math done. Everything turned in. Phone shows "Call ended — 2h 14m." Tomorrow they\'ll reference the game, the jokes. You\'ll nod along. But nothing is hanging over you.'},
+      popup:'Everything done. The call happened without you. Tomorrow starts clean.'}
+  ,cards:[
+      {icon:'🎮',label:'On the call with friends',correct:'A'},
+      {icon:'✅',label:'Everything turned in',correct:'B'},
+      {icon:'🕐',label:'11pm scramble alone',correct:'A'}
+    ]}
+];
+// Fix R6 cards position
+ROUNDS[5].cards=[{icon:'👥',label:'In the group, in person',correct:'A'},{icon:'📝',label:'Project work started',correct:'B'},{icon:'🌙',label:'Evening freed up',correct:'B'}];
+
+// ===== UI BUILDERS =====
+function buildTimeline(){
+  const tl=document.getElementById('dayTimeline');tl.innerHTML='';
+  TIMES.forEach((t,i)=>{
+    const seg=document.createElement('div');seg.className='tl-segment';seg.id='tl-'+i;
+    seg.innerHTML='<div class="tl-label">'+t+'</div>';tl.appendChild(seg);
+  });
+}
+function buildHUD(){
+  const hud=document.getElementById('hud');hud.innerHTML='';
+  METER_NAMES.forEach(k=>{
+    const m=METER_DISPLAY[k];
+    const box=document.createElement('div');
+    box.className='meter-box'+(m.primary?' primary':'');
+    box.id='mbox-'+k;
+    box.innerHTML=`<div class="meter-name">${m.name}</div>
+      <div class="meter-bar-bg"><div class="meter-bar-fill" id="mfill-${k}"></div><span class="meter-val" id="mval-${k}"></span></div>
+      <div class="meter-label" id="mlabel-${k}"></div>`;
+    hud.appendChild(box);
+  });
+  updateAllMeters(false);
+}
+function getMeterColor(k,v){
+  const inv=METER_DISPLAY[k].inverted;
+  const t=METER_DISPLAY[k].thresholds;
+  if(!inv){return v<=t[0]?'var(--red)':v<=t[1]?'var(--amber)':'var(--green)'}
+  else{return v<=t[0]?'var(--green)':v<=t[1]?'var(--amber)':'var(--red)'}
+}
+function getMeterLabel(k,v){
+  const m=METER_DISPLAY[k],t=m.thresholds;
+  return v<=t[0]?m.low:v<=t[1]?m.mid:m.high;
+}
+function updateAllMeters(animate=true){
+  METER_NAMES.forEach(k=>{
+    const v=S.meters[k];
+    const fill=document.getElementById('mfill-'+k);
+    const val=document.getElementById('mval-'+k);
+    const label=document.getElementById('mlabel-'+k);
+    fill.style.width=v+'%';
+    fill.style.background=getMeterColor(k,v);
+    val.textContent=v;
+    label.textContent=getMeterLabel(k,v);
+    label.style.color=getMeterColor(k,v);
+    if(animate){
+      const box=document.getElementById('mbox-'+k);
+      box.classList.remove('meter-pulse');void box.offsetWidth;box.classList.add('meter-pulse');
+    }
+  });
+  updateIndicators();
+  updateTaskChecklist();
+}
+function animateMeterChange(k,oldVal,newVal,isPrimary,callback){
+  const fill=document.getElementById('mfill-'+k);
+  const val=document.getElementById('mval-'+k);
+  const label=document.getElementById('mlabel-'+k);
+  const box=document.getElementById('mbox-'+k);
+  let current=oldVal;const step=oldVal<newVal?1:-1;
+  const interval=setInterval(()=>{
+    current+=step;
+    if((step>0&&current>=newVal)||(step<0&&current<=newVal)){current=newVal;clearInterval(interval);if(callback)callback()}
+    fill.style.width=current+'%';fill.style.background=getMeterColor(k,current);
+    val.textContent=current;label.textContent=getMeterLabel(k,current);label.style.color=getMeterColor(k,current);
+  },isPrimary?25:40);
+  box.classList.remove('meter-pulse');void box.offsetWidth;box.classList.add('meter-pulse');
+  if(isPrimary){box.style.boxShadow='0 0 20px rgba(0,212,255,0.4)';setTimeout(()=>{box.style.boxShadow=''},800)}
+}
+function updateIndicators(){
+  const fq=S.meters.focusQuality,sc=S.meters.socialConnection;
+  // Flow glow
+  const fg=document.getElementById('flowGlow');
+  if(fq>=66){fg.classList.add('active');fg.classList.toggle('fatigued',S.fatigueActive);document.getElementById('indFlowIcon').classList.add('visible')}
+  else{fg.classList.remove('active','fatigued');document.getElementById('indFlowIcon').classList.remove('visible')}
+  // Inside joke marker
+  document.getElementById('indInsideJoke').classList.toggle('visible',sc<40);
+  // Notif badge
+  document.getElementById('indNotifBadge').classList.add('visible');
+  document.getElementById('notifCount').textContent=S.notifCount;
+  // Fatigue
+  document.getElementById('indFatigue').classList.toggle('visible',S.fatigueActive);
+  // Power-ups
+  document.getElementById('indSCI').classList.toggle('visible',S.sciUnlocked);
+  document.getElementById('indFOMOImm').classList.toggle('visible',S.fomoImmunity);
+}
+function updateTaskChecklist(){
+  const tp=S.meters.taskProgress;
+  const items=[
+    {id:'taskProject',thresh:33},
+    {id:'taskReading',thresh:66},
+    {id:'taskMath',thresh:100}
+  ];
+  items.forEach(it=>{
+    const el=document.getElementById(it.id);
+    if(tp>=it.thresh){el.textContent='✅ '+el.textContent.replace(/^[☐✅]\s*/,'');el.style.color='var(--green)'}
+    else{el.textContent='☐ '+el.textContent.replace(/^[☐✅]\s*/,'');el.style.color='var(--text-dim)'}
+  });
+}
+function updateTimeline(roundIdx){
+  TIMES.forEach((_,i)=>{
+    const seg=document.getElementById('tl-'+i);
+    seg.className='tl-segment'+(i<roundIdx?' past':i===roundIdx?' current':'');
+  });
+}
+
+// ===== CARD SORT =====
+let csSelectedCard=null,csPlaced={},csTimer=null,csTimeLeft=20,csCards=[],csFinished=false;
+function startCardSort(roundData){
+  const overlay=document.getElementById('cardSortOverlay');overlay.classList.add('active');
+  csSelectedCard=null;csPlaced={A:[],B:[]};csTimeLeft=20;csFinished=false;
+  csCards=shuffleArray([...roundData.cards].map((c,i)=>({...c,idx:i})));
+  renderCards(roundData);
+  document.getElementById('bucketACards').innerHTML='';
+  document.getElementById('bucketBCards').innerHTML='';
+  // Set bucket labels to actual choice text (smart extraction)
+  const rd=ROUNDS[S.round];
+  const shortLabel=(s)=>{
+    // Try splitting at em-dash first
+    const cut=s.match(/^([^—–]+)/);
+    const phrase=cut?cut[1].trim():s;
+    // If the phrase before the dash is too short, use the full label
+    const result=phrase.length<12?s:phrase;
+    return result.length>40?result.substring(0,39)+'…':result;
+  };
+  document.querySelector('#bucketA .bucket-label').textContent=shortLabel(rd.optA.label);
+  document.querySelector('#bucketB .bucket-label').textContent=shortLabel(rd.optB.label);
+  document.getElementById('csResult').className='cs-result';document.getElementById('csResult').textContent='';
+  startCSTimer(roundData);
+  // Tutorial hints for round 1
+  if(S.round===0){
+    setTimeout(()=>{
+      csCards.forEach(c=>{
+        const el=document.getElementById('cscard-'+c.idx);
+        if(el&&!el.classList.contains('placed'))el.classList.add(c.correct==='A'?'hint-a':'hint-b');
+      });
+      setTimeout(()=>{csCards.forEach(c=>{const el=document.getElementById('cscard-'+c.idx);if(el){el.classList.remove('hint-a','hint-b')}})},1500);
+    },300);
+  }
+}
+function renderCards(roundData){
+  const container=document.getElementById('csCards');container.innerHTML='';
+  csCards.forEach(c=>{
+    const div=document.createElement('div');div.className='cs-card';div.id='cscard-'+c.idx;
+    div.innerHTML=`<div class="card-icon">${c.icon}</div><div class="card-label">${c.label}</div>
+      <button class="read-aloud" onclick="event.stopPropagation();speakText('${c.label.replace(/'/g,"\\'")}')">🔊</button>`;
+    div.onclick=()=>selectCard(c.idx);
+    container.appendChild(div);
+  });
+}
+function selectCard(idx){
+  if(csPlaced.A.concat(csPlaced.B).find(c=>c.idx===idx))return;
+  csSelectedCard=idx;
+  document.querySelectorAll('.cs-card').forEach(el=>el.classList.remove('selected'));
+  const el=document.getElementById('cscard-'+idx);if(el)el.classList.add('selected');
+  document.getElementById('bucketA').classList.add('highlight');
+  document.getElementById('bucketB').classList.add('highlight');
+}
+function placeToBucket(bucket){
+  if(csSelectedCard===null)return;
+  const card=csCards.find(c=>c.idx===csSelectedCard);if(!card)return;
+  csPlaced[bucket].push(card);
+  const el=document.getElementById('cscard-'+csSelectedCard);if(el){el.classList.remove('selected');el.classList.add('placed')}
+  const bucketEl=document.getElementById('bucket'+bucket+'Cards');
+  bucketEl.innerHTML+='<div class="placed-card">'+card.icon+' '+card.label+'</div>';
+  csSelectedCard=null;
+  document.getElementById('bucketA').classList.remove('highlight');
+  document.getElementById('bucketB').classList.remove('highlight');
+  // Check if all placed
+  if(csPlaced.A.length+csPlaced.B.length>=csCards.length){finishCardSort()}
+}
+function startCSTimer(roundData){
+  const fill=document.getElementById('csTimerFill');fill.style.width='100%';fill.classList.remove('urgent');
+  csTimer=setInterval(()=>{
+    csTimeLeft-=0.25;
+    const pct=(csTimeLeft/20)*100;fill.style.width=pct+'%';
+    if(csTimeLeft<=5)fill.classList.add('urgent');
+    if(csTimeLeft<=0){clearInterval(csTimer);finishCardSort()}
+  },250);
+}
+function finishCardSort(){
+  if(csFinished)return;csFinished=true;
+  if(csTimer){clearInterval(csTimer);csTimer=null}
+  // Score
+  let correct=0;
+  csPlaced.A.forEach(c=>{if(c.correct==='A')correct++});
+  csPlaced.B.forEach(c=>{if(c.correct==='B')correct++});
+  // Unplaced cards count as wrong
+  const allCorrect=correct===csCards.length;
+  const bonus=correct>=3?5:correct>=2?2:0;
+  if(allCorrect)S.perfectSorts++;
+  S.totalCorrectCards+=correct;
+  S.lastCSResult={correct,total:csCards.length,bonus};
+  // Apply bonus to Time Protected
+  const oldTP=S.meters.timeProtected;
+  S.meters.timeProtected=Math.min(100,S.meters.timeProtected+bonus);
+  const res=document.getElementById('csResult');
+  res.textContent=correct+'/'+csCards.length+' correct! '+(bonus>0?'Time Protected +'+bonus:'No bonus');
+  res.style.color=bonus>=5?'var(--green)':bonus>=2?'var(--amber)':'var(--red)';
+  res.classList.add('show');
+  if(bonus>0){animateMeterChange('timeProtected',oldTP,S.meters.timeProtected,false)}
+  // Update level
+  updateLevel();
+  setTimeout(()=>{
+    document.getElementById('cardSortOverlay').classList.remove('active');
+    showDecision();
+  },1400);
+  return{correct,bonus};
+}
+function updateLevel(){
+  const ps=S.perfectSorts;
+  const newLevel=ps>=5?4:ps>=4?3:ps>=2?2:1;
+  if(newLevel>S.level){
+    S.level=newLevel;
+    sfxLevelUp();
+    S.highlights.push('🏆 Reached Level '+newLevel+(newLevel===4?' (MAX!)':'')+'!');
+  }
+}
+
+// ===== POWER-UP CHECKS =====
+function checkStrategicCheckIn(){
+  if(S.sciUnlocked||S.round<5)return; // Check after round 6 (index 5 completed)
+  // Check if NOT 3+ consecutive same side
+  const sides=S.choiceSides;
+  let maxConsec=1,curr=1;
+  for(let i=1;i<sides.length;i++){
+    if(sides[i]===sides[i-1])curr++;else curr=1;
+    if(curr>maxConsec)maxConsec=curr;
+  }
+  if(maxConsec<3){
+    S.sciUnlocked=true;
+    S.highlights.push('⏰✓ Strategic Check-In unlocked!');
+    showPowerUp('⏰✓','Strategic Check-In','You\'ve been managing intentionally, not reacting. Social losses halved for Rounds 7 & 8.');
+  }
+}
+function checkFOMOImmunity(){
+  if(S.fomoImmunity||S.round<2)return;
+  const hist=S.fomoHistory;
+  const sides=S.choiceSides;
+  // Need 3 consecutive rounds where FOMO ≥66 AND focus-oriented choices
+  for(let i=2;i<hist.length;i++){
+    if(hist[i]>=66&&hist[i-1]>=66&&hist[i-2]>=66){
+      // Check if those rounds all had focus choices
+      if(sides[i]==='focus'&&sides[i-1]==='focus'&&sides[i-2]==='focus'){
+        S.fomoImmunity=true;
+        S.meters.fomoLevel=Math.max(0,S.meters.fomoLevel-20);
+        S.highlights.push('🛡️ FOMO Immunity triggered! FOMO -20');
+        updateAllMeters(true);
+        showPowerUp('🛡️','FOMO Immunity','You stopped flinching at every buzz. FOMO permanently drops.');
+        return;
+      }
+    }
+  }
+}
+let powerUpQueue=[];
+function showPowerUp(icon,name,desc){
+  powerUpQueue.push({icon,name,desc});
+  if(powerUpQueue.length===1)displayNextPowerUp();
+}
+function displayNextPowerUp(){
+  if(powerUpQueue.length===0)return;
+  const pu=powerUpQueue[0];
+  const toast=document.createElement('div');toast.className='powerup-toast';
+  toast.innerHTML=`<div class="pu-icon">${pu.icon}</div><div class="pu-name">${pu.name}</div><div class="pu-desc">${pu.desc}</div>`;
+  document.getElementById('gameScreen').appendChild(toast);
+  sfxGood();
+  setTimeout(()=>{toast.remove();powerUpQueue.shift();displayNextPowerUp()},3000);
+}
+
+// ===== GAME FLOW =====
+function startGame(){
+  switchScreen('gameScreen');
+  buildTimeline();buildHUD();
+  S.round=0;
+  nextRound();
+}
+function nextRound(){
+  try{
+    if(S.round>=8){showEndScreen();return}
+    const rd=ROUNDS[S.round];
+    updateTimeline(S.round);
+    document.getElementById('arena').style.background=TIME_COLORS[S.round];
+    // Round info
+    document.getElementById('roundNum').textContent='Round '+(S.round+1)+'/8';
+    document.getElementById('roundTitle').textContent=rd.title;
+    // Check fatigue start
+    if(S.round>=5&&!S.fatigueActive){
+      S.fatigueActive=true;
+      S.highlights.push('🪫 Fatigue activated at Round 6');
+    }
+    // Arena setup
+    const arenaEmoji=document.getElementById('arenaEmoji');
+    const arenaText=document.getElementById('arenaText');
+    arenaEmoji.textContent=rd.isEvent?'⚡':'📍';
+    arenaText.textContent=rd.situation;
+    // Show decision panel
+    document.getElementById('situationText').textContent=rd.situation;
+    document.getElementById('btnA').textContent=rd.optA.label;
+    document.getElementById('btnB').textContent=rd.optB.label;
+    document.getElementById('btnA').disabled=true;
+    document.getElementById('btnB').disabled=true;
+    // Card sort or straight to decision
+    if(!rd.isEvent&&rd.cards){
+      setTimeout(()=>startCardSort(rd),500);
+    }else{
+      if(rd.isEvent)sfxEvent();
+      showDecision();
+    }
+  }catch(e){console.error('Round error:',e);S.round++;setTimeout(nextRound,500)}
+}
+function showDecision(){
+  document.getElementById('btnA').disabled=false;
+  document.getElementById('btnB').disabled=false;
+}
+function makeChoice(choice){
+  try{
+    document.getElementById('btnA').disabled=true;
+    document.getElementById('btnB').disabled=true;
+    const rd=ROUNDS[S.round];
+    const opt=choice==='A'?rd.optA:rd.optB;
+    // Track choice
+    S.choices.push({round:S.round+1,time:rd.time,choice:choice==='A'?rd.optA.label:rd.optB.label,letter:choice});
+    S.choiceSides.push(opt.side);
+    // Update notif count
+    if(opt.side==='focus'){S.notifCount+=Math.floor(Math.random()*5)+3}else{S.notifCount=0}
+    // Apply meter changes
+    let changes={...opt.changes};
+    // Handle coin flip for Round 7
+    if(rd.hasCoinFlip){
+      const flip=Math.random()<0.5?'nothing':'important';
+      S.coinFlipR7=flip;
+      S.highlights.push('🪙 Round 7 coin flip: '+(flip==='nothing'?'Spam! 📭':'It was real! 📲'));
+      const extra=opt.coinFlip[flip].extra;
+      Object.keys(extra).forEach(k=>{changes[k]=(changes[k]||0)+extra[k]});
+      // Update scene
+      opt._resolvedScene=opt.coinFlip[flip].scene;
+      opt._resolvedPopup=opt.coinFlip[flip].popup;
+    }
+    // Apply fatigue penalty (FQ gains reduced by 5, losses NOT reduced)
+    if(S.fatigueActive&&changes.focusQuality&&changes.focusQuality>0){
+      changes.focusQuality=Math.max(0,changes.focusQuality-5);
+    }
+    // Apply Strategic Check-In (SC losses halved in R7, R8 for focus choices)
+    if(S.sciUnlocked&&S.round>=6&&opt.side==='focus'&&changes.socialConnection&&changes.socialConnection<0){
+      changes.socialConnection=Math.ceil(changes.socialConnection/2);
+    }
+    // Save old values
+    const oldMeters={...S.meters};
+    // Apply changes
+    METER_NAMES.forEach(k=>{
+      if(changes[k]){S.meters[k]=Math.max(0,Math.min(100,S.meters[k]+changes[k]))}
+    });
+    // Track FOMO history
+    S.fomoHistory.push(S.meters.fomoLevel);
+    // XP
+    S.xp+=10;
+    // Animate meters
+    const primary=opt.primaryMeter;
+    METER_NAMES.forEach(k=>{
+      if(oldMeters[k]!==S.meters[k]){
+        animateMeterChange(k,oldMeters[k],S.meters[k],k===primary);
+        // Round 1: label animation showing meter name → new state
+        if(S.round===0){
+          setTimeout(()=>{
+            const box=document.getElementById('mbox-'+k);
+            const lbl=document.createElement('div');
+            lbl.style.cssText='position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--accent);background:rgba(0,0,0,0.7);padding:2px 6px;border-radius:4px;white-space:nowrap;z-index:20;animation:fadeSlideUp 0.5s forwards';
+            lbl.textContent=METER_DISPLAY[k].name+' → '+getMeterLabel(k,S.meters[k]);
+            box.style.position='relative';box.appendChild(lbl);
+            setTimeout(()=>lbl.remove(),2500);
+          },500);
+        }
+      }
+    });
+    // Arena scene
+    const scene=opt._resolvedScene||opt.scene;
+    const arenaEmoji=document.getElementById('arenaEmoji');
+    const arenaText=document.getElementById('arenaText');
+    arenaEmoji.textContent=scene.emoji;arenaEmoji.className='arena-emoji fadeIn';
+    arenaText.textContent=scene.text;arenaText.className='arena-scene-text fadeIn';
+    // Content view counter for R3 opt A and R5
+    if(S.round===2&&choice==='A'){showViewCounter(2200)}
+    if(S.round===4){showViewCounter(choice==='A'?1200:1400)}
+    // Feedback
+    const popupText=opt._resolvedPopup||opt.popup;
+    const isFullPopup=rd.isEvent||S.round===7;
+    // Log data
+    let eventNote='';
+    if(!rd.isEvent&&rd.cards&&S.lastCSResult){
+      eventNote='Card sort: '+S.lastCSResult.correct+'/'+S.lastCSResult.total+(S.lastCSResult.bonus>0?' (+'+S.lastCSResult.bonus+' TP)':'');
+      S.lastCSResult=null;
+    }
+    if(rd.isEvent)eventNote='Random Event: '+rd.title;
+    if(S.round===5)eventNote+=' Fatigue: Active.';
+    if(S.sciUnlocked&&S.round===5)eventNote+=' Strategic Check-In unlocked!';
+    S.dataLog.push({
+      round:S.round+1,time:rd.time,decision:choice==='A'?rd.optA.label:rd.optB.label,
+      ...Object.fromEntries(METER_NAMES.map(k=>[k,S.meters[k]])),
+      event:eventNote
+    });
+    // Show feedback
+    if(isFullPopup||popupText){
+      setTimeout(()=>{
+        showPopup(rd.isEvent?'⚡ EVENT':'',scene.emoji,popupText||scene.text,changes,oldMeters);
+      },800);
+    } else if(S.round===5&&S.fatigueActive){
+      // Fatigue activation popup — show visual scene first, then popup
+      S._fatiguePopupShown=true;
+      setTimeout(()=>{
+        showPopup('','🪫','Your brain is getting tired. Focus is harder now.',{},oldMeters);
+      },2000);
+    } else{
+      // Visual-only feedback — just wait then advance
+      // Round 1 tooltip
+      if(S.round===0){
+        setTimeout(()=>{
+          const tb=document.getElementById('tooltipBar');
+          tb.textContent='See how both options cost something? That\'s every round.';
+          tb.classList.add('show');
+          setTimeout(()=>tb.classList.remove('show'),3000);
+        },1200);
+      }
+      setTimeout(()=>advanceRound(),1800);
+    }
+    // Play sound
+    const netChange=Object.values(changes).reduce((a,b)=>a+b,0);
+    if(netChange>0)sfxGood();else sfxBad();
+  }catch(e){console.error('Choice error:',e);advanceRound()}
+}
+function showViewCounter(target){
+  const arena=document.getElementById('arena');
+  let count=0;
+  const counter=document.createElement('div');
+  counter.style.cssText='position:absolute;top:12px;left:12px;font-size:14px;font-weight:700;color:var(--amber);background:rgba(0,0,0,0.5);padding:4px 10px;border-radius:8px;z-index:5';
+  arena.appendChild(counter);
+  const iv=setInterval(()=>{count+=Math.floor(Math.random()*100)+50;if(count>=target){count=target;clearInterval(iv)}counter.textContent='👁️ '+count.toLocaleString()+' views'},200);
+  setTimeout(()=>counter.remove(),4000);
+}
+function showPopup(tag,emoji,text,changes,oldMeters){
+  const overlay=document.getElementById('popupOverlay');overlay.classList.add('active');
+  const box=document.getElementById('popupBox');box.className='popup-box'+(tag.includes('EVENT')?' event':'');
+  document.getElementById('popupTag').textContent=tag;
+  document.getElementById('popupEmoji').textContent=emoji;
+  document.getElementById('popupText').textContent=text;
+  // Meter changes display
+  const mDiv=document.getElementById('popupMeters');mDiv.innerHTML='';
+  if(changes&&oldMeters){
+    METER_NAMES.forEach(k=>{
+      const diff=S.meters[k]-oldMeters[k];
+      if(diff!==0){
+        const span=document.createElement('span');
+        span.className='pm '+(diff>0?'up':'down');
+        span.textContent=METER_DISPLAY[k].name+' '+(diff>0?'+':'')+diff;
+        mDiv.appendChild(span);
+      }
+    });
+  }
+}
+function dismissPopup(){
+  document.getElementById('popupOverlay').classList.remove('active');
+  advanceRound();
+}
+function advanceRound(){
+  // Check power-ups
+  if(S.round>=5)checkStrategicCheckIn();
+  if(S.round>=2)checkFOMOImmunity();
+  S.round++;
+  setTimeout(nextRound,400);
+}
+
+// ===== END SCREEN =====
+function showEndScreen(){
+  try{
+    switchScreen('endScreen');
+    const es=document.getElementById('endScreen');
+    // Win check
+    const tp=S.meters.taskProgress,sc=S.meters.socialConnection;
+    const won=tp>=66&&sc>=31;
+    const close=(tp>=50&&sc>=31)||(tp>=66&&sc>=20);
+    let winMsg='',winClass='';
+    if(won){winMsg='🎉 Mission Complete! Task Progress ahead AND Social Connection balanced!';winClass='won'}
+    else if(tp<=30&&sc<=30){winMsg='Both meters in the red. A full day on autopilot.';winClass='lost'}
+    else if(tp<=30){winMsg='You were everywhere today — and nothing got finished.';winClass='lost'}
+    else if(sc<=30){winMsg='All tasks done — but nobody saved you a seat at lunch tomorrow.';winClass='close'}
+    else if(close){winMsg='So close! Almost had both meters where they need to be.';winClass='close'}
+    else{winMsg='Day survived. Check your meters — where\'d the tradeoffs land?';winClass='close'}
+    // Replay challenge check
+    let challengeRounds=0;
+    S.dataLog.forEach(d=>{if(d.focusQuality>=31&&d.socialConnection>=31&&d.taskProgress>=31)challengeRounds++});
+    // Build HTML
+    es.innerHTML=`
+    <div class="brand" style="margin-top:12px">Mr. Jawad's Simulations</div>
+    <div class="end-title">Day Complete</div>
+    <div class="end-subtitle">Attention Wars — Session 2 · 8 Rounds</div>
+    <div class="end-win-msg ${winClass}">${winMsg}</div>
+    <div class="end-meters" id="endMeters"></div>
+    <div class="end-level"><div class="level-badge">Level ${S.level}${S.level===4?' — MAX':''}</div></div>
+    <div class="end-card-score">Card sort accuracy: ${S.perfectSorts}/6 perfect rounds</div>
+    <div class="end-highlights" id="endHighlights"><h3>Highlight Reel</h3></div>
+    <div class="end-challenge">
+      <div class="ch-title">🏆 REPLAY CHALLENGE</div>
+      <div class="ch-text">Keep Focus, Social, AND Task Progress above "ok" (31+) for 6 of 8 rounds.<br>You hit <strong>${challengeRounds}/8</strong>. ${challengeRounds>=6?'🌟 CHALLENGE COMPLETE!':'Fatigue makes the back half a different game.'}</div>
+    </div>
+    <div class="end-btns">
+      <button class="end-btn replay" onclick="resetGame()">Play Again</button>
+      <button class="end-btn details-toggle" onclick="toggleData()">Show Details</button>
+    </div>
+    <div class="end-data" id="endData"></div>`;
+    // Meters
+    const mc=document.getElementById('endMeters');
+    METER_NAMES.forEach(k=>{
+      const v=S.meters[k];const m=METER_DISPLAY[k];
+      const div=document.createElement('div');div.className='end-meter';
+      div.innerHTML=`<div class="em-name">${m.name}</div>
+        <div class="em-bar"><div class="em-fill" style="width:0%;background:${getMeterColor(k,v)}"></div></div>
+        <div class="em-label" style="color:${getMeterColor(k,v)}">${v} — ${getMeterLabel(k,v)}</div>`;
+      mc.appendChild(div);
+      setTimeout(()=>{div.querySelector('.em-fill').style.width=v+'%'},100);
+    });
+    // Highlights
+    const hl=document.getElementById('endHighlights');
+    if(S.highlights.length===0)S.highlights.push('Day survived! Check your final meters.');
+    S.highlights.forEach(h=>{
+      const d=document.createElement('div');d.className='highlight-item';
+      d.innerHTML='<span class="hi-icon">'+h.slice(0,2)+'</span> '+h.slice(2);
+      hl.appendChild(d);
+    });
+    // Data table
+    buildDataTable();
+  }catch(e){console.error('End screen error:',e)}
+}
+function buildDataTable(){
+  const dd=document.getElementById('endData');
+  let html='<table><tr><th>Rnd</th><th>Time</th><th>Decision</th><th>FQ</th><th>TP</th><th>SC</th><th>FOMO</th><th>TaskP</th><th>Event</th></tr>';
+  S.dataLog.forEach(d=>{
+    html+=`<tr><td>${d.round}</td><td>${d.time}</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.decision}</td>
+      <td>${d.focusQuality}</td><td>${d.timeProtected}</td><td>${d.socialConnection}</td><td>${d.fomoLevel}</td><td>${d.taskProgress}</td><td>${d.event||''}</td></tr>`;
+  });
+  html+='</table><button class="copy-btn" onclick="copyData()">📋 Copy to Clipboard</button>';
+  dd.innerHTML=html;
+}
+function toggleData(){
+  document.getElementById('endData').classList.toggle('open');
+}
+function copyData(){
+  try{
+    let text='Round\tTime\tDecision\tFQ\tTP\tSC\tFOMO\tTaskP\tEvent\n';
+    S.dataLog.forEach(d=>{
+      text+=`${d.round}\t${d.time}\t${d.decision}\t${d.focusQuality}\t${d.timeProtected}\t${d.socialConnection}\t${d.fomoLevel}\t${d.taskProgress}\t${d.event||''}\n`;
+    });
+    navigator.clipboard.writeText(text).then(()=>{
+      const btn=document.querySelector('.copy-btn');btn.textContent='✅ Copied!';setTimeout(()=>btn.textContent='📋 Copy to Clipboard',2000);
+    });
+  }catch(e){console.error('Copy error:',e)}
+}
+function resetGame(){
+  S.meters={focusQuality:50,timeProtected:40,socialConnection:50,fomoLevel:35,taskProgress:0};
+  S.round=0;S.xp=0;S.level=1;S.perfectSorts=0;S.totalCorrectCards=0;
+  S.choices=[];S.choiceSides=[];S.fomoHistory=[];
+  S.fatigueActive=false;S.sciUnlocked=false;S.fomoImmunity=false;S.fomoImmunityChecked=false;
+  S.notifCount=0;S.highlights=[];S.coinFlipR7=null;S.dataLog=[];S._fatiguePopupShown=false;S.lastCSResult=null;
+  // Clean stale coin flip resolved data from previous play
+  ROUNDS.forEach(rd=>{
+    if(rd.optA._resolvedScene)delete rd.optA._resolvedScene;
+    if(rd.optA._resolvedPopup)delete rd.optA._resolvedPopup;
+    if(rd.optB._resolvedScene)delete rd.optB._resolvedScene;
+    if(rd.optB._resolvedPopup)delete rd.optB._resolvedPopup;
+  });
+  switchScreen('gameScreen');buildTimeline();buildHUD();nextRound();
+}
+
+// ===== UTILITIES =====
+function switchScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function shuffleArray(arr){
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}return arr;
+}
+</script>
+</body>
+</html>
