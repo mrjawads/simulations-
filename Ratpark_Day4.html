@@ -1,0 +1,2448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Mr. Jawad's Simulations — Addiction &amp; The Rat Park Experiment</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+--bg1:#0F0A1A;--bg2:#1A0F2E;--neon:#39FF14;--pink:#FF1493;--gold:#FFD700;
+--orange:#FF6B35;--white:#F0E6FF;--text:#E8D5FF;--dim:#6B5B7B;
+--correct:#39FF14;--wrong:#FF4757;--hint1:#FFF9C4;--hint2:#FFE0B2;
+--card-bg:rgba(255,255,255,0.08);--card-border:rgba(255,255,255,0.15);
+--mon-color:#2D8B4E;--tue-color:#00D4FF;--wed-color:#8B5CF6;
+}
+html,body{height:100%;overflow:hidden;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+
+/* LAYOUT */
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;}
+#topBar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:rgba(0,0,0,0.4);border-bottom:2px solid rgba(255,255,255,0.1);min-height:52px;flex-shrink:0;z-index:10;}
+#topBar .round-info{font-size:18px;font-weight:700;color:var(--white);}
+#topBar .streak-box{display:flex;align-items:center;gap:6px;font-size:20px;font-weight:700;min-width:80px;justify-content:center;}
+#topBar .streak-box .flame{font-size:24px;transition:transform 0.3s;}
+#topBar .score-box{font-size:18px;font-weight:700;color:var(--gold);min-width:100px;text-align:right;position:relative;}
+.pts-pop{position:absolute;right:0;top:-20px;font-size:16px;font-weight:700;color:var(--neon);animation:ptsPop 1s forwards;pointer-events:none;}
+@keyframes ptsPop{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-30px) scale(1.3);}}
+
+/* STREAK FRAMES */
+.streak-bronze .flame{color:#CD7F32;transform:scale(1.1);}
+.streak-silver .flame{color:#C0C0C0;transform:scale(1.2);}
+.streak-gold .flame{color:var(--gold);transform:scale(1.4);}
+.streak-silver .flame,.streak-gold .flame{text-shadow:0 0 8px currentColor;}
+
+/* CONTEXT PANEL */
+#contextPanel{flex:1 1 auto;display:flex;flex-direction:column;overflow:hidden;min-height:0;position:relative;}
+#focusBanner{text-align:center;padding:8px 16px;font-size:15px;font-weight:600;background:rgba(255,215,0,0.15);color:var(--gold);border-bottom:1px solid rgba(255,215,0,0.2);min-height:36px;flex-shrink:0;transition:opacity 0.5s;}
+#contextCaption{text-align:center;padding:6px 12px;font-size:14px;color:var(--dim);font-style:italic;flex-shrink:0;}
+#arenaBox{flex:1 1 auto;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;overflow-x:hidden;padding:8px 12px;min-height:0;}
+#arena{width:100%;max-width:700px;min-height:160px;position:relative;}
+#arena svg{max-width:100%;height:auto;display:block;margin:0 auto;}
+
+/* INTERACTION ZONE */
+#interZone{flex:0 0 auto;border-top:2px solid rgba(255,255,255,0.1);padding:10px 16px 8px;background:rgba(0,0,0,0.3);overflow-y:auto;max-height:42vh;min-height:120px;}
+#interZone .phase-label{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--pink);margin-bottom:6px;}
+#interZone .prompt-text{font-size:16px;font-weight:600;color:var(--white);margin-bottom:10px;line-height:1.4;word-wrap:break-word;overflow-wrap:break-word;}
+.options-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:10px;}
+.opt-card{padding:12px 18px;border-radius:10px;background:var(--card-bg);border:2px solid var(--card-border);color:var(--text);font-size:15px;font-weight:600;min-height:48px;min-width:120px;text-align:center;transition:all 0.2s;display:flex;align-items:center;justify-content:center;word-wrap:break-word;overflow-wrap:break-word;flex:1 1 auto;max-width:280px;}
+.opt-card:hover:not(.disabled):not(.selected):not(.wrong-mark):not(.correct-mark){border-color:var(--gold);background:rgba(255,215,0,0.1);}
+.opt-card.selected{border-color:var(--gold);background:rgba(255,215,0,0.15);color:var(--gold);}
+.opt-card.correct-mark{border-color:var(--correct);background:rgba(57,255,20,0.15);color:var(--correct);animation:correctPulse 0.5s;}
+.opt-card.wrong-mark{border-color:var(--wrong);background:rgba(255,71,87,0.15);color:var(--wrong);animation:wrongFlash 0.5s;}
+.opt-card.disabled{opacity:0.35;pointer-events:none;text-decoration:line-through;}
+.opt-card.dimmed{opacity:0.4;pointer-events:none;}
+@keyframes correctPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
+@keyframes wrongFlash{0%,100%{background:rgba(255,71,87,0.15);}50%{background:rgba(255,71,87,0.35);}}
+
+/* HOTSPOT */
+.hotspot-zone{cursor:pointer;transition:all 0.2s;}
+.hotspot-zone:hover{filter:brightness(1.2);}
+.hotspot-correct{animation:correctPulse 0.5s;}
+.hotspot-wrong{animation:wrongFlash 0.5s;}
+
+/* BUTTONS */
+.btn-lock{display:block;margin:8px auto 0;padding:12px 32px;border-radius:10px;font-size:16px;font-weight:700;background:linear-gradient(135deg,var(--neon),#2ecb10);color:#111;min-height:48px;opacity:0.4;pointer-events:none;transition:all 0.3s;}
+.btn-lock.active{opacity:1;pointer-events:auto;box-shadow:0 0 12px rgba(57,255,20,0.3);}
+.btn-lock.active:hover{transform:scale(1.03);box-shadow:0 0 20px rgba(57,255,20,0.5);}
+.btn-try{display:block;margin:8px auto 0;padding:12px 32px;border-radius:10px;font-size:16px;font-weight:700;background:linear-gradient(135deg,#4A90D9,#357ABD);color:#fff;min-height:48px;box-shadow:0 0 8px rgba(74,144,217,0.3);}
+.btn-try:hover{transform:scale(1.03);}
+
+/* COACHING BAR */
+.coaching-bar{padding:10px 14px;border-radius:8px;margin-top:8px;font-size:14px;line-height:1.4;color:#333;word-wrap:break-word;overflow-wrap:break-word;}
+.coaching-bar.hint1{background:var(--hint1);border-left:4px solid #F59E0B;}
+.coaching-bar.hint2{background:var(--hint2);border-left:4px solid #FB923C;}
+.coaching-bar.wrong-coach{background:rgba(255,71,87,0.12);border-left:4px solid var(--wrong);color:var(--text);}
+.coaching-bar.arena-nudge{background:rgba(255,215,0,0.12);border-left:4px solid var(--gold);color:var(--text);}
+
+/* AFFIRMATION */
+.affirmation-text{text-align:center;font-size:22px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.5);animation:affirmFade 1.8s forwards;pointer-events:none;padding:6px;}
+@keyframes affirmFade{0%{opacity:0;transform:translateY(8px);}15%{opacity:1;transform:translateY(0);}85%{opacity:1;}100%{opacity:0;}}
+
+/* BOTTOM BAR */
+#bottomBar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(0,0,0,0.4);border-top:2px solid rgba(255,255,255,0.1);min-height:48px;flex-shrink:0;z-index:10;flex-wrap:wrap;gap:4px;}
+#bottomBar button{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;min-height:40px;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text);transition:all 0.2s;}
+#bottomBar button:hover:not(:disabled){border-color:var(--gold);color:var(--gold);}
+#bottomBar button:disabled{opacity:0.3;cursor:not-allowed;}
+.source-tag{font-size:13px;font-weight:700;padding:4px 10px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;}
+
+/* OVERLAYS */
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;display:flex;align-items:center;justify-content:center;}
+.overlay-bg{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);}
+.overlay-content{position:relative;z-index:1;background:linear-gradient(135deg,#1A0F2E,#2D1B4E);border:2px solid var(--card-border);border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;text-align:center;}
+.overlay-content h2{font-size:22px;color:var(--gold);margin-bottom:12px;}
+.overlay-content p{font-size:15px;color:var(--text);margin-bottom:10px;line-height:1.5;}
+.overlay-content .btn-overlay{padding:12px 28px;border-radius:10px;font-size:15px;font-weight:700;margin:6px;min-height:48px;}
+.btn-green{background:linear-gradient(135deg,var(--neon),#2ecb10);color:#111;}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#e6b800);color:#111;}
+.btn-dim{background:var(--card-bg);border:1px solid var(--card-border);color:var(--text);}
+
+/* STEP-BY-STEP OVERLAY */
+.sbs-panel{text-align:left;padding:12px;margin-bottom:10px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:15px;line-height:1.5;color:var(--text);}
+.sbs-panel .sbs-num{display:inline-block;width:28px;height:28px;border-radius:50%;background:var(--gold);color:#111;font-weight:700;text-align:center;line-height:28px;margin-right:8px;font-size:14px;}
+
+/* CELEBRATION */
+.celeb-container{position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.celeb-text{font-size:36px;font-weight:900;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,0.5);animation:celebBounce 0.6s ease-out;}
+@keyframes celebBounce{0%{transform:scale(0.3);opacity:0;}60%{transform:scale(1.15);}100%{transform:scale(1);opacity:1;}}
+#particleLayer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:199;}
+.particle{position:absolute;width:8px;height:8px;border-radius:50%;display:none;animation:particleFall 1.5s forwards;}
+@keyframes particleFall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(100vh) rotate(720deg);}}
+
+/* VOCAB PANEL */
+#vocabPanel{position:fixed;top:0;right:-320px;width:300px;height:100%;background:linear-gradient(180deg,#1A0F2E,#0F0A1A);border-left:2px solid var(--gold);z-index:150;transition:right 0.3s;padding:16px;overflow-y:auto;}
+#vocabPanel.open{right:0;}
+#vocabPanel h3{color:var(--gold);font-size:18px;margin-bottom:12px;}
+.vocab-item{margin-bottom:12px;padding:10px;background:var(--card-bg);border-radius:8px;border-left:3px solid var(--pink);}
+.vocab-item .v-term{font-weight:700;color:var(--neon);font-size:15px;margin-bottom:4px;}
+.vocab-item .v-def{font-size:13px;color:var(--text);line-height:1.4;}
+#vocabOverlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:149;display:none;}
+
+/* WELCOME SCREEN */
+#welcomeScreen{position:fixed;top:0;left:0;width:100%;height:100%;z-index:300;background:linear-gradient(135deg,var(--bg1),var(--bg2));display:flex;align-items:center;justify-content:center;}
+#welcomeScreen .ws-box{text-align:center;padding:32px;max-width:460px;width:90%;}
+#welcomeScreen h1{font-size:26px;color:var(--gold);margin-bottom:6px;line-height:1.3;}
+#welcomeScreen .ws-sub{font-size:16px;color:var(--pink);margin-bottom:20px;font-weight:600;}
+#welcomeScreen .ws-hook{font-size:15px;color:var(--text);margin-bottom:20px;line-height:1.5;font-style:italic;}
+#welcomeScreen input{display:block;width:100%;padding:12px 16px;border-radius:10px;border:2px solid var(--card-border);background:var(--card-bg);color:var(--white);font-size:16px;margin-bottom:10px;text-align:center;min-height:48px;}
+#welcomeScreen input::placeholder{color:var(--dim);}
+#welcomeScreen .ws-teacher{font-size:13px;color:var(--dim);margin-bottom:6px;}
+#welcomeScreen .btn-start{padding:14px 36px;border-radius:12px;font-size:18px;font-weight:700;background:linear-gradient(135deg,var(--neon),#2ecb10);color:#111;margin-top:12px;min-height:52px;box-shadow:0 0 20px rgba(57,255,20,0.3);}
+#welcomeScreen .btn-start:disabled{opacity:0.4;cursor:not-allowed;}
+
+/* RECEIPT SCREEN */
+#receiptScreen{display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:300;background:linear-gradient(135deg,var(--bg1),var(--bg2));overflow-y:auto;}
+.receipt-inner{max-width:600px;margin:0 auto;padding:20px 16px;}
+.receipt-inner h1{text-align:center;font-size:22px;color:var(--gold);margin-bottom:4px;}
+.receipt-inner .r-sub{text-align:center;font-size:14px;color:var(--dim);margin-bottom:16px;}
+.receipt-inner .r-name-row{display:flex;gap:8px;align-items:center;margin-bottom:16px;}
+.receipt-inner .r-name-row input{flex:1;padding:10px;border-radius:8px;border:2px solid var(--card-border);background:var(--card-bg);color:var(--white);font-size:15px;min-height:44px;}
+.receipt-inner .r-name-row button{padding:10px 16px;border-radius:8px;font-size:14px;font-weight:700;background:var(--gold);color:#111;min-height:44px;}
+.r-big-score{text-align:center;padding:16px;margin-bottom:16px;border-radius:12px;border:2px solid var(--card-border);background:var(--card-bg);}
+.r-big-score .r-pct{font-size:48px;font-weight:900;}
+.r-big-score .r-label{font-size:16px;font-weight:600;margin-top:4px;}
+.r-table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:13px;}
+.r-table th{background:rgba(255,215,0,0.15);color:var(--gold);padding:8px 6px;text-align:left;font-size:12px;}
+.r-table td{padding:7px 6px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.r-table tr:nth-child(even){background:rgba(255,255,255,0.03);}
+.r-table .bonus-row td{font-style:italic;}
+.r-streak{text-align:center;font-size:14px;color:var(--orange);margin-bottom:8px;}
+.r-status{text-align:center;font-size:15px;font-weight:700;margin-bottom:12px;}
+.r-upload{text-align:center;padding:12px;background:rgba(57,255,20,0.08);border-radius:8px;font-size:14px;color:var(--neon);margin-bottom:12px;}
+.r-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
+.r-actions button{padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;min-height:44px;}
+
+/* COACHING SCREEN (anti-guess) */
+.ag-screen{position:fixed;top:0;left:0;width:100%;height:100%;z-index:180;background:rgba(15,10,26,0.92);display:flex;align-items:center;justify-content:center;z-index:180;}
+.ag-box{text-align:center;padding:28px;max-width:400px;}
+.ag-box p{font-size:17px;color:var(--text);line-height:1.5;margin-bottom:16px;}
+.ag-box .ag-timer{font-size:28px;font-weight:700;color:var(--gold);}
+
+/* PULSING */
+.pulse-yellow{animation:pulseY 1s infinite;}
+@keyframes pulseY{0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,0.4);}50%{box-shadow:0 0 0 8px rgba(255,215,0,0);}}
+.pulse-green{animation:pulseG 0.6s;}
+@keyframes pulseG{0%{box-shadow:0 0 0 0 rgba(57,255,20,0.5);}100%{box-shadow:0 0 0 12px rgba(57,255,20,0);}}
+.glow-neon{box-shadow:0 0 12px var(--neon) !important;}
+
+/* GUIDED L1 GLOW */
+.guided-glow{box-shadow:0 0 8px rgba(57,255,20,0.25);border-color:rgba(57,255,20,0.3) !important;}
+
+/* SVG highlights */
+.svg-highlight{transition:all 0.3s;}
+.svg-pulse-yellow{animation:svgPulseY 1s infinite;}
+@keyframes svgPulseY{0%,100%{opacity:0.6;}50%{opacity:1;}}
+.svg-glow-green{filter:drop-shadow(0 0 6px rgba(57,255,20,0.8));transition:filter 0.3s;}
+.svg-glow-red{filter:drop-shadow(0 0 6px rgba(255,71,87,0.8));transition:filter 0.3s;}
+
+/* PRINT */
+@media print{
+#app,#bottomBar,#topBar,.btn-lock,.btn-try,#vocabPanel,#particleLayer,.celeb-container,.overlay,.ag-screen{display:none !important;}
+#receiptScreen{display:block !important;position:static !important;background:#fff !important;color:#111 !important;}
+.receipt-inner{max-width:100%;}
+.receipt-inner h1,.r-big-score .r-pct,.r-big-score .r-label,.r-status,.r-streak{color:#111 !important;}
+.r-table th{background:#eee !important;color:#111 !important;}
+.r-table td{color:#111 !important;border-bottom:1px solid #ccc !important;}
+.r-sub,.r-upload{color:#333 !important;}
+.r-actions{display:none !important;}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+.opt-card{min-width:90px;font-size:14px;padding:10px 12px;}
+#topBar .round-info{font-size:15px;}
+.receipt-inner h1{font-size:18px;}
+.r-big-score .r-pct{font-size:36px;}
+}
+</style>
+</head>
+<body>
+
+<div id="particleLayer"></div>
+
+<div id="welcomeScreen">
+<div class="ws-box">
+<h1>Mr. Jawad's Simulations</h1>
+<div class="ws-sub">Addiction &amp; The Rat Park Experiment — Thursday</div>
+<div class="ws-hook">"Could changing where you live change what you crave?"<br>The Rat Park Challenge: 8 rounds. Everything you learned this week. Can you beat it?</div>
+<input type="text" id="studentNameInput" placeholder="Enter your name" maxlength="60" aria-label="Student name">
+<div class="ws-teacher">Teacher name (optional):</div>
+<input type="text" id="teacherNameInput" placeholder="Mr. Jawad" maxlength="60" aria-label="Teacher name">
+<button class="btn-start" id="btnStart" disabled>Let's Go!</button>
+</div>
+</div>
+
+<div id="app" style="display:none;">
+<div id="topBar">
+<div class="round-info" id="roundInfo">Round 1 of 8</div>
+<div class="streak-box" id="streakBox"><span class="flame">&#128293;</span><span id="streakNum">x0</span></div>
+<div class="score-box" id="scoreBox">Score: 0</div>
+</div>
+<div id="contextPanel">
+<div id="focusBanner"></div>
+<div id="contextCaption"></div>
+<div id="arenaBox"><div id="arena"></div></div>
+</div>
+<div id="interZone"></div>
+<div id="bottomBar">
+<div style="display:flex;gap:6px;">
+<button id="btnVocab">&#128214; Vocab</button>
+<button id="btnHint">&#128161; Hint</button>
+</div>
+<span class="source-tag" id="sourceTag"></span>
+<div style="display:flex;gap:6px;">
+<button id="btnResetLevel">Reset Round</button>
+<button id="btnNewRun">New Run</button>
+</div>
+</div>
+</div>
+
+<div id="vocabOverlay" onclick="toggleVocab()"></div>
+<div id="vocabPanel">
+<h3>&#128214; Key Vocabulary</h3>
+<div class="vocab-item"><div class="v-term">&#128274; ISOLATION</div><div class="v-def">Being cut off from social contact</div></div>
+<div class="vocab-item"><div class="v-term">&#127758; ENVIRONMENT</div><div class="v-def">Surroundings that shape your behavior</div></div>
+<div class="vocab-item"><div class="v-term">&#128138; DEPENDENCE</div><div class="v-def">Needing a substance to feel normal</div></div>
+<div class="vocab-item"><div class="v-term">&#128300; VARIABLE</div><div class="v-def">A factor you change to test</div></div>
+</div>
+
+<div id="receiptScreen">
+<div class="receipt-inner" id="receiptInner"></div>
+</div>
+
+<script>
+// ============ UTILITIES ============
+function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function safeCall(fn,msg){try{fn();}catch(e){console.error(msg,e);}}
+function closeAllOverlays(){document.querySelectorAll('.overlay,.ag-screen,.celeb-container,.coaching-bar').forEach(el=>el.remove());}
+function $(id){return document.getElementById(id);}
+
+// ============ PARTICLE POOL ============
+const PARTICLE_POOL=[];
+(function initParticles(){
+const layer=$('particleLayer');
+for(let i=0;i<15;i++){
+const p=document.createElement('div');
+p.className='particle';
+p.style.display='none';
+layer.appendChild(p);
+PARTICLE_POOL.push(p);
+}})();
+let particleIdx=0;
+function spawnParticle(x,y,color){
+const p=PARTICLE_POOL[particleIdx%15];
+particleIdx++;
+p.style.display='block';
+p.style.left=x+'px';
+p.style.top=y+'px';
+p.style.background=color;
+p.style.animation='none';
+void p.offsetWidth;
+p.style.animation='particleFall 1.5s forwards';
+setTimeout(()=>{p.style.display='none';},1600);
+}
+function burstParticles(count,colors){
+const cx=window.innerWidth/2,cy=window.innerHeight/3;
+for(let i=0;i<Math.min(count,15);i++){
+setTimeout(()=>{
+spawnParticle(cx+Math.random()*200-100,cy+Math.random()*100-50,colors[i%colors.length]);
+},i*60);
+}
+}
+
+// ============ AUDIO (LAZY) ============
+let audioCtx=null;
+function getAudioCtx(){
+if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}
+return audioCtx;
+}
+function playTone(freq,dur){
+try{
+const ctx=getAudioCtx();if(!ctx)return;
+const o=ctx.createOscillator(),g=ctx.createGain();
+o.type='sine';o.frequency.value=freq;
+g.gain.setValueAtTime(0.15,ctx.currentTime);
+g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+o.connect(g);g.connect(ctx.destination);
+o.start();o.stop(ctx.currentTime+dur);
+}catch(e){}
+}
+function playCorrectSound(){playTone(523,0.1);setTimeout(()=>playTone(659,0.1),100);setTimeout(()=>playTone(784,0.15),200);}
+function playWrongSound(){playTone(200,0.2);}
+
+// ============ GAME STATE ============
+const GS={
+studentName:'',teacherName:'Mr. Jawad',
+currentRound:0,totalScore:0,streak:0,maxStreak:0,
+roundScores:[],processing:false,
+hintUsedThisRound:0,resetsThisRound:0,wrongCountDO:0,wrongCountPROVE:0,
+phase:'', // 'do','prove'
+doLocked:false,proveLocked:false,
+fastWrongs:0,lastWrongTime:0,
+roundStartTime:0,
+requiredCompleteShown:false,bonusCompleteShown:false,receiptRendered:false,
+selectedDO:null,
+roundTimers:[],// track timeouts for cleanup
+};
+function clearRoundTimers(){GS.roundTimers.forEach(t=>clearTimeout(t));GS.roundTimers=[];}
+function addTimer(fn,ms){const t=setTimeout(fn,ms);GS.roundTimers.push(t);return t;}
+
+// ============ AFFIRMATIONS ============
+function getAffirmation(){
+const pool=[
+`${escHtml(GS.teacherName)} is proud of you!`,
+`${escHtml(GS.teacherName)} knew you could do it!`,
+`That's the kind of thinking ${escHtml(GS.teacherName)} loves to see!`,
+`${escHtml(GS.teacherName)} says: you're getting it!`,
+`Strong work — ${escHtml(GS.teacherName)} sees your effort!`,
+`${escHtml(GS.teacherName)} is impressed right now!`,
+`You're showing ${escHtml(GS.teacherName)} what you can do!`,
+`${escHtml(GS.teacherName)} says: keep that energy!`
+];
+return pool[Math.floor(Math.random()*pool.length)];
+}
+
+// ============ ROUND DATA ============
+const ROUNDS=[
+// ROUND 1
+{
+num:1,name:"Vocabulary Match",sourceDay:"Monday",sourceDayColor:"var(--mon-color)",required:true,
+scienceSkill:"Vocabulary application",
+focusPrompt:"Remember the vocabulary from Alexander's experiment on Monday.",
+contextCaption:"From Monday: Bruce Alexander tested whether the cage or the drug caused addiction.",
+buildArena:function(container){
+container.innerHTML=`<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="cageFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3a4a"/><stop offset="100%" stop-color="#252535"/></linearGradient>
+<linearGradient id="parkFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a4a2a"/><stop offset="100%" stop-color="#1a3a1a"/></linearGradient>
+<linearGradient id="morphGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ff6666"/><stop offset="100%" stop-color="#aa2222"/></linearGradient>
+</defs>
+<!-- === CAGE SIDE === -->
+<rect x="8" y="28" width="326" height="260" rx="12" fill="url(#cageFloor)" stroke="#555" stroke-width="2"/>
+<!-- Cage label -->
+<rect x="100" y="4" width="140" height="24" rx="12" fill="#3a3a4a" stroke="#666" stroke-width="1"/>
+<text x="170" y="20" text-anchor="middle" fill="#999" font-size="12" font-weight="700" letter-spacing="1">STANDARD CAGE</text>
+<!-- Concrete floor texture -->
+<line x1="20" y1="250" x2="320" y2="250" stroke="#444" stroke-width="1" opacity="0.5"/>
+<line x1="20" y1="265" x2="320" y2="265" stroke="#3a3a4a" stroke-width="1" opacity="0.3"/>
+<!-- Metal cage bars (vertical) -->
+<line x1="28" y1="28" x2="28" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<line x1="58" y1="28" x2="58" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<line x1="88" y1="28" x2="88" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<line x1="118" y1="28" x2="118" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<line x1="148" y1="28" x2="148" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<line x1="178" y1="28" x2="178" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<line x1="208" y1="28" x2="208" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<line x1="238" y1="28" x2="238" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<line x1="268" y1="28" x2="268" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<line x1="298" y1="28" x2="298" y2="288" stroke="#7a7a8a" stroke-width="3" stroke-linecap="round"/>
+<!-- Horizontal bars -->
+<line x1="18" y1="45" x2="320" y2="45" stroke="#6a6a7a" stroke-width="2"/>
+<line x1="18" y1="150" x2="320" y2="150" stroke="#6a6a7a" stroke-width="2"/>
+<!-- Lonely detailed rat -->
+<g id="r1CagedRat">
+<!-- Body -->
+<ellipse cx="170" cy="200" rx="36" ry="22" fill="#8B7355"/>
+<ellipse cx="170" cy="202" rx="32" ry="16" fill="#9A8365" opacity="0.5"/>
+<!-- Head -->
+<ellipse cx="132" cy="186" rx="18" ry="15" fill="#8B7355"/>
+<ellipse cx="125" cy="180" rx="5" ry="4" fill="#7a6345" opacity="0.6"/>
+<!-- Ears -->
+<ellipse cx="122" cy="172" rx="8" ry="10" fill="#A08868"/>
+<ellipse cx="122" cy="172" rx="5" ry="7" fill="#C4A882" opacity="0.4"/>
+<ellipse cx="138" cy="170" rx="8" ry="10" fill="#A08868"/>
+<ellipse cx="138" cy="170" rx="5" ry="7" fill="#C4A882" opacity="0.4"/>
+<!-- Eye -->
+<circle cx="126" cy="183" r="3.5" fill="#111"/>
+<circle cx="124.5" cy="181.5" r="1.2" fill="#fff" opacity="0.7"/>
+<!-- Nose -->
+<ellipse cx="117" cy="188" rx="3" ry="2" fill="#D4A886"/>
+<!-- Whiskers -->
+<line x1="117" y1="186" x2="95" y2="181" stroke="#A08868" stroke-width="0.8" opacity="0.6"/>
+<line x1="117" y1="188" x2="93" y2="187" stroke="#A08868" stroke-width="0.8" opacity="0.6"/>
+<line x1="117" y1="190" x2="95" y2="194" stroke="#A08868" stroke-width="0.8" opacity="0.6"/>
+<!-- Paws -->
+<ellipse cx="145" cy="218" rx="6" ry="4" fill="#A08868"/>
+<ellipse cx="195" cy="218" rx="6" ry="4" fill="#A08868"/>
+<!-- Tail -->
+<path d="M206 200 Q230 195 240 210 Q248 225 235 235" stroke="#8B7355" stroke-width="3" fill="none" stroke-linecap="round"/>
+<!-- Sad posture line (hunched) -->
+<path d="M148 188 Q170 178 192 190" stroke="#7a6345" stroke-width="1" fill="none" opacity="0.3"/>
+</g>
+<!-- Morphine bottle (detailed) -->
+<g id="r1MorphineBottle">
+<rect x="260" y="196" width="28" height="48" rx="5" fill="url(#morphGrad)"/>
+<rect x="256" y="188" width="36" height="12" rx="3" fill="#ddd"/>
+<rect x="264" y="190" width="20" height="4" rx="2" fill="#bbb"/>
+<text x="274" y="228" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">M</text>
+<rect x="268" y="244" width="12" height="20" rx="2" fill="#aa4444" opacity="0.6"/>
+<text x="274" y="270" text-anchor="middle" fill="#cc6666" font-size="7">drip</text>
+</g>
+<!-- Shadow under rat -->
+<ellipse cx="170" cy="222" rx="30" ry="5" fill="#1a1a2a" opacity="0.4"/>
+
+<!-- === DIVIDER === -->
+<line x1="345" y1="40" x2="345" y2="280" stroke="#555" stroke-width="1" stroke-dasharray="6"/>
+<text x="345" y="155" text-anchor="middle" fill="#666" font-size="11" font-weight="700">VS</text>
+
+<!-- === RAT PARK SIDE === -->
+<rect x="366" y="28" width="326" height="260" rx="12" fill="url(#parkFloor)" stroke="#4a8a5a" stroke-width="2"/>
+<rect x="460" y="4" width="120" height="24" rx="12" fill="#1a3a1a" stroke="#4a8a5a" stroke-width="1"/>
+<text x="520" y="20" text-anchor="middle" fill="#6c6" font-size="12" font-weight="700" letter-spacing="1">RAT PARK</text>
+<!-- Ground texture (wood chips) -->
+<circle cx="390" cy="260" r="4" fill="#6a5a40" opacity="0.25"/>
+<circle cx="420" cy="270" r="3" fill="#7a6a50" opacity="0.2"/>
+<circle cx="480" cy="265" r="5" fill="#6a5a40" opacity="0.2"/>
+<circle cx="550" cy="272" r="3" fill="#7a6a50" opacity="0.25"/>
+<circle cx="610" cy="258" r="4" fill="#6a5a40" opacity="0.2"/>
+<circle cx="650" cy="268" r="3" fill="#7a6a50" opacity="0.15"/>
+<!-- Running wheel (detailed) -->
+<circle cx="420" cy="210" r="26" fill="none" stroke="#6a8a6a" stroke-width="3"/>
+<circle cx="420" cy="210" r="20" fill="none" stroke="#5a7a5a" stroke-width="1.5"/>
+<line x1="420" y1="184" x2="420" y2="236" stroke="#5a7a5a" stroke-width="1"/>
+<line x1="394" y1="210" x2="446" y2="210" stroke="#5a7a5a" stroke-width="1"/>
+<line x1="402" y1="192" x2="438" y2="228" stroke="#5a7a5a" stroke-width="1"/>
+<line x1="438" y1="192" x2="402" y2="228" stroke="#5a7a5a" stroke-width="1"/>
+<!-- Platform/ramp -->
+<rect x="490" y="190" width="60" height="8" rx="3" fill="#8a7a60" transform="rotate(-12 520 194)"/>
+<rect x="540" y="178" width="8" height="26" rx="2" fill="#7a6a50"/>
+<!-- Hiding box -->
+<rect x="580" y="210" width="45" height="35" rx="6" fill="#5a4a3a" stroke="#7a6a5a" stroke-width="1.5"/>
+<rect x="592" y="228" width="20" height="17" rx="3" fill="#4a3a2a"/>
+<!-- Plants/greenery -->
+<circle cx="380" cy="75" r="12" fill="#3a6a3a" opacity="0.5"/>
+<circle cx="392" cy="68" r="10" fill="#4a7a4a" opacity="0.4"/>
+<circle cx="670" cy="90" r="14" fill="#3a6a3a" opacity="0.4"/>
+<circle cx="660" cy="80" r="10" fill="#4a7a4a" opacity="0.3"/>
+<!-- Rat 1 (detailed, on wheel) -->
+<ellipse cx="420" cy="185" rx="16" ry="10" fill="#A08868"/>
+<ellipse cx="408" cy="179" rx="8" ry="7" fill="#A08868"/>
+<circle cx="404" cy="177" r="2" fill="#111"/><circle cx="403" cy="176" r="0.8" fill="#fff" opacity="0.5"/>
+<ellipse cx="400" cy="172" rx="4" ry="5" fill="#B09878"/>
+<line x1="400" y1="180" x2="388" y2="178" stroke="#A08868" stroke-width="0.6" opacity="0.5"/>
+<!-- Rat 2 (playing, near platform) -->
+<ellipse cx="510" cy="176" rx="18" ry="11" fill="#917654"/>
+<ellipse cx="496" cy="169" rx="9" ry="8" fill="#917654"/>
+<circle cx="491" cy="166" r="2.5" fill="#111"/><circle cx="490" cy="165" r="0.9" fill="#fff" opacity="0.5"/>
+<ellipse cx="487" cy="162" rx="4.5" ry="5.5" fill="#A08868"/>
+<path d="M528 176 Q540 170 545 180" stroke="#917654" stroke-width="2" fill="none"/>
+<line x1="488" y1="168" x2="475" y2="165" stroke="#917654" stroke-width="0.6" opacity="0.5"/>
+<!-- Rat 3 (social, pair) -->
+<ellipse cx="560" cy="250" rx="16" ry="10" fill="#B09878"/>
+<ellipse cx="548" cy="244" rx="8" ry="7" fill="#B09878"/>
+<circle cx="544" cy="242" r="2" fill="#111"/><circle cx="543" cy="241" r="0.8" fill="#fff" opacity="0.5"/>
+<ellipse cx="540" cy="238" rx="4" ry="5" fill="#C4A882"/>
+<!-- Rat 4 (next to rat 3, socializing) -->
+<ellipse cx="595" cy="248" rx="16" ry="10" fill="#8B7355"/>
+<ellipse cx="607" cy="242" rx="8" ry="7" fill="#8B7355"/>
+<circle cx="611" cy="240" r="2" fill="#111"/><circle cx="612" cy="239" r="0.8" fill="#fff" opacity="0.5"/>
+<ellipse cx="614" cy="236" rx="4" ry="5" fill="#A08868"/>
+<!-- Rat 5 (exploring) -->
+<ellipse cx="460" cy="250" rx="14" ry="9" fill="#9A8668"/>
+<ellipse cx="450" cy="244" rx="7" ry="6" fill="#9A8668"/>
+<circle cx="447" cy="242" r="2" fill="#111"/>
+<path d="M474 250 Q485 245 488 255" stroke="#9A8668" stroke-width="1.8" fill="none"/>
+<!-- Rat 6 (in hiding box door) -->
+<ellipse cx="602" cy="240" rx="10" ry="7" fill="#7a6345" opacity="0.5"/>
+<!-- Morphine bottle (untouched, faded) -->
+<rect x="640" y="225" width="20" height="36" rx="4" fill="#CC4444" opacity="0.25"/>
+<rect x="637" y="219" width="26" height="9" rx="3" fill="#ddd" opacity="0.25"/>
+<!-- Water bottle (preferred) -->
+<rect x="648" y="180" width="16" height="32" rx="4" fill="#4488CC" opacity="0.5"/>
+<rect x="645" y="175" width="22" height="8" rx="3" fill="#88bbee" opacity="0.4"/>
+</svg>`;
+},
+arenaHighlightDO:function(){
+const rat=document.querySelector('#r1CagedRat');
+if(rat)rat.classList.add('svg-pulse-yellow');
+},
+arenaCorrectDO:function(){
+document.querySelectorAll('.svg-pulse-yellow').forEach(el=>el.classList.remove('svg-pulse-yellow'));
+const rat=document.querySelector('#r1CagedRat');
+if(rat){rat.classList.add('svg-glow-green');}
+},
+mechanic:'pick-the-match',
+doPrompt:'Look at the cage side. What does this rat\'s condition show?',
+doOptions:['ENVIRONMENT','ISOLATION','DEPENDENCE','VARIABLE'],
+doCorrect:1,
+doCorrectText:'This rat is cut off from social contact — that\'s ISOLATION.',
+doWrongFeedback:[
+'Look at the rat in the cage — it\'s completely alone. No friends, no contact. What word describes being cut off from others?',
+null,
+'Look at the rat in the cage — it\'s completely alone. No friends, no contact. What word describes being cut off from others?',
+'Look at the rat in the cage — it\'s completely alone. No friends, no contact. What word describes being cut off from others?'
+],
+prove:{
+question:'What did isolation cause in the caged rats?',
+options:['More exercise','Higher morphine use','Better health'],
+correct:1,
+wrongFeedback:[
+'Exercise isn\'t related. Think about what the caged rats kept drinking.',
+null,
+'Their health got worse, not better. What were they consuming more of?'
+]
+},
+hintLadder:{
+hint1:{text:'Look at the context image — focus on the morphine bottle next to the isolated rat. On Monday, what happened when the rat had nothing else?',target:'r1MorphineBottle'},
+stepByStep:{panels:[
+{text:'The caged rat is alone. It has no friends, no toys, nothing to do. The only thing in its cage is the morphine bottle.',target:'r1CagedRat'},
+{text:'When a rat is isolated, it drinks more morphine. The word for being cut off from social contact is ISOLATION.',target:null}
+]}
+}
+},
+// ROUND 2
+{
+num:2,name:"Key Evidence",sourceDay:"Tuesday",sourceDayColor:"var(--tue-color)",required:true,
+scienceSkill:"Evidence evaluation",
+focusPrompt:"Remember the evidence board — find the card that shows what happened when a rat moved to a new place.",
+contextCaption:"From Tuesday: You collected evidence showing what made caged rats drink more morphine.",
+buildArena:function(container){
+container.innerHTML=`<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="corkGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5a4232"/><stop offset="50%" stop-color="#6a5242"/><stop offset="100%" stop-color="#4a3828"/></linearGradient>
+<linearGradient id="cardGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#faf5ed"/><stop offset="100%" stop-color="#ede5d8"/></linearGradient>
+</defs>
+<!-- Cork board -->
+<rect x="5" y="5" width="690" height="290" rx="12" fill="url(#corkGrad)" stroke="#3a2a1a" stroke-width="3"/>
+<!-- Cork texture dots -->
+<circle cx="50" cy="30" r="2" fill="#7a6a5a" opacity="0.3"/>
+<circle cx="180" cy="55" r="1.5" fill="#5a4a3a" opacity="0.3"/>
+<circle cx="350" cy="25" r="2.5" fill="#7a6a5a" opacity="0.25"/>
+<circle cx="500" cy="45" r="1.5" fill="#6a5a4a" opacity="0.3"/>
+<circle cx="620" cy="35" r="2" fill="#7a6a5a" opacity="0.2"/>
+<circle cx="100" cy="270" r="2" fill="#5a4a3a" opacity="0.2"/>
+<circle cx="400" cy="275" r="1.5" fill="#7a6a5a" opacity="0.25"/>
+<!-- Title banner -->
+<rect x="240" y="8" width="220" height="26" rx="4" fill="rgba(0,0,0,0.3)"/>
+<text x="350" y="26" text-anchor="middle" fill="#c4a882" font-size="14" font-weight="700" letter-spacing="1">EVIDENCE BOARD</text>
+
+<!-- Card 1: Bar graph -->
+<g id="evCard1" class="hotspot-zone" style="cursor:pointer;">
+<!-- Card shadow -->
+<rect x="18" y="48" width="210" height="165" rx="6" fill="#3a2a1a" opacity="0.4"/>
+<!-- Card -->
+<rect x="15" y="44" width="210" height="165" rx="6" fill="url(#cardGrad)" stroke="#c4a882" stroke-width="1.5"/>
+<!-- Thumbtack -->
+<circle cx="120" cy="44" r="6" fill="#CC4444"/>
+<circle cx="120" cy="42" r="3" fill="#ee6666"/>
+<!-- Title -->
+<text x="120" y="66" text-anchor="middle" fill="#333" font-size="11" font-weight="700">Cage vs Park Consumption</text>
+<!-- Mini bar chart -->
+<line x1="50" y1="85" x2="50" y2="185" stroke="#999" stroke-width="1"/>
+<line x1="50" y1="185" x2="195" y2="185" stroke="#999" stroke-width="1"/>
+<!-- Grid lines -->
+<line x1="50" y1="110" x2="195" y2="110" stroke="#ddd" stroke-width="0.5" stroke-dasharray="3"/>
+<line x1="50" y1="135" x2="195" y2="135" stroke="#ddd" stroke-width="0.5" stroke-dasharray="3"/>
+<line x1="50" y1="160" x2="195" y2="160" stroke="#ddd" stroke-width="0.5" stroke-dasharray="3"/>
+<!-- Cage bar (tall, red) -->
+<rect x="70" y="92" width="40" height="93" rx="3" fill="#CC4444"/>
+<rect x="70" y="92" width="40" height="20" rx="3" fill="#dd5555" opacity="0.5"/>
+<!-- Park bar (short, green) -->
+<rect x="135" y="160" width="40" height="25" rx="3" fill="#39a845"/>
+<rect x="135" y="160" width="40" height="8" rx="3" fill="#4ab856" opacity="0.5"/>
+<!-- Labels -->
+<text x="90" y="198" text-anchor="middle" fill="#666" font-size="9" font-weight="600">Cage</text>
+<text x="155" y="198" text-anchor="middle" fill="#666" font-size="9" font-weight="600">Park</text>
+</g>
+
+<!-- Card 2: Same Rat New Environment -->
+<g id="evCard2" class="hotspot-zone" style="cursor:pointer;">
+<rect x="248" y="48" width="210" height="165" rx="6" fill="#3a2a1a" opacity="0.4"/>
+<rect x="245" y="44" width="210" height="165" rx="6" fill="url(#cardGrad)" stroke="#c4a882" stroke-width="1.5"/>
+<!-- Thumbtack -->
+<circle cx="350" cy="44" r="6" fill="#00D4FF"/>
+<circle cx="350" cy="42" r="3" fill="#44ddff"/>
+<!-- Title -->
+<text x="350" y="66" text-anchor="middle" fill="#333" font-size="11" font-weight="700">Same Rat, New Environment</text>
+<!-- Cage mini -->
+<rect x="265" y="82" width="65" height="55" rx="5" fill="#e0ddd5" stroke="#999" stroke-width="1"/>
+<text x="297" y="98" text-anchor="middle" fill="#777" font-size="9" font-weight="600">Cage</text>
+<!-- Mini cage bars -->
+<line x1="275" y1="82" x2="275" y2="137" stroke="#aaa" stroke-width="1"/>
+<line x1="290" y1="82" x2="290" y2="137" stroke="#aaa" stroke-width="1"/>
+<line x1="305" y1="82" x2="305" y2="137" stroke="#aaa" stroke-width="1"/>
+<line x1="320" y1="82" x2="320" y2="137" stroke="#aaa" stroke-width="1"/>
+<!-- Mini rat in cage -->
+<ellipse cx="297" cy="125" rx="12" ry="7" fill="#8B7355"/>
+<circle cx="289" cy="121" r="5" fill="#8B7355"/>
+<circle cx="286" cy="119" r="1.5" fill="#111"/>
+<!-- Arrow -->
+<polygon points="340,110 370,100 370,106 400,106 400,114 370,114 370,120" fill="#00D4FF"/>
+<text x="370" y="95" text-anchor="middle" fill="#0099bb" font-size="9" font-weight="700">MOVED</text>
+<!-- Park mini -->
+<rect x="405" y="82" width="40" height="55" rx="5" fill="#d4e8d4" stroke="#6a6" stroke-width="1"/>
+<text x="425" y="98" text-anchor="middle" fill="#4a8a5a" font-size="9" font-weight="600">Park</text>
+<ellipse cx="425" cy="125" rx="12" ry="7" fill="#8B7355"/>
+<circle cx="417" cy="121" r="5" fill="#8B7355"/>
+<circle cx="414" cy="119" r="1.5" fill="#111"/>
+<!-- Result -->
+<rect x="270" y="148" width="170" height="24" rx="4" fill="#e8f5e9"/>
+<text x="355" y="164" text-anchor="middle" fill="#2D8B4E" font-size="10" font-weight="700">Consumption DROPPED</text>
+<!-- Down arrow icon -->
+<polygon points="355,170 348,178 362,178" fill="#2D8B4E"/>
+</g>
+
+<!-- Card 3: Rat Park photo -->
+<g id="evCard3" class="hotspot-zone" style="cursor:pointer;">
+<rect x="478" y="48" width="210" height="165" rx="6" fill="#3a2a1a" opacity="0.4"/>
+<rect x="475" y="44" width="210" height="165" rx="6" fill="url(#cardGrad)" stroke="#c4a882" stroke-width="1.5"/>
+<!-- Thumbtack -->
+<circle cx="580" cy="44" r="6" fill="#39a845"/>
+<circle cx="580" cy="42" r="3" fill="#5ac85a"/>
+<!-- Title -->
+<text x="580" y="66" text-anchor="middle" fill="#333" font-size="11" font-weight="700">Rat Park Setup</text>
+<!-- Park illustration -->
+<rect x="490" y="78" width="180" height="100" rx="5" fill="#e8f5e9" stroke="#8a8" stroke-width="1"/>
+<!-- Wheel -->
+<circle cx="520" cy="140" r="14" fill="none" stroke="#6a8a6a" stroke-width="2"/>
+<circle cx="520" cy="140" r="9" fill="none" stroke="#5a7a5a" stroke-width="1"/>
+<!-- Platform -->
+<rect x="550" y="130" width="30" height="5" rx="2" fill="#8a7a60"/>
+<!-- Rats inside -->
+<ellipse cx="515" cy="110" rx="10" ry="6" fill="#A08868"/>
+<circle cx="508" cy="107" r="4" fill="#A08868"/><circle cx="506" cy="105" r="1.2" fill="#111"/>
+<ellipse cx="550" cy="120" rx="10" ry="6" fill="#917654"/>
+<circle cx="543" cy="117" r="4" fill="#917654"/><circle cx="541" cy="115" r="1.2" fill="#111"/>
+<ellipse cx="590" cy="110" rx="10" ry="6" fill="#B09878"/>
+<circle cx="583" cy="107" r="4" fill="#B09878"/><circle cx="581" cy="105" r="1.2" fill="#111"/>
+<ellipse cx="630" cy="130" rx="10" ry="6" fill="#8B7355"/>
+<circle cx="623" cy="127" r="4" fill="#8B7355"/><circle cx="621" cy="125" r="1.2" fill="#111"/>
+<ellipse cx="570" cy="145" rx="10" ry="6" fill="#9A8668"/>
+<circle cx="563" cy="142" r="4" fill="#9A8668"/><circle cx="561" cy="140" r="1.2" fill="#111"/>
+<!-- Caption -->
+<text x="580" y="196" text-anchor="middle" fill="#555" font-size="9">Enriched environment with friends</text>
+</g>
+
+<!-- Evidence counter badge -->
+<rect x="280" y="242" width="140" height="30" rx="15" fill="rgba(0,0,0,0.3)" stroke="#c4a882" stroke-width="1"/>
+<text x="350" y="262" text-anchor="middle" fill="#c4a882" font-size="13" font-weight="700">Evidence: 3 pieces</text>
+</svg>`;
+},
+arenaHighlightDO:function(){
+const c2=document.querySelector('#evCard2 rect');
+if(c2)document.querySelector('#evCard2').classList.add('svg-pulse-yellow');
+},
+arenaCorrectDO:function(){
+document.querySelectorAll('.svg-pulse-yellow').forEach(el=>el.classList.remove('svg-pulse-yellow'));
+const c2=document.querySelector('#evCard2');
+if(c2)c2.classList.add('svg-glow-green');
+},
+mechanic:'coach-click',
+doPrompt:'Click the card that shows the same rat moving to a new environment.',
+doClickTargets:['evCard1','evCard2','evCard3'],
+doCorrect:1,
+doCorrectText:'This is the key — same rat, different environment, less morphine.',
+doWrongFeedback:[
+'The bar graph shows the difference, but look for the card with an arrow — it shows what happened when a rat switched places.',
+null,
+'That shows what Rat Park looks like, but not what happened to a specific rat. Look for the card that shows a rat moving from one place to another.'
+],
+prove:{
+question:'Why does this evidence prove environment matters?',
+options:['The environment changed but the rat stayed the same','The rat changed','The drug changed'],
+correct:0,
+wrongFeedback:[
+null,
+'The rat didn\'t change — it was the SAME rat. What changed around it?',
+'The drug was identical in both places. What was different?'
+]
+},
+hintLadder:{
+hint1:{text:'Look at Card 2 on the evidence board — the arrow shows the same rat moving from cage to park. What happened to its consumption after it moved?',target:'evCard2'},
+stepByStep:{panels:[
+{text:'Card 2 shows something powerful: the same rat was moved from the cage to Rat Park. Its morphine consumption dropped.',target:'evCard2'},
+{text:'If the same rat drank less in a new environment, the environment must be what changed the behavior — not the drug and not the rat.',target:null}
+]}
+}
+},
+// ROUND 3
+{num:3,name:"Lab Variable ID",sourceDay:"Wednesday",sourceDayColor:"var(--wed-color)",required:true,
+scienceSkill:"Variable identification",
+focusPrompt:"Remember the lab controls — find the one that's active.",
+contextCaption:"From Wednesday: You tested one control at a time to see what changed dependence.",
+buildArena:function(container){
+container.innerHTML=`<svg viewBox="0 0 700 310" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="panelGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22223a"/><stop offset="100%" stop-color="#1a1a2e"/></linearGradient>
+<linearGradient id="sliderTrack" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#333"/><stop offset="100%" stop-color="#444"/></linearGradient>
+<linearGradient id="activeGlow" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(255,215,0,0.2)"/><stop offset="100%" stop-color="rgba(255,215,0,0.05)"/></linearGradient>
+<linearGradient id="meterFill" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#aa2222"/><stop offset="60%" stop-color="#CC4444"/><stop offset="100%" stop-color="#ee6644"/></linearGradient>
+<linearGradient id="envGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#333342"/><stop offset="100%" stop-color="#2a2a3a"/></linearGradient>
+</defs>
+
+<!-- === CONTROL PANEL === -->
+<rect x="8" y="8" width="210" height="294" rx="12" fill="url(#panelGrad)" stroke="#444" stroke-width="2"/>
+<!-- Panel screws -->
+<circle cx="22" cy="22" r="4" fill="#555" stroke="#666" stroke-width="1"/>
+<circle cx="204" cy="22" r="4" fill="#555" stroke="#666" stroke-width="1"/>
+<circle cx="22" cy="288" r="4" fill="#555" stroke="#666" stroke-width="1"/>
+<circle cx="204" cy="288" r="4" fill="#555" stroke="#666" stroke-width="1"/>
+<!-- Label -->
+<rect x="55" y="12" width="116" height="22" rx="4" fill="#111" stroke="#555" stroke-width="1"/>
+<text x="113" y="28" text-anchor="middle" fill="#8B5CF6" font-size="11" font-weight="700" letter-spacing="1">CONTROL PANEL</text>
+
+<!-- Slider 1: Social Access (ACTIVE) -->
+<g id="r3Slider1" class="hotspot-zone" style="cursor:pointer;">
+<rect x="20" y="44" width="186" height="78" rx="8" fill="url(#activeGlow)" stroke="#FFD700" stroke-width="2.5"/>
+<!-- LED indicator -->
+<circle cx="35" cy="56" r="4" fill="#FFD700"/>
+<circle cx="35" cy="56" r="2" fill="#fff" opacity="0.6"/>
+<text x="50" y="60" fill="#FFD700" font-size="12" font-weight="700">Social Access</text>
+<!-- Track -->
+<rect x="35" y="76" width="156" height="10" rx="5" fill="url(#sliderTrack)"/>
+<rect x="35" y="76" width="40" height="10" rx="5" fill="rgba(255,215,0,0.3)"/>
+<!-- Thumb -->
+<circle cx="55" cy="81" r="10" fill="#FFD700" stroke="#daa520" stroke-width="1.5"/>
+<circle cx="55" cy="81" r="5" fill="#fff" opacity="0.3"/>
+<!-- Labels -->
+<text x="35" y="104" fill="#FFD700" font-size="9" font-weight="600">Alone</text>
+<text x="191" y="104" fill="#888" font-size="9" text-anchor="end">Social</text>
+<rect x="70" y="110" width="80" height="14" rx="7" fill="rgba(255,215,0,0.15)"/>
+<text x="110" y="120" text-anchor="middle" fill="#FFD700" font-size="8" font-weight="700">ACTIVE</text>
+</g>
+
+<!-- Slider 2: Space Size (LOCKED) -->
+<g id="r3Slider2" class="hotspot-zone" style="cursor:pointer;">
+<rect x="20" y="132" width="186" height="78" rx="8" fill="rgba(60,60,70,0.3)" stroke="#444" stroke-width="1" stroke-dasharray="5"/>
+<circle cx="35" cy="144" r="4" fill="#555"/>
+<text x="50" y="148" fill="#666" font-size="12" font-weight="700">Space Size</text>
+<rect x="35" y="164" width="156" height="10" rx="5" fill="#2a2a3a"/>
+<circle cx="113" cy="169" r="10" fill="#555" stroke="#444" stroke-width="1.5"/>
+<circle cx="113" cy="169" r="5" fill="#444" opacity="0.3"/>
+<text x="35" y="192" fill="#555" font-size="9">Small</text>
+<text x="191" y="192" fill="#555" font-size="9" text-anchor="end">Large</text>
+<rect x="70" y="198" width="80" height="14" rx="7" fill="rgba(80,80,80,0.2)"/>
+<text x="110" y="208" text-anchor="middle" fill="#555" font-size="8" font-weight="700">LOCKED</text>
+</g>
+
+<!-- Slider 3: Enrichment (LOCKED) -->
+<g id="r3Slider3" class="hotspot-zone" style="cursor:pointer;">
+<rect x="20" y="220" width="186" height="78" rx="8" fill="rgba(60,60,70,0.3)" stroke="#444" stroke-width="1" stroke-dasharray="5"/>
+<circle cx="35" cy="232" r="4" fill="#555"/>
+<text x="50" y="236" fill="#666" font-size="12" font-weight="700">Enrichment</text>
+<rect x="35" y="252" width="156" height="10" rx="5" fill="#2a2a3a"/>
+<circle cx="113" cy="257" r="10" fill="#555" stroke="#444" stroke-width="1.5"/>
+<circle cx="113" cy="257" r="5" fill="#444" opacity="0.3"/>
+<text x="35" y="280" fill="#555" font-size="9">None</text>
+<text x="191" y="280" fill="#555" font-size="9" text-anchor="end">Full</text>
+<rect x="70" y="286" width="80" height="14" rx="7" fill="rgba(80,80,80,0.2)"/>
+<text x="110" y="296" text-anchor="middle" fill="#555" font-size="8" font-weight="700">LOCKED</text>
+</g>
+
+<!-- === ENVIRONMENT VIEW === -->
+<rect x="235" y="25" width="280" height="265" rx="12" fill="url(#envGrad)" stroke="#555" stroke-width="2"/>
+<rect x="270" y="30" width="210" height="20" rx="4" fill="#111"/>
+<text x="375" y="45" text-anchor="middle" fill="#aaa" font-size="11" font-weight="700" letter-spacing="1">ENVIRONMENT VIEW</text>
+<!-- Room -->
+<rect x="265" y="60" width="220" height="200" rx="8" fill="#383848" stroke="#555" stroke-width="1"/>
+<!-- Floor -->
+<rect x="265" y="220" width="220" height="40" rx="0" fill="#333342"/>
+<!-- Some items (moderate enrichment) -->
+<circle cx="320" cy="215" r="16" fill="none" stroke="#5a5a6a" stroke-width="2"/>
+<rect x="370" y="200" width="35" height="7" rx="2" fill="#6a5a4a" transform="rotate(-5 387 203)"/>
+<rect x="420" y="195" width="25" height="22" rx="4" fill="#4a4a5a" stroke="#5a5a6a" stroke-width="1"/>
+<!-- Lone rat (detailed) -->
+<ellipse cx="370" cy="170" rx="30" ry="18" fill="#8B7355"/>
+<ellipse cx="370" cy="172" rx="25" ry="12" fill="#9A8365" opacity="0.4"/>
+<ellipse cx="345" cy="158" rx="14" ry="12" fill="#8B7355"/>
+<ellipse cx="337" cy="151" rx="6" ry="8" fill="#A08868"/>
+<ellipse cx="337" cy="151" rx="4" ry="5" fill="#C4A882" opacity="0.4"/>
+<ellipse cx="349" cy="149" rx="6" ry="8" fill="#A08868"/>
+<ellipse cx="349" cy="149" rx="4" ry="5" fill="#C4A882" opacity="0.4"/>
+<circle cx="339" cy="156" r="3" fill="#111"/>
+<circle cx="337.5" cy="154.5" r="1" fill="#fff" opacity="0.6"/>
+<ellipse cx="331" cy="161" rx="2.5" ry="1.5" fill="#D4A886"/>
+<line x1="331" y1="159" x2="316" y2="156" stroke="#A08868" stroke-width="0.7" opacity="0.5"/>
+<line x1="331" y1="161" x2="314" y2="161" stroke="#A08868" stroke-width="0.7" opacity="0.5"/>
+<line x1="331" y1="163" x2="316" y2="166" stroke="#A08868" stroke-width="0.7" opacity="0.5"/>
+<ellipse cx="355" cy="185" rx="5" ry="3.5" fill="#A08868"/>
+<ellipse cx="390" cy="185" rx="5" ry="3.5" fill="#A08868"/>
+<path d="M400 170 Q420 165 425 178 Q428 190 418 195" stroke="#8B7355" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<ellipse cx="370" cy="190" rx="22" ry="4" fill="#2a2a3a" opacity="0.35"/>
+
+<!-- === CONSUMPTION METER === -->
+<rect x="535" y="25" width="70" height="265" rx="10" fill="#1a1a2e" stroke="#555" stroke-width="2"/>
+<rect x="545" y="30" width="50" height="18" rx="3" fill="#111"/>
+<text x="570" y="43" text-anchor="middle" fill="#CC4444" font-size="8" font-weight="700" letter-spacing="0.5">MORPHINE</text>
+<!-- Scale marks -->
+<text x="542" y="68" fill="#666" font-size="7" text-anchor="end">100</text>
+<text x="542" y="128" fill="#666" font-size="7" text-anchor="end">50</text>
+<text x="542" y="248" fill="#666" font-size="7" text-anchor="end">0</text>
+<!-- Tube -->
+<rect x="550" y="55" width="40" height="200" rx="6" fill="#222"/>
+<rect x="552" y="57" width="36" height="196" rx="5" fill="#1a1a1a"/>
+<!-- Fill (75%) -->
+<rect x="552" y="107" width="36" height="146" rx="5" fill="url(#meterFill)"/>
+<!-- Bubbles in liquid -->
+<circle cx="565" cy="200" r="3" fill="#dd5555" opacity="0.3"/>
+<circle cx="575" cy="170" r="2" fill="#dd5555" opacity="0.25"/>
+<circle cx="560" cy="230" r="2.5" fill="#dd5555" opacity="0.2"/>
+<!-- Percentage -->
+<rect x="545" y="260" width="50" height="22" rx="4" fill="rgba(204,68,68,0.15)"/>
+<text x="570" y="276" text-anchor="middle" fill="#CC4444" font-size="13" font-weight="900">75%</text>
+</svg>`;
+},
+arenaHighlightDO:function(){
+const s=document.querySelector('#r3Slider1');
+if(s)s.classList.add('svg-pulse-yellow');
+},
+arenaCorrectDO:function(){
+document.querySelectorAll('.svg-pulse-yellow').forEach(el=>el.classList.remove('svg-pulse-yellow'));
+const s=document.querySelector('#r3Slider1');
+if(s)s.classList.add('svg-glow-green');
+},
+mechanic:'hotspot',
+doPrompt:'Click the control that is being changed in this setup.',
+doClickTargets:['r3Slider1','r3Slider2','r3Slider3'],
+doCorrect:0,
+doCorrectText:'Social Access is the VARIABLE being tested.',
+doWrongFeedback:[
+null,
+'That one is grayed out — it\'s locked. Look for the slider that\'s glowing.',
+'That one is locked too. One slider is lit up with a bright border — which one?'
+],
+prove:{
+question:'When you added social contact, what happened to dependence?',
+options:['It increased','It stayed the same','It decreased'],
+correct:2,
+wrongFeedback:[
+'Adding friends didn\'t make it worse. Remember Wednesday — what happened to the meter when rats had company?',
+'It definitely changed. Think about what the consumption meter did when you switched from alone to social.',
+null
+]
+},
+hintLadder:{
+hint1:{text:'Look at the control panel — the glowing slider is the one you\'re testing. The other two are locked and grayed out. Which one is active?',target:'r3Slider1'},
+stepByStep:{panels:[
+{text:'In the lab, you only test one variable at a time. The active variable has a glowing border. The locked ones are gray.',target:'r3Slider1'},
+{text:'Social Access is the variable being tested. On Wednesday, when you added other rats, the morphine consumption meter dropped — dependence decreased.',target:null}
+]}
+}
+},
+// ROUND 4
+{num:4,name:"Cause-and-Effect Chain",sourceDay:"Monday",sourceDayColor:"var(--mon-color)",required:true,
+scienceSkill:"Cause-and-effect sequencing",
+focusPrompt:"Remember the chain from Monday — what came AFTER the rat was isolated?",
+contextCaption:"From Monday: Alexander's experiment showed a step-by-step chain from cage to addiction.",
+buildArena:function(container){
+container.innerHTML=`<svg viewBox="0 0 700 290" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="chainBox" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e2e42"/><stop offset="100%" stop-color="#222236"/></linearGradient>
+<linearGradient id="meterBar" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#aa2222"/><stop offset="80%" stop-color="#CC4444"/><stop offset="100%" stop-color="#ee5544"/></linearGradient>
+</defs>
+
+<!-- Chain title -->
+<text x="350" y="22" text-anchor="middle" fill="#aaa" font-size="13" font-weight="700" letter-spacing="1">CAUSE-AND-EFFECT CHAIN</text>
+
+<!-- === BOX 1: Isolation === -->
+<g>
+<rect x="15" y="42" width="185" height="110" rx="10" fill="url(#chainBox)" stroke="#888" stroke-width="2"/>
+<!-- Cage icon -->
+<rect x="35" y="58" width="50" height="40" rx="4" fill="#333"/>
+<line x1="42" y1="58" x2="42" y2="98" stroke="#666" stroke-width="1.5"/>
+<line x1="52" y1="58" x2="52" y2="98" stroke="#666" stroke-width="1.5"/>
+<line x1="62" y1="58" x2="62" y2="98" stroke="#666" stroke-width="1.5"/>
+<line x1="72" y1="58" x2="72" y2="98" stroke="#666" stroke-width="1.5"/>
+<!-- Mini rat inside -->
+<ellipse cx="57" cy="88" rx="10" ry="6" fill="#8B7355"/>
+<circle cx="50" cy="84" r="4.5" fill="#8B7355"/>
+<circle cx="48" cy="83" r="1.3" fill="#111"/>
+<!-- Text -->
+<text x="130" y="73" text-anchor="middle" fill="#ddd" font-size="12" font-weight="700">Rat placed in</text>
+<text x="130" y="90" text-anchor="middle" fill="#ddd" font-size="12" font-weight="700">isolation</text>
+<!-- Step number -->
+<circle cx="25" cy="52" r="10" fill="#666"/>
+<text x="25" y="56" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">1</text>
+</g>
+
+<!-- === ARROW 1 === -->
+<g>
+<line x1="205" y1="97" x2="225" y2="97" stroke="#666" stroke-width="2"/>
+<polygon points="225,90 240,97 225,104" fill="#888"/>
+</g>
+
+<!-- === BOX 2: No Social Contact === -->
+<g>
+<rect x="245" y="42" width="185" height="110" rx="10" fill="url(#chainBox)" stroke="#888" stroke-width="2"/>
+<!-- Single rat icon with X -->
+<ellipse cx="280" cy="88" rx="12" ry="7" fill="#8B7355" opacity="0.5"/>
+<circle cx="272" cy="83" r="5" fill="#8B7355" opacity="0.5"/>
+<!-- Red X over companions -->
+<line x1="300" y1="72" x2="320" y2="92" stroke="#CC4444" stroke-width="3" stroke-linecap="round"/>
+<line x1="320" y1="72" x2="300" y2="92" stroke="#CC4444" stroke-width="3" stroke-linecap="round"/>
+<!-- Ghost rats (what's missing) -->
+<ellipse cx="315" cy="88" rx="10" ry="6" fill="#555" opacity="0.15"/>
+<ellipse cx="335" cy="82" rx="8" ry="5" fill="#555" opacity="0.1"/>
+<!-- Text -->
+<text x="370" y="78" text-anchor="middle" fill="#ddd" font-size="12" font-weight="700">No social</text>
+<text x="370" y="95" text-anchor="middle" fill="#ddd" font-size="12" font-weight="700">contact</text>
+<circle cx="255" cy="52" r="10" fill="#666"/>
+<text x="255" y="56" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">2</text>
+</g>
+
+<!-- === ARROW 2 === -->
+<g>
+<line x1="435" y1="97" x2="455" y2="97" stroke="#666" stroke-width="2"/>
+<polygon points="455,90 470,97 455,104" fill="#888"/>
+</g>
+
+<!-- === BOX 3: ??? (Mystery) === -->
+<g id="r4MysteryBox">
+<rect x="475" y="42" width="210" height="110" rx="10" fill="url(#chainBox)" stroke="#FFD700" stroke-width="2.5" stroke-dasharray="8"/>
+<!-- Pulsing question marks -->
+<text x="580" y="100" text-anchor="middle" fill="#FFD700" font-size="40" font-weight="900">???</text>
+<circle cx="485" cy="52" r="10" fill="#FFD700"/>
+<text x="485" y="56" text-anchor="middle" fill="#111" font-size="11" font-weight="700">3</text>
+<!-- Glow effect rectangle -->
+<rect x="478" y="45" width="204" height="104" rx="8" fill="none" stroke="rgba(255,215,0,0.2)" stroke-width="4"/>
+</g>
+
+<!-- === CONSUMPTION METER (below chain) === -->
+<rect x="155" y="185" width="390" height="90" rx="12" fill="#1a1a2e" stroke="#555" stroke-width="2"/>
+<!-- Meter label -->
+<text x="210" y="210" fill="#aaa" font-size="11" font-weight="700">Morphine Consumption:</text>
+<!-- Track -->
+<rect x="180" y="225" width="340" height="22" rx="11" fill="#222"/>
+<!-- Fill (high) -->
+<rect x="182" y="227" width="290" height="18" rx="9" fill="url(#meterBar)"/>
+<!-- Tick marks -->
+<line x1="270" y1="220" x2="270" y2="225" stroke="#555" stroke-width="1"/>
+<line x1="350" y1="220" x2="350" y2="225" stroke="#555" stroke-width="1"/>
+<line x1="430" y1="220" x2="430" y2="225" stroke="#555" stroke-width="1"/>
+<!-- Label -->
+<rect x="390" y="202" width="55" height="18" rx="9" fill="rgba(204,68,68,0.2)"/>
+<text x="417" y="215" text-anchor="middle" fill="#CC4444" font-size="12" font-weight="900">HIGH</text>
+<!-- Morphine bottle icon -->
+<rect x="485" y="205" width="18" height="30" rx="4" fill="#CC4444" opacity="0.7"/>
+<rect x="482" y="200" width="24" height="8" rx="3" fill="#ddd" opacity="0.5"/>
+<text x="494" y="225" text-anchor="middle" fill="#fff" font-size="7" font-weight="700">M</text>
+</svg>`;
+},
+arenaHighlightDO:function(){
+const mb=document.querySelector('#r4MysteryBox');
+if(mb)mb.classList.add('svg-pulse-yellow');
+},
+arenaCorrectDO:function(){
+document.querySelectorAll('.svg-pulse-yellow').forEach(el=>el.classList.remove('svg-pulse-yellow'));
+const mb=document.querySelector('#r4MysteryBox');
+if(mb){
+mb.classList.add('svg-glow-green');
+// Fill in the answer
+const txt=mb.querySelector('text');
+if(txt){txt.textContent='Consumption';txt.setAttribute('font-size','11');txt.setAttribute('y','88');}
+// Add second line
+const t2=document.createElementNS('http://www.w3.org/2000/svg','text');
+t2.setAttribute('x','540');t2.setAttribute('y','102');t2.setAttribute('text-anchor','middle');
+t2.setAttribute('fill','#CC4444');t2.setAttribute('font-size','11');t2.setAttribute('font-weight','700');
+t2.textContent='rises';
+mb.appendChild(t2);
+const rect=mb.querySelector('rect');
+if(rect){rect.setAttribute('stroke','var(--correct)');rect.removeAttribute('stroke-dasharray');}
+}
+},
+mechanic:'what-comes-next',
+doPrompt:'Look at the meter below the chain. What comes next?',
+doOptions:['Rat escapes the cage','Morphine consumption rises','Rat ignores the morphine'],
+doCorrect:1,
+doCorrectText:'Isolation leads to no social contact, which leads to higher morphine consumption.',
+doWrongFeedback:[
+'The rats couldn\'t escape. Think about what they did instead — what did they drink more of?',
+null,
+'Isolated rats didn\'t ignore the morphine — they drank MORE. What happens to consumption when a rat has nothing else?'
+],
+prove:{
+question:'What does this cause-and-effect chain show?',
+options:['Isolation leads to dependence','Drugs are always addictive','Rats prefer morphine to water'],
+correct:0,
+wrongFeedback:[
+null,
+'If drugs were always addictive, the Rat Park rats would have used just as much. What was different about the caged rats?',
+'That\'s not what the chain shows. Look at the first step — what started the whole chain?'
+]
+},
+hintLadder:{
+hint1:{text:'Look at the first two boxes in the chain — the rat is alone with no social contact. On Monday, what did Alexander find happened next to the morphine consumption?',target:'r4MysteryBox'},
+stepByStep:{panels:[
+{text:'The chain starts with isolation and no social contact. With nothing else to do, the rat turned to the morphine bottle.',target:'r4MysteryBox'},
+{text:'Isolation leads to no social contact, then morphine consumption rises, then dependence develops. The chain shows that isolation started the path to dependence.',target:null}
+]}
+}
+},
+// ROUND 5
+{num:5,name:"Graph Comparison",sourceDay:"Tuesday",sourceDayColor:"var(--tue-color)",required:true,
+scienceSkill:"Data interpretation",
+focusPrompt:"Remember the bar graphs — look at what happened when caged rats were moved to Rat Park.",
+contextCaption:"From Tuesday: These graphs compare rats that stayed in cages to rats moved to Rat Park.",
+buildArena:function(container){
+container.innerHTML=`<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="redBar5" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ee5544"/><stop offset="100%" stop-color="#aa2222"/></linearGradient>
+<linearGradient id="greenBar5" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4ac85a"/><stop offset="100%" stop-color="#2a8a3a"/></linearGradient>
+<linearGradient id="graphBg5" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1e1e32"/><stop offset="100%" stop-color="#181828"/></linearGradient>
+</defs>
+
+<!-- === LEFT GRAPH: Stayed in Cage === -->
+<rect x="15" y="15" width="305" height="270" rx="12" fill="url(#graphBg5)" stroke="#555" stroke-width="2"/>
+<!-- Title badge -->
+<rect x="60" y="22" width="210" height="26" rx="13" fill="rgba(204,68,68,0.15)" stroke="#CC4444" stroke-width="1"/>
+<text x="165" y="40" text-anchor="middle" fill="#dd7766" font-size="12" font-weight="700">Rats Stayed in Cage</text>
+
+<!-- Y-axis -->
+<line x1="70" y1="65" x2="70" y2="250" stroke="#444" stroke-width="1.5"/>
+<text x="58" y="75" fill="#777" font-size="9" text-anchor="end">100</text>
+<text x="58" y="120" fill="#777" font-size="9" text-anchor="end">75</text>
+<text x="58" y="165" fill="#777" font-size="9" text-anchor="end">50</text>
+<text x="58" y="210" fill="#777" font-size="9" text-anchor="end">25</text>
+<text x="58" y="254" fill="#777" font-size="9" text-anchor="end">0</text>
+<!-- Y-axis label -->
+<text x="22" y="165" fill="#888" font-size="9" font-weight="600" transform="rotate(-90 22 165)">Morphine Consumption</text>
+<!-- X-axis -->
+<line x1="70" y1="250" x2="290" y2="250" stroke="#444" stroke-width="1.5"/>
+<!-- Grid lines -->
+<line x1="70" y1="75" x2="290" y2="75" stroke="#333" stroke-width="0.5" stroke-dasharray="4"/>
+<line x1="70" y1="120" x2="290" y2="120" stroke="#333" stroke-width="0.5" stroke-dasharray="4"/>
+<line x1="70" y1="165" x2="290" y2="165" stroke="#333" stroke-width="0.5" stroke-dasharray="4"/>
+<line x1="70" y1="210" x2="290" y2="210" stroke="#333" stroke-width="0.5" stroke-dasharray="4"/>
+
+<!-- Red bar (HIGH ~90%) -->
+<rect id="r5BarCage" x="130" y="82" width="80" height="168" rx="5" fill="url(#redBar5)"/>
+<!-- Bar shine -->
+<rect x="135" y="82" width="20" height="168" rx="3" fill="#fff" opacity="0.06"/>
+<!-- Value label -->
+<rect x="140" y="87" width="50" height="20" rx="10" fill="rgba(0,0,0,0.4)"/>
+<text x="165" y="101" text-anchor="middle" fill="#ff8877" font-size="11" font-weight="900">HIGH</text>
+<!-- Mini cage icon on bar -->
+<rect x="152" y="220" width="26" height="18" rx="3" fill="rgba(0,0,0,0.3)"/>
+<line x1="156" y1="220" x2="156" y2="238" stroke="#888" stroke-width="0.8"/>
+<line x1="163" y1="220" x2="163" y2="238" stroke="#888" stroke-width="0.8"/>
+<line x1="170" y1="220" x2="170" y2="238" stroke="#888" stroke-width="0.8"/>
+<!-- X label -->
+<text x="170" y="268" text-anchor="middle" fill="#aaa" font-size="10" font-weight="600">Caged Rats</text>
+
+<!-- === MOVED ARROW === -->
+<g>
+<rect x="325" y="115" width="50" height="60" rx="25" fill="rgba(0,212,255,0.08)" stroke="#00D4FF" stroke-width="1.5"/>
+<polygon points="340,143 370,128 370,137 378,137 378,149 370,149 370,158" fill="#00D4FF"/>
+<text x="350" y="112" text-anchor="middle" fill="#00D4FF" font-size="12" font-weight="900" letter-spacing="1">MOVED</text>
+<text x="350" y="190" text-anchor="middle" fill="#0099bb" font-size="9">Same rats</text>
+</g>
+
+<!-- === RIGHT GRAPH: Moved to Rat Park === -->
+<rect x="380" y="15" width="305" height="270" rx="12" fill="url(#graphBg5)" stroke="#555" stroke-width="2"/>
+<rect x="410" y="22" width="240" height="26" rx="13" fill="rgba(57,168,69,0.15)" stroke="#39a845" stroke-width="1"/>
+<text x="530" y="40" text-anchor="middle" fill="#5ac86a" font-size="12" font-weight="700">Same Rats Moved to Rat Park</text>
+
+<!-- Y-axis -->
+<line x1="435" y1="65" x2="435" y2="250" stroke="#444" stroke-width="1.5"/>
+<text x="423" y="75" fill="#777" font-size="9" text-anchor="end">100</text>
+<text x="423" y="120" fill="#777" font-size="9" text-anchor="end">75</text>
+<text x="423" y="165" fill="#777" font-size="9" text-anchor="end">50</text>
+<text x="423" y="210" fill="#777" font-size="9" text-anchor="end">25</text>
+<text x="423" y="254" fill="#777" font-size="9" text-anchor="end">0</text>
+<!-- X-axis -->
+<line x1="435" y1="250" x2="660" y2="250" stroke="#444" stroke-width="1.5"/>
+<!-- Grid -->
+<line x1="435" y1="75" x2="660" y2="75" stroke="#333" stroke-width="0.5" stroke-dasharray="4"/>
+<line x1="435" y1="120" x2="660" y2="120" stroke="#333" stroke-width="0.5" stroke-dasharray="4"/>
+<line x1="435" y1="165" x2="660" y2="165" stroke="#333" stroke-width="0.5" stroke-dasharray="4"/>
+<line x1="435" y1="210" x2="660" y2="210" stroke="#333" stroke-width="0.5" stroke-dasharray="4"/>
+
+<!-- Green bar (LOW ~15%) -->
+<rect id="r5BarPark" x="500" y="222" width="80" height="28" rx="5" fill="url(#greenBar5)"/>
+<rect x="505" y="222" width="20" height="28" rx="3" fill="#fff" opacity="0.06"/>
+<rect x="510" y="226" width="50" height="18" rx="9" fill="rgba(0,0,0,0.4)"/>
+<text x="535" y="239" text-anchor="middle" fill="#5ac86a" font-size="11" font-weight="900">LOW</text>
+<!-- Mini park icon -->
+<circle cx="530" cy="210" r="5" fill="none" stroke="#4a8a5a" stroke-width="1"/>
+<!-- X label -->
+<text x="540" y="268" text-anchor="middle" fill="#aaa" font-size="10" font-weight="600">Rat Park Rats</text>
+</svg>`;
+},
+arenaHighlightDO:function(){
+const b1=document.querySelector('#r5BarCage');
+const b2=document.querySelector('#r5BarPark');
+if(b1)b1.classList.add('svg-pulse-yellow');
+if(b2)b2.classList.add('svg-pulse-yellow');
+},
+arenaCorrectDO:function(){
+document.querySelectorAll('.svg-pulse-yellow').forEach(el=>el.classList.remove('svg-pulse-yellow'));
+const b2=document.querySelector('#r5BarPark');
+if(b2)b2.classList.add('svg-glow-green');
+},
+mechanic:'coach-click',
+doPrompt:'What do you notice about the rats that were moved to Rat Park?',
+doOptions:['Their consumption dropped','Their consumption stayed high','They stopped eating food'],
+doCorrect:0,
+doCorrectText:'Environment changed and dependence decreased.',
+doWrongFeedback:[
+null,
+'Look at the height of the bars carefully. The right bar is much shorter than the left. What does a shorter bar mean?',
+'This graph shows morphine consumption, not food. Compare the bar heights — did the consumption go up or down after they moved?'
+],
+// Coach-click uses option cards, not SVG targets
+doClickTargets:null,
+prove:{
+question:'The consumption dropped after they moved. What does that tell you?',
+options:['Dependence never changes','A new environment can lower dependence','The drug got weaker in Rat Park'],
+correct:1,
+wrongFeedback:[
+'But it DID change — look at the bars. The right bar is much shorter. Something made the difference.',
+null,
+'The morphine was exactly the same in both places. What changed was where the rats lived, not what they drank.'
+]
+},
+hintLadder:{
+hint1:{text:'Look at the two bars — the left bar is tall (high consumption in the cage) and the right bar is short (low consumption in Rat Park). The same rats, but the environment changed.',target:'r5BarPark'},
+stepByStep:{panels:[
+{text:'The left graph shows high morphine use in the cage. The right graph shows the SAME rats after they moved to Rat Park — their consumption dropped.',target:'r5BarCage'},
+{text:'The rats didn\'t change. The environment changed. A new environment lowered their dependence.',target:null}
+]}
+}
+},
+// ROUND 6
+{num:6,name:"Environment Prediction",sourceDay:"Wednesday",sourceDayColor:"var(--wed-color)",required:true,
+scienceSkill:"Prediction",
+focusPrompt:"Remember what you saw in the lab — click the setup that would show HIGHER dependence.",
+contextCaption:"From Wednesday: You tested different environments and saw how dependence changed.",
+buildArena:function(container){
+container.innerHTML=`<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="cageBg6" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#333342"/><stop offset="100%" stop-color="#252535"/></linearGradient>
+<linearGradient id="parkBg6" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1e3e1e"/><stop offset="100%" stop-color="#142e14"/></linearGradient>
+</defs>
+<!-- Title -->
+<rect x="180" y="2" width="340" height="22" rx="11" fill="rgba(255,215,0,0.1)" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+<text x="350" y="18" text-anchor="middle" fill="#FFD700" font-size="12" font-weight="700">Which environment leads to HIGHER dependence?</text>
+
+<!-- === SETUP A: Isolated Cage === -->
+<g id="r6SetupA" class="hotspot-zone" style="cursor:pointer;">
+<rect x="12" y="32" width="320" height="256" rx="12" fill="url(#cageBg6)" stroke="#777" stroke-width="2"/>
+<!-- Label badge -->
+<rect x="110" y="38" width="110" height="24" rx="12" fill="#3a3a4a" stroke="#888" stroke-width="1"/>
+<text x="165" y="54" text-anchor="middle" fill="#ccc" font-size="13" font-weight="700">Setup A</text>
+<!-- Cage structure -->
+<rect x="40" y="72" width="264" height="190" rx="6" fill="#2a2a38"/>
+<!-- Vertical bars -->
+<line x1="55" y1="72" x2="55" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="82" y1="72" x2="82" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="109" y1="72" x2="109" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="136" y1="72" x2="136" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="163" y1="72" x2="163" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="190" y1="72" x2="190" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="217" y1="72" x2="217" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="244" y1="72" x2="244" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="271" y1="72" x2="271" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="290" y1="72" x2="290" y2="262" stroke="#6a6a7a" stroke-width="2.5" stroke-linecap="round"/>
+<!-- Horizontal bars -->
+<line x1="40" y1="85" x2="304" y2="85" stroke="#5a5a6a" stroke-width="2"/>
+<line x1="40" y1="170" x2="304" y2="170" stroke="#5a5a6a" stroke-width="2"/>
+<!-- Lonely rat (detailed) -->
+<ellipse cx="172" cy="210" rx="32" ry="20" fill="#8B7355"/>
+<ellipse cx="172" cy="212" rx="27" ry="14" fill="#9A8365" opacity="0.4"/>
+<ellipse cx="146" cy="197" rx="15" ry="13" fill="#8B7355"/>
+<ellipse cx="138" cy="190" rx="6" ry="8" fill="#A08868"/>
+<ellipse cx="138" cy="190" rx="4" ry="5" fill="#C4A882" opacity="0.4"/>
+<ellipse cx="150" cy="188" rx="6" ry="8" fill="#A08868"/>
+<ellipse cx="150" cy="188" rx="4" ry="5" fill="#C4A882" opacity="0.4"/>
+<circle cx="140" cy="195" r="3" fill="#111"/>
+<circle cx="138.5" cy="193.5" r="1" fill="#fff" opacity="0.6"/>
+<ellipse cx="132" cy="200" rx="2.5" ry="1.5" fill="#D4A886"/>
+<line x1="132" y1="198" x2="118" y2="195" stroke="#A08868" stroke-width="0.7" opacity="0.5"/>
+<line x1="132" y1="200" x2="116" y2="200" stroke="#A08868" stroke-width="0.7" opacity="0.5"/>
+<line x1="132" y1="202" x2="118" y2="205" stroke="#A08868" stroke-width="0.7" opacity="0.5"/>
+<ellipse cx="157" cy="226" rx="5" ry="3.5" fill="#A08868"/>
+<ellipse cx="192" cy="226" rx="5" ry="3.5" fill="#A08868"/>
+<path d="M204 210 Q225 205 230 218 Q233 230 222 235" stroke="#8B7355" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<ellipse cx="172" cy="230" rx="24" ry="4" fill="#1a1a2a" opacity="0.35"/>
+<!-- Morphine bottle -->
+<rect x="255" y="210" width="22" height="38" rx="4" fill="#CC4444" opacity="0.85"/>
+<rect x="252" y="204" width="28" height="10" rx="3" fill="#ddd"/>
+<text x="266" y="236" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">M</text>
+<!-- Empty/barren label -->
+<text x="172" y="280" text-anchor="middle" fill="#888" font-size="9" font-style="italic">Bare cage, alone</text>
+</g>
+
+<!-- === VS BADGE === -->
+<rect x="334" y="135" width="32" height="32" rx="16" fill="rgba(255,215,0,0.15)" stroke="#FFD700" stroke-width="1.5"/>
+<text x="350" y="157" text-anchor="middle" fill="#FFD700" font-size="14" font-weight="900">VS</text>
+
+<!-- === SETUP B: Full Rat Park === -->
+<g id="r6SetupB" class="hotspot-zone" style="cursor:pointer;">
+<rect x="368" y="32" width="320" height="256" rx="12" fill="url(#parkBg6)" stroke="#4a8a5a" stroke-width="2"/>
+<rect x="470" y="38" width="110" height="24" rx="12" fill="#1a3a1a" stroke="#4a8a5a" stroke-width="1"/>
+<text x="525" y="54" text-anchor="middle" fill="#6c6" font-size="13" font-weight="700">Setup B</text>
+<!-- Park enclosure -->
+<rect x="388" y="72" width="280" height="190" rx="8" fill="#1e3518"/>
+<!-- Ground -->
+<rect x="388" y="220" width="280" height="42" fill="#2a3e20" rx="0"/>
+<circle cx="405" cy="250" r="3.5" fill="#5a4a3a" opacity="0.2"/>
+<circle cx="440" cy="245" r="2.5" fill="#6a5a4a" opacity="0.15"/>
+<circle cx="520" cy="252" r="3" fill="#5a4a3a" opacity="0.2"/>
+<circle cx="580" cy="248" r="2" fill="#6a5a4a" opacity="0.18"/>
+<circle cx="640" cy="255" r="3" fill="#5a4a3a" opacity="0.15"/>
+<!-- Wheel -->
+<circle cx="430" cy="205" r="22" fill="none" stroke="#5a8a5a" stroke-width="3"/>
+<circle cx="430" cy="205" r="16" fill="none" stroke="#4a7a4a" stroke-width="1.5"/>
+<line x1="430" y1="183" x2="430" y2="227" stroke="#4a7a4a" stroke-width="1"/>
+<line x1="408" y1="205" x2="452" y2="205" stroke="#4a7a4a" stroke-width="1"/>
+<!-- Platforms -->
+<rect x="470" y="185" width="50" height="7" rx="3" fill="#7a6a50" transform="rotate(-8 495 188)"/>
+<rect x="505" y="173" width="6" height="20" rx="2" fill="#6a5a40"/>
+<rect x="570" y="200" width="45" height="7" rx="3" fill="#7a6a50"/>
+<!-- Hiding spots -->
+<rect x="590" y="215" width="40" height="30" rx="6" fill="#4a3a2a" stroke="#5a4a3a" stroke-width="1.5"/>
+<rect x="600" y="230" width="18" height="15" rx="3" fill="#3a2a1a"/>
+<!-- Greenery -->
+<circle cx="395" cy="82" r="10" fill="#3a6a3a" opacity="0.5"/>
+<circle cx="405" cy="78" r="8" fill="#4a7a4a" opacity="0.4"/>
+<circle cx="655" cy="85" r="11" fill="#3a6a3a" opacity="0.4"/>
+<circle cx="648" cy="78" r="8" fill="#4a7a4a" opacity="0.35"/>
+<!-- 8 rats (varied detail) -->
+<ellipse cx="415" cy="140" rx="14" ry="9" fill="#A08868"/>
+<circle cx="405" cy="134" r="6" fill="#A08868"/><circle cx="402" cy="132" r="1.8" fill="#111"/>
+<ellipse cx="460" cy="160" rx="14" ry="9" fill="#917654"/>
+<circle cx="450" cy="154" r="6" fill="#917654"/><circle cx="447" cy="152" r="1.8" fill="#111"/>
+<ellipse cx="510" cy="140" rx="14" ry="9" fill="#B09878"/>
+<circle cx="500" cy="134" r="6" fill="#B09878"/><circle cx="497" cy="132" r="1.8" fill="#111"/>
+<ellipse cx="550" cy="165" rx="14" ry="9" fill="#8B7355"/>
+<circle cx="540" cy="159" r="6" fill="#8B7355"/><circle cx="537" cy="157" r="1.8" fill="#111"/>
+<ellipse cx="590" cy="145" rx="13" ry="8" fill="#9A8668"/>
+<circle cx="581" cy="140" r="5.5" fill="#9A8668"/><circle cx="578" cy="138" r="1.5" fill="#111"/>
+<ellipse cx="630" cy="160" rx="13" ry="8" fill="#A08070"/>
+<circle cx="621" cy="155" r="5.5" fill="#A08070"/><circle cx="618" cy="153" r="1.5" fill="#111"/>
+<ellipse cx="480" cy="230" rx="12" ry="7" fill="#B09070"/>
+<circle cx="472" cy="226" r="5" fill="#B09070"/><circle cx="469" cy="224" r="1.3" fill="#111"/>
+<ellipse cx="540" cy="240" rx="12" ry="7" fill="#907050"/>
+<circle cx="532" cy="236" r="5" fill="#907050"/><circle cx="529" cy="234" r="1.3" fill="#111"/>
+<!-- Both bottles (untouched) -->
+<rect x="635" y="222" width="15" height="26" rx="3" fill="#CC4444" opacity="0.3"/>
+<rect x="650" y="222" width="15" height="26" rx="3" fill="#4488CC" opacity="0.3"/>
+<!-- Label -->
+<text x="528" y="280" text-anchor="middle" fill="#6a8a6a" font-size="9" font-style="italic">Friends, space, enrichment</text>
+</g>
+</svg>`;
+},
+arenaHighlightDO:function(){
+const a=document.querySelector('#r6SetupA');
+if(a)a.classList.add('svg-pulse-yellow');
+},
+arenaCorrectDO:function(){
+document.querySelectorAll('.svg-pulse-yellow').forEach(el=>el.classList.remove('svg-pulse-yellow'));
+const a=document.querySelector('#r6SetupA');
+if(a)a.classList.add('svg-glow-red');
+const b=document.querySelector('#r6SetupB');
+if(b)b.classList.add('svg-glow-green');
+},
+mechanic:'hotspot',
+doPrompt:'Click the environment that leads to higher dependence.',
+doClickTargets:['r6SetupA','r6SetupB'],
+doCorrect:0,
+doCorrectText:'Isolation leads to high dependence. Social contact and enrichment leads to low dependence.',
+doWrongFeedback:[
+null,
+'That\'s Rat Park — the enriched environment. Remember Wednesday: which environment had HIGHER consumption?'
+],
+prove:{
+question:'Why does Setup A cause higher dependence?',
+options:['The cage is too small','The drug is stronger in cages','The rat is isolated with no social contact'],
+correct:2,
+wrongFeedback:[
+'Size was part of it, but Wednesday\'s lab showed that social contact mattered most. What\'s missing from Setup A?',
+'The morphine is identical in both setups. The drug didn\'t change. What\'s different about the rat\'s conditions?',
+null
+]
+},
+hintLadder:{
+hint1:{text:'Look at Setup A — the rat is completely alone in a bare cage. From Wednesday\'s lab, which variable had the biggest effect on dependence?',target:'r6SetupA'},
+stepByStep:{panels:[
+{text:'Setup A has a rat alone in a small, bare cage — full isolation. Setup B has friends, space, and enrichment — the full Rat Park.',target:'r6SetupA'},
+{text:'On Wednesday, you discovered that isolation causes the highest dependence. Social contact had the biggest effect. Setup A has zero social contact.',target:null}
+]}
+}
+},
+// ROUND 7 (BONUS)
+{num:7,name:"Environment-to-Consumption Match",sourceDay:"Tue + Wed",sourceDayColor:"var(--wed-color)",required:false,
+scienceSkill:"Pattern recognition",
+focusPrompt:"Remember the data from Tuesday and Wednesday — match each environment to its consumption level.",
+contextCaption:"From Tuesday and Wednesday: Three environments, three different consumption levels. Can you match them?",
+buildArena:function(container){
+container.innerHTML=`<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="card7a" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#333342"/><stop offset="100%" stop-color="#252535"/></linearGradient>
+<linearGradient id="card7b" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a3a2a"/><stop offset="100%" stop-color="#1e2e1e"/></linearGradient>
+<linearGradient id="card7c" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1e3e1e"/><stop offset="100%" stop-color="#142e14"/></linearGradient>
+</defs>
+
+<!-- === Card 1: Isolated Cage === -->
+<rect x="10" y="10" width="215" height="170" rx="10" fill="url(#card7a)" stroke="#777" stroke-width="2"/>
+<rect x="52" y="16" width="130" height="20" rx="10" fill="#3a3a4a" stroke="#888" stroke-width="1"/>
+<text x="117" y="30" text-anchor="middle" fill="#ccc" font-size="11" font-weight="700">Isolated Cage</text>
+<!-- Mini cage -->
+<rect x="30" y="42" width="175" height="100" rx="5" fill="#2a2a38"/>
+<line x1="42" y1="42" x2="42" y2="142" stroke="#5a5a6a" stroke-width="2"/>
+<line x1="62" y1="42" x2="62" y2="142" stroke="#5a5a6a" stroke-width="2"/>
+<line x1="82" y1="42" x2="82" y2="142" stroke="#5a5a6a" stroke-width="2"/>
+<line x1="102" y1="42" x2="102" y2="142" stroke="#5a5a6a" stroke-width="2"/>
+<line x1="122" y1="42" x2="122" y2="142" stroke="#5a5a6a" stroke-width="2"/>
+<line x1="142" y1="42" x2="142" y2="142" stroke="#5a5a6a" stroke-width="2"/>
+<line x1="162" y1="42" x2="162" y2="142" stroke="#5a5a6a" stroke-width="2"/>
+<line x1="182" y1="42" x2="182" y2="142" stroke="#5a5a6a" stroke-width="2"/>
+<line x1="30" y1="60" x2="205" y2="60" stroke="#4a4a5a" stroke-width="1.5"/>
+<!-- Lone rat -->
+<ellipse cx="105" cy="118" rx="20" ry="12" fill="#8B7355"/>
+<ellipse cx="90" cy="110" rx="10" ry="8" fill="#8B7355"/>
+<circle cx="86" cy="108" r="2" fill="#111"/><circle cx="85" cy="107" r="0.7" fill="#fff" opacity="0.5"/>
+<ellipse cx="82" cy="104" rx="4" ry="5.5" fill="#A08868"/>
+<line x1="82" y1="109" x2="72" y2="107" stroke="#A08868" stroke-width="0.5" opacity="0.5"/>
+<path d="M125 118 Q138 114 142 124" stroke="#8B7355" stroke-width="2" fill="none"/>
+<!-- Morphine bottle -->
+<rect x="165" y="112" width="14" height="24" rx="3" fill="#CC4444" opacity="0.75"/>
+<rect x="163" y="108" width="18" height="6" rx="2" fill="#ddd" opacity="0.7"/>
+<!-- Label -->
+<text x="117" y="160" text-anchor="middle" fill="#888" font-size="9">1 rat, no enrichment</text>
+
+<!-- === Card 2: Enriched Cage, Alone === -->
+<rect x="242" y="10" width="215" height="170" rx="10" fill="url(#card7b)" stroke="#6a8a6a" stroke-width="2"/>
+<rect x="270" y="16" width="158" height="20" rx="10" fill="#1e2e1e" stroke="#5a7a5a" stroke-width="1"/>
+<text x="349" y="30" text-anchor="middle" fill="#8c8" font-size="11" font-weight="700">Enriched Cage, Alone</text>
+<!-- Enriched room -->
+<rect x="262" y="42" width="175" height="100" rx="5" fill="#1e2e1e"/>
+<circle cx="295" cy="115" r="12" fill="none" stroke="#5a7a5a" stroke-width="2"/>
+<rect x="320" y="105" width="28" height="5" rx="2" fill="#7a6a50"/>
+<rect x="365" y="98" width="18" height="16" rx="3" fill="#4a4a3a" stroke="#5a5a4a" stroke-width="1"/>
+<rect x="395" y="108" width="22" height="5" rx="2" fill="#7a6a50" transform="rotate(-10 406 110)"/>
+<!-- One rat with enrichment -->
+<ellipse cx="340" cy="85" rx="20" ry="12" fill="#A08868"/>
+<ellipse cx="325" cy="78" rx="10" ry="8" fill="#A08868"/>
+<circle cx="321" cy="76" r="2.2" fill="#111"/><circle cx="320" cy="75" r="0.8" fill="#fff" opacity="0.5"/>
+<ellipse cx="317" cy="72" rx="4" ry="5.5" fill="#B09878"/>
+<line x1="317" y1="77" x2="306" y2="75" stroke="#A08868" stroke-width="0.5" opacity="0.5"/>
+<path d="M360 85 Q375 80 378 90" stroke="#A08868" stroke-width="2" fill="none"/>
+<text x="349" y="160" text-anchor="middle" fill="#7a8a7a" font-size="9">1 rat, with toys</text>
+
+<!-- === Card 3: Full Rat Park === -->
+<rect x="475" y="10" width="215" height="170" rx="10" fill="url(#card7c)" stroke="#4a8a5a" stroke-width="2"/>
+<rect x="510" y="16" width="145" height="20" rx="10" fill="#142e14" stroke="#4a8a5a" stroke-width="1"/>
+<text x="582" y="30" text-anchor="middle" fill="#6c6" font-size="11" font-weight="700">Full Rat Park</text>
+<!-- Lush park -->
+<rect x="495" y="42" width="175" height="100" rx="5" fill="#142a12"/>
+<circle cx="520" cy="118" r="12" fill="none" stroke="#5a8a5a" stroke-width="2"/>
+<rect x="548" y="108" width="28" height="5" rx="2" fill="#7a6a50"/>
+<rect x="600" y="100" width="18" height="14" rx="3" fill="#3a3a2a" stroke="#4a4a3a" stroke-width="1"/>
+<circle cx="500" cy="52" r="6" fill="#3a6a3a" opacity="0.4"/>
+<circle cx="665" cy="55" r="7" fill="#3a6a3a" opacity="0.35"/>
+<!-- 8 mini rats -->
+<ellipse cx="520" cy="72" rx="10" ry="6" fill="#A08868"/>
+<circle cx="513" cy="68" r="4.5" fill="#A08868"/><circle cx="511" cy="67" r="1.2" fill="#111"/>
+<ellipse cx="555" cy="80" rx="10" ry="6" fill="#917654"/>
+<circle cx="548" cy="76" r="4.5" fill="#917654"/><circle cx="546" cy="75" r="1.2" fill="#111"/>
+<ellipse cx="590" cy="72" rx="10" ry="6" fill="#B09878"/>
+<circle cx="583" cy="68" r="4.5" fill="#B09878"/><circle cx="581" cy="67" r="1.2" fill="#111"/>
+<ellipse cx="625" cy="85" rx="10" ry="6" fill="#8B7355"/>
+<circle cx="618" cy="81" r="4.5" fill="#8B7355"/><circle cx="616" cy="80" r="1.2" fill="#111"/>
+<ellipse cx="508" cy="100" rx="9" ry="5.5" fill="#9A8668"/>
+<circle cx="502" cy="97" r="4" fill="#9A8668"/><circle cx="500" cy="96" r="1" fill="#111"/>
+<ellipse cx="570" cy="105" rx="9" ry="5.5" fill="#A08070"/>
+<circle cx="564" cy="102" r="4" fill="#A08070"/><circle cx="562" cy="101" r="1" fill="#111"/>
+<ellipse cx="640" cy="100" rx="9" ry="5.5" fill="#B09070"/>
+<circle cx="634" cy="97" r="4" fill="#B09070"/><circle cx="632" cy="96" r="1" fill="#111"/>
+<ellipse cx="550" cy="118" rx="9" ry="5.5" fill="#907050"/>
+<circle cx="544" cy="115" r="4" fill="#907050"/><circle cx="542" cy="114" r="1" fill="#111"/>
+<text x="582" y="160" text-anchor="middle" fill="#6a8a6a" font-size="9">8 rats, full enrichment</text>
+
+<!-- === Consumption labels (floating) === -->
+<g id="r7Labels">
+<rect x="42" y="195" width="140" height="40" rx="8" fill="rgba(204,68,68,0.12)" stroke="#CC4444" stroke-width="1.5"/>
+<text x="112" y="220" text-anchor="middle" fill="#CC4444" font-size="15" font-weight="900">Highest</text>
+<rect x="280" y="195" width="140" height="40" rx="8" fill="rgba(245,166,35,0.12)" stroke="#F5A623" stroke-width="1.5"/>
+<text x="350" y="220" text-anchor="middle" fill="#F5A623" font-size="15" font-weight="900">Moderate</text>
+<rect x="517" y="195" width="140" height="40" rx="8" fill="rgba(57,168,69,0.12)" stroke="#39a845" stroke-width="1.5"/>
+<text x="587" y="220" text-anchor="middle" fill="#39a845" font-size="15" font-weight="900">Lowest</text>
+</g>
+<!-- Connecting lines (hidden, shown on correct) -->
+<g id="r7Lines" style="display:none;">
+<line x1="112" y1="180" x2="112" y2="195" stroke="#CC4444" stroke-width="2" stroke-dasharray="4"/>
+<line x1="350" y1="180" x2="350" y2="195" stroke="#F5A623" stroke-width="2" stroke-dasharray="4"/>
+<line x1="587" y1="180" x2="587" y2="195" stroke="#39a845" stroke-width="2" stroke-dasharray="4"/>
+</g>
+<!-- Question mark row -->
+<text x="112" y="260" text-anchor="middle" fill="#888" font-size="20">?</text>
+<text x="350" y="260" text-anchor="middle" fill="#888" font-size="20">?</text>
+<text x="587" y="260" text-anchor="middle" fill="#888" font-size="20">?</text>
+</svg>`;
+},
+arenaHighlightDO:function(){},
+arenaCorrectDO:function(){
+const lines=document.querySelector('#r7Lines');
+if(lines)lines.style.display='block';
+},
+mechanic:'pick-the-match',
+doPrompt:'Which environment had the LOWEST consumption?',
+doOptions:['Isolated Cage','Enriched Cage, Alone','Full Rat Park'],
+doCorrect:2,
+doCorrectText:'Full Rat Park combined social contact with enrichment — lowest consumption.',
+doWrongFeedback:[
+'The isolated cage had the HIGHEST consumption — the rat was completely alone. Which setup gave the rat everything: friends, space, AND enrichment?',
+'The enriched cage was in the middle — the rat had toys but no friends. Which setup had BOTH social contact and enrichment?',
+null
+],
+prove:{
+question:'Why did the full Rat Park have the lowest consumption?',
+options:['It combined social contact with enrichment','It had the most space','The drug was weaker there'],
+correct:0,
+wrongFeedback:[
+null,
+'Space helped a little, but Wednesday\'s lab showed social contact mattered the most. What did Rat Park combine?',
+'The morphine was identical everywhere. The drug didn\'t change. What was different about the environment?'
+]
+},
+hintLadder:{
+hint1:{text:'Look at the three setups — the isolated cage has nothing. The enriched cage has toys but no friends. Rat Park has friends AND toys. From the lab, what mattered most?',target:null},
+stepByStep:{panels:[
+{text:'Wednesday\'s lab showed that social contact had the biggest effect on dependence. The isolated cage had no social contact — highest consumption. The enriched cage had toys but no friends — moderate.',target:null},
+{text:'Full Rat Park combined social contact with enrichment. That\'s why it had the lowest consumption — both factors working together.',target:null}
+]}
+}
+},
+// ROUND 8 (BONUS)
+{num:8,name:"Rat Park Claim Builder",sourceDay:"All 3",sourceDayColor:"var(--gold)",required:false,
+scienceSkill:"Claim construction",
+focusPrompt:"Remember the big conclusion — use the evidence to build your claim.",
+contextCaption:"From all three days: Everything you learned about the Rat Park experiment. Build your final claim.",
+buildArena:function(container){
+container.innerHTML=`<svg viewBox="0 0 700 310" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="summBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1a2e"/><stop offset="100%" stop-color="#141428"/></linearGradient>
+<linearGradient id="monGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="rgba(45,139,78,0.15)"/><stop offset="100%" stop-color="rgba(45,139,78,0.05)"/></linearGradient>
+<linearGradient id="tueGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="rgba(0,212,255,0.12)"/><stop offset="100%" stop-color="rgba(0,212,255,0.04)"/></linearGradient>
+<linearGradient id="wedGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="rgba(139,92,246,0.12)"/><stop offset="100%" stop-color="rgba(139,92,246,0.04)"/></linearGradient>
+</defs>
+
+<!-- Main panel -->
+<rect x="8" y="8" width="684" height="294" rx="12" fill="url(#summBg)" stroke="#FFD700" stroke-width="2"/>
+
+<!-- Title -->
+<rect x="250" y="14" width="200" height="26" rx="13" fill="rgba(255,215,0,0.1)" stroke="rgba(255,215,0,0.3)" stroke-width="1"/>
+<text x="350" y="32" text-anchor="middle" fill="#FFD700" font-size="13" font-weight="700" letter-spacing="1">EVIDENCE SUMMARY</text>
+
+<!-- === Evidence 1: Monday === -->
+<g id="r8Ev1">
+<rect x="25" y="50" width="650" height="60" rx="8" fill="url(#monGrad)" stroke="#2D8B4E" stroke-width="1.5"/>
+<!-- Day badge -->
+<rect x="35" y="58" width="60" height="24" rx="12" fill="#2D8B4E"/>
+<text x="65" y="74" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">MON</text>
+<!-- Pin icon -->
+<circle cx="660" cy="80" r="5" fill="#2D8B4E" opacity="0.5"/>
+<!-- Content -->
+<text x="108" y="72" fill="#ddd" font-size="12" font-weight="600">Monday:</text>
+<text x="108" y="92" fill="#bbb" font-size="11">Alexander found that caged rats drank up to 19x more morphine than Rat Park rats.</text>
+<!-- Mini visual: cage bar vs park bar -->
+<rect x="590" y="58" width="10" height="35" rx="2" fill="#CC4444" opacity="0.5"/>
+<rect x="605" y="82" width="10" height="11" rx="2" fill="#39a845" opacity="0.5"/>
+<text x="600" y="100" text-anchor="middle" fill="#888" font-size="6">19x</text>
+</g>
+
+<!-- === Evidence 2: Tuesday === -->
+<g id="r8Ev2">
+<rect x="25" y="120" width="650" height="60" rx="8" fill="url(#tueGrad)" stroke="#00D4FF" stroke-width="1.5"/>
+<rect x="35" y="128" width="60" height="24" rx="12" fill="#00D4FF"/>
+<text x="65" y="144" text-anchor="middle" fill="#111" font-size="10" font-weight="700">TUE</text>
+<circle cx="660" cy="150" r="5" fill="#00D4FF" opacity="0.5"/>
+<text x="108" y="142" fill="#ddd" font-size="12" font-weight="600">Tuesday:</text>
+<text x="108" y="162" fill="#bbb" font-size="11">The same rat moved from cage to park drank LESS — the environment changed the behavior.</text>
+<!-- Mini visual: arrow -->
+<rect x="585" y="132" width="14" height="10" rx="2" fill="#555" opacity="0.5"/>
+<polygon points="605,137 615,132 615,142" fill="#00D4FF" opacity="0.5"/>
+<rect x="618" y="132" width="14" height="10" rx="2" fill="#39a845" opacity="0.5"/>
+</g>
+
+<!-- === Evidence 3: Wednesday === -->
+<g id="r8Ev3">
+<rect x="25" y="190" width="650" height="60" rx="8" fill="url(#wedGrad)" stroke="#8B5CF6" stroke-width="1.5"/>
+<rect x="35" y="198" width="60" height="24" rx="12" fill="#8B5CF6"/>
+<text x="65" y="214" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">WED</text>
+<circle cx="660" cy="220" r="5" fill="#8B5CF6" opacity="0.5"/>
+<text x="108" y="212" fill="#ddd" font-size="12" font-weight="600">Wednesday:</text>
+<text x="108" y="232" fill="#bbb" font-size="11">Social contact had the biggest effect. Combining variables created the biggest drop.</text>
+<!-- Mini visual: slider -->
+<rect x="590" y="202" width="30" height="6" rx="3" fill="#444"/>
+<circle cx="610" cy="205" r="5" fill="#FFD700" opacity="0.5"/>
+</g>
+
+<!-- === Word Bank === -->
+<rect x="25" y="260" width="650" height="34" rx="8" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+<text x="50" y="281" fill="#555" font-size="10" font-weight="600">Word Bank:</text>
+<rect x="120" y="267" width="90" height="20" rx="10" fill="rgba(57,255,20,0.08)"/>
+<text x="165" y="281" text-anchor="middle" fill="var(--neon)" font-size="11" font-weight="600">ISOLATION</text>
+<rect x="225" y="267" width="115" height="20" rx="10" fill="rgba(57,255,20,0.08)"/>
+<text x="282" y="281" text-anchor="middle" fill="var(--neon)" font-size="11" font-weight="600">ENVIRONMENT</text>
+<rect x="355" y="267" width="110" height="20" rx="10" fill="rgba(57,255,20,0.08)"/>
+<text x="410" y="281" text-anchor="middle" fill="var(--neon)" font-size="11" font-weight="600">DEPENDENCE</text>
+<rect x="480" y="267" width="90" height="20" rx="10" fill="rgba(57,255,20,0.08)"/>
+<text x="525" y="281" text-anchor="middle" fill="var(--neon)" font-size="11" font-weight="600">VARIABLE</text>
+</svg>`;
+},
+arenaHighlightDO:function(){
+const ev1=document.querySelector('#r8Ev1');
+if(ev1)ev1.classList.add('svg-pulse-yellow');
+},
+arenaCorrectDO:function(){
+document.querySelectorAll('.svg-pulse-yellow').forEach(el=>el.classList.remove('svg-pulse-yellow'));
+['r8Ev1','r8Ev2','r8Ev3'].forEach(id=>{
+const el=document.getElementById(id);
+if(el)el.classList.add('svg-glow-green');
+});
+},
+mechanic:'claim-builder',
+doPrompt:'The Rat Park experiment proved that...',
+doOptions:[
+'...environment and social connection reduce dependence, not the drug alone.',
+'...all drugs are equally addictive regardless of conditions.',
+'...only large spaces prevent addiction.'
+],
+doCorrect:0,
+doCorrectText:'Claim built! Environment and social connection reduce dependence.',
+doWrongFeedback:[
+null,
+'If all drugs were equally addictive, Rat Park rats would have used just as much. The evidence shows something else mattered.',
+'Space helped, but it wasn\'t the main factor. Wednesday\'s lab showed social contact mattered most.'
+],
+prove:{
+question:'Which evidence BEST supports your claim?',
+options:['Alexander was a professor at a university','The same rat drank less after moving to Rat Park','Rat Park rats had more water bottles'],
+correct:1,
+wrongFeedback:[
+'His job title doesn\'t prove anything about environment and dependence. Which evidence shows a change in behavior?',
+null,
+'Water bottles weren\'t the key factor. Which evidence shows what happened when the same rat got a new environment?'
+]
+},
+hintLadder:{
+hint1:{text:'Look at the three evidence items — one of them shows that the same rat behaved differently in two places. That\'s your key to the claim.',target:'r8Ev2'},
+stepByStep:{panels:[
+{text:'The Rat Park experiment showed three things: isolated rats drank more (Monday), moving rats to a better environment reduced consumption (Tuesday), and social contact had the biggest effect (Wednesday).',target:null},
+{text:'Put it together: environment and social connection reduce dependence, not the drug alone. The best evidence is that the same rat changed its behavior when its environment changed.',target:null}
+]}
+}
+}
+];
+
+// ============ STREAK SYSTEM ============
+function updateStreak(correct){
+if(correct){
+GS.streak++;
+if(GS.streak>GS.maxStreak)GS.maxStreak=GS.streak;
+}else{
+GS.streak=0;
+}
+const box=$('streakBox');
+box.classList.remove('streak-bronze','streak-silver','streak-gold');
+if(GS.streak>=8)box.classList.add('streak-gold');
+else if(GS.streak>=5)box.classList.add('streak-silver');
+else if(GS.streak>=3)box.classList.add('streak-bronze');
+$('streakNum').textContent='x'+GS.streak;
+}
+
+function showPointsPop(pts){
+const box=$('scoreBox');
+const pop=document.createElement('span');
+pop.className='pts-pop';
+pop.textContent='+'+pts;
+box.appendChild(pop);
+setTimeout(()=>pop.remove(),1100);
+}
+
+// ============ SCORING ============
+function calcRoundScore(){
+if(GS.resetsThisRound>=1)return 50;
+if(GS.hintUsedThisRound>=2)return 60;// step-by-step
+if(GS.hintUsedThisRound>=1)return 85;
+return 100;
+}
+function updateScoreDisplay(){
+let total=0;
+GS.roundScores.forEach(r=>{if(r&&r.score!==null)total+=r.score;});
+GS.totalScore=total;
+$('scoreBox').textContent='Score: '+total;
+}
+
+// ============ CELEBRATIONS ============
+function showCelebration(text,duration,callback){
+closeAllOverlays();
+const c=document.createElement('div');
+c.className='celeb-container';
+c.innerHTML=`<div class="celeb-text">${escHtml(text)}</div>`;
+// Affirmation
+const aff=document.createElement('div');
+aff.className='affirmation-text';
+aff.textContent=getAffirmation();
+c.appendChild(aff);
+document.body.appendChild(c);
+burstParticles(Math.min(12,15),['#FFD700','#39FF14','#FF1493','#00D4FF','#FF6B35']);
+safeCall(()=>playCorrectSound(),'celebSound');
+const t=setTimeout(()=>{c.remove();if(callback)callback();},duration);
+GS.roundTimers.push(t);
+}
+
+function showMilestone(roundNum,callback){
+// Every 2 rounds — 1s for Gauntlet
+if(roundNum>0&&roundNum%2===0&&roundNum<6){
+showCelebration('Nice!',1000,callback);
+}else{
+if(callback)callback();
+}
+}
+
+function showRequiredComplete(){
+if(GS.requiredCompleteShown)return;
+GS.requiredCompleteShown=true;
+closeAllOverlays();
+const ov=document.createElement('div');
+ov.className='overlay';
+ov.innerHTML=`<div class="overlay-bg"></div>
+<div class="overlay-content">
+<h2>You did it!</h2>
+<div class="affirmation-text" style="animation:none;opacity:1;">${escHtml(getAffirmation())}</div>
+<p>6 required rounds complete! 2 Bonus Rounds — dare to try?</p>
+<button class="btn-overlay btn-green" onclick="this.closest('.overlay').remove();loadRound(GS.currentRound);">Keep Going</button>
+<button class="btn-overlay btn-dim" onclick="this.closest('.overlay').remove();showReceipt();">See Score</button>
+</div>`;
+document.body.appendChild(ov);
+burstParticles(15,['#FFD700','#39FF14','#FF1493']);
+}
+
+function showBonusComplete(){
+if(GS.bonusCompleteShown)return;
+GS.bonusCompleteShown=true;
+showCelebration('BOSS DEFEATED! \u2B50',3000,showReceipt);
+}
+
+// ============ HINT SYSTEM ============
+function showHint(){
+if(GS.phase!=='do'&&GS.phase!=='prove')return;
+const rd=ROUNDS[GS.currentRound];
+if(!rd||!rd.hintLadder)return;
+if(GS.hintUsedThisRound===0){
+// Show Hint 1
+GS.hintUsedThisRound=1;
+showCoachingBar(rd.hintLadder.hint1.text,'hint1');
+if(rd.hintLadder.hint1.target){
+const tgt=document.getElementById(rd.hintLadder.hint1.target);
+if(tgt)tgt.classList.add('svg-pulse-yellow');
+}
+}else{
+// Show Step-by-Step
+GS.hintUsedThisRound=2;
+showStepByStep(rd.hintLadder.stepByStep.panels);
+}
+}
+
+function showCoachingBar(text,type){
+const iz=$('interZone');
+iz.querySelectorAll('.coaching-bar').forEach(el=>el.remove());
+const bar=document.createElement('div');
+bar.className='coaching-bar '+(type||'arena-nudge');
+bar.textContent=text;
+iz.appendChild(bar);
+}
+
+function showStepByStep(panels){
+closeAllOverlays();
+const ov=document.createElement('div');
+ov.className='overlay';
+let currentPanel=0;
+function renderPanel(){
+const p=panels[currentPanel];
+ov.innerHTML=`<div class="overlay-bg"></div>
+<div class="overlay-content">
+<h2>Step-by-Step</h2>
+<div class="sbs-panel"><span class="sbs-num">${currentPanel+1}</span>${escHtml(p.text)}</div>
+<p style="font-size:13px;color:var(--dim);">Panel ${currentPanel+1} of ${panels.length}</p>
+${currentPanel<panels.length-1?
+'<button class="btn-overlay btn-gold" id="sbsNext">Next</button>':
+'<button class="btn-overlay btn-green" id="sbsClose">Got it</button>'}
+</div>`;
+document.body.appendChild(ov);
+if(p.target){
+const tgt=document.getElementById(p.target);
+if(tgt)tgt.classList.add('svg-pulse-yellow');
+}
+const next=ov.querySelector('#sbsNext');
+const close=ov.querySelector('#sbsClose');
+if(next)next.onclick=()=>{currentPanel++;ov.remove();renderPanel();};
+if(close)close.onclick=()=>{ov.remove();};
+}
+renderPanel();
+}
+
+// ============ ANTI-GUESSING ============
+function checkFastGuess(){
+const now=Date.now();
+const dt=now-GS.lastWrongTime;
+GS.lastWrongTime=now;
+if(dt<2000){
+GS.fastWrongs++;
+if(GS.fastWrongs>=2){
+showAntiGuessScreen();
+return true;
+}
+}
+return false;
+}
+
+function showAntiGuessScreen(){
+const rd=ROUNDS[GS.currentRound];
+const day=rd?rd.sourceDay:'this week';
+GS.fastWrongs=0;
+GS.processing=true;
+const ag=document.createElement('div');
+ag.className='ag-screen';
+let sec=5;
+ag.innerHTML=`<div class="ag-box"><p>Slow down. Think back to ${escHtml(day)}.</p><div class="ag-timer">${sec}</div></div>`;
+document.body.appendChild(ag);
+const iv=setInterval(()=>{
+sec--;
+const timer=ag.querySelector('.ag-timer');
+if(timer)timer.textContent=sec;
+if(sec<=0){clearInterval(iv);ag.remove();GS.processing=false;resetCurrentRound();}
+},1000);
+GS.roundTimers.push(iv);
+}
+
+function resetCurrentRound(){
+GS.resetsThisRound++;
+GS.wrongCountDO=0;
+GS.wrongCountPROVE=0;
+GS.selectedDO=null;
+GS.phase='';
+GS.doLocked=false;
+GS.proveLocked=false;
+clearRoundTimers();
+closeAllOverlays();
+loadRound(GS.currentRound,true);
+}
+
+// ============ MECHANIC ENGINES ============
+
+// --- Pick-the-Match ---
+function renderPickTheMatch(rd){
+const iz=$('interZone');
+iz.innerHTML='';
+const label=document.createElement('div');
+label.className='phase-label';
+label.textContent='DO';
+iz.appendChild(label);
+
+const prompt=document.createElement('div');
+prompt.className='prompt-text';
+prompt.textContent=rd.doPrompt;
+iz.appendChild(prompt);
+
+const row=document.createElement('div');
+row.className='options-row';
+row.id='doOptionsRow';
+rd.doOptions.forEach((opt,i)=>{
+const card=document.createElement('button');
+card.className='opt-card';
+card.textContent=opt;
+card.dataset.idx=i;
+// Guided glow for round 1
+if(rd.num===1&&i===rd.doCorrect)card.classList.add('guided-glow');
+card.onclick=()=>selectDOOption(card,i,rd,row);
+row.appendChild(card);
+});
+iz.appendChild(row);
+
+const lockBtn=document.createElement('button');
+lockBtn.className='btn-lock';
+lockBtn.id='doLockBtn';
+lockBtn.textContent='Lock In';
+lockBtn.onclick=()=>lockInDO(rd);
+iz.appendChild(lockBtn);
+}
+
+function selectDOOption(card,idx,rd,row){
+if(GS.processing||GS.doLocked)return;
+row.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));
+card.classList.add('selected');
+GS.selectedDO=idx;
+const lb=document.getElementById('doLockBtn');
+if(lb){lb.classList.add('active');}
+}
+
+function lockInDO(rd){
+if(GS.processing||GS.doLocked||GS.selectedDO===null)return;
+GS.processing=true;
+const idx=GS.selectedDO;
+const row=document.getElementById('doOptionsRow');
+if(!row){GS.processing=false;return;}
+const cards=row.querySelectorAll('.opt-card');
+
+if(idx===rd.doCorrect){
+// CORRECT
+GS.doLocked=true;
+cards[idx].classList.add('correct-mark');
+safeCall(()=>playCorrectSound(),'doCorrectSound');
+safeCall(()=>{if(rd.arenaCorrectDO)rd.arenaCorrectDO();},'arenaCorrectDO');
+// Only increment streak on true first-try (no prior wrongs, hints, or resets this round)
+if(GS.wrongCountDO===0&&GS.hintUsedThisRound===0&&GS.resetsThisRound===0){
+updateStreak(true);
+}
+const sc=calcRoundScore();
+showPointsPop(sc);
+
+// Show correct text
+const iz=$('interZone');
+const fb=document.createElement('div');
+fb.className='coaching-bar';
+fb.style.background='rgba(57,255,20,0.1)';
+fb.style.borderLeft='4px solid var(--correct)';
+fb.style.color='var(--neon)';
+fb.textContent=rd.doCorrectText;
+iz.appendChild(fb);
+
+// First-try affirmation
+if(GS.hintUsedThisRound===0&&GS.wrongCountDO===0){
+const aff=document.createElement('div');
+aff.className='affirmation-text';
+aff.style.fontSize='18px';
+aff.textContent=getAffirmation();
+iz.appendChild(aff);
+}
+
+addTimer(()=>{GS.processing=false;startProve(rd);},1800);
+}else{
+// WRONG
+GS.wrongCountDO++;
+cards[idx].classList.add('wrong-mark');
+safeCall(()=>playWrongSound(),'doWrongSound');
+updateStreak(false);
+
+if(checkFastGuess()){return;}
+
+// Wrong feedback
+const fbText=rd.doWrongFeedback[idx]||'Look more carefully at the context image.';
+showCoachingBar(fbText,'wrong-coach');
+safeCall(()=>{if(rd.arenaHighlightDO)rd.arenaHighlightDO();},'arenaHighlightDO');
+
+// Auto-hint after wrongs
+if(GS.wrongCountDO===1&&GS.hintUsedThisRound===0){
+addTimer(()=>{showHint();},500);
+}else if(GS.wrongCountDO>=2&&GS.hintUsedThisRound<2){
+addTimer(()=>{GS.hintUsedThisRound=1;showHint();},500);// triggers SBS
+}
+
+// Dim wrong option, allow retry
+addTimer(()=>{
+cards[idx].classList.remove('wrong-mark');
+cards[idx].classList.add('dimmed');
+GS.selectedDO=null;
+const lb=document.getElementById('doLockBtn');
+if(lb)lb.classList.remove('active');
+GS.processing=false;
+
+// 3 wrongs total = 50% and advance
+if(GS.wrongCountDO>=3){
+GS.doLocked=true;
+GS.resetsThisRound=1;// force 50%
+showCoachingBar('Let\'s move on — you\'ll see this idea again.','arena-nudge');
+addTimer(()=>{startProve(rd);},2000);
+}
+},800);
+}
+}
+
+// --- Coach-Click ---
+function renderCoachClick(rd){
+const iz=$('interZone');
+iz.innerHTML='';
+const label=document.createElement('div');
+label.className='phase-label';
+label.textContent='DO';
+iz.appendChild(label);
+
+const prompt=document.createElement('div');
+prompt.className='prompt-text';
+prompt.textContent=rd.doPrompt;
+iz.appendChild(prompt);
+
+// If doClickTargets exists, use SVG targets; else use option cards
+if(rd.doClickTargets&&rd.doClickTargets.length>0){
+const hint=document.createElement('div');
+hint.style.cssText='font-size:13px;color:var(--dim);margin-bottom:8px;';
+hint.textContent='Click on the correct element in the image above.';
+iz.appendChild(hint);
+rd.doClickTargets.forEach((targetId,i)=>{
+const el=document.getElementById(targetId);
+if(!el)return;
+el.style.cursor='pointer';
+el.onclick=()=>handleCoachClick(i,rd);
+});
+}else if(rd.doOptions){
+// Card-based coach-click
+const row=document.createElement('div');
+row.className='options-row';
+row.id='doOptionsRow';
+rd.doOptions.forEach((opt,i)=>{
+const card=document.createElement('button');
+card.className='opt-card';
+card.textContent=opt;
+card.dataset.idx=i;
+card.onclick=()=>selectDOOption(card,i,rd,row);
+row.appendChild(card);
+});
+iz.appendChild(row);
+const lockBtn=document.createElement('button');
+lockBtn.className='btn-lock';
+lockBtn.id='doLockBtn';
+lockBtn.textContent='Lock In';
+lockBtn.onclick=()=>lockInDO(rd);
+iz.appendChild(lockBtn);
+}
+}
+
+let coachClickWrongCount={};
+function handleCoachClick(idx,rd){
+if(GS.processing||GS.doLocked)return;
+GS.processing=true;
+const targetId=rd.doClickTargets[idx];
+const el=document.getElementById(targetId);
+
+if(idx===rd.doCorrect){
+GS.doLocked=true;
+if(el)el.classList.add('svg-glow-green');
+safeCall(()=>playCorrectSound(),'ccCorrect');
+safeCall(()=>{if(rd.arenaCorrectDO)rd.arenaCorrectDO();},'ccArenaCorrect');
+if(GS.wrongCountDO===0&&GS.hintUsedThisRound===0&&GS.resetsThisRound===0){
+updateStreak(true);
+}
+const sc=calcRoundScore();
+showPointsPop(sc);
+
+const iz=$('interZone');
+const fb=document.createElement('div');
+fb.className='coaching-bar';
+fb.style.background='rgba(57,255,20,0.1)';
+fb.style.borderLeft='4px solid var(--correct)';
+fb.style.color='var(--neon)';
+fb.textContent=rd.doCorrectText;
+iz.appendChild(fb);
+
+if(GS.hintUsedThisRound===0&&GS.wrongCountDO===0){
+const aff=document.createElement('div');
+aff.className='affirmation-text';
+aff.style.fontSize='18px';
+aff.textContent=getAffirmation();
+iz.appendChild(aff);
+}
+
+addTimer(()=>{GS.processing=false;startProve(rd);},1800);
+}else{
+GS.wrongCountDO++;
+if(el)el.classList.add('svg-glow-red');
+safeCall(()=>playWrongSound(),'ccWrong');
+updateStreak(false);
+
+if(checkFastGuess()){return;}
+
+const fbText=rd.doWrongFeedback[idx]||'Look more carefully at the evidence.';
+showCoachingBar(fbText,'wrong-coach');
+safeCall(()=>{if(rd.arenaHighlightDO)rd.arenaHighlightDO();},'arenaHighlightDO');
+
+if(GS.wrongCountDO===1&&GS.hintUsedThisRound===0)addTimer(()=>showHint(),500);
+else if(GS.wrongCountDO>=2&&GS.hintUsedThisRound<2)addTimer(()=>{GS.hintUsedThisRound=1;showHint();},500);
+
+addTimer(()=>{
+if(el)el.classList.remove('svg-glow-red');
+GS.processing=false;
+if(GS.wrongCountDO>=3){
+GS.doLocked=true;
+GS.resetsThisRound=1;
+showCoachingBar('Let\'s move on — you\'ll see this idea again.','arena-nudge');
+addTimer(()=>{startProve(rd);},2000);
+}
+},800);
+}
+}
+
+// --- Hotspot ---
+function renderHotspot(rd){
+const iz=$('interZone');
+iz.innerHTML='';
+const label=document.createElement('div');
+label.className='phase-label';
+label.textContent='DO';
+iz.appendChild(label);
+const prompt=document.createElement('div');
+prompt.className='prompt-text';
+prompt.textContent=rd.doPrompt;
+iz.appendChild(prompt);
+const hint=document.createElement('div');
+hint.style.cssText='font-size:13px;color:var(--dim);margin-bottom:8px;';
+hint.textContent='Click on the correct area in the image above.';
+iz.appendChild(hint);
+
+if(rd.doClickTargets){
+rd.doClickTargets.forEach((targetId,i)=>{
+const el=document.getElementById(targetId);
+if(!el)return;
+el.style.cursor='pointer';
+el.onclick=()=>handleHotspotClick(i,rd);
+});
+}
+}
+
+function handleHotspotClick(idx,rd){
+if(GS.processing||GS.doLocked)return;
+GS.processing=true;
+const targetId=rd.doClickTargets[idx];
+const el=document.getElementById(targetId);
+
+if(idx===rd.doCorrect){
+GS.doLocked=true;
+if(el)el.classList.add('svg-glow-green');
+safeCall(()=>playCorrectSound(),'hsCorrect');
+safeCall(()=>{if(rd.arenaCorrectDO)rd.arenaCorrectDO();},'hsArenaCorrect');
+if(GS.wrongCountDO===0&&GS.hintUsedThisRound===0&&GS.resetsThisRound===0){
+updateStreak(true);
+}
+showPointsPop(calcRoundScore());
+
+const iz=$('interZone');
+const fb=document.createElement('div');
+fb.className='coaching-bar';
+fb.style.background='rgba(57,255,20,0.1)';
+fb.style.borderLeft='4px solid var(--correct)';
+fb.style.color='var(--neon)';
+fb.textContent=rd.doCorrectText;
+iz.appendChild(fb);
+
+if(GS.hintUsedThisRound===0&&GS.wrongCountDO===0){
+const aff=document.createElement('div');
+aff.className='affirmation-text';
+aff.style.fontSize='18px';
+aff.textContent=getAffirmation();
+iz.appendChild(aff);
+}
+
+addTimer(()=>{GS.processing=false;startProve(rd);},1800);
+}else{
+GS.wrongCountDO++;
+if(el)el.classList.add('svg-glow-red');
+safeCall(()=>playWrongSound(),'hsWrong');
+updateStreak(false);
+if(checkFastGuess()){return;}
+
+const fbText=rd.doWrongFeedback[idx]||'Not quite. Look more carefully.';
+showCoachingBar(fbText,'wrong-coach');
+safeCall(()=>{if(rd.arenaHighlightDO)rd.arenaHighlightDO();},'arenaHighlightDO');
+
+if(GS.wrongCountDO===1&&GS.hintUsedThisRound===0)addTimer(()=>showHint(),500);
+else if(GS.wrongCountDO>=2&&GS.hintUsedThisRound<2)addTimer(()=>{GS.hintUsedThisRound=1;showHint();},500);
+
+addTimer(()=>{
+if(el)el.classList.remove('svg-glow-red');
+GS.processing=false;
+if(GS.wrongCountDO>=3){
+GS.doLocked=true;
+GS.resetsThisRound=1;
+showCoachingBar('Let\'s move on — you\'ll see this idea again.','arena-nudge');
+addTimer(()=>{startProve(rd);},2000);
+}
+},800);
+}
+}
+
+// --- What-Comes-Next ---
+function renderWhatComesNext(rd){
+renderPickTheMatch(rd);// Same UI, different semantics
+}
+
+// --- Claim Builder ---
+function renderClaimBuilder(rd){
+renderPickTheMatch(rd);// Same tap-to-select UI
+}
+
+// ============ PROVE PHASE ============
+function startProve(rd){
+GS.phase='prove';
+GS.wrongCountPROVE=0;
+GS.proveLocked=false;
+GS.selectedDO=null;
+const iz=$('interZone');
+iz.innerHTML='';
+
+const label=document.createElement('div');
+label.className='phase-label';
+label.textContent='PROVE';
+iz.appendChild(label);
+
+const prompt=document.createElement('div');
+prompt.className='prompt-text';
+prompt.textContent=rd.prove.question;
+iz.appendChild(prompt);
+
+const row=document.createElement('div');
+row.className='options-row';
+row.id='proveOptionsRow';
+rd.prove.options.forEach((opt,i)=>{
+const card=document.createElement('button');
+card.className='opt-card';
+card.textContent=opt;
+card.dataset.idx=i;
+card.onclick=()=>selectProveOption(card,i,rd,row);
+row.appendChild(card);
+});
+iz.appendChild(row);
+
+const lockBtn=document.createElement('button');
+lockBtn.className='btn-lock';
+lockBtn.id='proveLockBtn';
+lockBtn.textContent='Lock In';
+lockBtn.onclick=()=>lockInProve(rd);
+iz.appendChild(lockBtn);
+}
+
+function selectProveOption(card,idx,rd,row){
+if(GS.processing||GS.proveLocked)return;
+row.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));
+card.classList.add('selected');
+GS.selectedDO=idx;
+const lb=document.getElementById('proveLockBtn');
+if(lb)lb.classList.add('active');
+}
+
+function lockInProve(rd){
+if(GS.processing||GS.proveLocked||GS.selectedDO===null)return;
+GS.processing=true;
+const idx=GS.selectedDO;
+const row=document.getElementById('proveOptionsRow');
+if(!row){GS.processing=false;return;}
+const cards=row.querySelectorAll('.opt-card');
+
+if(idx===rd.prove.correct){
+GS.proveLocked=true;
+cards[idx].classList.add('correct-mark');
+safeCall(()=>playCorrectSound(),'proveCorrect');
+
+addTimer(()=>{
+GS.processing=false;
+completeRound(rd);
+},1200);
+}else{
+GS.wrongCountPROVE++;
+cards[idx].classList.add('wrong-mark');
+safeCall(()=>playWrongSound(),'proveWrong');
+updateStreak(false);
+
+if(checkFastGuess()){return;}
+
+const fbText=rd.prove.wrongFeedback[idx]||'Think again about what you saw.';
+showCoachingBar(fbText,'wrong-coach');
+
+addTimer(()=>{
+cards[idx].classList.remove('wrong-mark');
+cards[idx].classList.add('disabled');
+GS.selectedDO=null;
+const lb=document.getElementById('proveLockBtn');
+if(lb)lb.classList.remove('active');
+GS.processing=false;
+
+// After too many wrongs in prove, advance
+if(GS.wrongCountPROVE>=cards.length-1){
+GS.proveLocked=true;
+GS.resetsThisRound=1;
+showCoachingBar('Let\'s move on — you\'ll see this idea again.','arena-nudge');
+addTimer(()=>{completeRound(rd);},2000);
+}
+},800);
+}
+}
+
+// ============ ROUND COMPLETION ============
+function completeRound(rd){
+const score=calcRoundScore();
+const elapsed=Math.round((Date.now()-GS.roundStartTime)/1000);
+GS.roundScores[GS.currentRound]={
+num:rd.num,name:rd.name,sourceDay:rd.sourceDay,required:rd.required,
+score:score,attempts:GS.wrongCountDO+GS.wrongCountPROVE+1,
+hints:GS.hintUsedThisRound,resets:GS.resetsThisRound,time:elapsed
+};
+updateScoreDisplay();
+
+const nextRound=GS.currentRound+1;
+
+// Check milestones
+if(nextRound===6){
+// Required complete
+showMilestone(6,()=>{showRequiredComplete();});
+GS.currentRound=nextRound;
+return;
+}
+if(nextRound>=8){
+// All complete
+GS.currentRound=nextRound;
+showBonusComplete();
+return;
+}
+
+GS.currentRound=nextRound;
+showMilestone(rd.num,()=>{loadRound(GS.currentRound);});
+}
+
+// ============ LOAD ROUND ============
+function loadRound(idx,isReset){
+if(idx>=ROUNDS.length){showReceipt();return;}
+const rd=ROUNDS[idx];
+if(!rd.buildArena){
+// TODO placeholder - skip
+console.warn('Round',idx+1,'not yet loaded');
+GS.roundScores[idx]={num:rd.num,name:rd.name,sourceDay:rd.sourceDay,required:rd.required,score:null,attempts:0,hints:0,resets:0,time:0};
+GS.currentRound=idx+1;
+loadRound(idx+1);
+return;
+}
+
+// Preserve reset/hint state on manual reset
+const savedResets=isReset?GS.resetsThisRound:0;
+const savedHints=isReset?GS.hintUsedThisRound:0;
+
+// Reset round state
+GS.phase='do';
+GS.doLocked=false;
+GS.proveLocked=false;
+GS.wrongCountDO=0;
+GS.wrongCountPROVE=0;
+GS.hintUsedThisRound=savedHints;
+GS.resetsThisRound=savedResets;
+GS.selectedDO=null;
+GS.fastWrongs=0;
+GS.lastWrongTime=0;
+GS.processing=false;
+if(!isReset)GS.roundStartTime=Date.now();
+clearRoundTimers();
+closeAllOverlays();
+
+// Update HUD
+$('roundInfo').textContent=`Round ${rd.num} of 8`;
+const sourceColors={'Monday':'var(--mon-color)','Tuesday':'var(--tue-color)','Wednesday':'var(--wed-color)','Tue + Wed':'var(--wed-color)','All 3':'var(--gold)'};
+const sourceEmoji={'Monday':'\uD83D\uDFE2','Tuesday':'\uD83D\uDD35','Wednesday':'\uD83D\uDFE3','Tue + Wed':'\uD83D\uDFE3','All 3':'\u2B50'};
+$('sourceTag').innerHTML=`Source: ${escHtml(rd.sourceDay)} ${sourceEmoji[rd.sourceDay]||''}`;
+$('sourceTag').style.borderColor=sourceColors[rd.sourceDay]||'var(--gold)';
+$('sourceTag').style.color=sourceColors[rd.sourceDay]||'var(--gold)';
+
+// Focus banner
+$('focusBanner').textContent=rd.focusPrompt;
+$('focusBanner').style.opacity='1';
+addTimer(()=>{$('focusBanner').style.opacity='0.5';},3000);
+
+// Context caption
+$('contextCaption').textContent=rd.contextCaption;
+
+// Build arena
+const arena=$('arena');
+while(arena.firstChild)arena.removeChild(arena.firstChild);
+safeCall(()=>rd.buildArena(arena),'buildArena');
+
+// Build interaction
+const iz=$('interZone');
+iz.innerHTML='';
+
+// Render mechanic
+switch(rd.mechanic){
+case 'pick-the-match': renderPickTheMatch(rd); break;
+case 'coach-click': renderCoachClick(rd); break;
+case 'hotspot': renderHotspot(rd); break;
+case 'what-comes-next': renderWhatComesNext(rd); break;
+case 'claim-builder': renderClaimBuilder(rd); break;
+}
+
+// Enable buttons
+$('btnResetLevel').disabled=false;
+$('btnHint').disabled=false;
+}
+
+// ============ RECEIPT ============
+function showReceipt(){
+if(GS.receiptRendered)return;
+GS.receiptRendered=true;
+$('app').style.display='none';
+$('receiptScreen').style.display='block';
+clearRoundTimers();
+
+const requiredScores=GS.roundScores.filter(r=>r&&r.required&&r.score!==null).map(r=>r.score);
+const bonusCompleted=GS.roundScores.filter(r=>r&&!r.required&&r.score!==null);
+const baseGrade=requiredScores.length>0?Math.round(requiredScores.reduce((a,b)=>a+b,0)/requiredScores.length):0;
+const bonusPts=bonusCompleted.length*5;
+const overall=Math.min(100,baseGrade+bonusPts);
+const gradeColor=overall>=85?'var(--correct)':overall>=70?'var(--gold)':'var(--wrong)';
+const gradeLabel=overall>=85?'MASTERY':overall>=70?'APPROACHING MASTERY':'NEEDS MORE PRACTICE';
+const totalTime=GS.roundScores.filter(r=>r&&r.score!==null).reduce((a,r)=>a+r.time,0);
+const allComplete=GS.roundScores.filter(r=>r&&r.score!==null).length===8;
+const reqComplete=requiredScores.length===6;
+
+let rows='';
+GS.roundScores.forEach((r,i)=>{
+if(!r||r.score===null)return;
+const m=Math.floor(r.time/60);
+const s=('0'+(r.time%60)).slice(-2);
+const sc=r.score>=85?'color:var(--correct)':r.score>=70?'color:var(--gold)':'color:var(--wrong)';
+rows+=`<tr class="${r.required?'':'bonus-row'}">
+<td>${r.required?r.num:'\u2B50 '+r.num}</td>
+<td>${escHtml(r.name)}</td>
+<td>${escHtml(r.sourceDay)}</td>
+<td style="${sc};font-weight:700;">${r.score}%</td>
+<td>${r.attempts}</td>
+<td>${m}:${s}</td></tr>`;
+});
+
+const tm=Math.floor(totalTime/60);
+const ts=('0'+(totalTime%60)).slice(-2);
+
+$('receiptInner').innerHTML=`
+<h1>Mr. Jawad's Simulations</h1>
+<div class="r-sub">Addiction &amp; The Rat Park Experiment — Thursday Score Report</div>
+<div class="r-name-row">
+<input type="text" id="receiptName" value="${escHtml(GS.studentName)}" placeholder="Enter your name">
+<button onclick="lockReceiptName()" id="lockNameBtn">Lock</button>
+</div>
+<div class="r-big-score">
+<div class="r-pct" style="color:${gradeColor}">${overall}%</div>
+<div class="r-label" style="color:${gradeColor}">${gradeLabel}</div>
+</div>
+<div class="r-streak">Highest Streak: &#128293; x${GS.maxStreak}</div>
+<table class="r-table">
+<thead><tr><th>#</th><th>Round</th><th>Source</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead>
+<tbody>${rows}</tbody>
+</table>
+<div style="font-size:13px;color:var(--dim);margin-bottom:8px;">Total Time: ${tm}:${ts}</div>
+<div class="r-status" style="color:${allComplete?'var(--neon)':reqComplete?'var(--gold)':'var(--text)'}">
+${allComplete?'\u2705 All Complete (Bonus!)':reqComplete?'\u2705 Required Complete':'\u26A0\uFE0F In Progress'}
+</div>
+<div class="r-upload">&#128248; Take a screenshot and upload to Google Classroom</div>
+<div class="r-actions">
+<button class="btn-overlay btn-dim" onclick="window.print()">&#128424; Print</button>
+<button class="btn-overlay btn-dim" onclick="confirmNewRun()">Start Over</button>
+</div>`;
+}
+
+function lockReceiptName(){
+const inp=document.getElementById('receiptName');
+const btn=document.getElementById('lockNameBtn');
+if(inp&&btn){inp.disabled=true;btn.disabled=true;btn.textContent='Locked';}
+}
+
+function confirmNewRun(){
+closeAllOverlays();
+const ov=document.createElement('div');
+ov.className='overlay';
+ov.innerHTML=`<div class="overlay-bg"></div>
+<div class="overlay-content">
+<h2>Start Over?</h2>
+<p>This will erase all your progress. Are you sure?</p>
+<button class="btn-overlay btn-gold" onclick="this.closest('.overlay').remove();fullReset();">Yes, Start Over</button>
+<button class="btn-overlay btn-dim" onclick="this.closest('.overlay').remove();">Cancel</button>
+</div>`;
+document.body.appendChild(ov);
+}
+
+function fullReset(){
+GS.currentRound=0;GS.totalScore=0;GS.streak=0;GS.maxStreak=0;
+GS.roundScores=[];GS.processing=false;
+GS.requiredCompleteShown=false;GS.bonusCompleteShown=false;GS.receiptRendered=false;
+clearRoundTimers();closeAllOverlays();
+$('receiptScreen').style.display='none';
+$('app').style.display='none';
+$('welcomeScreen').style.display='flex';
+$('studentNameInput').value=GS.studentName;
+$('teacherNameInput').value=GS.teacherName;
+$('btnStart').disabled=GS.studentName.trim().length===0;
+updateStreak(false);
+updateScoreDisplay();
+}
+
+// ============ VOCAB TOGGLE ============
+function toggleVocab(){
+const p=$('vocabPanel');
+const o=$('vocabOverlay');
+if(p.classList.contains('open')){p.classList.remove('open');o.style.display='none';}
+else{p.classList.add('open');o.style.display='block';}
+}
+
+// ============ EVENT WIRING ============
+$('btnVocab').onclick=toggleVocab;
+$('btnHint').onclick=showHint;
+$('btnResetLevel').onclick=()=>{
+if(GS.processing)return;
+closeAllOverlays();
+resetCurrentRound();
+};
+$('btnNewRun').onclick=()=>{
+closeAllOverlays();
+confirmNewRun();
+};
+
+$('studentNameInput').addEventListener('input',function(){
+$('btnStart').disabled=this.value.trim().length===0;
+});
+$('btnStart').onclick=function(){
+const sn=$('studentNameInput').value.trim();
+if(!sn)return;
+GS.studentName=sn;
+GS.teacherName=$('teacherNameInput').value.trim()||'Mr. Jawad';
+$('welcomeScreen').style.display='none';
+$('app').style.display='flex';
+GS.currentRound=0;
+GS.roundScores=ROUNDS.map(()=>null);
+loadRound(0);
+};
+
+// Visibility change - clear intervals
+document.addEventListener('visibilitychange',()=>{
+if(document.hidden){/* intervals managed via roundTimers */}
+});
+</script>
+</body>
+</html>

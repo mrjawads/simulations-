@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Mr. Jawad's Simulations — Addiction &amp; The Rat Park Experiment</title>
+<style>
+:root{
+--bg1:#FFF8F0;--bg2:#FFEFD5;--accent1:#F59E0B;--accent2:#EF6C6C;--accent3:#2D8B4E;
+--txt:#2D2016;--txtLight:#5A4A3A;--white:#fff;--card:#FFFDF8;
+--correct:#2D8B4E;--wrong:#D94040;--hint1:#FFF9C4;--hint2:#FFE0B2;
+--shadow:0 2px 8px rgba(0,0,0,.1);--radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--txt);min-height:100vh;overflow:hidden;}
+button{cursor:pointer;font-family:inherit;border:none;border-radius:8px;padding:12px 24px;font-size:16px;font-weight:600;transition:transform .15s,opacity .15s,background .2s;}
+button:active{transform:scale(.96);}
+button:disabled{opacity:.5;cursor:default;transform:none;}
+.hidden{display:none!important;}
+
+/* WELCOME */
+#welcomeScreen{position:fixed;inset:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));display:flex;align-items:center;justify-content:center;z-index:1000;}
+.welcome-card{background:var(--white);border-radius:20px;padding:48px 40px;max-width:460px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.12);text-align:center;}
+.welcome-card h1{font-size:26px;color:var(--accent1);margin-bottom:6px;}
+.welcome-card h2{font-size:18px;color:var(--txtLight);font-weight:400;margin-bottom:28px;}
+.welcome-card input{width:100%;padding:14px 16px;border:2px solid #E8DDD0;border-radius:10px;font-size:16px;margin-bottom:14px;background:var(--card);transition:border-color .2s;}
+.welcome-card input:focus{outline:none;border-color:var(--accent1);}
+.welcome-card label{display:block;text-align:left;font-size:13px;color:var(--txtLight);margin-bottom:4px;font-weight:600;}
+#startBtn{background:linear-gradient(135deg,var(--accent1),#E8890A);color:var(--white);font-size:18px;padding:16px 48px;margin-top:12px;border-radius:14px;width:100%;box-shadow:0 4px 12px rgba(245,158,11,.3);}
+
+/* GAME CONTAINER */
+#gameContainer{display:none;height:100vh;flex-direction:column;}
+#gameContainer.active{display:flex;}
+
+/* TOP BAR */
+#topBar{background:linear-gradient(90deg,#F5E6D0,#FFEFD5);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #E8DDD0;min-height:52px;flex-shrink:0;}
+.level-badge{background:var(--accent1);color:var(--white);padding:5px 14px;border-radius:20px;font-size:14px;font-weight:700;}
+.level-badge.bonus{background:linear-gradient(135deg,var(--accent1),var(--accent2));}
+#levelName{font-size:15px;font-weight:600;color:var(--txt);margin-left:10px;}
+.hud-right{display:flex;align-items:center;gap:14px;}
+#scoreDisplay{font-size:15px;font-weight:700;color:var(--accent3);}
+#progressBar{width:140px;height:10px;background:#E8DDD0;border-radius:5px;overflow:hidden;}
+#progressFill{height:100%;background:linear-gradient(90deg,var(--accent1),var(--accent3));transition:width .5s;width:0;}
+
+/* MAIN AREA */
+#mainArea{display:flex;flex:1;overflow:hidden;min-height:0;}
+#narrativePanel{width:38%;background:var(--card);padding:20px;overflow-y:auto;border-right:2px solid #E8DDD0;display:flex;flex-direction:column;justify-content:flex-start;}
+#narrativeText{font-size:15px;line-height:1.7;color:var(--txt);flex:1;}
+#narrativeText b{color:var(--accent1);}
+#readAloudBtn{margin-top:10px;background:var(--accent1);color:var(--white);padding:8px 16px;font-size:13px;align-self:flex-start;border-radius:8px;}
+#readAloudBtn.off{background:#CCC;color:#666;}
+#arenaPanel{width:62%;position:relative;overflow:hidden;background:linear-gradient(180deg,#F0EDE8,#E8E2DA);}
+#arenaContent{position:absolute;top:0;left:0;right:0;bottom:0;}
+
+/* ARENA ELEMENTS */
+.arena-split{display:flex;width:100%;height:100%;position:relative;}
+.cage-side{width:40%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;background:linear-gradient(180deg,#6B6B6B,#4A4A4A);padding:10px;overflow:hidden;}
+.cage-side::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 20%,rgba(0,0,0,0),rgba(0,0,0,.35));pointer-events:none;z-index:1;}
+.cage-side::after{content:'ISOLATED';position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:3px;color:rgba(255,255,255,.15);font-weight:800;z-index:2;pointer-events:none;}
+.park-side{width:60%;height:100%;position:relative;background:linear-gradient(180deg,#87CEEB33,#8BC34A18);padding:10px;display:none;overflow:hidden;}
+.park-side.visible{display:block;}
+.park-side::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(255,235,150,.15),transparent 60%);pointer-events:none;z-index:1;}
+
+/* Cage */
+.cage-box{width:88%;height:78%;background:linear-gradient(180deg,#5C5C5C 0%,#4D4D4D 40%,#424242 100%);border:4px solid #333;border-radius:4px;position:relative;overflow:hidden;box-shadow:inset 0 2px 16px rgba(0,0,0,.45),0 4px 16px rgba(0,0,0,.3);}
+.cage-box::before{content:'';position:absolute;inset:0;background:
+  repeating-linear-gradient(90deg,transparent,transparent 22px,rgba(0,0,0,.06) 22px,rgba(0,0,0,.06) 23px),
+  repeating-linear-gradient(0deg,transparent,transparent 22px,rgba(0,0,0,.06) 22px,rgba(0,0,0,.06) 23px);
+  pointer-events:none;}
+.cage-box::after{content:'';position:absolute;bottom:0;left:0;right:0;height:18%;background:linear-gradient(180deg,transparent,rgba(90,80,60,.25));pointer-events:none;}
+.cage-bars{position:absolute;inset:0;z-index:2;pointer-events:none;}
+
+/* Park */
+.park-box{width:94%;height:84%;margin:5% auto 0;background:linear-gradient(180deg,#C8E6C9 0%,#A5D6A7 30%,#81C784 100%);border:4px solid #66BB6A;border-radius:14px;position:relative;overflow:hidden;box-shadow:inset 0 2px 12px rgba(0,0,0,.1),0 4px 16px rgba(0,0,0,.15);}
+.park-box::before{content:'';position:absolute;bottom:0;left:0;right:0;height:35%;background:linear-gradient(180deg,transparent,rgba(139,119,101,.2));pointer-events:none;border-radius:0 0 10px 10px;}
+.park-box::after{content:'';position:absolute;top:0;left:0;right:0;height:20%;background:linear-gradient(180deg,rgba(255,255,255,.15),transparent);pointer-events:none;border-radius:14px 14px 0 0;}
+.park-floor{position:absolute;bottom:0;left:0;right:0;height:28%;background:repeating-linear-gradient(45deg,#D7CCC8,#D7CCC8 4px,#BCAAA4 4px,#BCAAA4 8px);border-radius:0 0 10px 10px;opacity:.7;}
+
+/* Rats */
+.rat-svg{position:absolute;z-index:3;}
+.rat-idle{animation:ratIdle 2.5s ease-in-out infinite;}
+@keyframes ratIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.rat-explore{animation:ratExplore 6s ease-in-out infinite;}
+@keyframes ratExplore{0%,100%{transform:translate(0,0)}25%{transform:translate(10px,-5px)}50%{transform:translate(-6px,3px)}75%{transform:translate(7px,4px)}}
+.rat-groom{animation:ratGroom 4s ease-in-out infinite;}
+@keyframes ratGroom{0%,100%{transform:rotate(0) translateY(0)}30%{transform:rotate(-3deg) translateY(-2px)}60%{transform:rotate(3deg) translateY(-1px)}}
+
+/* Meters — taller, glass-tube style */
+.meter-container{position:absolute;right:10px;top:8%;height:72%;width:34px;background:linear-gradient(90deg,#2A2A2A,#3A3A3A,#2A2A2A);border-radius:17px;overflow:hidden;border:3px solid #555;box-shadow:0 2px 8px rgba(0,0,0,.3),inset 0 1px 4px rgba(0,0,0,.4);z-index:4;}
+.meter-fill{position:absolute;bottom:0;width:100%;height:0;transition:height 2s cubic-bezier(.4,0,.2,1),background 1s;border-radius:0 0 14px 14px;}
+.meter-fill.high{background:linear-gradient(180deg,#FF5252,#FF1744,#D50000);height:90%;}
+.meter-fill.high::after{content:'';position:absolute;top:0;left:15%;right:50%;height:100%;background:linear-gradient(90deg,rgba(255,255,255,.15),transparent);border-radius:14px;}
+.meter-fill.low{background:linear-gradient(180deg,#69F0AE,#00E676,#00C853);height:12%;}
+.meter-fill.low::after{content:'';position:absolute;top:0;left:15%;right:50%;height:100%;background:linear-gradient(90deg,rgba(255,255,255,.2),transparent);border-radius:14px;}
+.meter-label{position:absolute;top:-22px;width:100%;text-align:center;font-size:9px;font-weight:800;color:var(--white);letter-spacing:.5px;text-shadow:0 1px 3px rgba(0,0,0,.5);}
+.meter-ticks{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+.meter-tick{position:absolute;right:0;width:6px;height:1px;background:rgba(255,255,255,.2);}
+.meter-glass{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);pointer-events:none;border-radius:14px;z-index:2;}
+
+/* Park enrichment — wheels */
+.park-wheel{position:absolute;width:44px;height:44px;border:4px solid #5D4037;border-radius:50%;z-index:3;background:radial-gradient(circle,#8D6E63 30%,transparent 30%);}
+.park-wheel::before{content:'';position:absolute;inset:4px;border:2px solid rgba(93,64,55,.3);border-radius:50%;}
+.park-wheel::after{content:'';position:absolute;top:50%;left:50%;width:2px;height:100%;background:#5D4037;transform:translate(-50%,-50%);border-radius:1px;}
+.wheel-spin{animation:wheelSpin 3s linear infinite;}
+@keyframes wheelSpin{to{transform:rotate(360deg)}}
+
+/* Platforms with wood grain */
+.park-platform{position:absolute;height:10px;background:linear-gradient(180deg,#A1887F,#8D6E63);border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,.15);z-index:3;}
+.park-platform::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 8px,rgba(255,255,255,.08) 8px,rgba(255,255,255,.08) 9px);border-radius:4px;}
+.park-platform.p1{width:60px;top:32%;left:28%;}
+.park-platform.p2{width:50px;top:52%;left:55%;}
+.park-platform.p3{width:55px;top:70%;left:14%;}
+.park-platform-leg{position:absolute;width:3px;background:#795548;z-index:2;}
+
+/* Hiding spot with interior glow */
+.hiding-spot{position:absolute;width:38px;height:28px;background:linear-gradient(180deg,#8D6E63,#6D4C41);border-radius:14px 14px 0 0;bottom:13%;right:16%;border:3px solid #5D4037;box-shadow:0 2px 6px rgba(0,0,0,.2);z-index:3;}
+.hiding-spot::before{content:'';position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);width:18px;height:14px;background:radial-gradient(ellipse,#FFE082,#5D4037 70%);border-radius:8px 8px 0 0;opacity:.6;}
+.hiding-spot::after{content:'';position:absolute;top:3px;left:50%;transform:translateX(-50%);width:20px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;}
+
+/* Bottles with detail */
+.bottle{position:absolute;z-index:4;}
+.bottle svg{display:block;}
+.bottle-cage{left:50%;transform:translateX(-50%);bottom:12%;}
+.bottle-morph-park{left:65%;bottom:8%;}
+.bottle-water-park{left:78%;bottom:8%;}
+
+/* Comparison zone */
+.compare-zone{position:absolute;top:0;left:38%;width:24%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:5;pointer-events:none;}
+.compare-zone::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.08),transparent 30%,transparent 70%,rgba(0,0,0,.08));pointer-events:none;}
+.bar-graph{display:none;width:85%;height:55%;position:relative;padding:20px 0;}
+.bar-graph.visible{display:flex;align-items:flex-end;justify-content:center;gap:16px;padding-bottom:28px;}
+.bar-graph::after{content:'';position:absolute;bottom:24px;left:10%;right:10%;height:2px;background:rgba(255,255,255,.3);}
+.graph-bar{width:36px;border-radius:6px 6px 0 0;transition:height 2s cubic-bezier(.4,0,.2,1);position:relative;box-shadow:0 -2px 8px rgba(0,0,0,.15);}
+.graph-bar::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.15),transparent 40%);border-radius:6px 6px 0 0;pointer-events:none;}
+.graph-bar .bar-label{position:absolute;bottom:-22px;width:100%;text-align:center;font-size:10px;font-weight:800;color:var(--white);text-shadow:0 1px 2px rgba(0,0,0,.4);}
+.graph-bar .bar-val{position:absolute;top:-22px;width:100%;text-align:center;font-size:12px;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.3);}
+.multiplier-label{font-size:26px;font-weight:900;color:#FFD54F;text-shadow:0 2px 6px rgba(0,0,0,.4),0 0 20px rgba(255,213,79,.3);display:none;margin-top:6px;}
+.multiplier-label.visible{display:block;animation:pulseFade 2s ease-in-out infinite;}
+@keyframes pulseFade{0%,100%{opacity:.8;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}
+
+/* Chain — bigger nodes with icons */
+.chain-container{display:none;position:absolute;bottom:6%;left:3%;right:3%;height:auto;z-index:5;padding:8px;background:rgba(0,0,0,.2);border-radius:12px;}
+.chain-container.visible{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:nowrap;}
+.chain-node{background:linear-gradient(135deg,var(--accent1),#E8890A);color:var(--white);padding:8px 10px;border-radius:10px;font-size:10px;font-weight:700;text-align:center;opacity:0;transition:opacity .6s,transform .4s,box-shadow .3s;min-width:65px;max-width:105px;word-wrap:break-word;overflow-wrap:break-word;box-shadow:0 2px 6px rgba(0,0,0,.2);}
+.chain-node.lit{opacity:1;}
+.chain-node.glow{box-shadow:0 0 16px var(--accent1),0 0 30px rgba(245,158,11,.3);}
+.chain-arrow{color:#FFD54F;font-size:20px;font-weight:900;opacity:0;transition:opacity .4s;text-shadow:0 1px 3px rgba(0,0,0,.3);}
+.chain-arrow.lit{opacity:1;}
+
+/* Arena labels — larger, with backdrop */
+.arena-label{position:absolute;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:800;color:var(--white);text-transform:uppercase;letter-spacing:.8px;opacity:0;transition:opacity .5s;z-index:6;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.2);text-shadow:0 1px 2px rgba(0,0,0,.3);}
+.arena-label.visible{opacity:1;}
+.arena-label.isolation{background:linear-gradient(135deg,#EF6C6C,#D94040);top:5%;left:2%;}
+.arena-label.environment{background:linear-gradient(135deg,#F59E0B,#E8890A);top:2%;left:28%;white-space:nowrap;}
+.arena-label.dependence{background:linear-gradient(135deg,#EF6C6C,#D94040);}
+.arena-label.variable{background:linear-gradient(135deg,#3B82F6,#2563EB);}
+
+/* Hotspot clickable */
+.hotspot-overlay{position:absolute;inset:0;z-index:10;display:none;}
+.hotspot-overlay.active{display:block;}
+.hotspot-region{position:absolute;cursor:pointer;border:3px solid transparent;border-radius:10px;transition:border-color .3s,box-shadow .3s;}
+.hotspot-region:hover{border-color:rgba(245,158,11,.6);box-shadow:0 0 12px rgba(245,158,11,.2);}
+.hotspot-region.correct-click{border-color:var(--correct);box-shadow:0 0 24px rgba(45,139,78,.5);}
+.hotspot-region.wrong-click{border-color:var(--wrong);box-shadow:0 0 24px rgba(217,64,64,.4);}
+
+/* Evidence cards (L6) — improved */
+.evidence-strip{display:none;position:absolute;bottom:3%;left:2%;right:2%;z-index:6;gap:8px;}
+.evidence-strip.visible{display:flex;}
+.evidence-card{flex:1;background:linear-gradient(135deg,#FFFDF8,#FFF8E1);border:2px solid #E8DDD0;border-radius:10px;padding:8px 10px;font-size:11px;font-weight:600;text-align:center;color:var(--txt);transition:border-color .3s,box-shadow .3s,transform .3s;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.evidence-card.glow-green{border-color:var(--correct);box-shadow:0 0 16px rgba(45,139,78,.35);transform:translateY(-2px);}
+
+/* Divider line between cage and park */
+.arena-divider{position:absolute;top:0;bottom:0;left:40%;width:3px;background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.3),rgba(255,255,255,.1));z-index:4;pointer-events:none;}
+
+/* Ambient cage shadow overlay */
+.cage-shadow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 80%,transparent 40%,rgba(0,0,0,.12));pointer-events:none;z-index:2;}
+
+/* Sunbeam in park */
+.park-sunbeam{position:absolute;top:-10%;left:10%;width:40%;height:60%;background:linear-gradient(180deg,rgba(255,235,150,.1),transparent);transform:rotate(15deg);pointer-events:none;z-index:1;}
+
+/* FOCUS PROMPT */
+#focusPrompt{position:absolute;top:0;left:0;right:0;background:linear-gradient(180deg,rgba(245,158,11,.92),rgba(245,158,11,.75));color:var(--white);text-align:center;padding:12px 20px;font-size:14px;font-weight:600;z-index:20;transition:opacity 1s,transform .5s;pointer-events:none;}
+#focusPrompt.subtle{opacity:.5;transform:translateY(-2px);font-size:12px;padding:6px 12px;background:rgba(245,158,11,.4);}
+#focusPrompt.gone{opacity:0;transform:translateY(-20px);}
+
+/* INTERACTION ZONE */
+#interactionZone{min-height:180px;max-height:260px;overflow-y:auto;padding:16px 20px;background:var(--white);border-top:2px solid #E8DDD0;flex-shrink:0;}
+#izContent{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100%;}
+.phase-label{font-size:13px;font-weight:700;color:var(--accent1);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.do-prompt,.prove-prompt{font-size:16px;font-weight:600;color:var(--txt);text-align:center;margin-bottom:14px;line-height:1.4;}
+.options-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;}
+.option-card{background:var(--card);border:2px solid #E8DDD0;border-radius:var(--radius);padding:14px 18px;font-size:14px;font-weight:500;cursor:pointer;transition:border-color .2s,background .2s,opacity .3s,transform .15s;min-height:48px;display:flex;align-items:center;text-align:center;max-width:260px;word-wrap:break-word;overflow-wrap:break-word;}
+.option-card:hover:not(.disabled):not(.locked){border-color:var(--accent1);background:#FFF5E0;}
+.option-card.selected{border-color:var(--accent1);background:#FFF0CC;transform:scale(1.02);}
+.option-card.correct{border-color:var(--correct);background:#E8F5E9;animation:correctPop .4s;}
+.option-card.wrong{border-color:var(--wrong);background:#FFEBEE;animation:wrongShake .4s;}
+.option-card.disabled{opacity:.4;cursor:default;pointer-events:none;text-decoration:line-through;}
+.option-card.locked{pointer-events:none;opacity:.8;border-color:var(--correct);background:#E8F5E9;}
+.option-card.dimmed{opacity:.35;pointer-events:none;}
+.option-card.l1-glow{box-shadow:0 0 8px rgba(245,158,11,.3);border-color:rgba(245,158,11,.4);}
+@keyframes correctPop{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes wrongShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+#lockInBtn{background:linear-gradient(135deg,var(--accent3),#1E7A3B);color:var(--white);font-size:16px;padding:14px 40px;border-radius:12px;display:none;box-shadow:0 4px 12px rgba(45,139,78,.25);}
+#lockInBtn.visible{display:inline-block;}
+#lockInBtn:disabled{background:#AAA;}
+
+/* Sequence display */
+.sequence-display{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap;justify-content:center;}
+.seq-step{background:#F5E6D0;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;color:var(--txt);}
+.seq-step.filled{background:var(--accent1);color:var(--white);}
+.seq-step.blank{background:#FFF0CC;border:2px dashed var(--accent1);color:var(--accent1);min-width:80px;text-align:center;}
+.seq-arrow{font-size:18px;color:var(--accent1);font-weight:900;}
+
+/* Claim builder */
+.claim-frame{background:var(--card);border:2px solid #E8DDD0;border-radius:var(--radius);padding:14px;margin-bottom:14px;text-align:center;font-size:14px;line-height:1.6;}
+.claim-frame .claim-blank{display:inline-block;min-width:80px;border-bottom:2px dashed var(--accent1);color:var(--accent1);font-weight:600;}
+.claim-frame .claim-filled{display:inline-block;color:var(--correct);font-weight:700;border-bottom:2px solid var(--correct);}
+
+/* FEEDBACK */
+.feedback-bar{padding:12px 16px;border-radius:10px;margin-bottom:10px;font-size:14px;font-weight:500;text-align:center;animation:slideUp .3s;line-height:1.4;word-wrap:break-word;overflow-wrap:break-word;}
+.feedback-bar.correct-fb{background:#E8F5E9;color:var(--correct);border:2px solid var(--correct);}
+.feedback-bar.wrong-fb{background:#FFF3E0;color:#BF360C;border:2px solid #FFAB91;}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#tryAgainBtn{background:var(--accent1);color:var(--white);font-size:16px;padding:14px 36px;border-radius:12px;margin-top:6px;display:none;}
+#tryAgainBtn.visible{display:inline-block;}
+
+/* COACHING SCREEN (anti-guessing) */
+#coachingOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100;}
+#coachingOverlay.active{display:flex;}
+.coaching-card{background:var(--white);border-radius:16px;padding:32px;max-width:400px;text-align:center;box-shadow:var(--shadow);}
+.coaching-card p{font-size:16px;line-height:1.6;margin-bottom:16px;color:var(--txt);}
+.coaching-timer{font-size:14px;color:var(--txtLight);}
+
+/* HINT BAR */
+.hint-bar{background:var(--hint1);border:2px solid #FFF176;border-radius:10px;padding:12px 16px;margin-bottom:10px;font-size:14px;line-height:1.5;display:none;word-wrap:break-word;overflow-wrap:break-word;}
+.hint-bar.h2{background:var(--hint2);border-color:#FFB74D;}
+.hint-bar.visible{display:block;animation:slideUp .3s;}
+
+/* STEP BY STEP OVERLAY */
+#sbsOverlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:90;}
+#sbsOverlay.active{display:flex;}
+.sbs-card{background:var(--white);border-radius:16px;padding:28px;max-width:440px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.sbs-step{font-size:15px;line-height:1.6;color:var(--txt);margin-bottom:16px;}
+.sbs-counter{font-size:12px;color:var(--txtLight);margin-bottom:8px;}
+#sbsNextBtn{background:var(--accent1);color:var(--white);padding:12px 32px;font-size:15px;border-radius:10px;}
+
+/* BOTTOM BAR */
+#bottomBar{background:linear-gradient(90deg,#F5E6D0,#FFEFD5);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-top:2px solid #E8DDD0;min-height:48px;flex-shrink:0;}
+.bb-left,.bb-right{display:flex;gap:10px;align-items:center;}
+.bb-btn{background:var(--card);border:1.5px solid #E8DDD0;padding:7px 14px;font-size:12px;font-weight:600;border-radius:8px;color:var(--txt);}
+.bb-btn:hover{background:#FFF0CC;}
+.bb-btn:disabled{opacity:.4;}
+#levelCounter{font-size:13px;color:var(--txtLight);font-weight:600;}
+
+/* VOCAB POPUP */
+#vocabPopup{position:fixed;top:0;right:-340px;width:320px;height:100vh;background:var(--white);box-shadow:-4px 0 20px rgba(0,0,0,.15);z-index:80;transition:right .3s;padding:24px 20px;overflow-y:auto;}
+#vocabPopup.open{right:0;}
+.vocab-close{position:absolute;top:12px;right:12px;background:none;font-size:20px;color:var(--txtLight);padding:4px 8px;}
+.vocab-title{font-size:18px;font-weight:700;color:var(--accent1);margin-bottom:20px;}
+.vocab-item{margin-bottom:16px;padding:12px;background:var(--card);border-radius:10px;border-left:4px solid var(--accent1);}
+.vocab-term{font-size:15px;font-weight:700;color:var(--accent1);}
+.vocab-def{font-size:13px;color:var(--txt);margin-top:4px;line-height:1.5;}
+.vocab-item.glowing{box-shadow:0 0 12px rgba(245,158,11,.4);border-left-color:gold;}
+
+/* CELEBRATION */
+#celebrationOverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:70;flex-direction:column;}
+#celebrationOverlay.active{display:flex;}
+.celeb-msg{font-size:28px;font-weight:800;color:var(--white);text-shadow:0 2px 8px rgba(0,0,0,.3);text-align:center;animation:celebPop .5s;}
+.celeb-sub{font-size:20px;color:var(--white);text-shadow:0 1px 4px rgba(0,0,0,.2);margin-top:8px;opacity:0;animation:fadeInUp .5s .3s forwards;}
+@keyframes celebPop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#particleLayer{position:fixed;inset:0;pointer-events:none;z-index:71;}
+.particle{position:absolute;width:8px;height:8px;border-radius:50%;display:none;animation:particleFall 2s forwards;}
+@keyframes particleFall{0%{opacity:1;transform:translateY(0) rotate(0deg)}100%{opacity:0;transform:translateY(100vh) rotate(720deg)}}
+
+/* REQUIRED COMPLETE */
+#reqCompleteOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:75;flex-direction:column;}
+#reqCompleteOverlay.active{display:flex;}
+.req-card{background:var(--white);border-radius:20px;padding:36px;text-align:center;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.req-card h2{font-size:24px;color:var(--accent3);margin-bottom:12px;}
+.req-card p{font-size:15px;color:var(--txt);margin-bottom:20px;line-height:1.5;}
+.req-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.req-btns button{padding:14px 28px;font-size:15px;border-radius:12px;}
+#keepGoingBtn{background:var(--accent1);color:var(--white);}
+#seeScoreBtn{background:var(--card);color:var(--txt);border:2px solid #E8DDD0;}
+
+/* RECEIPT */
+#receiptScreen{position:fixed;inset:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));display:none;align-items:flex-start;justify-content:center;z-index:200;overflow-y:auto;padding:20px;}
+#receiptScreen.active{display:flex;}
+.receipt-card{background:var(--white);border-radius:20px;padding:32px;max-width:600px;width:95%;box-shadow:0 8px 32px rgba(0,0,0,.12);margin:auto;}
+.receipt-header{text-align:center;margin-bottom:20px;}
+.receipt-header h1{font-size:22px;color:var(--accent1);}
+.receipt-header h2{font-size:15px;color:var(--txtLight);font-weight:400;}
+.receipt-name{display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--card);border-radius:10px;border:1.5px solid #E8DDD0;}
+.receipt-name input{flex:1;border:none;font-size:15px;background:transparent;outline:none;}
+.receipt-name button{background:var(--accent1);color:var(--white);padding:6px 16px;font-size:13px;border-radius:6px;}
+.receipt-score-big{text-align:center;margin:20px 0;}
+.receipt-score-big .pct{font-size:52px;font-weight:900;}
+.receipt-score-big .pct.green{color:var(--correct);}
+.receipt-score-big .pct.yellow{color:#F59E0B;}
+.receipt-score-big .pct.red{color:var(--wrong);}
+.receipt-score-big .label{font-size:16px;font-weight:600;color:var(--txtLight);}
+.receipt-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;}
+.receipt-table th{background:#F5E6D0;padding:8px;text-align:left;font-weight:700;color:var(--txt);}
+.receipt-table td{padding:8px;border-bottom:1px solid #EEE;}
+.receipt-table tr:nth-child(even){background:#FAFAFA;}
+.receipt-table .bonus-row{background:#FFF8E1;}
+.receipt-table .score-cell.green{color:var(--correct);font-weight:700;}
+.receipt-table .score-cell.yellow{color:#F59E0B;font-weight:700;}
+.receipt-table .score-cell.red{color:var(--wrong);font-weight:700;}
+.receipt-footer{text-align:center;margin-top:16px;}
+.receipt-footer .upload-msg{font-size:14px;color:var(--txt);margin-bottom:12px;}
+.receipt-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.receipt-btns button{padding:12px 24px;border-radius:10px;font-size:14px;}
+#printBtn{background:var(--accent1);color:var(--white);}
+#startOverBtn{background:var(--card);color:var(--txt);border:2px solid #E8DDD0;}
+
+/* CONFIRM DIALOG */
+#confirmDialog{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:300;}
+#confirmDialog.active{display:flex;}
+.confirm-card{background:var(--white);border-radius:16px;padding:28px;max-width:360px;text-align:center;}
+.confirm-card p{margin-bottom:16px;font-size:15px;}
+.confirm-btns{display:flex;gap:10px;justify-content:center;}
+.confirm-btns button{padding:10px 24px;border-radius:8px;font-size:14px;}
+#confirmYes{background:var(--wrong);color:var(--white);}
+#confirmNo{background:var(--card);border:2px solid #E8DDD0;color:var(--txt);}
+
+/* Pulse highlight on arena elements */
+.arena-pulse{animation:arenaPulse 1s ease-in-out 3;}
+@keyframes arenaPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 16px var(--accent1)}}
+.arena-glow-green{animation:arenaGlowG 1s ease-in-out 2;}
+@keyframes arenaGlowG{0%,100%{box-shadow:none}50%{box-shadow:0 0 16px var(--correct)}}
+.arena-glow-red{animation:arenaGlowR .5s ease-in-out;}
+@keyframes arenaGlowR{0%{box-shadow:0 0 20px var(--wrong)}100%{box-shadow:none}}
+
+/* Print */
+@media print{
+#gameContainer,#topBar,#bottomBar,#interactionZone,#narrativePanel,#celebrationOverlay,#vocabPopup,#coachingOverlay,#sbsOverlay,#reqCompleteOverlay,#confirmDialog,#welcomeScreen,.receipt-btns,#particleLayer{display:none!important;}
+#receiptScreen{position:static!important;overflow:visible!important;padding:0!important;}
+.receipt-card{box-shadow:none!important;max-width:100%!important;}
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+}
+
+/* Responsive */
+@media(max-width:768px){
+#mainArea{flex-direction:column;}
+#narrativePanel{width:100%;max-height:30vh;border-right:none;border-bottom:2px solid #E8DDD0;}
+#arenaPanel{width:100%;flex:1;}
+.welcome-card{padding:28px 20px;}
+.options-row{flex-direction:column;align-items:center;}
+.option-card{max-width:100%;width:100%;}
+}
+</style>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div id="welcomeScreen">
+<div class="welcome-card">
+<h1>Mr. Jawad's Simulations</h1>
+<h2>Addiction &amp; The Rat Park Experiment</h2>
+<label for="studentNameInput">Your Name</label>
+<input type="text" id="studentNameInput" placeholder="Enter your name..." maxlength="60" autocomplete="off">
+<label for="teacherNameInput">Teacher Name (optional)</label>
+<input type="text" id="teacherNameInput" placeholder="e.g. Mr. Jawad" maxlength="60" autocomplete="off" value="Mr. Jawad">
+<button id="startBtn">Start Simulation</button>
+</div>
+</div>
+
+<!-- GAME CONTAINER -->
+<div id="gameContainer">
+<div id="topBar">
+<div style="display:flex;align-items:center;">
+<span class="level-badge" id="levelBadge">Level 1</span>
+<span id="levelName">The Cage</span>
+</div>
+<div class="hud-right">
+<span id="scoreDisplay">Score: 0</span>
+<div id="progressBar"><div id="progressFill"></div></div>
+</div>
+</div>
+<div id="mainArea">
+<div id="narrativePanel">
+<div id="narrativeText"></div>
+<button id="readAloudBtn">Read Aloud: ON</button>
+</div>
+<div id="arenaPanel">
+<div id="focusPrompt"></div>
+<!-- Arena built by JS -->
+<div id="arenaContent"></div>
+<div class="hotspot-overlay" id="hotspotOverlay"></div>
+</div>
+</div>
+<div id="interactionZone">
+<div id="izContent"></div>
+</div>
+<div id="bottomBar">
+<div class="bb-left">
+<button class="bb-btn" id="vocabBtn">Vocab</button>
+<button class="bb-btn" id="hintBtn">Hint</button>
+<button class="bb-btn" id="resetLevelBtn">Reset Level</button>
+</div>
+<span id="levelCounter">Level 1 of 6</span>
+<div class="bb-right">
+<button class="bb-btn" id="settingsBtn">New Run</button>
+</div>
+</div>
+</div>
+
+<!-- VOCAB POPUP -->
+<div id="vocabPopup">
+<button class="vocab-close" id="vocabClose">X</button>
+<div class="vocab-title">Key Vocabulary</div>
+<div class="vocab-item" data-term="isolation"><span class="vocab-term">ISOLATION</span><div class="vocab-def">Being cut off from social contact</div></div>
+<div class="vocab-item" data-term="environment"><span class="vocab-term">ENVIRONMENT</span><div class="vocab-def">Surroundings that shape your behavior</div></div>
+<div class="vocab-item" data-term="dependence"><span class="vocab-term">DEPENDENCE</span><div class="vocab-def">Needing a substance to feel normal</div></div>
+<div class="vocab-item" data-term="variable"><span class="vocab-term">VARIABLE</span><div class="vocab-def">A factor you change to test</div></div>
+</div>
+
+<!-- CELEBRATION -->
+<div id="celebrationOverlay"><div class="celeb-msg" id="celebMsg"></div><div class="celeb-sub" id="celebSub"></div></div>
+<div id="particleLayer"></div>
+
+<!-- REQUIRED COMPLETE -->
+<div id="reqCompleteOverlay"><div class="req-card"><h2 id="reqTitle">You did it!</h2><p id="reqMsg"></p><div class="req-btns"><button id="keepGoingBtn">Keep Going</button><button id="seeScoreBtn">See My Score</button></div></div></div>
+
+<!-- STEP BY STEP -->
+<div id="sbsOverlay"><div class="sbs-card"><div class="sbs-counter" id="sbsCounter"></div><div class="sbs-step" id="sbsText"></div><button id="sbsNextBtn">Next</button></div></div>
+
+<!-- COACHING -->
+<div id="coachingOverlay"><div class="coaching-card"><p id="coachingText"></p><div class="coaching-timer" id="coachingTimer"></div></div></div>
+
+<!-- CONFIRM -->
+<div id="confirmDialog"><div class="confirm-card"><p id="confirmText">Start over? All progress will be lost.</p><div class="confirm-btns"><button id="confirmYes">Yes, Reset</button><button id="confirmNo">Cancel</button></div></div></div>
+
+<!-- RECEIPT -->
+<div id="receiptScreen">
+<div class="receipt-card">
+<div class="receipt-header">
+<h1 id="receiptTitle">Mr. Jawad's Simulations</h1>
+<h2>Addiction &amp; The Rat Park Experiment — Monday Score Report</h2>
+</div>
+<div class="receipt-name">
+<span>Student:</span>
+<input type="text" id="receiptNameInput" placeholder="Your name..." maxlength="60">
+<button id="lockNameBtn">Lock</button>
+</div>
+<div class="receipt-score-big">
+<div class="pct" id="receiptPct">0%</div>
+<div class="label" id="receiptLabel">Calculating...</div>
+</div>
+<table class="receipt-table" id="receiptTable">
+<thead><tr><th>#</th><th>Level</th><th>Score</th><th>Attempts</th><th>Time</th></tr></thead>
+<tbody id="receiptBody"></tbody>
+</table>
+<div style="text-align:center;font-size:13px;color:var(--txtLight);margin:8px 0;">
+<span id="receiptTotalTime">Total Time: 0:00</span> &nbsp;|&nbsp; <span id="receiptStatus"></span>
+</div>
+<div class="receipt-footer">
+<div class="upload-msg">Take a screenshot and upload to Google Classroom</div>
+<div class="receipt-btns">
+<button id="printBtn" onclick="window.print()">Print</button>
+<button id="startOverBtn">Start Over</button>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+/* ============ UTILITIES ============ */
+function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function $(id){return document.getElementById(id);}
+function qs(sel,ctx){return(ctx||document).querySelector(sel);}
+function qsa(sel,ctx){return(ctx||document).querySelectorAll(sel);}
+function closeAllOverlays(){
+['celebrationOverlay','reqCompleteOverlay','sbsOverlay','coachingOverlay','confirmDialog'].forEach(id=>{
+$(id).classList.remove('active');});
+qsa('.feedback-bar').forEach(el=>el.remove());
+qsa('.hint-bar').forEach(el=>el.remove());
+if(coachingTO){clearTimeout(coachingTO);coachingTO=null;}
+if(coachingIntv){clearInterval(coachingIntv);coachingIntv=null;}
+if(celebTimeout){clearTimeout(celebTimeout);celebTimeout=null;}
+}
+
+/* ============ AUDIO (lazy) ============ */
+let audioCtx=null;
+function getAudioCtx(){
+try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+catch(e){return null;}
+}
+function playTone(freq,dur,type){
+try{const ctx=getAudioCtx();if(!ctx)return;const o=ctx.createOscillator(),g=ctx.createGain();
+o.type=type||'sine';o.frequency.value=freq;g.gain.value=.12;
+o.connect(g);g.connect(ctx.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+dur);
+o.stop(ctx.currentTime+dur);}catch(e){}
+}
+function playCorrect(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.15),200);}
+function playWrong(){playTone(330,.15);setTimeout(()=>playTone(277,.2),120);}
+
+/* ============ SPEECH (lazy, Chrome workaround) ============ */
+let readAloud=true,speechResumeInt=null,currentUtterance=null;
+function cancelSpeech(){
+try{if(speechResumeInt){clearInterval(speechResumeInt);speechResumeInt=null;}
+if(window.speechSynthesis){window.speechSynthesis.cancel();}currentUtterance=null;}catch(e){}
+}
+function speak(text,onEnd){
+cancelSpeech();
+if(!readAloud||!window.speechSynthesis){if(onEnd)setTimeout(onEnd,100);return;}
+try{
+const u=new SpeechSynthesisUtterance(text);u.rate=0.85;u.pitch=1;
+currentUtterance=u;
+const dur=Math.max(3000,text.length*80);
+let ended=false;
+function finish(){if(ended)return;ended=true;clearInterval(speechResumeInt);speechResumeInt=null;if(onEnd)onEnd();}
+u.onend=finish;u.onerror=finish;
+const safetyTO=setTimeout(finish,dur+3000);
+u.onend=()=>{clearTimeout(safetyTO);finish();};
+u.onerror=()=>{clearTimeout(safetyTO);finish();};
+window.speechSynthesis.speak(u);
+speechResumeInt=setInterval(()=>{try{if(window.speechSynthesis.speaking)window.speechSynthesis.resume();}catch(e){}},10000);
+}catch(e){if(onEnd)setTimeout(onEnd,100);}
+}
+
+/* ============ GAME STATE ============ */
+const GS={
+studentName:'',teacherName:'Mr. Jawad',
+currentLevel:0,levels:[],overallScore:0,totalStartTime:0,
+processing:false,reqCompleteShown:false,bonusCompleteShown:false,receiptRendered:false,
+arenaGen:0
+};
+
+function initLevelState(i,lvl){
+return{num:i+1,name:lvl.name,required:lvl.required,completed:false,
+score:0,attempts:0,hintsUsed:0,resets:0,wrongCount:0,
+timeStart:0,timeSeconds:0,consecutiveFastWrongs:0,phaseStartTime:0,
+doAnswered:false,proveAnswered:false};
+}
+
+/* ============ AFFIRMATIONS ============ */
+const AFFIRMATION_POOL=[
+n=>`${n} is proud of you!`,
+n=>`${n} knew you could do it!`,
+n=>`That's the kind of thinking ${n} loves to see!`,
+n=>`${n} says: you're getting it!`,
+n=>`Strong work — ${n} sees your effort!`,
+n=>`${n} is impressed right now!`,
+n=>`You're showing ${n} what you can do!`,
+n=>`${n} says: keep that energy!`
+];
+let lastAffirmIdx=-1;
+function getAffirmation(){
+let idx;do{idx=Math.floor(Math.random()*AFFIRMATION_POOL.length);}while(idx===lastAffirmIdx&&AFFIRMATION_POOL.length>1);
+lastAffirmIdx=idx;return AFFIRMATION_POOL[idx](escHtml(GS.teacherName));
+}
+
+/* ============ LEVEL DATA ============ */
+const LEVELS=[
+/* LEVEL 1: The Cage */
+{
+name:'The Cage',required:true,mechanic:'coach-click',
+focusPrompt:'Watch the rat in the gray cage and what happens to the morphine meter beside it.',
+watchText:'Bruce Alexander walks into a lab in 1978. A single rat sits in <b>isolation</b> inside a tiny gray cage. Its only option is a bottle of morphine water. The rat drinks again and again — the <b>dependence</b> meter fills red.',
+watchDuration:15000,
+vocabHighlight:['isolation','dependence'],
+arenaSetup:'setupLevel1',
+doPrompt:'What is this rat\'s environment like?',
+doOptions:[
+{id:'A',text:'Crowded with other rats'},
+{id:'B',text:'Empty and isolated',correct:true},
+{id:'C',text:'Full of toys and space'}
+],
+doWrongFeedback:{
+A:'Look inside the cage. How many rats do you see?',
+C:'Check the cage again. Do you see any toys or extra space?'
+},
+doArenaWrong:{A:'pulseCageRat',C:'pulseCageWalls'},
+doArenaCorrect:'showIsolationLabel',
+proveQuestion:'What does the full red meter show about this rat?',
+proveOptions:[
+{id:'A',text:'The rat is healthy and active'},
+{id:'B',text:'The rat has high morphine dependence',correct:true},
+{id:'C',text:'The rat is sleeping'}
+],
+proveWrongFeedback:{
+A:'The meter tracks morphine use, not health. A full red bar means heavy use.',
+C:'The meter measures morphine consumption. Look at how full the red bar is.'
+},
+hintLadder:{
+hint1:{text:'Look at the morphine meter next to the cage. Is it low or full?',action:'pulseMeter'},
+hint2:{text:'It\'s not about health or sleep. The meter tracks how much morphine the rat drank.',action:'crossOutOption'},
+stepByStep:[
+{text:'This meter measures morphine consumption.',action:'arrowToMeter'},
+{text:'The meter is completely full and red. That means the rat drank a LOT of morphine.',action:'highlightMeter'},
+{text:'Which answer matches heavy morphine use? Tap it.'}
+]
+}
+},
+/* LEVEL 2: The Park */
+{
+name:'The Park',required:true,mechanic:'pick-match',
+focusPrompt:'Watch what\'s different about this new environment compared to the cage.',
+watchText:'Alexander has an idea — what if the cage is the problem? He builds a new <b>environment</b> called Rat Park. It has running wheels, platforms, hiding spots, and eight rats. Both a morphine bottle and a water bottle sit inside.',
+watchDuration:18000,
+vocabHighlight:['environment','variable'],
+arenaSetup:'setupLevel2',
+doPrompt:'Which variable is different between the cage and Rat Park?',
+doOptions:[
+{id:'A',text:'The type of drug in the bottle'},
+{id:'B',text:'The species of rat used'},
+{id:'C',text:'The environment the rats live in',correct:true},
+{id:'D',text:'The amount of food available'}
+],
+doWrongFeedback:{
+A:'Both setups have the same morphine. Look at what SURROUNDS the rats.',
+B:'Same type of rat in both setups. What\'s different about WHERE they live?',
+D:'Food isn\'t the focus here. Compare what\'s INSIDE each space.'
+},
+doArenaWrong:{A:'pulseBottles',B:'pulseRats',D:'pulseParkFeatures'},
+doArenaCorrect:'showVariableLabel',
+proveQuestion:'What word describes the cage rat being alone with no social contact?',
+proveOptions:[
+{id:'A',text:'Isolation',correct:true},
+{id:'B',text:'Dependence'},
+{id:'C',text:'Variable'}
+],
+proveWrongFeedback:{
+B:'Dependence means needing a substance to feel normal. What word means being cut off from others?',
+C:'A variable is a factor you change to test. What word means being completely alone?'
+},
+hintLadder:{
+hint1:{text:'Look at the cage side. How many rats are in there? Now look at the park side.',action:'pulseRatCounts'},
+hint2:{text:'Both setups have the same drug. One answer is about the drug — eliminate it. Focus on what\'s around the rats.',action:'crossOutOption'},
+stepByStep:[
+{text:'The cage has one rat, no toys, tiny space. The park has eight rats, wheels, platforms, big space.',action:'highlightSplitLabels'},
+{text:'The drug is the same. The rats are the same. The ENVIRONMENT is what changed.',action:'pulseEnvironments'},
+{text:'Which answer names what\'s different? Tap it.'}
+]
+}
+},
+/* LEVEL 3: The Data - Hotspot */
+{
+name:'The Data',required:true,mechanic:'hotspot',
+focusPrompt:'Watch the bar graph and compare how much morphine each group consumed.',
+watchText:'The experiment runs for weeks and the data is clear. A bar graph appears between the two environments. The cage bar shoots up — caged rats drank 19 times more morphine. The Rat Park bar barely rises — almost no <b>dependence</b> at all.',
+watchDuration:15000,
+vocabHighlight:['dependence'],
+arenaSetup:'setupLevel3',
+doPrompt:'Click the environment where rats showed higher dependence.',
+doOptions:[],
+doWrongFeedback:{},doArenaWrong:{},
+doArenaCorrect:'',
+hotspotRegions:[
+{id:'cage',x:'0',y:'0',w:'40%',h:'100%'},
+{id:'park',x:'40%',y:'0',w:'60%',h:'100%'}
+],
+hotspotHandler:function(idx){
+const ls=GS.levels[idx];
+let wrongClicks=0;
+qsa('.hotspot-region').forEach(r=>{
+r.onclick=()=>{
+if(GS.processing)return;
+GS.processing=true;ls.attempts++;
+if(r.dataset.id==='cage'){
+r.classList.add('correct-click');
+playCorrect();ls.doAnswered=true;
+$('lblDependence').style.right='auto';$('lblDependence').style.left='4%';$('lblDependence').style.top='8%';$('lblDependence').classList.add('visible');
+glowVocab('dependence');
+showFeedback('correct-fb','Correct! The cage side shows high dependence.');
+ARENA_ACTIONS.disableHotspot();
+safeTimeout(()=>{GS.processing=false;showProve(idx);},1500);
+}else{
+wrongClicks++;ls.wrongCount++;
+r.classList.add('wrong-click');
+setTimeout(()=>r.classList.remove('wrong-click'),1000);
+playWrong();
+if(checkFastGuess(ls)){GS.processing=false;return;}
+if(wrongClicks>=3){
+ls.hintsUsed=Math.max(ls.hintsUsed,1);
+$('cageSide').classList.add('arena-pulse');
+setTimeout(()=>$('cageSide').classList.remove('arena-pulse'),3000);
+}
+// Safety valve: too many wrong clicks
+if(ls.wrongCount>=6){
+ARENA_ACTIONS.disableHotspot();
+ls.resets=3;ls.score=50;ls.doAnswered=true;ls.proveAnswered=true;ls.completed=true;
+ls.timeSeconds=Math.round((Date.now()-ls.timeStart)/1000);
+showFeedback('wrong-fb','Let\'s move on — you\'ll see this idea again.');
+safeTimeout(()=>{GS.processing=false;advanceLevel();},2000);return;
+}
+showFeedback('wrong-fb','That side shows LOW consumption. Look for the TALL red bar.');
+ARENA_ACTIONS.pulseCageSide();
+showTryAgain(()=>{qsa('.feedback-bar').forEach(el=>el.remove());GS.processing=false;ls.phaseStartTime=Date.now();});
+}
+};
+});
+},
+proveQuestion:'Why did the caged rats drink more morphine?',
+proveOptions:[
+{id:'A',text:'The cage morphine was stronger'},
+{id:'B',text:'Caged rats were a different species'},
+{id:'C',text:'Caged rats were isolated with nothing else to do',correct:true}
+],
+proveWrongFeedback:{
+A:'Both setups had the same morphine. Look at what was different about the environment.',
+B:'Same type of rat in both groups. Think about what the cage was MISSING.'
+},
+hintLadder:{
+hint1:{text:'Look at the bar graph between the two environments. Which bar is taller and red?',action:'highlightHighBar'},
+hint2:{text:'The drug was the same in both setups. The rats were the same. Only the environment was different. What did the cage NOT have?',action:'crossOutOption'},
+stepByStep:[
+{text:'The tall red bar is on the cage side. Cage = more morphine.',action:'highlightHighBar'},
+{text:'The cage had no friends, no toys, no space. The rat had nothing to do except drink.',action:'pulseCageWalls'},
+{text:'Which answer explains why isolation led to more dependence? Tap it.'}
+]
+}
+},
+/* LEVEL 4: The Chain - What-Comes-Next */
+{
+name:'The Chain',required:true,mechanic:'what-comes-next',
+focusPrompt:'Watch each step in the cause-and-effect chain from isolation to dependence.',
+watchText:'Look at the caged rat again. It sits alone in total <b>isolation</b> — no other rats, no wheels, nothing in its <b>environment</b>. It turns to the only thing it has: the morphine bottle. It drinks, and drinks, and the meter climbs until <b>dependence</b> takes over.',
+watchDuration:18000,
+vocabHighlight:['isolation','environment','dependence'],
+arenaSetup:'setupLevel4',
+doPrompt:'What comes next after isolation and no social contact?',
+sequenceSteps:[
+{text:'Isolation',blank:false},
+{text:'No social contact',blank:false},
+{text:'???',blank:true}
+],
+doOptions:[
+{id:'A',text:'The rat escapes the cage'},
+{id:'B',text:'The rat builds a nest'},
+{id:'C',text:'Morphine consumption rises',correct:true}
+],
+doWrongFeedback:{
+A:'The rat can\'t escape. Look at what\'s in the cage — what does it turn to?',
+B:'There\'s nothing to build with. Look at the cause-and-effect chain — what happens to the morphine meter?'
+},
+doArenaWrong:{A:'pulseCageWalls',B:'pulseCageWalls'},
+doArenaCorrect:'completeChainNode3',
+proveQuestion:'Which vocabulary word describes needing morphine to feel normal?',
+proveOptions:[
+{id:'A',text:'Variable'},
+{id:'B',text:'Dependence',correct:true},
+{id:'C',text:'Environment'}
+],
+proveWrongFeedback:{
+A:'A variable is a factor you change to test. Which word means needing a substance?',
+C:'Environment means surroundings. Which word describes needing morphine to feel normal?'
+},
+hintLadder:{
+hint1:{text:'Look at the cause-and-effect chain in the arena. The first two steps are Isolation and No social contact. What happens next to the morphine meter?',action:'pulseMeter'},
+hint2:{text:'The rat can\'t escape and has nothing to build with. It only has one thing available in the cage.',action:'crossOutOption'},
+stepByStep:[
+{text:'The rat is alone. It has no friends and nothing to do.',action:'pulseCageRat'},
+{text:'The only thing in the cage is morphine. With nothing else, the rat drinks more.',action:'pulseMeter'},
+{text:'What happens to morphine consumption when a rat is isolated? Tap the answer.'}
+]
+}
+},
+/* LEVEL 5: The Switch - Coach-Click (BONUS) */
+{
+name:'The Switch',required:false,mechanic:'coach-click',
+focusPrompt:'Watch what happens to the morphine meter when a caged rat is moved into Rat Park.',
+watchText:'Here is the biggest surprise of the experiment. A rat drinking morphine heavily is moved from the cage into Rat Park. Other rats approach it, and the space is bright and full. Slowly, the <b>dependence</b> meter drops from red to green.',
+watchDuration:18000,
+vocabHighlight:['dependence'],
+arenaSetup:'setupLevel5',
+doPrompt:'What happened to this rat\'s dependence after the environment changed?',
+doOptions:[
+{id:'A',text:'Dependence stayed the same'},
+{id:'B',text:'Dependence decreased because the environment improved',correct:true},
+{id:'C',text:'Dependence increased because the drug got stronger'}
+],
+doWrongFeedback:{
+A:'Look at the meter. Did it stay the same or change?',
+C:'The drug didn\'t change — the environment did. Look at where the rat is now.'
+},
+doArenaWrong:{A:'showSwitchMeter',C:'pulseParkFeatures'},
+doArenaCorrect:'showSwitchLabel',
+proveQuestion:'What does this prove about what causes dependence?',
+proveOptions:[
+{id:'A',text:'The environment matters more than the drug',correct:true},
+{id:'B',text:'The drug is always the cause'},
+{id:'C',text:'Nothing changed for the rat'}
+],
+proveWrongFeedback:{
+B:'The drug was the same in both setups. What actually changed was the environment — and dependence dropped.',
+C:'The meter clearly dropped. Something changed. Look at what was different — the cage or the park?'
+},
+hintLadder:{
+hint1:{text:'Look at the two meters — the old one by the cage and the new one in the park. Did the meter go up or down?',action:'showSwitchMeter'},
+hint2:{text:'The drug stayed the same. The rat stayed the same. Only the environment changed — and dependence dropped.',action:'crossOutOption'},
+stepByStep:[
+{text:'This is the SAME rat. It used to be in the cage with high dependence.',action:'pulseMeter'},
+{text:'Now it\'s in Rat Park. The meter dropped to green. The environment changed, and dependence went down.',action:'pulseParkFeatures'},
+{text:'What matters more — the drug or the environment? Tap your answer.'}
+]
+}
+},
+/* LEVEL 6: The Claim - Claim Builder (BONUS) */
+{
+name:'The Claim',required:false,mechanic:'claim-builder',
+focusPrompt:'Watch all the evidence come together — cage data, park data, and the switch result.',
+watchText:'Everything Alexander tested points to one result. The evidence cards line up below — cage, park, and the switch. One <b>variable</b> mattered most.',
+watchDuration:18000,
+vocabHighlight:['variable','isolation','environment','dependence'],
+arenaSetup:'setupLevel6',
+doPrompt:'Build a claim about what the experiment showed.',
+doOptions:[],doWrongFeedback:{},doArenaWrong:{},
+doArenaCorrect:'glowEvidenceCards',
+claimSteps:[
+{
+prefix:'The Rat Park experiment showed that ',
+prompt:'The Rat Park experiment showed that...',
+options:[
+{id:'A',text:'environment shapes dependence',correct:true},
+{id:'B',text:'all drugs cause addiction'},
+{id:'C',text:'rats cannot resist morphine'}
+],
+wrongFeedback:{
+B:'Look at the evidence cards. Both setups had the same drug. What was different?',
+C:'The park rats DID resist morphine. Why? What was different about their environment?'
+}
+},
+{
+prefix:' because ',
+prompt:'...because...',
+options:[
+{id:'A',text:'isolated rats consumed far more morphine than connected rats',correct:true},
+{id:'B',text:'the drug was different in each setup'},
+{id:'C',text:'all rats behaved the same way'}
+],
+wrongFeedback:{
+B:'Look at the evidence. Was the drug different? Or was the environment different?',
+C:'The data shows they did NOT behave the same. Compare the two bars.'
+}
+}
+],
+proveQuestion:'If you wanted to reduce dependence, what would you change?',
+proveOptions:[
+{id:'A',text:'Make the drug weaker'},
+{id:'B',text:'Don\'t change anything'},
+{id:'C',text:'Improve the environment and add social contact',correct:true}
+],
+proveWrongFeedback:{
+A:'The experiment showed the drug wasn\'t the main cause. What DID cause the difference?',
+B:'The \'switch\' evidence showed that changing the environment DID reduce dependence.'
+},
+hintLadder:{
+hint1:{text:'Look at the evidence cards at the bottom of the arena. What happened when the environment changed?',action:'glowEvidenceCards'},
+hint2:{text:'The drug was the same in every part of the experiment. One answer is about the drug — eliminate it.',action:'crossOutOption'},
+stepByStep:[
+{text:'The cage caused high dependence. The park caused low dependence. The environment was the variable.',action:'highlightSplitLabels'},
+{text:'When the environment improved, dependence dropped — even for a rat that was already dependent.',action:'glowEvidenceCards'},
+{text:'Build the claim: what did the experiment show, and what\'s the evidence? Tap your answers.'}
+]
+}
+}
+];
+
+/* ============ ARENA BUILDERS ============ */
+let arenaTimers=[];
+function arenaTimeout(fn,ms){
+const gen=GS.arenaGen;
+const tid=setTimeout(()=>{if(GS.arenaGen===gen)fn();},ms);
+arenaTimers.push(tid);return tid;
+}
+function clearArenaTimers(){arenaTimers.forEach(t=>clearTimeout(t));arenaTimers=[];}
+
+// Safe timeout for game-flow transitions — cancelled by arenaGen change (reset/new level)
+function safeTimeout(fn,ms){
+const gen=GS.arenaGen;
+const tid=setTimeout(()=>{if(GS.arenaGen===gen)fn();},ms);
+arenaTimers.push(tid);return tid;
+}
+
+function buildBaseArena(){
+const ac=$('arenaContent');
+// Detailed rat SVG generator
+function ratSVG(w,color1,color2,earC,eyeC,isIdle){
+const cls=isIdle?'rat-idle':'rat-explore';
+return `<svg viewBox="0 0 80 50" style="width:${w}px;" class="rat-svg ${cls}">
+<!-- body -->
+<ellipse cx="38" cy="32" rx="20" ry="12" fill="${color1}"/>
+<ellipse cx="38" cy="30" rx="18" ry="10" fill="${color2}"/>
+<!-- rump -->
+<ellipse cx="22" cy="33" rx="10" ry="8" fill="${color1}"/>
+<!-- head -->
+<ellipse cx="56" cy="26" rx="12" ry="9" fill="${color1}"/>
+<ellipse cx="56" cy="24" rx="10" ry="8" fill="${color2}"/>
+<!-- ears -->
+<ellipse cx="50" cy="15" rx="5.5" ry="6" fill="${earC}" stroke="${color1}" stroke-width=".8"/>
+<ellipse cx="60" cy="14" rx="5.5" ry="6" fill="${earC}" stroke="${color1}" stroke-width=".8"/>
+<ellipse cx="50" cy="16" rx="3" ry="3.5" fill="#FFAB91" opacity=".5"/>
+<ellipse cx="60" cy="15" rx="3" ry="3.5" fill="#FFAB91" opacity=".5"/>
+<!-- eye -->
+<circle cx="60" cy="22" r="2.5" fill="${eyeC}"/>
+<circle cx="61" cy="21" r=".9" fill="#fff"/>
+<!-- nose -->
+<ellipse cx="67" cy="26" rx="2.2" ry="1.6" fill="#F48FB1"/>
+<!-- whiskers -->
+<line x1="66" y1="24" x2="78" y2="21" stroke="${color1}" stroke-width=".6" opacity=".5"/>
+<line x1="66" y1="26" x2="79" y2="26" stroke="${color1}" stroke-width=".6" opacity=".5"/>
+<line x1="66" y1="28" x2="78" y2="31" stroke="${color1}" stroke-width=".6" opacity=".5"/>
+<!-- legs -->
+<ellipse cx="28" cy="40" rx="4" ry="3" fill="${color1}"/><ellipse cx="28" cy="41" rx="3" ry="2" fill="${earC}"/>
+<ellipse cx="46" cy="40" rx="4" ry="3" fill="${color1}"/><ellipse cx="46" cy="41" rx="3" ry="2" fill="${earC}"/>
+<!-- tail -->
+<path d="M12,33Q2,22 5,10" stroke="${earC}" fill="none" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
+}
+
+// Bottle SVG generator
+function bottleSVG(liquidColor,labelText,h){
+return `<svg viewBox="0 0 24 42" style="width:18px;height:${h||32}px;">
+<rect x="8" y="0" width="8" height="6" rx="2" fill="#E0E0E0" stroke="#BDBDBD" stroke-width=".5"/>
+<rect x="4" y="5" width="16" height="32" rx="5" fill="#F5F5F5" stroke="#BDBDBD" stroke-width=".8"/>
+<rect x="4" y="5" width="16" height="32" rx="5" fill="url(#none)" opacity=".1"/>
+<rect x="6" y="14" width="12" height="21" rx="3" fill="${liquidColor}" opacity=".7"/>
+<rect x="6" y="14" width="4" height="21" rx="2" fill="rgba(255,255,255,.15)"/>
+<text x="12" y="12" text-anchor="middle" font-size="4.5" fill="#666" font-weight="700">${labelText}</text>
+</svg>`;
+}
+
+// Meter tick marks
+function meterTicks(count){
+let h='';for(let i=0;i<count;i++){
+h+=`<div class="meter-tick" style="top:${(i/(count-1))*100}%"></div>`;
+}return h;
+}
+
+// Cage bars SVG
+const cageBars=`<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;opacity:.25;">
+${[8,20,32,44,56,68,80,92].map(x=>`<line x1="${x}" y1="0" x2="${x}" y2="100" stroke="#222" stroke-width="1.2"/>`).join('')}
+<line x1="0" y1="0" x2="100" y2="0" stroke="#222" stroke-width="2"/>
+<line x1="0" y1="100" x2="100" y2="100" stroke="#222" stroke-width="2"/>
+</svg>`;
+
+// Park rat positions (varied behaviors)
+const parkRats=[
+{x:12,y:42,w:36,d:0,flip:false,anim:'rat-explore'},
+{x:35,y:58,w:34,d:0.8,flip:true,anim:'rat-explore'},
+{x:55,y:32,w:32,d:1.5,flip:false,anim:'rat-groom'},
+{x:22,y:72,w:34,d:2.2,flip:true,anim:'rat-explore'},
+{x:68,y:65,w:30,d:3.0,flip:false,anim:'rat-explore'},
+{x:48,y:48,w:33,d:3.8,flip:true,anim:'rat-groom'},
+{x:78,y:52,w:31,d:4.5,flip:false,anim:'rat-explore'},
+{x:32,y:38,w:32,d:5.2,flip:true,anim:'rat-explore'}
+];
+
+ac.innerHTML=`
+<div class="arena-split" id="arenaSplit">
+
+<!-- === CAGE SIDE === -->
+<div class="cage-side" id="cageSide">
+<div class="cage-box" id="cageBox">
+${cageBars}
+<div class="cage-shadow"></div>
+<!-- Isolated rat - larger, detailed -->
+<div style="position:absolute;bottom:18%;left:20%;z-index:4;" id="cageRat">
+${ratSVG(64,'#8B7355','#A08B6E','#C4A882','#1A1A1A',true)}
+</div>
+<!-- Morphine bottle in cage -->
+<div class="bottle bottle-cage">
+${bottleSVG('#EF9A9A','M',32)}
+</div>
+<!-- Drip stain on floor -->
+<div style="position:absolute;bottom:8%;left:48%;width:14px;height:6px;background:radial-gradient(ellipse,rgba(229,115,115,.25),transparent);border-radius:50%;z-index:2;"></div>
+</div>
+<!-- Cage meter -->
+<div class="meter-container" id="cageMeterC">
+<div class="meter-label">Morphine</div>
+<div class="meter-ticks">${meterTicks(10)}</div>
+<div class="meter-fill" id="cageMeterFill"></div>
+<div class="meter-glass"></div>
+</div>
+<div class="arena-label isolation" id="lblIsolation">ISOLATION</div>
+</div>
+
+<!-- === PARK SIDE === -->
+<div class="park-side" id="parkSide">
+<div class="park-box" id="parkBox">
+<div class="park-floor"></div>
+<div class="park-sunbeam"></div>
+
+<!-- Exercise wheels -->
+<div class="park-wheel" id="parkWheel" style="top:12%;left:10%;"></div>
+<div class="park-wheel" style="top:60%;left:75%;width:36px;height:36px;border-width:3px;z-index:3;"></div>
+
+<!-- Platforms with legs -->
+<div class="park-platform p1"></div>
+<div class="park-platform p2"></div>
+<div class="park-platform p3"></div>
+
+<!-- Hiding spots -->
+<div class="hiding-spot" style="bottom:12%;right:15%;"></div>
+<div class="hiding-spot" style="bottom:25%;left:8%;width:32px;height:24px;"></div>
+
+<!-- Bottles in park -->
+<div class="bottle bottle-morph-park">
+${bottleSVG('#EF9A9A','M',28)}
+</div>
+<div class="bottle bottle-water-park">
+${bottleSVG('#90CAF9','W',28)}
+</div>
+
+<!-- 8 park rats — diverse positions and animations -->
+${parkRats.map((p,i)=>{
+const colors=[['#A1887F','#BCAAA4','#D7CCC8'],['#8D6E63','#A1887F','#BCAAA4'],['#9E8B7E','#B0A090','#C8B8A8']];
+const c=colors[i%3];
+return `<div style="position:absolute;left:${p.x}%;top:${p.y}%;z-index:4;${p.flip?'transform:scaleX(-1);':''}">
+<div style="animation-delay:${p.d}s;" class="${p.anim}">
+${ratSVG(p.w,c[0],c[1],c[2],'#333',false)}
+</div></div>`;
+}).join('')}
+
+<!-- Tiny food pellets scattered -->
+<div style="position:absolute;left:45%;top:78%;width:5px;height:4px;background:#A1887F;border-radius:50%;z-index:3;opacity:.6;"></div>
+<div style="position:absolute;left:52%;top:80%;width:4px;height:3px;background:#8D6E63;border-radius:50%;z-index:3;opacity:.5;"></div>
+<div style="position:absolute;left:30%;top:82%;width:5px;height:4px;background:#A1887F;border-radius:50%;z-index:3;opacity:.5;"></div>
+</div>
+
+<!-- Park meter -->
+<div class="meter-container" id="parkMeterC" style="display:none;">
+<div class="meter-label">Morphine</div>
+<div class="meter-ticks">${meterTicks(10)}</div>
+<div class="meter-fill" id="parkMeterFill"></div>
+<div class="meter-glass"></div>
+</div>
+
+<div class="arena-label environment" id="lblEnvironment">ENVIRONMENT</div>
+<div class="arena-label dependence" id="lblDependence" style="right:38px;top:8%;">DEPENDENCE</div>
+<div class="arena-label variable" id="lblVariable" style="left:2%;top:45%;">VARIABLE</div>
+</div>
+
+<!-- === DIVIDER === -->
+<div class="arena-divider"></div>
+
+<!-- === COMPARISON ZONE === -->
+<div class="compare-zone" id="compareZone">
+<div class="bar-graph" id="barGraph">
+<div class="graph-bar" id="barCage" style="background:linear-gradient(180deg,#FF5252,#D50000);height:0;">
+<div class="bar-val" style="color:#FFCDD2;">High</div>
+<div class="bar-label">Cage</div>
+</div>
+<div class="graph-bar" id="barPark" style="background:linear-gradient(180deg,#69F0AE,#00C853);height:0;">
+<div class="bar-val" style="color:#C8E6C9;">Low</div>
+<div class="bar-label">Park</div>
+</div>
+</div>
+<div class="multiplier-label" id="multLabel">19x</div>
+</div>
+</div>
+<div class="chain-container" id="chainContainer"></div>
+<div class="evidence-strip" id="evidenceStrip"></div>
+`;
+}
+
+function setupLevel1(){
+// Cage only, park hidden
+$('parkSide').classList.remove('visible');
+$('cageMeterFill').className='meter-fill';
+$('cageMeterFill').style.height='0';
+$('lblIsolation').classList.remove('visible');
+$('barGraph').classList.remove('visible');
+$('multLabel').classList.remove('visible');
+// WATCH animation: meter rises
+arenaTimeout(()=>{$('cageMeterFill').classList.add('high');},2000);
+}
+
+function setupLevel2(){
+// Reveal park side with animation
+const ps=$('parkSide');
+ps.classList.add('visible');
+ps.style.opacity='0';ps.style.transition='opacity 1s';
+arenaTimeout(()=>{ps.style.opacity='1';},500);
+$('parkMeterC').style.display='';
+$('parkMeterFill').className='meter-fill low';
+$('parkWheel').classList.add('wheel-spin');
+// End of WATCH highlights
+arenaTimeout(()=>{
+// Flash comparison highlights
+$('cageSide').classList.add('arena-pulse');
+arenaTimeout(()=>{$('cageSide').classList.remove('arena-pulse');$('parkSide').classList.add('arena-pulse');
+arenaTimeout(()=>{$('parkSide').classList.remove('arena-pulse');},2500);
+},2500);
+},12000);
+}
+
+function setupLevel3(){
+// Show data bars in comparison zone
+$('barGraph').classList.add('visible');
+arenaTimeout(()=>{$('barCage').style.height='85%';},1500);
+arenaTimeout(()=>{$('barPark').style.height='12%';},2500);
+arenaTimeout(()=>{$('multLabel').classList.add('visible');},4000);
+// Ensure both sides visible
+$('parkSide').classList.add('visible');$('parkSide').style.opacity='1';
+$('parkMeterC').style.display='';$('parkMeterFill').className='meter-fill low';
+$('cageMeterFill').className='meter-fill high';
+}
+
+function setupLevel4(){
+// Show cause-and-effect chain
+$('parkSide').classList.add('visible');$('parkSide').style.opacity='1';
+$('cageMeterFill').className='meter-fill high';
+$('parkMeterC').style.display='';$('parkMeterFill').className='meter-fill low';
+// Animate chain nodes
+ARENA_ACTIONS.showChain(['ISOLATION','No social contact','Morphine consumption rises','DEPENDENCE']);
+}
+
+function setupLevel5(){
+// Show switch animation: rat moves from cage to park, meter drops
+$('parkSide').classList.add('visible');$('parkSide').style.opacity='1';
+$('cageMeterFill').className='meter-fill high';
+$('parkMeterC').style.display='';
+// Start park meter high, then animate drop to low
+$('parkMeterFill').className='meter-fill high';
+arenaTimeout(()=>{
+$('parkMeterFill').className='meter-fill low';
+},5000);
+}
+
+function setupLevel6(){
+// Show summary view with all evidence
+$('parkSide').classList.add('visible');$('parkSide').style.opacity='1';
+$('cageMeterFill').className='meter-fill high';
+$('parkMeterC').style.display='';$('parkMeterFill').className='meter-fill low';
+$('barGraph').classList.add('visible');
+$('barCage').style.height='85%';$('barPark').style.height='12%';
+$('multLabel').classList.add('visible');
+// Show all labels
+$('lblIsolation').classList.add('visible');
+$('lblEnvironment').classList.add('visible');
+$('lblDependence').classList.add('visible');
+$('lblVariable').classList.add('visible');
+// Show evidence cards
+arenaTimeout(()=>{
+ARENA_ACTIONS.showEvidenceCards(['Cage = high dependence','Park = low dependence','Same rat moved = dependence dropped']);
+},2000);
+}
+
+/* Arena feedback actions */
+const ARENA_ACTIONS={
+pulseCageRat(){const cr=$('cageRat');if(cr)cr.classList.add('arena-pulse');setTimeout(()=>{if(cr)cr.classList.remove('arena-pulse');},3000);},
+pulseCageWalls(){$('cageBox').classList.add('arena-pulse');setTimeout(()=>$('cageBox').classList.remove('arena-pulse'),3000);},
+showIsolationLabel(){$('lblIsolation').classList.add('visible');glowVocab('isolation');},
+pulseBottles(){qsa('.bottle',document).forEach(b=>{b.classList.add('arena-pulse');setTimeout(()=>b.classList.remove('arena-pulse'),3000);});},
+pulseRats(){$('cageBox').classList.add('arena-pulse');$('parkBox').classList.add('arena-pulse');setTimeout(()=>{$('cageBox').classList.remove('arena-pulse');$('parkBox').classList.remove('arena-pulse');},3000);},
+pulseParkFeatures(){$('parkBox').classList.add('arena-pulse');setTimeout(()=>$('parkBox').classList.remove('arena-pulse'),3000);},
+showVariableLabel(){$('lblVariable').classList.add('visible');$('lblEnvironment').classList.add('visible');glowVocab('variable');glowVocab('environment');},
+pulseRatCounts(){$('cageBox').classList.add('arena-pulse');$('parkBox').classList.add('arena-pulse');setTimeout(()=>{$('cageBox').classList.remove('arena-pulse');$('parkBox').classList.remove('arena-pulse');},3000);},
+highlightSplitLabels(){$('cageSide').classList.add('arena-pulse');$('parkSide').classList.add('arena-pulse');setTimeout(()=>{$('cageSide').classList.remove('arena-pulse');$('parkSide').classList.remove('arena-pulse');},3000);},
+pulseEnvironments(){$('cageSide').classList.add('arena-pulse');$('parkSide').classList.add('arena-pulse');setTimeout(()=>{$('cageSide').classList.remove('arena-pulse');$('parkSide').classList.remove('arena-pulse');},3000);},
+pulseMeter(){const m=$('cageMeterC');m.classList.add('arena-pulse');setTimeout(()=>m.classList.remove('arena-pulse'),3000);},
+arrowToMeter(){$('cageMeterC').classList.add('arena-pulse');setTimeout(()=>$('cageMeterC').classList.remove('arena-pulse'),3000);},
+highlightMeter(){$('cageMeterFill').style.boxShadow='0 0 12px #FF1744';setTimeout(()=>{$('cageMeterFill').style.boxShadow='';},3000);},
+// Level 3+
+showDataBars(){$('barGraph').classList.add('visible');arenaTimeout(()=>{$('barCage').style.height='85%';},300);arenaTimeout(()=>{$('barPark').style.height='12%';},800);arenaTimeout(()=>{$('multLabel').classList.add('visible');},1500);},
+pulseCageSide(){$('cageSide').classList.add('arena-pulse');setTimeout(()=>$('cageSide').classList.remove('arena-pulse'),3000);},
+highlightHighBar(){$('barCage').style.boxShadow='0 0 12px #D32F2F';setTimeout(()=>{$('barCage').style.boxShadow='';},3000);},
+showChain(nodes){
+const cc=$('chainContainer');cc.innerHTML='';cc.classList.add('visible');
+nodes.forEach((n,i)=>{
+if(i>0){const ar=document.createElement('span');ar.className='chain-arrow';ar.textContent='\u2192';cc.appendChild(ar);arenaTimeout(()=>ar.classList.add('lit'),i*1200);}
+const nd=document.createElement('span');nd.className='chain-node';nd.textContent=n;cc.appendChild(nd);arenaTimeout(()=>nd.classList.add('lit'),i*1200+300);
+});
+},
+showSwitchMeter(){
+const pm=$('parkMeterC');pm.style.display='';
+$('parkMeterFill').className='meter-fill high';
+arenaTimeout(()=>{$('parkMeterFill').className='meter-fill low';},3000);
+},
+showEvidenceCards(cards){
+const es=$('evidenceStrip');es.innerHTML='';es.classList.add('visible');
+cards.forEach(c=>{const d=document.createElement('div');d.className='evidence-card';d.textContent=c;es.appendChild(d);});
+},
+glowEvidenceCards(){qsa('.evidence-card').forEach(c=>{c.classList.add('glow-green');setTimeout(()=>c.classList.remove('glow-green'),3000);});},
+completeChainNode3(){
+const nodes=qsa('.chain-node');
+if(nodes.length>=3){nodes[2].classList.add('lit','glow');
+if(nodes.length>=4){setTimeout(()=>nodes[3].classList.add('lit','glow'),600);}
+}
+const arrows=qsa('.chain-arrow');arrows.forEach(a=>a.classList.add('lit'));
+glowVocab('dependence');
+},
+showSwitchLabel(){
+// Remove any existing switch label before creating new one
+const existing=$('switchLabel');if(existing)existing.remove();
+const lbl=document.createElement('div');lbl.id='switchLabel';lbl.className='arena-label visible';
+lbl.style.cssText='background:rgba(45,139,78,.85);top:auto;bottom:5%;left:42%;font-size:12px;white-space:nowrap;';
+lbl.textContent='SAME RAT, NEW ENVIRONMENT';
+$('arenaSplit').appendChild(lbl);
+glowVocab('environment');glowVocab('dependence');glowVocab('isolation');glowVocab('variable');
+},
+// Hotspot helpers
+enableHotspot(regions){
+const ho=$('hotspotOverlay');ho.innerHTML='';ho.classList.add('active');
+regions.forEach(r=>{
+const d=document.createElement('div');d.className='hotspot-region';
+d.style.cssText=`left:${r.x};top:${r.y};width:${r.w};height:${r.h};`;
+d.dataset.id=r.id;
+ho.appendChild(d);
+});
+},
+disableHotspot(){$('hotspotOverlay').classList.remove('active');$('hotspotOverlay').innerHTML='';}
+};
+
+function glowVocab(term){
+const vi=qs(`.vocab-item[data-term="${term}"]`);
+if(vi){vi.classList.add('glowing');setTimeout(()=>vi.classList.remove('glowing'),4000);}
+}
+
+/* ============ TYPEWRITER ============ */
+let typewriterInt=null;
+function typewrite(el,html,onDone){
+if(typewriterInt)clearInterval(typewriterInt);
+el.innerHTML='';
+const tmp=document.createElement('div');tmp.innerHTML=html;
+const full=tmp.innerHTML;
+let i=0,inTag=false;
+typewriterInt=setInterval(()=>{
+if(i>=full.length){clearInterval(typewriterInt);typewriterInt=null;if(onDone)onDone();return;}
+if(full[i]==='<')inTag=true;
+if(inTag){while(i<full.length){i++;if(full[i-1]==='>')break;}inTag=false;}
+else{i++;}
+el.innerHTML=full.substring(0,i);
+},25);
+}
+
+/* ============ PARTICLES ============ */
+const PARTICLE_POOL=[];
+function initParticles(){
+const layer=$('particleLayer');
+for(let i=0;i<15;i++){
+const p=document.createElement('div');p.className='particle';p.style.display='none';layer.appendChild(p);PARTICLE_POOL.push(p);
+}
+}
+let particleIdx=0;
+function burstParticles(count){
+const colors=['#F59E0B','#EF6C6C','#2D8B4E','#FF9800','#9C27B0','#00BCD4'];
+for(let i=0;i<Math.min(count,15);i++){
+const p=PARTICLE_POOL[particleIdx%15];particleIdx++;
+p.style.display='block';
+p.style.left=Math.random()*100+'vw';p.style.top='-10px';
+p.style.width=(4+Math.random()*8)+'px';p.style.height=p.style.width;
+p.style.background=colors[Math.floor(Math.random()*colors.length)];
+p.style.borderRadius=Math.random()>.5?'50%':'2px';
+p.style.animation='none';void p.offsetWidth;
+p.style.animation=`particleFall ${1.5+Math.random()}s forwards`;
+p.addEventListener('animationend',()=>{p.style.display='none';},{once:true});
+setTimeout(()=>{p.style.display='none';},3000);
+}
+}
+
+/* ============ CELEBRATIONS ============ */
+let celebTimeout=null;
+function celebrate(msg,sub,duration,particles){
+closeAllOverlays();
+$('celebMsg').textContent=msg;
+$('celebSub').textContent=sub||'';
+$('celebSub').style.animation='none';void $('celebSub').offsetWidth;
+$('celebSub').style.animation='fadeInUp .5s .3s forwards';$('celebSub').style.opacity='0';
+$('celebrationOverlay').classList.add('active');
+if(particles)burstParticles(particles);
+playCorrect();
+if(celebTimeout)clearTimeout(celebTimeout);
+celebTimeout=setTimeout(()=>{$('celebrationOverlay').classList.remove('active');celebTimeout=null;},duration);
+}
+
+/* ============ HINT SYSTEM ============ */
+let currentHintPhase='do'; // 'do' or 'prove'
+function showHint(){
+if(GS.processing)return;
+const ls=GS.levels[GS.currentLevel];
+const lvl=LEVELS[GS.currentLevel];
+const hl=lvl.hintLadder;
+if(!hl)return;
+if(ls.hintsUsed===0){
+ls.hintsUsed=1;
+showHintBar(hl.hint1.text,'h1');
+if(hl.hint1.action&&ARENA_ACTIONS[hl.hint1.action])ARENA_ACTIONS[hl.hint1.action]();
+}else if(ls.hintsUsed===1){
+ls.hintsUsed=2;
+showHintBar(hl.hint2.text,'h2');
+if(hl.hint2.action==='crossOutOption')crossOutOneWrong();
+else if(hl.hint2.action&&ARENA_ACTIONS[hl.hint2.action])ARENA_ACTIONS[hl.hint2.action]();
+}else if(ls.hintsUsed>=2){
+ls.hintsUsed=3;
+showStepByStep(hl.stepByStep);
+}
+}
+
+function showHintBar(text,cls){
+qsa('.hint-bar').forEach(el=>el.remove());
+const iz=$('izContent');
+const bar=document.createElement('div');
+bar.className=`hint-bar ${cls} visible`;
+bar.textContent=text;
+iz.insertBefore(bar,iz.firstChild);
+}
+
+function crossOutOneWrong(){
+const opts=qsa('#doOptionsRow .option-card:not(.disabled):not(.correct):not(.selected)');
+if(opts.length>0)opts[0].classList.add('disabled');
+const pOpts=qsa('#proveOptionsRow .option-card:not(.disabled):not(.correct):not(.selected)');
+if(pOpts.length>0)pOpts[0].classList.add('disabled');
+}
+
+/* Step by step overlay */
+let sbsPanels=[],sbsIdx=0,sbsCallback=null;
+function showStepByStep(panels){
+sbsPanels=panels;sbsIdx=0;
+$('sbsOverlay').classList.add('active');
+renderSbsPanel();
+}
+function renderSbsPanel(){
+$('sbsCounter').textContent=`Step ${sbsIdx+1} of ${sbsPanels.length}`;
+$('sbsText').textContent=sbsPanels[sbsIdx].text;
+$('sbsNextBtn').textContent=sbsIdx<sbsPanels.length-1?'Next':'Got It';
+if(sbsPanels[sbsIdx].action&&ARENA_ACTIONS[sbsPanels[sbsIdx].action])ARENA_ACTIONS[sbsPanels[sbsIdx].action]();
+}
+$('sbsNextBtn').onclick=()=>{
+sbsIdx++;
+if(sbsIdx>=sbsPanels.length){$('sbsOverlay').classList.remove('active');}
+else renderSbsPanel();
+};
+
+/* ============ ANTI-GUESSING ============ */
+let coachingTO=null,coachingIntv=null;
+function showCoaching(text,duration){
+closeAllOverlays();
+$('coachingText').textContent=text;
+$('coachingOverlay').classList.add('active');
+let remaining=Math.ceil(duration/1000);
+$('coachingTimer').textContent=`Resuming in ${remaining}s...`;
+if(coachingIntv)clearInterval(coachingIntv);
+coachingIntv=setInterval(()=>{remaining--;$('coachingTimer').textContent=remaining>0?`Resuming in ${remaining}s...`:'';if(remaining<=0){clearInterval(coachingIntv);coachingIntv=null;}},1000);
+if(coachingTO)clearTimeout(coachingTO);
+coachingTO=setTimeout(()=>{if(coachingIntv){clearInterval(coachingIntv);coachingIntv=null;}$('coachingOverlay').classList.remove('active');coachingTO=null;},duration);
+}
+
+function checkFastGuess(ls){
+const elapsed=Date.now()-ls.phaseStartTime;
+if(elapsed<2000){
+ls.consecutiveFastWrongs++;
+if(ls.consecutiveFastWrongs>=2){
+ls.consecutiveFastWrongs=0;
+showCoaching('Slow down. Look at the arena for clues.',5000);
+return true;
+}
+}else{
+ls.consecutiveFastWrongs=0;
+}
+return false;
+}
+
+/* ============ GRADING ============ */
+function calcLevelScore(ls){
+if(ls.resets>=1)return 50;
+if(ls.hintsUsed>=3)return 60;
+if(ls.hintsUsed===2)return 70;
+if(ls.hintsUsed===1)return 85;
+return 100;
+}
+function calcOverall(){
+const reqScores=GS.levels.filter((l,i)=>LEVELS[i].required&&l.completed).map(l=>l.score);
+if(reqScores.length===0)return 0;
+const base=reqScores.reduce((a,b)=>a+b,0)/reqScores.length;
+const bonusCount=GS.levels.filter((l,i)=>!LEVELS[i].required&&l.completed).length;
+return Math.min(100,Math.round(base+bonusCount*5));
+}
+function updateHUD(){
+const ls=GS.levels[GS.currentLevel];
+const lvl=LEVELS[GS.currentLevel];
+$('levelBadge').textContent=`Level ${GS.currentLevel+1}`;
+$('levelBadge').className=lvl.required?'level-badge':'level-badge bonus';
+$('levelName').textContent=lvl.name;
+$('scoreDisplay').textContent=`Score: ${calcOverall()}`;
+$('progressFill').style.width=(GS.levels.filter(l=>l.completed).length/LEVELS.length*100)+'%';
+$('levelCounter').textContent=`Level ${GS.currentLevel+1} of ${LEVELS.length}`;
+}
+
+/* ============ GAME FLOW ============ */
+let transitionTO=null;
+function startLevel(idx){
+if(idx>=LEVELS.length){showReceipt();return;}
+GS.currentLevel=idx;
+GS.arenaGen++;
+clearArenaTimers();
+cancelSpeech();
+closeAllOverlays();
+ARENA_ACTIONS.disableHotspot();
+qsa('.hint-bar').forEach(el=>el.remove());
+
+const ls=GS.levels[idx];
+if(!ls.timeStart)ls.timeStart=Date.now();
+ls.doAnswered=false;ls.proveAnswered=false;ls.phaseStartTime=Date.now();
+ls.wrongCount=0;ls.consecutiveFastWrongs=0;
+
+const lvl=LEVELS[idx];
+updateHUD();
+$('resetLevelBtn').disabled=false;
+
+// Dim narrative during level intro
+$('narrativeText').innerHTML='';
+$('narrativePanel').style.opacity='.6';
+
+// Show level intro
+const iz=$('izContent');
+iz.innerHTML=`<div style="text-align:center;padding:20px;"><span class="level-badge${lvl.required?'':' bonus'}" style="font-size:18px;padding:8px 20px;">Level ${idx+1}</span><div style="font-size:20px;font-weight:700;margin-top:10px;color:var(--txt);">${escHtml(lvl.name)}</div></div>`;
+
+// Setup arena
+try{
+const fn=lvl.arenaSetup;
+if(typeof window[fn]==='function')window[fn]();
+else if(typeof eval(fn)==='function')eval(fn+'()');
+else{const aFn={setupLevel1,setupLevel2,setupLevel3,setupLevel4,setupLevel5,setupLevel6};if(aFn[fn])aFn[fn]();}
+}catch(e){console.error('Arena setup error',e);}
+
+if(transitionTO){clearTimeout(transitionTO);transitionTO=null;}
+transitionTO=safeTimeout(()=>showWatch(idx),1500);
+}
+
+function showWatch(idx){
+const lvl=LEVELS[idx];
+const ls=GS.levels[idx];
+GS.arenaGen++;
+ls.phaseStartTime=Date.now();
+
+// Focus prompt
+const fp=$('focusPrompt');
+fp.textContent=lvl.focusPrompt;
+fp.className='';
+arenaTimeout(()=>{fp.classList.add('subtle');},3000);
+arenaTimeout(()=>{fp.classList.add('gone');},lvl.watchDuration-2000);
+
+// Narrative
+$('narrativePanel').style.opacity='1';
+const plainText=lvl.watchText.replace(/<[^>]+>/g,'');
+typewrite($('narrativeText'),lvl.watchText,null);
+speak(plainText);
+
+// Vocab highlights
+if(lvl.vocabHighlight)lvl.vocabHighlight.forEach(v=>arenaTimeout(()=>glowVocab(v),3000));
+
+// Interaction zone: watching indicator
+const iz=$('izContent');
+iz.innerHTML=`<div class="phase-label">WATCH</div><div style="color:var(--txtLight);font-size:14px;">Watch the animation carefully...</div>`;
+
+// After watch, transition to DO
+arenaTimeout(()=>{
+// Coaching message for Level 1
+if(idx===0){
+const iz2=$('izContent');
+iz2.innerHTML=`<div style="text-align:center;padding:12px;font-size:15px;color:var(--accent1);font-weight:600;">Did you see the cage? Now show me what you noticed.</div>`;
+arenaTimeout(()=>showDo(idx),2000);
+}else{
+showDo(idx);
+}
+},lvl.watchDuration);
+}
+
+function showDo(idx){
+const lvl=LEVELS[idx];
+const ls=GS.levels[idx];
+ls.phaseStartTime=Date.now();
+GS.processing=false;
+
+$('narrativePanel').style.opacity='.5';
+
+if(lvl.mechanic==='hotspot'){renderHotspotDo(idx);return;}
+if(lvl.mechanic==='what-comes-next'){renderWCNDo(idx);return;}
+if(lvl.mechanic==='claim-builder'){renderClaimDo(idx);return;}
+
+// coach-click and pick-match share option card UI
+const iz=$('izContent');
+iz.innerHTML=`<div class="phase-label">${lvl.mechanic==='coach-click'?'OBSERVE':'MATCH'}</div>
+<div class="do-prompt">${escHtml(lvl.doPrompt)}</div>
+<div class="options-row" id="doOptionsRow"></div>
+<button id="lockInBtn" class="visible" disabled>Lock In</button>`;
+
+const row=$('doOptionsRow');
+let selected=null;
+lvl.doOptions.forEach(opt=>{
+const card=document.createElement('div');
+card.className='option-card';
+if(idx===0&&opt.correct)card.classList.add('l1-glow');// L1 guided hint
+card.textContent=opt.text;card.dataset.id=opt.id;
+card.onclick=()=>{
+if(GS.processing||card.classList.contains('disabled')||card.classList.contains('locked'))return;
+row.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+card.classList.add('selected');selected=opt.id;
+$('lockInBtn').disabled=false;
+};
+row.appendChild(card);
+});
+
+$('lockInBtn').onclick=()=>{
+if(!selected||GS.processing)return;
+GS.processing=true;
+ls.attempts++;
+const correct=lvl.doOptions.find(o=>o.correct);
+if(selected===correct.id){
+handleDoCorrect(idx,selected);
+}else{
+handleDoWrong(idx,selected);
+}
+};
+}
+
+function handleDoCorrect(idx,selId){
+const lvl=LEVELS[idx];const ls=GS.levels[idx];
+ls.doAnswered=true;ls.consecutiveFastWrongs=0;
+const card=qs(`#doOptionsRow .option-card[data-id="${selId}"]`);
+if(card){card.classList.add('correct');card.classList.add('locked');}
+$('lockInBtn').style.display='none';
+playCorrect();
+// Arena correct action
+if(lvl.doArenaCorrect&&ARENA_ACTIONS[lvl.doArenaCorrect])ARENA_ACTIONS[lvl.doArenaCorrect]();
+// Show feedback
+showFeedback('correct-fb','Correct!');
+safeTimeout(()=>{GS.processing=false;showProve(idx);},1500);
+}
+
+function handleDoWrong(idx,selId){
+const lvl=LEVELS[idx];const ls=GS.levels[idx];
+ls.wrongCount++;
+playWrong();
+
+// Fast guess check
+if(checkFastGuess(ls)){GS.processing=false;return;}
+
+const card=qs(`#doOptionsRow .option-card[data-id="${selId}"]`);
+if(card)card.classList.add('wrong');
+setTimeout(()=>{if(card){card.classList.remove('wrong');card.classList.add('dimmed');}},500);
+
+// Arena wrong action
+const arenaAct=lvl.doArenaWrong[selId];
+if(arenaAct&&ARENA_ACTIONS[arenaAct])ARENA_ACTIONS[arenaAct]();
+
+// Feedback
+const fbText=lvl.doWrongFeedback[selId]||'Look at the arena for clues.';
+showFeedback('wrong-fb',fbText);
+
+// Show try again
+showTryAgain(()=>{
+qsa('.feedback-bar').forEach(el=>el.remove());
+$('lockInBtn').disabled=true;
+GS.processing=false;
+ls.phaseStartTime=Date.now();
+
+// Check resets
+if(ls.wrongCount>=6){// safety: 3 resets worth
+ls.resets=3;ls.score=50;ls.doAnswered=true;ls.proveAnswered=true;ls.completed=true;
+ls.timeSeconds=Math.round((Date.now()-ls.timeStart)/1000);
+showFeedback('wrong-fb','Let\'s move on — you\'ll see this idea again.');
+safeTimeout(()=>{advanceLevel();},2000);
+}
+});
+}
+
+function renderHotspotDo(idx){
+const lvl=LEVELS[idx];const ls=GS.levels[idx];
+const iz=$('izContent');
+iz.innerHTML=`<div class="phase-label">IDENTIFY</div><div class="do-prompt">${escHtml(lvl.doPrompt)}</div>`;
+// Enable hotspot regions
+if(lvl.hotspotRegions)ARENA_ACTIONS.enableHotspot(lvl.hotspotRegions);
+// Click handling set up per level in data
+if(lvl.hotspotHandler)lvl.hotspotHandler(idx);
+}
+
+function renderWCNDo(idx){
+const lvl=LEVELS[idx];const ls=GS.levels[idx];
+const iz=$('izContent');
+let seqHtml='<div class="sequence-display">';
+if(lvl.sequenceSteps){
+lvl.sequenceSteps.forEach((s,i)=>{
+if(i>0)seqHtml+=`<span class="seq-arrow">\u2192</span>`;
+seqHtml+=s.blank?`<span class="seq-step blank">???</span>`:`<span class="seq-step filled">${escHtml(s.text)}</span>`;
+});
+}
+seqHtml+='</div>';
+iz.innerHTML=`<div class="phase-label">SEQUENCE</div>
+<div class="do-prompt">${escHtml(lvl.doPrompt)}</div>
+${seqHtml}
+<div class="options-row" id="doOptionsRow"></div>
+<button id="lockInBtn" class="visible" disabled>Lock In</button>`;
+
+let selected=null;
+const row=$('doOptionsRow');
+lvl.doOptions.forEach(opt=>{
+const card=document.createElement('div');card.className='option-card';card.textContent=opt.text;card.dataset.id=opt.id;
+card.onclick=()=>{if(GS.processing||card.classList.contains('disabled'))return;
+row.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+card.classList.add('selected');selected=opt.id;$('lockInBtn').disabled=false;};
+row.appendChild(card);
+});
+$('lockInBtn').onclick=()=>{
+if(!selected||GS.processing)return;GS.processing=true;ls.attempts++;
+const correct=lvl.doOptions.find(o=>o.correct);
+if(selected===correct.id){handleDoCorrect(idx,selected);}
+else{handleDoWrong(idx,selected);}
+};
+}
+
+function renderClaimDo(idx){
+const lvl=LEVELS[idx];const ls=GS.levels[idx];
+if(!lvl.claimSteps)return;
+// Show step 1
+showClaimStep(idx,0,null);
+}
+
+function showClaimStep(idx,stepIdx,prevAnswer){
+const lvl=LEVELS[idx];const ls=GS.levels[idx];
+const step=lvl.claimSteps[stepIdx];
+const iz=$('izContent');
+
+let claimDisplay='<div class="claim-frame">';
+lvl.claimSteps.forEach((s,i)=>{
+claimDisplay+=escHtml(s.prefix);
+if(i<stepIdx)claimDisplay+=`<span class="claim-filled">${escHtml(s.options.find(o=>o.correct).text)}</span> `;
+else if(i===stepIdx)claimDisplay+=`<span class="claim-blank">_____</span> `;
+else claimDisplay+=`<span class="claim-blank">_____</span> `;
+});
+claimDisplay+='</div>';
+
+iz.innerHTML=`<div class="phase-label">BUILD YOUR CLAIM</div>
+<div class="do-prompt">${escHtml(step.prompt||lvl.doPrompt)}</div>
+${claimDisplay}
+<div class="options-row" id="doOptionsRow"></div>
+<button id="lockInBtn" class="visible" disabled>Lock In</button>`;
+
+let selected=null;
+const row=$('doOptionsRow');
+step.options.forEach(opt=>{
+const card=document.createElement('div');card.className='option-card';card.textContent=opt.text;card.dataset.id=opt.id;
+card.onclick=()=>{if(GS.processing||card.classList.contains('disabled'))return;
+row.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+card.classList.add('selected');selected=opt.id;$('lockInBtn').disabled=false;};
+row.appendChild(card);
+});
+
+$('lockInBtn').onclick=()=>{
+if(!selected||GS.processing)return;GS.processing=true;ls.attempts++;
+const correct=step.options.find(o=>o.correct);
+if(selected===correct.id){
+const card=qs(`#doOptionsRow .option-card[data-id="${selected}"]`);
+if(card){card.classList.add('correct');card.classList.add('locked');}
+playCorrect();
+if(stepIdx<lvl.claimSteps.length-1){
+safeTimeout(()=>{GS.processing=false;showClaimStep(idx,stepIdx+1,selected);},1000);
+}else{
+ls.doAnswered=true;
+if(lvl.doArenaCorrect&&ARENA_ACTIONS[lvl.doArenaCorrect])ARENA_ACTIONS[lvl.doArenaCorrect]();
+showFeedback('correct-fb','Claim built!');
+safeTimeout(()=>{GS.processing=false;showProve(idx);},1500);
+}
+}else{
+const card=qs(`#doOptionsRow .option-card[data-id="${selected}"]`);
+if(card){card.classList.add('wrong');setTimeout(()=>{card.classList.remove('wrong');card.classList.add('dimmed');},500);}
+playWrong();
+const fb=step.wrongFeedback&&step.wrongFeedback[selected]||'Look at the evidence cards.';
+showFeedback('wrong-fb',fb);
+ls.wrongCount++;
+// Safety valve
+if(ls.wrongCount>=6){
+ls.resets=3;ls.score=50;ls.doAnswered=true;ls.proveAnswered=true;ls.completed=true;
+ls.timeSeconds=Math.round((Date.now()-ls.timeStart)/1000);
+showFeedback('wrong-fb','Let\'s move on — you\'ll see this idea again.');
+safeTimeout(()=>{GS.processing=false;advanceLevel();},2000);return;
+}
+showTryAgain(()=>{qsa('.feedback-bar').forEach(el=>el.remove());$('lockInBtn').disabled=true;GS.processing=false;ls.phaseStartTime=Date.now();});
+}
+};
+}
+
+function showProve(idx){
+const lvl=LEVELS[idx];const ls=GS.levels[idx];
+ls.phaseStartTime=Date.now();GS.processing=false;
+qsa('.hint-bar').forEach(el=>el.remove());
+
+const iz=$('izContent');
+iz.innerHTML=`<div class="phase-label">PROVE IT</div>
+<div class="prove-prompt">${escHtml(lvl.proveQuestion)}</div>
+<div class="options-row" id="proveOptionsRow"></div>`;
+
+let selected=null;
+const row=$('proveOptionsRow');
+lvl.proveOptions.forEach(opt=>{
+const card=document.createElement('div');card.className='option-card';card.textContent=opt.text;card.dataset.id=opt.id;
+card.onclick=()=>{if(GS.processing||card.classList.contains('disabled'))return;
+row.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+card.classList.add('selected');selected=opt.id;};
+row.appendChild(card);
+});
+
+// Auto lock in on click for PROVE
+const checkSel=()=>{
+if(!selected||GS.processing||ls.completed)return;
+GS.processing=true;
+const correct=lvl.proveOptions.find(o=>o.correct);
+if(selected===correct.id){
+const card=qs(`#proveOptionsRow .option-card[data-id="${selected}"]`);
+if(card){card.classList.add('correct');card.classList.add('locked');}
+playCorrect();ls.proveAnswered=true;
+showFeedback('correct-fb','That\'s right!');
+safeTimeout(()=>{completeLevel(idx);},1500);
+}else{
+ls.wrongCount++;
+const card=qs(`#proveOptionsRow .option-card[data-id="${selected}"]`);
+if(card){card.classList.add('wrong');setTimeout(()=>{card.classList.remove('wrong');card.classList.add('disabled');},500);}
+playWrong();
+if(checkFastGuess(ls)){GS.processing=false;return;}
+const fb=lvl.proveWrongFeedback[selected]||'Look at the arena again.';
+showFeedback('wrong-fb',fb);
+showTryAgain(()=>{qsa('.feedback-bar').forEach(el=>el.remove());
+const oldLockIn=qs('#proveLockIn');if(oldLockIn)oldLockIn.remove();
+selected=null;GS.processing=false;ls.phaseStartTime=Date.now();
+if(ls.wrongCount>=6){ls.resets=3;ls.score=50;ls.completed=true;ls.proveAnswered=true;
+ls.timeSeconds=Math.round((Date.now()-ls.timeStart)/1000);
+showFeedback('wrong-fb','Let\'s move on — you\'ll see this idea again.');
+safeTimeout(()=>{advanceLevel();},2000);}
+});
+}
+};
+
+// Add lock-in to prove options
+row.querySelectorAll('.option-card').forEach(card=>{
+const origClick=card.onclick;
+card.onclick=(e)=>{origClick(e);
+// Add a Lock In btn for prove too
+if(!qs('#proveLockIn')){
+const btn=document.createElement('button');btn.id='proveLockIn';
+btn.textContent='Lock In';btn.className='visible';
+btn.style.cssText='background:linear-gradient(135deg,var(--accent3),#1E7A3B);color:var(--white);font-size:16px;padding:14px 40px;border-radius:12px;margin-top:8px;box-shadow:0 4px 12px rgba(45,139,78,.25);cursor:pointer;border:none;font-family:inherit;font-weight:600;';
+btn.onclick=checkSel;
+iz.appendChild(btn);
+}
+};
+});
+}
+
+function showFeedback(cls,text){
+qsa('.feedback-bar').forEach(el=>el.remove());
+const fb=document.createElement('div');fb.className=`feedback-bar ${cls}`;fb.textContent=text;
+$('izContent').insertBefore(fb,$('izContent').firstChild);
+}
+
+function showTryAgain(onTap){
+const existing=qs('#tryAgainBtnDyn');if(existing)existing.remove();
+const btn=document.createElement('button');
+btn.id='tryAgainBtnDyn';
+btn.textContent='Try Again';
+btn.style.cssText='background:var(--accent1);color:var(--white);font-size:16px;padding:14px 36px;border-radius:12px;margin-top:8px;cursor:pointer;border:none;font-family:inherit;font-weight:600;min-height:48px;';
+btn.onclick=()=>{btn.remove();if(onTap)onTap();};
+$('izContent').appendChild(btn);
+}
+
+function completeLevel(idx){
+const ls=GS.levels[idx];
+ls.completed=true;
+ls.score=calcLevelScore(ls);
+ls.timeSeconds=Math.round((Date.now()-ls.timeStart)/1000);
+updateHUD();
+
+// Check milestone (every 2 levels)
+const completedCount=GS.levels.filter(l=>l.completed).length;
+const reqComplete=GS.levels.filter((l,i)=>LEVELS[i].required).every(l=>l.completed);
+const allComplete=GS.levels.every(l=>l.completed);
+
+if(allComplete&&!GS.bonusCompleteShown){
+GS.bonusCompleteShown=true;
+celebrate('BONUS COMPLETE!',getAffirmation(),3000,15);
+safeTimeout(()=>{showReceipt();},3500);return;
+}
+if(reqComplete&&!GS.reqCompleteShown){
+GS.reqCompleteShown=true;
+closeAllOverlays();
+$('reqTitle').textContent='You did it!';
+$('reqMsg').textContent=getAffirmation()+' Continue to the bonus levels?';
+$('reqCompleteOverlay').classList.add('active');
+burstParticles(12);playCorrect();return;
+}
+if(completedCount%2===0){
+// Milestone celebration
+celebrate('Nice work!',ls.score===100?getAffirmation():'Keep going!',2000,10);
+safeTimeout(()=>advanceLevel(),2200);
+}else{
+if(ls.score===100){
+// Brief affirmation for first-try
+showFeedback('correct-fb',getAffirmation());
+safeTimeout(()=>advanceLevel(),1800);
+}else{
+advanceLevel();
+}
+}
+}
+
+function advanceLevel(){
+closeAllOverlays();
+$('resetLevelBtn').disabled=true;
+const next=GS.currentLevel+1;
+if(next>=LEVELS.length){showReceipt();return;}
+startLevel(next);
+}
+
+/* ============ RECEIPT ============ */
+function showReceipt(){
+if(GS.receiptRendered)return;
+GS.receiptRendered=true;
+cancelSpeech();closeAllOverlays();
+$('gameContainer').classList.remove('active');
+$('receiptScreen').classList.add('active');
+$('resetLevelBtn').disabled=true;
+
+$('receiptNameInput').value=GS.studentName;
+$('receiptTitle').textContent=escHtml(GS.teacherName)+"'s Simulations";
+const overall=calcOverall();
+$('receiptPct').textContent=overall+'%';
+$('receiptPct').className='pct '+(overall>=85?'green':overall>=70?'yellow':'red');
+$('receiptLabel').textContent=overall>=85?'Strong Mastery':overall>=70?'Approaching Mastery':'Needs Additional Support';
+
+const tbody=$('receiptBody');tbody.innerHTML='';
+GS.levels.forEach((ls,i)=>{
+const lvl=LEVELS[i];
+const tr=document.createElement('tr');
+if(!lvl.required)tr.className='bonus-row';
+const mins=Math.floor(ls.timeSeconds/60);const secs=ls.timeSeconds%60;
+const scCls=ls.score>=85?'green':ls.score>=70?'yellow':'red';
+tr.innerHTML=`<td>${lvl.required?i+1:'\u2B50'}</td><td>${escHtml(lvl.name)}</td>
+<td class="score-cell ${scCls}">${ls.completed?ls.score+'%':'-'}</td>
+<td>${ls.attempts||'-'}</td><td>${ls.completed?mins+':'+(secs<10?'0':'')+secs:'-'}</td>`;
+tbody.appendChild(tr);
+});
+
+const totalSec=Math.round((Date.now()-GS.totalStartTime)/1000);
+const tm=Math.floor(totalSec/60),ts=totalSec%60;
+$('receiptTotalTime').textContent=`Total Time: ${tm}:${ts<10?'0':''}${ts}`;
+const allDone=GS.levels.every(l=>l.completed);
+const reqDone=GS.levels.filter((l,i)=>LEVELS[i].required).every(l=>l.completed);
+$('receiptStatus').textContent=allDone?'All Complete (Bonus!)':reqDone?'Required Complete':'In Progress';
+}
+
+/* ============ RESET ============ */
+function resetCurrentLevel(){
+const idx=GS.currentLevel;
+const ls=GS.levels[idx];
+if(ls.completed)return;
+GS.processing=false; // Force clear — reset must always work
+ls.resets++;ls.wrongCount=0;ls.consecutiveFastWrongs=0;ls.doAnswered=false;ls.proveAnswered=false;
+ls.phaseStartTime=Date.now();
+GS.arenaGen++;clearArenaTimers();cancelSpeech();closeAllOverlays();
+ARENA_ACTIONS.disableHotspot();
+if(typewriterInt){clearInterval(typewriterInt);typewriterInt=null;}
+startLevel(idx);
+}
+
+function newRun(){
+$('confirmDialog').classList.add('active');
+}
+
+/* ============ EVENT BINDINGS ============ */
+$('startBtn').onclick=()=>{
+const name=$('studentNameInput').value.trim();
+if(!name){$('studentNameInput').style.borderColor='var(--wrong)';$('studentNameInput').focus();return;}
+GS.studentName=name;
+GS.teacherName=$('teacherNameInput').value.trim()||'Mr. Jawad';
+GS.totalStartTime=Date.now();
+GS.levels=LEVELS.map((l,i)=>initLevelState(i,l));
+GS.reqCompleteShown=false;GS.bonusCompleteShown=false;GS.receiptRendered=false;
+$('welcomeScreen').style.display='none';
+$('gameContainer').classList.add('active');
+buildBaseArena();
+initParticles();
+startLevel(0);
+};
+
+$('vocabBtn').onclick=()=>$('vocabPopup').classList.toggle('open');
+$('vocabClose').onclick=()=>$('vocabPopup').classList.remove('open');
+$('hintBtn').onclick=showHint;
+$('resetLevelBtn').onclick=resetCurrentLevel;
+$('settingsBtn').onclick=newRun;
+$('readAloudBtn').onclick=()=>{readAloud=!readAloud;$('readAloudBtn').textContent=`Read Aloud: ${readAloud?'ON':'OFF'}`;$('readAloudBtn').classList.toggle('off',!readAloud);if(!readAloud)cancelSpeech();};
+
+$('keepGoingBtn').onclick=()=>{$('reqCompleteOverlay').classList.remove('active');advanceLevel();};
+$('seeScoreBtn').onclick=()=>{$('reqCompleteOverlay').classList.remove('active');showReceipt();};
+
+$('lockNameBtn').onclick=()=>{
+const inp=$('receiptNameInput');inp.disabled=true;$('lockNameBtn').disabled=true;$('lockNameBtn').textContent='Locked';
+};
+
+$('startOverBtn').onclick=newRun;
+$('confirmYes').onclick=()=>{
+GS.processing=false;
+GS.arenaGen++;
+clearArenaTimers();cancelSpeech();closeAllOverlays();
+if(typewriterInt){clearInterval(typewriterInt);typewriterInt=null;}
+if(transitionTO){clearTimeout(transitionTO);transitionTO=null;}
+ARENA_ACTIONS.disableHotspot();
+$('confirmDialog').classList.remove('active');
+$('receiptScreen').classList.remove('active');
+$('gameContainer').classList.remove('active');
+GS.receiptRendered=false;GS.reqCompleteShown=false;GS.bonusCompleteShown=false;
+$('welcomeScreen').style.display='flex';
+$('studentNameInput').value=GS.studentName;
+};
+$('confirmNo').onclick=()=>$('confirmDialog').classList.remove('active');
+
+// Visibility change — clear intervals
+let ambientInterval=null;
+document.addEventListener('visibilitychange',()=>{
+if(document.hidden){cancelSpeech();if(ambientInterval){clearInterval(ambientInterval);ambientInterval=null;}}
+});
+
+// Prevent accidental navigation
+window.onbeforeunload=(e)=>{if(GS.totalStartTime&&!GS.receiptRendered){e.preventDefault();return'';}};
+</script>
+</body>
+</html>

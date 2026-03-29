@@ -1,0 +1,3078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Addiction &amp; The Rat Park Experiment</title>
+<style>
+:root {
+  --bg-primary: #1A1A2E;
+  --bg-secondary: #16213E;
+  --bg-card: #0F3460;
+  --accent-blue: #00D4FF;
+  --accent-yellow: #FFD93D;
+  --accent-red: #FF4757;
+  --accent-green: #2ED573;
+  --text-primary: #F1F2F6;
+  --text-secondary: #A4B0BE;
+  --text-dim: #747D8C;
+  --evidence-blue: #00D4FF;
+  --evidence-green: #2ED573;
+  --evidence-orange: #FFA502;
+  --evidence-purple: #A29BFE;
+  --evidence-gold: #FFD700;
+  --cork: #C4956A;
+  --cork-dark: #8B6914;
+  --shadow: rgba(0,0,0,0.4);
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary)); color: var(--text-primary); }
+
+/* ===== WELCOME SCREEN ===== */
+#welcomeScreen {
+  position:fixed; inset:0; z-index:9999;
+  background: linear-gradient(135deg, #1A1A2E, #16213E, #0F3460);
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:20px; padding:24px;
+}
+#welcomeScreen h1 { font-size:28px; color:var(--accent-blue); text-align:center; text-shadow:0 0 20px rgba(0,212,255,0.3); }
+#welcomeScreen h2 { font-size:18px; color:var(--accent-yellow); text-align:center; margin-top:-10px; }
+#welcomeScreen .hook { font-size:15px; color:var(--text-secondary); text-align:center; max-width:500px; line-height:1.5; font-style:italic; margin:8px 0; }
+.welcome-input { display:flex; flex-direction:column; gap:6px; width:100%; max-width:360px; }
+.welcome-input label { font-size:13px; color:var(--text-secondary); }
+.welcome-input input { padding:12px 16px; border-radius:var(--radius); border:2px solid var(--bg-card); background:var(--bg-secondary); color:var(--text-primary); font-size:16px; outline:none; transition:border-color 0.3s; }
+.welcome-input input:focus { border-color:var(--accent-blue); }
+#startBtn {
+  margin-top:12px; padding:16px 48px; font-size:18px; font-weight:700;
+  background: linear-gradient(135deg, var(--accent-blue), #0099CC); color:#fff;
+  border:none; border-radius:var(--radius); cursor:pointer;
+  transition:transform 0.2s, box-shadow 0.2s;
+  box-shadow:0 4px 20px rgba(0,212,255,0.3);
+}
+#startBtn:hover { transform:scale(1.05); box-shadow:0 6px 30px rgba(0,212,255,0.5); }
+#startBtn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+/* ===== MAIN LAYOUT ===== */
+#gameContainer { display:none; height:100vh; flex-direction:column; overflow:hidden; }
+#gameContainer.active { display:flex; }
+
+/* TOP BAR */
+#topBar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 16px; background:rgba(15,52,96,0.9);
+  border-bottom:2px solid var(--accent-blue);
+  min-height:48px; flex-shrink:0; gap:8px; flex-wrap:wrap;
+}
+#levelBadge { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--accent-yellow); }
+#levelBadge .badge-icon { font-size:18px; }
+#levelName { font-size:13px; color:var(--text-secondary); max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#scoreDisplay { font-size:14px; font-weight:700; color:var(--accent-green); }
+#progressContainer { display:flex; align-items:center; gap:6px; }
+#progressBar { width:120px; height:10px; background:var(--bg-primary); border-radius:5px; overflow:hidden; }
+#progressFill { height:100%; width:0%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-green)); border-radius:5px; transition:width 0.5s ease; }
+#progressText { font-size:11px; color:var(--text-dim); }
+
+/* MIDDLE AREA */
+#middleArea {
+  flex:1; display:flex; overflow:hidden; min-height:0;
+}
+
+/* EVIDENCE BOARD (LEFT) */
+#evidenceBoard {
+  width:200px; min-width:160px; flex-shrink:0;
+  background: linear-gradient(180deg, #8B6914, #C4956A, #A07840);
+  padding:10px 8px; display:flex; flex-direction:column; gap:8px;
+  overflow-y:auto; border-right:3px solid #6B4E1E;
+  position:relative;
+}
+#evidenceBoard::before {
+  content:''; position:absolute; inset:0; opacity:0.1;
+  background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.05) 10px, rgba(0,0,0,0.05) 20px);
+  pointer-events:none;
+}
+#ebTitle { font-size:11px; font-weight:700; color:#3D2200; text-transform:uppercase; letter-spacing:1px; text-align:center; }
+.evidence-slot {
+  background:rgba(255,255,255,0.85); border-radius:6px; padding:8px;
+  border-left:4px solid #ccc; min-height:50px; position:relative;
+  transition:all 0.5s ease; opacity:0; transform:translateY(-10px);
+  box-shadow:2px 2px 8px rgba(0,0,0,0.2);
+}
+.evidence-slot.pinned { opacity:1; transform:translateY(0); }
+.evidence-slot .pin {
+  position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+  width:14px; height:14px; border-radius:50%;
+  background:radial-gradient(circle at 4px 4px, #FF6B6B, #CC0000);
+  box-shadow:0 2px 4px rgba(0,0,0,0.3); z-index:1;
+}
+.evidence-slot .ev-title { font-size:10px; font-weight:700; color:#333; margin-top:4px; line-height:1.3; }
+.evidence-slot .ev-thumb { font-size:9px; color:#666; margin-top:3px; }
+.evidence-slot.blue-border { border-left-color:var(--evidence-blue); }
+.evidence-slot.green-border { border-left-color:var(--evidence-green); }
+.evidence-slot.orange-border { border-left-color:var(--evidence-orange); }
+.evidence-slot.purple-border { border-left-color:var(--evidence-purple); }
+.evidence-slot.gold-border { border-left-color:var(--evidence-gold); background:rgba(255,215,0,0.15); }
+
+/* Conclusion Meter */
+#conclusionMeter {
+  margin-top:auto; background:rgba(255,255,255,0.3); border-radius:8px;
+  padding:6px; text-align:center;
+}
+#conclusionMeter .meter-label { font-size:9px; font-weight:700; color:#3D2200; text-transform:uppercase; }
+#meterTrack { width:100%; height:80px; background:rgba(0,0,0,0.2); border-radius:6px; position:relative; margin-top:4px; overflow:hidden; }
+#meterFill {
+  position:absolute; bottom:0; width:100%; height:0%;
+  background:linear-gradient(180deg, var(--accent-blue), var(--accent-green));
+  border-radius:6px; transition:height 0.8s ease;
+  box-shadow:0 0 10px rgba(0,212,255,0.4);
+}
+#evidenceCounter { font-size:10px; color:#3D2200; margin-top:4px; font-weight:700; }
+
+/* ARENA (CENTER) */
+#arena {
+  flex:1; position:relative; overflow:hidden;
+  background: linear-gradient(135deg, #0D1B2A, #1B2838);
+  min-width:0;
+}
+#arenaContent { width:100%; height:100%; position:relative; }
+
+/* INTERACTION ZONE */
+#interactionZone {
+  min-height:140px; max-height:220px; flex-shrink:0;
+  background:rgba(15,52,96,0.95); border-top:2px solid var(--accent-blue);
+  padding:12px 16px; overflow-y:auto; overflow-x:hidden;
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:flex-start; gap:8px;
+  word-wrap:break-word; overflow-wrap:break-word;
+}
+#phaseLabel {
+  font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:2px; color:var(--accent-yellow); margin-bottom:2px;
+}
+#interactionPrompt {
+  font-size:15px; color:var(--text-primary); text-align:center;
+  max-width:600px; line-height:1.4;
+}
+#optionsRow {
+  display:flex; flex-wrap:wrap; gap:10px; justify-content:center;
+  margin-top:4px; width:100%; max-width:650px;
+}
+.option-card {
+  padding:12px 20px; border-radius:var(--radius); font-size:14px;
+  font-weight:600; cursor:pointer; border:2px solid var(--bg-card);
+  background:var(--bg-secondary); color:var(--text-primary);
+  transition:all 0.3s; min-height:48px;
+  display:flex; align-items:center; justify-content:center;
+  text-align:center; flex:1; min-width:140px; max-width:280px;
+  user-select:none; -webkit-user-select:none;
+}
+.option-card:hover:not(.disabled):not(.locked):not(.wrong-dim) { border-color:var(--accent-blue); background:rgba(0,212,255,0.1); transform:translateY(-2px); }
+.option-card.selected { border-color:var(--accent-blue); background:rgba(0,212,255,0.15); box-shadow:0 0 12px rgba(0,212,255,0.3); }
+.option-card.correct { border-color:var(--accent-green)!important; background:rgba(46,213,115,0.2)!important; box-shadow:0 0 15px rgba(46,213,115,0.4)!important; }
+.option-card.wrong { border-color:var(--accent-red)!important; background:rgba(255,71,87,0.2)!important; animation:wrongShake 0.5s; }
+.option-card.wrong-dim { opacity:0.35; pointer-events:none; border-color:#555; text-decoration:line-through; }
+.option-card.guided-glow { box-shadow:0 0 12px rgba(46,213,115,0.25); border-color:rgba(46,213,115,0.3); }
+.option-card.disabled { opacity:0.4; pointer-events:none; }
+.option-card.locked { pointer-events:none; opacity:0.85; }
+@keyframes wrongShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+#lockInBtn {
+  margin-top:6px; padding:12px 36px; font-size:16px; font-weight:700;
+  background:linear-gradient(135deg, var(--accent-blue), #0099CC);
+  color:#fff; border:none; border-radius:var(--radius); cursor:pointer;
+  transition:all 0.3s; box-shadow:0 4px 15px rgba(0,212,255,0.3);
+  display:none; min-height:48px;
+}
+#lockInBtn:hover:not(:disabled) { transform:scale(1.05); box-shadow:0 6px 20px rgba(0,212,255,0.5); }
+#lockInBtn:disabled { opacity:0.3; cursor:not-allowed; transform:none; }
+
+/* Coaching bar */
+#coachingBar {
+  display:none; width:100%; max-width:600px; padding:10px 14px;
+  background:rgba(255,249,196,0.15); border:1px solid var(--accent-yellow);
+  border-radius:var(--radius-sm); color:var(--accent-yellow);
+  font-size:13px; line-height:1.4; text-align:center;
+}
+#coachingBar.visible { display:block; }
+
+/* Try Again button */
+#tryAgainBtn {
+  display:none; margin-top:6px; padding:12px 36px; font-size:16px; font-weight:700;
+  background:linear-gradient(135deg, var(--accent-yellow), #E6A700);
+  color:#1A1A2E; border:none; border-radius:var(--radius); cursor:pointer;
+  min-height:48px; transition:all 0.3s;
+}
+#tryAgainBtn:hover { transform:scale(1.05); }
+#tryAgainBtn.visible { display:inline-block; }
+
+/* BOTTOM BAR */
+#bottomBar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 16px; background:rgba(15,52,96,0.9);
+  border-top:1px solid rgba(0,212,255,0.2);
+  min-height:42px; flex-shrink:0; flex-wrap:wrap; gap:4px;
+}
+.bottom-btn {
+  padding:6px 14px; font-size:12px; font-weight:600;
+  border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--bg-card);
+  background:var(--bg-secondary); color:var(--text-secondary);
+  transition:all 0.2s; min-height:36px;
+  display:flex; align-items:center; gap:4px;
+}
+.bottom-btn:hover:not(:disabled) { border-color:var(--accent-blue); color:var(--text-primary); }
+.bottom-btn:disabled { opacity:0.3; cursor:not-allowed; }
+#bottomCenter { font-size:12px; color:var(--text-dim); }
+
+/* Focus Prompt Banner */
+#focusPrompt {
+  position:absolute; top:8px; left:50%; transform:translateX(-50%);
+  z-index:50; background:rgba(255,217,61,0.15); border:1px solid var(--accent-yellow);
+  border-radius:var(--radius); padding:8px 20px;
+  color:var(--accent-yellow); font-size:13px; font-weight:600;
+  text-align:center; max-width:90%; opacity:0;
+  transition:opacity 0.5s; pointer-events:none;
+}
+#focusPrompt.visible { opacity:1; }
+#focusPrompt.subtle { opacity:0.5; font-size:11px; top:4px; padding:4px 12px; }
+
+/* Level Intro Overlay */
+#levelIntro {
+  position:fixed; inset:0; z-index:200; display:none;
+  background:rgba(0,0,0,0.85); align-items:center; justify-content:center;
+  flex-direction:column; gap:12px;
+}
+#levelIntro.active { display:flex; }
+#levelIntro .intro-badge { font-size:14px; color:var(--accent-blue); text-transform:uppercase; letter-spacing:3px; }
+#levelIntro .intro-name { font-size:26px; font-weight:700; color:var(--accent-yellow); text-shadow:0 0 20px rgba(255,217,61,0.3); }
+
+/* Vocab Popup */
+#vocabPopup {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  z-index:500; display:none; background:var(--bg-secondary);
+  border:2px solid var(--accent-blue); border-radius:var(--radius);
+  padding:20px; width:90%; max-width:420px; max-height:80vh; overflow-y:auto;
+  box-shadow:0 10px 40px rgba(0,0,0,0.6);
+}
+#vocabPopup.active { display:block; }
+#vocabPopup h3 { color:var(--accent-blue); margin-bottom:12px; font-size:16px; }
+.vocab-item { margin-bottom:12px; padding:8px; background:var(--bg-card); border-radius:var(--radius-sm); }
+.vocab-item .v-term { font-weight:700; color:var(--accent-yellow); font-size:14px; }
+.vocab-item .v-def { color:var(--text-secondary); font-size:13px; margin-top:3px; }
+#vocabClose { margin-top:10px; padding:8px 24px; background:var(--accent-blue); color:#fff; border:none; border-radius:var(--radius-sm); cursor:pointer; font-size:14px; }
+
+/* Hint Overlay */
+#hintOverlay {
+  position:fixed; inset:0; z-index:400; display:none;
+  background:rgba(0,0,0,0.8); align-items:center; justify-content:center;
+  flex-direction:column; padding:20px;
+}
+#hintOverlay.active { display:flex; }
+#hintPanel {
+  background:var(--bg-secondary); border:2px solid var(--accent-yellow);
+  border-radius:var(--radius); padding:24px; max-width:500px; width:90%;
+  text-align:center;
+}
+#hintPanel .hint-icon { font-size:28px; margin-bottom:8px; }
+#hintPanel .hint-text { font-size:15px; color:var(--text-primary); line-height:1.5; margin-bottom:16px; }
+#hintPanel .hint-btn { padding:10px 28px; font-size:14px; background:var(--accent-yellow); color:#1A1A2E; border:none; border-radius:var(--radius-sm); cursor:pointer; font-weight:700; }
+
+/* Step by Step Overlay */
+#stepOverlay {
+  position:fixed; inset:0; z-index:450; display:none;
+  background:rgba(0,0,0,0.85); align-items:center; justify-content:center;
+  padding:20px;
+}
+#stepOverlay.active { display:flex; }
+#stepPanel {
+  background:var(--bg-secondary); border:2px solid var(--evidence-orange);
+  border-radius:var(--radius); padding:24px; max-width:520px; width:90%;
+  text-align:center;
+}
+#stepPanel .step-counter { font-size:12px; color:var(--text-dim); margin-bottom:6px; }
+#stepPanel .step-text { font-size:15px; color:var(--text-primary); line-height:1.5; margin-bottom:16px; }
+#stepPanel .step-btn { padding:10px 28px; font-size:14px; background:var(--evidence-orange); color:#1A1A2E; border:none; border-radius:var(--radius-sm); cursor:pointer; font-weight:700; }
+
+/* Celebration Overlay */
+#celebrationOverlay {
+  position:fixed; inset:0; z-index:600; display:none;
+  background:rgba(0,0,0,0.8); align-items:center; justify-content:center;
+  flex-direction:column; gap:12px;
+}
+#celebrationOverlay.active { display:flex; }
+#celebrationOverlay .celeb-text { font-size:26px; font-weight:700; color:var(--accent-yellow); text-shadow:0 0 20px rgba(255,217,61,0.4); }
+#celebrationOverlay .celeb-sub { font-size:16px; color:var(--text-secondary); }
+#celebrationOverlay .affirmation { font-size:22px; color:#fff; text-shadow:0 2px 10px rgba(255,255,255,0.3); margin-top:4px; opacity:0; animation:fadeInOut 2s forwards; }
+@keyframes fadeInOut { 0%{opacity:0;transform:translateY(10px)} 20%{opacity:1;transform:translateY(0)} 80%{opacity:1} 100%{opacity:0} }
+
+/* Choice Screen */
+#choiceScreen {
+  position:fixed; inset:0; z-index:650; display:none;
+  background:rgba(0,0,0,0.85); align-items:center; justify-content:center;
+  flex-direction:column; gap:16px; padding:24px;
+}
+#choiceScreen.active { display:flex; }
+#choiceScreen .choice-title { font-size:24px; font-weight:700; color:var(--accent-green); }
+#choiceScreen .choice-sub { font-size:14px; color:var(--text-secondary); }
+.choice-btn {
+  padding:14px 36px; font-size:16px; font-weight:700; border:none;
+  border-radius:var(--radius); cursor:pointer; min-height:48px;
+  transition:transform 0.2s;
+}
+.choice-btn:hover { transform:scale(1.05); }
+.choice-btn.keep-going { background:var(--accent-blue); color:#fff; }
+.choice-btn.see-score { background:var(--bg-card); color:var(--text-primary); border:2px solid var(--accent-blue); }
+
+/* Anti-guessing coaching screen */
+#antiguessScreen {
+  position:fixed; inset:0; z-index:700; display:none;
+  background:rgba(0,0,0,0.9); align-items:center; justify-content:center;
+  flex-direction:column; gap:12px; padding:24px;
+}
+#antiguessScreen.active { display:flex; }
+#antiguessScreen .ag-title { font-size:20px; font-weight:700; color:var(--accent-yellow); }
+#antiguessScreen .ag-text { font-size:15px; color:var(--text-secondary); text-align:center; max-width:400px; line-height:1.5; }
+#antiguessScreen .ag-timer { font-size:32px; font-weight:700; color:var(--accent-red); }
+
+/* Particle Layer */
+#particleLayer { position:fixed; inset:0; pointer-events:none; z-index:550; overflow:hidden; }
+.particle {
+  position:absolute; display:none; width:8px; height:8px;
+  border-radius:50%; pointer-events:none;
+}
+@keyframes particleFall {
+  0% { transform:translateY(-20px) rotate(0deg); opacity:1; }
+  100% { transform:translateY(100vh) rotate(720deg); opacity:0; }
+}
+
+/* Score +points animation */
+.points-anim {
+  position:fixed; z-index:560; font-size:20px; font-weight:700;
+  color:var(--accent-green); pointer-events:none;
+  animation:pointsUp 1.2s forwards;
+}
+@keyframes pointsUp { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-40px)} }
+
+/* ===== RECEIPT SCREEN ===== */
+#receiptScreen {
+  position:fixed; inset:0; z-index:800; display:none;
+  background:linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+  overflow-y:auto; padding:20px;
+}
+#receiptScreen.active { display:block; }
+#receiptContent {
+  max-width:640px; margin:0 auto; background:var(--bg-card);
+  border-radius:var(--radius); padding:24px; border:2px solid var(--accent-blue);
+}
+.receipt-header { text-align:center; margin-bottom:16px; }
+.receipt-header h2 { color:var(--accent-blue); font-size:20px; }
+.receipt-header h3 { color:var(--accent-yellow); font-size:14px; margin-top:4px; }
+.receipt-name-row { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
+.receipt-name-row input { flex:1; padding:10px; border-radius:var(--radius-sm); border:2px solid var(--bg-secondary); background:var(--bg-primary); color:var(--text-primary); font-size:14px; }
+.receipt-name-row button { padding:10px 20px; background:var(--accent-blue); color:#fff; border:none; border-radius:var(--radius-sm); cursor:pointer; font-weight:700; }
+#overallGrade { text-align:center; margin:16px 0; }
+#overallGrade .grade-pct { font-size:48px; font-weight:700; }
+#overallGrade .grade-label { font-size:16px; color:var(--text-secondary); margin-top:4px; }
+.grade-green { color:var(--accent-green); }
+.grade-yellow { color:var(--accent-yellow); }
+.grade-red { color:var(--accent-red); }
+
+#levelTable { width:100%; border-collapse:collapse; margin:16px 0; font-size:13px; }
+#levelTable th { background:var(--bg-secondary); padding:8px; text-align:left; color:var(--accent-blue); border-bottom:2px solid var(--accent-blue); }
+#levelTable td { padding:8px; border-bottom:1px solid rgba(255,255,255,0.1); }
+#levelTable tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
+#levelTable .bonus-row td { font-style:italic; }
+.receipt-footer { text-align:center; margin-top:16px; }
+.receipt-footer .upload-msg { font-size:14px; color:var(--accent-yellow); margin-bottom:12px; }
+.receipt-footer button { padding:10px 24px; margin:4px; border-radius:var(--radius-sm); cursor:pointer; font-weight:700; font-size:13px; border:none; }
+.print-btn { background:var(--accent-blue); color:#fff; }
+.restart-btn { background:var(--bg-secondary); color:var(--text-secondary); border:2px solid var(--accent-red)!important; }
+
+/* Confirmation dialog */
+#confirmDialog {
+  position:fixed; inset:0; z-index:900; display:none;
+  background:rgba(0,0,0,0.8); align-items:center; justify-content:center;
+}
+#confirmDialog.active { display:flex; }
+#confirmDialog .cd-box {
+  background:var(--bg-secondary); border:2px solid var(--accent-red);
+  border-radius:var(--radius); padding:24px; max-width:380px; text-align:center;
+}
+#confirmDialog .cd-box p { color:var(--text-primary); font-size:15px; margin-bottom:16px; }
+#confirmDialog .cd-box button { padding:10px 20px; margin:4px; border:none; border-radius:var(--radius-sm); cursor:pointer; font-weight:700; font-size:14px; }
+.cd-yes { background:var(--accent-red); color:#fff; }
+.cd-no { background:var(--bg-card); color:var(--text-primary); }
+
+/* Print */
+@media print {
+  #gameContainer, #bottomBar, #topBar, .print-btn, .restart-btn, #particleLayer { display:none!important; }
+  #receiptScreen { position:static!important; background:#fff!important; }
+  #receiptContent { border:1px solid #333!important; max-width:100%!important; }
+  * { -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; }
+  .grade-green { color:#2ED573!important; } .grade-yellow { color:#E6A700!important; } .grade-red { color:#FF4757!important; }
+}
+
+/* Vocab highlight bar */
+#vocabHighlight {
+  position:absolute; bottom:0; left:0; right:0; z-index:30;
+  display:flex; gap:12px; padding:4px 10px;
+  background:rgba(0,0,0,0.5); justify-content:center; flex-wrap:wrap;
+}
+.vh-term { font-size:10px; color:var(--text-dim); padding:2px 8px; border-radius:10px; border:1px solid transparent; transition:all 0.5s; }
+.vh-term.glow { color:var(--accent-yellow); border-color:var(--accent-yellow); text-shadow:0 0 8px rgba(255,217,61,0.4); }
+
+/* Hotspot zones */
+.hotspot-zone {
+  position:absolute; cursor:pointer; border-radius:50%;
+  border:3px solid transparent; transition:all 0.3s;
+  min-width:60px; min-height:60px;
+}
+.hotspot-zone:hover { border-color:rgba(0,212,255,0.4); background:rgba(0,212,255,0.1); }
+.hotspot-zone.correct-zone { border-color:var(--accent-green)!important; background:rgba(46,213,115,0.2)!important; box-shadow:0 0 15px rgba(46,213,115,0.4); }
+.hotspot-zone.wrong-zone { border-color:var(--accent-red); background:rgba(255,71,87,0.15); animation:wrongShake 0.5s; }
+.hotspot-label {
+  position:absolute; font-size:12px; font-weight:700; color:var(--accent-green);
+  background:rgba(0,0,0,0.7); padding:2px 8px; border-radius:4px;
+  white-space:nowrap; display:none;
+}
+.hotspot-label.visible { display:block; }
+
+/* Arena pulse/glow helpers */
+.arena-highlight { box-shadow:0 0 20px var(--accent-yellow)!important; border:2px solid var(--accent-yellow)!important; }
+.arena-pulse { animation:arenaPulse 1s ease-in-out 3; }
+@keyframes arenaPulse { 0%,100%{box-shadow:0 0 5px var(--accent-yellow)} 50%{box-shadow:0 0 25px var(--accent-yellow)} }
+
+/* Sequence chain */
+.chain-step {
+  display:inline-flex; align-items:center; padding:8px 14px;
+  background:var(--bg-card); border:2px solid var(--accent-blue);
+  border-radius:var(--radius-sm); font-size:13px; color:var(--text-primary);
+  position:relative; margin:4px;
+}
+.chain-step.complete { border-color:var(--accent-green); background:rgba(46,213,115,0.1); }
+.chain-arrow { color:var(--accent-blue); font-size:18px; margin:0 4px; }
+.chain-slot { border:2px dashed var(--accent-yellow); background:rgba(255,217,61,0.05); min-width:100px; text-align:center; }
+
+/* Claim builder */
+.claim-step-area { width:100%; max-width:550px; }
+.claim-label { font-size:12px; color:var(--accent-yellow); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.claim-locked { padding:8px 14px; background:rgba(46,213,115,0.1); border:2px solid var(--accent-green); border-radius:var(--radius-sm); color:var(--accent-green); font-size:13px; margin-bottom:8px; }
+</style>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div id="welcomeScreen">
+  <h1>Mr. Jawad's Simulations</h1>
+  <h2>Addiction &amp; The Rat Park Experiment</h2>
+  <p class="hook">"The caged rats drank 19 times more morphine than the Rat Park rats. Something about that cage changed everything. Your job: figure out what."</p>
+  <div class="welcome-input">
+    <label for="studentNameInput">Your Name</label>
+    <input type="text" id="studentNameInput" placeholder="Enter your name..." maxlength="60" autocomplete="off">
+  </div>
+  <div class="welcome-input">
+    <label for="teacherNameInput">Teacher Name (optional)</label>
+    <input type="text" id="teacherNameInput" placeholder="Mr. Jawad" maxlength="60" autocomplete="off">
+  </div>
+  <button id="startBtn" disabled>Start Investigation</button>
+</div>
+
+<!-- GAME CONTAINER -->
+<div id="gameContainer">
+  <!-- TOP BAR -->
+  <div id="topBar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div id="levelBadge"><span class="badge-icon">&#128270;</span> <span id="levelNum">Evidence #1</span></div>
+      <div id="levelName">The Consumption Gap</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div id="scoreDisplay">Score: 0</div>
+      <div id="progressContainer">
+        <div id="progressBar"><div id="progressFill"></div></div>
+        <div id="progressText">0/6</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MIDDLE AREA -->
+  <div id="middleArea">
+    <!-- EVIDENCE BOARD -->
+    <div id="evidenceBoard">
+      <div id="ebTitle">Evidence Board</div>
+      <div id="evSlot1" class="evidence-slot blue-border"><div class="pin"></div><div class="ev-title">Evidence #1</div><div class="ev-thumb">Consumption Data</div></div>
+      <div id="evSlot2" class="evidence-slot green-border"><div class="pin"></div><div class="ev-title">Evidence #2</div><div class="ev-thumb">Environment Comparison</div></div>
+      <div id="evSlot3" class="evidence-slot orange-border"><div class="pin"></div><div class="ev-title">Evidence #3</div><div class="ev-thumb">Same Rat, New Home</div></div>
+      <div id="evSlot4" class="evidence-slot purple-border"><div class="pin"></div><div class="ev-title">Evidence #4</div><div class="ev-thumb">Condition Comparison</div></div>
+      <div id="evSlot5" class="evidence-slot gold-border"><div class="pin"></div><div class="ev-title">Strongest Evidence</div><div class="ev-thumb">Same Rat Test</div></div>
+      <div id="evSlot6" class="evidence-slot gold-border"><div class="pin"></div><div class="ev-title">Case Closed</div><div class="ev-thumb">Verdict</div></div>
+      <div id="conclusionMeter">
+        <div class="meter-label">Conclusion</div>
+        <div id="meterTrack"><div id="meterFill"></div></div>
+        <div id="evidenceCounter">0 / 6</div>
+      </div>
+    </div>
+
+    <!-- ARENA -->
+    <div id="arena">
+      <div id="arenaContent"></div>
+      <div id="focusPrompt"></div>
+      <div id="vocabHighlight">
+        <span class="vh-term" data-term="isolation">ISOLATION</span>
+        <span class="vh-term" data-term="environment">ENVIRONMENT</span>
+        <span class="vh-term" data-term="dependence">DEPENDENCE</span>
+        <span class="vh-term" data-term="variable">VARIABLE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERACTION ZONE -->
+  <div id="interactionZone">
+    <div id="phaseLabel"></div>
+    <div id="interactionPrompt"></div>
+    <div id="optionsRow"></div>
+    <button id="lockInBtn" disabled>Lock In</button>
+    <div id="coachingBar"></div>
+    <button id="tryAgainBtn">Try Again</button>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottomBar">
+    <div style="display:flex;gap:6px;">
+      <button class="bottom-btn" id="vocabBtn">&#128214; Vocab</button>
+      <button class="bottom-btn" id="hintBtn">&#128161; Hint</button>
+    </div>
+    <div id="bottomCenter">Evidence 1 of 6</div>
+    <div style="display:flex;gap:6px;">
+      <button class="bottom-btn" id="resetLevelBtn">&#8635; Reset Level</button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAYS -->
+<div id="levelIntro"><div class="intro-badge"></div><div class="intro-name"></div></div>
+<div id="vocabPopup">
+  <h3>&#128214; Key Vocabulary</h3>
+  <div class="vocab-item"><div class="v-term">ISOLATION</div><div class="v-def">Being cut off from social contact</div></div>
+  <div class="vocab-item"><div class="v-term">ENVIRONMENT</div><div class="v-def">Surroundings that shape your behavior</div></div>
+  <div class="vocab-item"><div class="v-term">DEPENDENCE</div><div class="v-def">Needing a substance to feel normal</div></div>
+  <div class="vocab-item"><div class="v-term">VARIABLE</div><div class="v-def">A factor you change to test</div></div>
+  <button id="vocabClose">Close</button>
+</div>
+<div id="hintOverlay"><div id="hintPanel"><div class="hint-icon"></div><div class="hint-text"></div><button class="hint-btn" id="hintDismiss">Got It</button></div></div>
+<div id="stepOverlay"><div id="stepPanel"><div class="step-counter"></div><div class="step-text"></div><button class="step-btn" id="stepNext">Next</button></div></div>
+<div id="celebrationOverlay"><div class="celeb-text"></div><div class="celeb-sub"></div></div>
+<div id="choiceScreen"><div class="choice-title"></div><div class="choice-sub"></div><div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;"></div></div>
+<div id="antiguessScreen"><div class="ag-title">Slow Down</div><div class="ag-text"></div><div class="ag-timer">5</div></div>
+<div id="receiptScreen"><div id="receiptContent"></div></div>
+<div id="confirmDialog"><div class="cd-box"><p>Are you sure you want to start over? All progress will be lost.</p><button class="cd-yes" id="cdYes">Yes, Start Over</button><button class="cd-no" id="cdNo">Cancel</button></div></div>
+<div id="particleLayer"></div>
+
+<script>
+// ===== SANITIZE =====
+function escHtml(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+
+// ===== AUDIO =====
+let audioCtx=null;
+function getAudioCtx(){
+  if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}
+  return audioCtx;
+}
+function playTone(freq,dur){
+  try{const c=getAudioCtx();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='sine';o.frequency.value=freq;g.gain.value=0.12;o.start();g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+dur);o.stop(c.currentTime+dur);}catch(e){}
+}
+function playCorrect(){playTone(523,0.1);setTimeout(()=>playTone(659,0.1),100);setTimeout(()=>playTone(784,0.15),200);}
+function playWrong(){playTone(200,0.2);}
+
+// ===== SPEECH =====
+let speechAvailable=false;
+let resumeInterval=null;
+function initSpeech(){try{if(window.speechSynthesis){speechAvailable=true;}}catch(e){speechAvailable=false;}}
+function speak(text,cb){
+  if(!speechAvailable){if(cb)setTimeout(cb,2000);return;}
+  try{
+    window.speechSynthesis.cancel();
+    if(resumeInterval)clearInterval(resumeInterval);
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=0.85;u.pitch=1;
+    resumeInterval=setInterval(()=>{try{if(speechSynthesis.speaking)speechSynthesis.resume();}catch(e){}},10000);
+    const safetyT=setTimeout(()=>{try{speechSynthesis.cancel();}catch(e){}clearInterval(resumeInterval);if(cb)cb();},Math.max(text.length*80,5000)+3000);
+    u.onend=()=>{clearTimeout(safetyT);clearInterval(resumeInterval);if(cb)cb();};
+    u.onerror=()=>{clearTimeout(safetyT);clearInterval(resumeInterval);if(cb)cb();};
+    speechSynthesis.speak(u);
+  }catch(e){if(cb)setTimeout(cb,1500);}
+}
+
+// ===== PARTICLES =====
+const PARTICLE_POOL=[];
+let particleIdx=0;
+function initParticles(){
+  const layer=document.getElementById('particleLayer');
+  for(let i=0;i<15;i++){
+    const p=document.createElement('div');p.className='particle';p.style.display='none';layer.appendChild(p);PARTICLE_POOL.push(p);
+  }
+}
+function fireParticles(count,colors){
+  const c=Math.min(count,15);
+  for(let i=0;i<c;i++){
+    const p=PARTICLE_POOL[particleIdx%15];particleIdx++;
+    p.style.display='block';
+    p.style.left=Math.random()*100+'%';p.style.top='-10px';
+    p.style.width=(4+Math.random()*8)+'px';p.style.height=p.style.width;
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.animation=`particleFall ${1.5+Math.random()*1.5}s linear forwards`;
+    const pp=p;
+    setTimeout(()=>{pp.style.display='none';pp.style.animation='';},3000);
+  }
+}
+
+// ===== GAME STATE =====
+const teacherDefault='Mr. Jawad';
+let teacherName=teacherDefault;
+let studentName='';
+let processing=false;
+let currentLevel=0;
+let currentPhase=''; // watch, do, prove
+let selectedOption=null;
+let wrongCount=0;
+let hintsUsed=0;
+let levelResets=0;
+let totalResets=0;
+let phaseStartTime=0;
+let levelStartTime=0;
+let gameStartTime=0;
+let consecutiveFastWrongs=0;
+let doSubStep=0; // for multi-step DO
+let doSubStepMax=0;
+let doSubScores=[]; // track hint tier per sub-step
+let arenaGen=0;
+let transitionTimeout=null;
+let fastGuessGateId=0;
+
+let requiredCompleteShown=false;
+let bonusCompleteShown=false;
+let receiptRendered=false;
+let ambientInterval=null;
+let antiguessInterval=null;
+
+const gameState={
+  studentName:'',simulationType:'Detective',unitDay:'Tuesday',
+  levels:[],overallScore:0,totalTimeSeconds:0,requiredComplete:false,allComplete:false
+};
+
+// ===== AFFIRMATIONS =====
+let lastAffirmation=-1;
+function getAffirmation(){
+  const pool=[
+    `${teacherName} is proud of you!`,
+    `${teacherName} knew you could do it!`,
+    `That's the kind of thinking ${teacherName} loves to see!`,
+    `${teacherName} says: you're getting it!`,
+    `Strong work — ${teacherName} sees your effort!`,
+    `${teacherName} is impressed right now!`,
+    `You're showing ${teacherName} what you can do!`,
+    `${teacherName} says: keep that energy!`
+  ];
+  let idx;
+  do{idx=Math.floor(Math.random()*pool.length);}while(idx===lastAffirmation&&pool.length>1);
+  lastAffirmation=idx;
+  return pool[idx];
+}
+
+// ===== LEVEL DATA =====
+const levels=[
+  // Level 1: The Consumption Gap
+  {
+    num:1, name:'The Consumption Gap', required:true,
+    skill:'Read and interpret a bar graph comparing dependence levels (SC2)',
+    focusPrompt:'Watch the two bars grow — which group\'s bar climbs higher, and what does that tell you?',
+    evidenceSlot:'evSlot1', evidenceLabel:'Evidence #1: Consumption Data',
+    watchDuration:12000,
+    watchNarration:'The data is in. Caged rats drank far more morphine. That tall red bar means high dependence.',
+    watchVocabGlow:['dependence'],
+    doMechanic:'coach-click',
+    doPrompt:'Which group showed higher dependence?',
+    doOptions:[
+      {id:'A',text:'Rat Park rats',correct:false},
+      {id:'B',text:'Caged rats',correct:true},
+      {id:'C',text:'Both groups equally',correct:false}
+    ],
+    doWrongFeedback:{
+      A:'Compare the height of the two bars. The TALLER bar means MORE morphine consumed.',
+      C:'Compare the height of the two bars. The TALLER bar means MORE morphine consumed.'
+    },
+    proveQuestion:'Both groups had morphine available. Why did only one group drink so much?',
+    proveOptions:[
+      {id:'A',text:'The caged rats got a stronger drug',correct:false},
+      {id:'B',text:'Something about the cage made them drink more',correct:true},
+      {id:'C',text:'The park rats couldn\'t reach the morphine',correct:false}
+    ],
+    proveWrongFeedback:{
+      A:'Both sides had the exact same morphine. Look at the arena — the drug was identical. Something ELSE must explain the gap.',
+      C:'The park rats could reach the morphine — they just didn\'t drink much. What was different about their surroundings?'
+    },
+    hintLadder:{
+      hint1:{text:'Look at the RED bar on the LEFT side of the arena. That group lived in a bare cage. Now look at the SHORT green bar — that group lived in Rat Park. What\'s different?',glowTerms:['dependence']},
+      hint2:{text:'The drug was the same in both places. So the drug can\'t explain the gap. What ELSE was different?',eliminateOption:'A'},
+      stepByStep:[
+        'Look at the two bars side by side — the cage bar is much TALLER, meaning more morphine consumed.',
+        'Both sides have the same morphine bottle — same drug.',
+        'The drug was the same, but one group drank way more. Something about the cage made the difference.'
+      ]
+    },
+    buildArena:buildArenaLevel1,
+    watchArena:watchArenaLevel1,
+    highlightArena:highlightArenaLevel1
+  },
+  // Level 2: Two Worlds Apart
+  {
+    num:2, name:'Two Worlds Apart', required:true,
+    skill:'Identify and match environment features to the correct condition (SC1)',
+    focusPrompt:'Look at the two environments side by side — count what\'s DIFFERENT between the cage and the park.',
+    evidenceSlot:'evSlot2', evidenceLabel:'Evidence #2: Environment Comparison',
+    watchDuration:15000,
+    watchNarration:'This is everything in the cage. Small. Bare. Alone. Now look at the park. Same drug, but everything else is different.',
+    watchVocabGlow:['isolation','environment'],
+    doMechanic:'pick-the-match',
+    doPrompt:'Match each feature to the correct environment.',
+    doSubSteps:[
+      {
+        label:'Card 1: "No other rats — complete isolation"',
+        options:[{id:'A',text:'Rat Park',correct:false},{id:'B',text:'Cage',correct:true},{id:'C',text:'Both environments',correct:false}],
+        wrongFeedback:{A:'Look at the CAGE side — do you see any other rats in there? Only the cage has this feature.',C:'Look at the CAGE side — do you see any other rats in there? Only the cage has this feature.'}
+      },
+      {
+        label:'Card 2: "Morphine available to drink"',
+        options:[{id:'A',text:'Rat Park',correct:false},{id:'B',text:'Cage',correct:false},{id:'C',text:'Both environments',correct:true}],
+        wrongFeedback:{A:'Look carefully — is there a morphine bottle on BOTH sides or just one? Check the arena.',B:'Look at the PARK side too — do you see a morphine bottle there? Check both environments.'}
+      },
+      {
+        label:'Card 3: "Wheels, platforms, and hiding spots"',
+        options:[{id:'A',text:'Rat Park',correct:true},{id:'B',text:'Cage',correct:false},{id:'C',text:'Both environments',correct:false}],
+        wrongFeedback:{B:'Look at the PARK side — where do you see wheels and platforms? Is there anything like that in the cage?',C:'Look at the PARK side — where do you see wheels and platforms? Is there anything like that in the cage?'}
+      }
+    ],
+    proveQuestion:'Both environments had morphine. What was different?',
+    proveOptions:[
+      {id:'A',text:'The environment around the rats',correct:true},
+      {id:'B',text:'The type of drug available',correct:false},
+      {id:'C',text:'The species of rat used',correct:false}
+    ],
+    proveWrongFeedback:{
+      B:'Both sides had the same morphine. Look at the callout labels — what IS different between the two sides?',
+      C:'All the rats were the same species. The difference is what SURROUNDED them.'
+    },
+    hintLadder:{
+      hint1:{text:'Look at the CALLOUT LABELS on each side of the arena. Count how many differences you see between the cage and the park.',glowTerms:['environment']},
+      hint2:{text:'The drug was the same in both environments. The rat species was the same. That leaves one answer.',eliminateOption:'C'},
+      stepByStep:[
+        'The cage side shows: small, bare, alone.',
+        'The park side shows: large, enriched, social.',
+        'The drug didn\'t change. The rat didn\'t change. The environment changed.'
+      ]
+    },
+    buildArena:buildArenaLevel2,
+    watchArena:watchArenaLevel2,
+    highlightArena:highlightArenaLevel2
+  },
+  // Level 3: Same Rat, New Home
+  {
+    num:3, name:'Same Rat, New Home', required:true,
+    skill:'Identify what variable changed when the same rat\'s behavior changed (SC3)',
+    focusPrompt:'Watch the SAME rat move from the cage to the park — what happens to its morphine bar?',
+    evidenceSlot:'evSlot3', evidenceLabel:'Evidence #3: Same Rat, New Environment',
+    watchDuration:18000,
+    watchNarration:'Same rat. Same drug available. But when the environment changed, the dependence dropped. The variable that changed was the environment.',
+    watchVocabGlow:['variable'],
+    doMechanic:'hotspot',
+    doPrompt:'Click on what CHANGED that made dependence drop.',
+    doHotspots:[
+      {id:'A',label:'The rat',correct:false,wrongFeedback:'That\'s the rat — but it\'s the SAME rat as before. The rat didn\'t change. Look for what changed AROUND the rat.'},
+      {id:'B',label:'The morphine',correct:false,wrongFeedback:'That\'s the morphine — but morphine was available in BOTH places. The drug didn\'t change. What\'s different about WHERE the rat is now?'},
+      {id:'C',label:'ENVIRONMENT',correct:true,wrongFeedback:''}
+    ],
+    proveQuestion:'The rat and the drug stayed the same. What variable changed?',
+    proveOptions:[
+      {id:'A',text:'The rat\'s age',correct:false},
+      {id:'B',text:'The environment around the rat',correct:true}
+    ],
+    proveWrongFeedback:{
+      A:'The experiment didn\'t change the rat\'s age. Look at the arrow — the rat moved from one PLACE to another. What\'s different about the new place?'
+    },
+    hintLadder:{
+      hint1:{text:'Look at the ARROW on the arena that shows where the rat moved. What\'s different about the new place compared to the old one?',glowTerms:['variable']},
+      hint2:{text:'The rat is the same. The drug is the same. Only ONE thing changed — the place the rat lives. That place is called the environment.',eliminateOption:'A'},
+      stepByStep:[
+        'The cage shows: Same rat, same drug, HIGH dependence.',
+        'The park shows: Same rat, same drug, LOW dependence.',
+        'Everything was the same EXCEPT the environment. The environment is the variable that changed.'
+      ]
+    },
+    buildArena:buildArenaLevel3,
+    watchArena:watchArenaLevel3,
+    highlightArena:highlightArenaLevel3
+  },
+  // Level 4: Finding the Variable
+  {
+    num:4, name:'Finding the Variable', required:true,
+    skill:'Sequence the cause-and-effect chain and identify the key variable (SC2, SC3)',
+    focusPrompt:'Watch the data table fill in — which row shows the LOWEST morphine level, and what\'s different about that group?',
+    evidenceSlot:'evSlot4', evidenceLabel:'Evidence #4: Condition Comparison Table',
+    watchDuration:18000,
+    watchNarration:'Toys helped a little. But the BIG drop happened when the rat had other rats around. Social contact made the biggest difference.',
+    watchVocabGlow:['variable','dependence'],
+    doMechanic:'what-comes-next',
+    doPrompt:'Look at the table. What comes AFTER morphine consumption rises?',
+    doOptions:[
+      {id:'A',text:'The rat makes new friends',correct:false},
+      {id:'B',text:'Dependence develops',correct:true},
+      {id:'C',text:'The rat\'s fur changes color',correct:false}
+    ],
+    doWrongFeedback:{
+      A:'In the cage, there ARE no other rats to befriend. Look at the chain: isolation, no contact, more morphine — what condition does that lead to? Check the vocabulary bar.',
+      C:'Fur color isn\'t part of this. Look at Row 1 in the table — the rat is alone, morphine is VERY HIGH. What does that much morphine use lead to?'
+    },
+    proveQuestion:'What change made the BIGGEST drop in morphine use?',
+    proveOptions:[
+      {id:'A',text:'Adding toys and wheels',correct:false},
+      {id:'B',text:'Making the cage bigger',correct:false},
+      {id:'C',text:'Adding other rats',correct:true}
+    ],
+    proveWrongFeedback:{
+      A:'Look at the comparison brackets on the table. Toys made only a SMALL drop. The BIG drop happened between which two rows?',
+      B:'Cage size isn\'t shown as a separate row. Look at the BIG drop bracket — what changed between the orange row and the green row?'
+    },
+    hintLadder:{
+      hint1:{text:'Look at the COMPARISON BRACKETS on the table. One says "Small drop" and one says "BIG drop." What changed in the row where the BIG drop happened?',glowTerms:['variable','dependence']},
+      hint2:{text:'Toys made a small drop. Adding OTHER RATS made a huge drop. That means the most important change was social contact.',eliminateOption:'A'},
+      stepByStep:[
+        'Adding toys helped a little, but morphine stayed high.',
+        'Adding other rats made morphine drop to VERY LOW.',
+        'The change that mattered most was adding other rats — social contact.'
+      ]
+    },
+    buildArena:buildArenaLevel4,
+    watchArena:watchArenaLevel4,
+    highlightArena:highlightArenaLevel4
+  },
+  // Level 5: Weighing All Evidence (BONUS)
+  {
+    num:5, name:'Weighing All Evidence', required:false,
+    skill:'Compare and evaluate evidence to identify the strongest proof (SC1, SC2)',
+    focusPrompt:'Watch how these two evidence cards are different — one compares different rats, the other follows the SAME rat.',
+    evidenceSlot:'evSlot5', evidenceLabel:'Strongest Evidence: Same Rat Test',
+    watchDuration:12000,
+    watchNarration:'Two pieces of evidence both show that environment matters. But one is STRONGER. Can you figure out which one and why?',
+    watchVocabGlow:[],
+    doMechanic:'coach-click',
+    doPrompt:'Which evidence is STRONGER proof — the gap or the same rat?',
+    doOptions:[
+      {id:'A',text:'Evidence #1: Consumption Gap (bar graph)',correct:false},
+      {id:'B',text:'Evidence #3: Same Rat, New Environment (arrow)',correct:true}
+    ],
+    doWrongFeedback:{
+      A:'The gap shows THAT there\'s a difference — but those are different rats in different places. Card 3 uses the SAME rat. Why does that matter?'
+    },
+    proveQuestion:'Why is "same rat, new environment" the strongest evidence?',
+    proveOptions:[
+      {id:'A',text:'It uses the most rats',correct:false},
+      {id:'B',text:'It keeps the rat and drug the same, only changes environment',correct:true},
+      {id:'C',text:'It was the last experiment Alexander ran',correct:false}
+    ],
+    proveWrongFeedback:{
+      A:'Number of rats isn\'t what makes evidence strong here. Think about what STAYED THE SAME and what CHANGED.',
+      C:'The order of experiments doesn\'t matter. What makes this evidence powerful is what it controls — what stayed the same?'
+    },
+    hintLadder:{
+      hint1:{text:'Look at CARD 3 on the right — the one with the arrow. What stayed the SAME when the rat moved? The rat and the drug. Only the environment changed.',glowTerms:[]},
+      hint2:{text:'Card 1 compares different rats in different places. Card 3 uses the SAME rat — so if behavior changed, only the environment can explain it.',eliminateOption:'A'},
+      stepByStep:[
+        'Card 1 shows a gap — but those are different rats. Maybe some rats just drink more?',
+        'Card 3 uses the SAME rat. Same rat, same drug. Only the environment changed — and drinking dropped.',
+        'Which card PROVES the environment caused the change?'
+      ]
+    },
+    buildArena:buildArenaLevel5,
+    watchArena:watchArenaLevel5,
+    highlightArena:highlightArenaLevel5
+  },
+  // Level 6: The Verdict (BONUS)
+  {
+    num:6, name:'The Verdict', required:false,
+    skill:'Construct an evidence-based claim connecting environment to dependence (SC1, SC2, SC3)',
+    focusPrompt:'Watch the conclusion meter fill — everything you\'ve found this week points to ONE big idea.',
+    evidenceSlot:'evSlot6', evidenceLabel:'Case Closed: Verdict',
+    watchDuration:12000,
+    watchNarration:'The same rat. The same drug. A new environment. Less drinking. Now — put it all together. What does the evidence prove?',
+    watchVocabGlow:['dependence','environment'],
+    doMechanic:'claim-builder',
+    doPrompt:'Build your conclusion from the evidence.',
+    doSubSteps:[
+      {
+        stepLabel:'Step 1 — Select the CAUSE',
+        options:[
+          {id:'A',text:'The drug was more powerful',correct:false},
+          {id:'B',text:'The environment changed',correct:true},
+          {id:'C',text:'The rat got older',correct:false}
+        ],
+        wrongFeedback:{
+          A:'Remember Evidence #3 — the same drug was in BOTH places. The drug didn\'t change. What did?',
+          C:'Evidence #3 showed the SAME rat changed behavior. The rat didn\'t change — what changed around it?'
+        }
+      },
+      {
+        stepLabel:'Step 2 — Select the EFFECT',
+        options:[
+          {id:'A',text:'Dependence levels changed',correct:true},
+          {id:'B',text:'The rat\'s size changed',correct:false},
+          {id:'C',text:'The drug stopped working',correct:false}
+        ],
+        wrongFeedback:{
+          B:'The rat\'s body didn\'t change. Look at what DID change — check the consumption bars on the arena.',
+          C:'The drug was still there — rats in the park COULD drink it, they just chose not to. What measurement changed?'
+        }
+      },
+      {
+        stepLabel:'Step 3 — Select the CONCLUSION',
+        options:[
+          {id:'A',text:'The drug is the main cause of dependence, and environment has little effect',correct:false},
+          {id:'B',text:'Environment and social connection shape whether dependence develops',correct:true}
+        ],
+        wrongFeedback:{
+          A:'Look at Evidence #3 again — the environment changed and dependence dropped. If the drug were the main cause, moving the rat wouldn\'t have mattered. But it did.'
+        }
+      }
+    ],
+    proveQuestion:'What matters more for dependence — the drug or the environment?',
+    proveOptions:[
+      {id:'A',text:'The environment and social connection matter more',correct:true},
+      {id:'B',text:'The drug is all that matters',correct:false}
+    ],
+    proveWrongFeedback:{
+      B:'If the drug were all that mattered, the same rat would drink the same amount no matter where it lived. But moving the rat to Rat Park changed everything.'
+    },
+    hintLadder:{
+      hint1:{text:'Look at the CONCLUSION METER on the left side — it\'s full because all the evidence points one direction. The same rat drank less in a better environment.',glowTerms:['dependence','environment']},
+      hint2:{text:'Caged rats became dependent. Park rats mostly didn\'t. Same drug both times. That means the environment matters more.',eliminateOption:'B'},
+      stepByStep:[
+        'Evidence showed: same drug, different environments, different dependence.',
+        'The environment — especially social contact — changed how much rats drank.',
+        'Does the drug explain the difference, or does the environment?'
+      ]
+    },
+    buildArena:buildArenaLevel6,
+    watchArena:watchArenaLevel6,
+    highlightArena:highlightArenaLevel6
+  }
+];
+
+// Initialize game state levels
+levels.forEach((l,i)=>{
+  gameState.levels.push({levelNum:l.num,levelName:l.name,required:l.required,completed:false,score:0,attempts:0,hintsUsed:0,resets:0,timeSeconds:0});
+});
+
+// ===== DOM REFS =====
+const $=id=>document.getElementById(id);
+const welcomeScreen=$('welcomeScreen');
+const gameContainer=$('gameContainer');
+const studentNameInput=$('studentNameInput');
+const teacherNameInput=$('teacherNameInput');
+const startBtn=$('startBtn');
+
+// ===== WELCOME =====
+studentNameInput.addEventListener('input',()=>{
+  startBtn.disabled=studentNameInput.value.trim().length<1;
+});
+studentNameInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!startBtn.disabled)startBtn.click();});
+
+startBtn.addEventListener('click',()=>{
+  if(processing)return;processing=true;
+  studentName=escHtml(studentNameInput.value.trim());
+  const tn=teacherNameInput.value.trim();
+  teacherName=tn?escHtml(tn):teacherDefault;
+  gameState.studentName=studentName;
+  initSpeech();
+  gameStartTime=Date.now();
+  welcomeScreen.style.display='none';
+  gameContainer.classList.add('active');
+  initParticles();
+  processing=false;
+  startLevel(0);
+});
+
+// ===== CLOSE ALL OVERLAYS =====
+function closeAllOverlays(){
+  ['levelIntro','vocabPopup','hintOverlay','stepOverlay','celebrationOverlay','choiceScreen','antiguessScreen','confirmDialog'].forEach(id=>{
+    $(id).classList.remove('active');$(id).style.display='none';
+  });
+  $('coachingBar').classList.remove('visible');$('coachingBar').style.display='none';
+  $('tryAgainBtn').classList.remove('visible');$('tryAgainBtn').style.display='none';
+  if(transitionTimeout){clearTimeout(transitionTimeout);transitionTimeout=null;}
+  if(antiguessInterval){clearInterval(antiguessInterval);antiguessInterval=null;}
+}
+
+// ===== SAFE TIMEOUT =====
+function arenaTimeout(fn,ms){
+  const gen=arenaGen;
+  return setTimeout(()=>{if(arenaGen===gen)fn();},ms);
+}
+
+// ===== CLEANUP =====
+function cleanupArena(){
+  arenaGen++;
+  const arena=$('arenaContent');
+  while(arena.firstChild)arena.removeChild(arena.firstChild);
+  $('focusPrompt').classList.remove('visible','subtle');$('focusPrompt').textContent='';
+  document.querySelectorAll('.vh-term').forEach(el=>el.classList.remove('glow'));
+}
+
+// ===== LEVEL MANAGEMENT =====
+function startLevel(idx){
+  if(processing)return;processing=true;
+  closeAllOverlays();
+  currentLevel=idx;
+  const lv=levels[idx];
+  if(!lv){processing=false;showReceipt();return;}
+
+  wrongCount=0;hintsUsed=0;levelResets=0;selectedOption=null;
+  consecutiveFastWrongs=0;doSubStep=0;doSubStepMax=0;doSubScores=[];
+  levelStartTime=Date.now();
+
+  // Update HUD
+  $('levelNum').textContent=`Evidence #${lv.num}`;
+  $('levelName').textContent=lv.name;
+  $('bottomCenter').textContent=`Evidence ${lv.num} of 6`;
+  updateProgress();
+
+  // Reset interaction zone
+  clearInteraction();
+
+  // Show level intro
+  const intro=$('levelIntro');
+  intro.querySelector('.intro-badge').textContent=lv.required?'REQUIRED EVIDENCE':'BONUS EVIDENCE';
+  intro.querySelector('.intro-name').textContent=`Evidence #${lv.num}: ${lv.name}`;
+  intro.classList.add('active');intro.style.display='flex';
+
+  setTimeout(()=>{
+    intro.classList.remove('active');intro.style.display='none';
+    processing=false;
+    runWatchPhase(idx);
+  },1500);
+}
+
+function updateProgress(){
+  const completed=gameState.levels.filter(l=>l.completed).length;
+  $('progressFill').style.width=(completed/6*100)+'%';
+  $('progressText').textContent=`${completed}/6`;
+  // Show running point total during gameplay (sum of all completed level scores)
+  const runningTotal=gameState.levels.filter(l=>l.completed).reduce((s,l)=>s+l.score,0);
+  $('scoreDisplay').textContent=`Score: ${runningTotal}`;
+}
+
+function clearInteraction(){
+  $('phaseLabel').textContent='';
+  $('interactionPrompt').textContent='';
+  $('optionsRow').innerHTML='';
+  $('lockInBtn').style.display='none';$('lockInBtn').disabled=true;
+  $('coachingBar').classList.remove('visible');$('coachingBar').style.display='none';
+  $('tryAgainBtn').classList.remove('visible');$('tryAgainBtn').style.display='none';
+  selectedOption=null;
+}
+
+// ===== WATCH PHASE =====
+function runWatchPhase(idx){
+  const lv=levels[idx];
+  currentPhase='watch';
+  cleanupArena();
+
+  // Build arena
+  safeCall(()=>{if(lv.buildArena)lv.buildArena();},'Arena build failed');
+
+  // Pin evidence
+  safeCall(()=>{
+    const slot=$(lv.evidenceSlot);
+    if(slot&&!slot.classList.contains('pinned')){
+      setTimeout(()=>slot.classList.add('pinned'),500);
+    }
+  },'Evidence pin failed');
+
+  // Focus prompt
+  const fp=$('focusPrompt');
+  fp.textContent=lv.focusPrompt;
+  fp.classList.add('visible');fp.classList.remove('subtle');
+  arenaTimeout(()=>{fp.classList.add('subtle');},3000);
+
+  // Glow vocab
+  if(lv.watchVocabGlow){
+    lv.watchVocabGlow.forEach(term=>{
+      document.querySelector(`.vh-term[data-term="${term}"]`)?.classList.add('glow');
+    });
+  }
+
+  // Interaction zone shows WATCH
+  $('phaseLabel').textContent='WATCH';
+  $('interactionPrompt').textContent='Observe the evidence carefully...';
+
+  // Run watch animation
+  safeCall(()=>{if(lv.watchArena)lv.watchArena();},'Watch animation failed');
+
+  // Narration
+  speak(lv.watchNarration,null);
+
+  // Safety timeout: advance to DO after watchDuration + 3s
+  const watchSafety=arenaTimeout(()=>{
+    advanceToDo(idx);
+  },lv.watchDuration+3000);
+
+  // Normal advancement
+  arenaTimeout(()=>{
+    clearTimeout(watchSafety);
+    advanceToDo(idx);
+  },lv.watchDuration);
+}
+
+function advanceToDo(idx){
+  if(currentPhase==='do'||currentPhase==='prove')return;
+  currentPhase='do';
+  phaseStartTime=Date.now();
+  const lv=levels[idx];
+
+  clearInteraction();
+
+  // Level 1 guided coaching message
+  if(idx===0){
+    $('phaseLabel').textContent='YOUR TURN';
+    $('interactionPrompt').textContent='Did you see which bar was taller? Now show me what you noticed.';
+    arenaTimeout(()=>{
+      clearInteraction();
+      showDoMechanic(idx,lv);
+    },2500);
+  } else {
+    showDoMechanic(idx,lv);
+  }
+}
+
+function showDoMechanic(idx,lv){
+  $('phaseLabel').textContent='YOUR TURN';
+
+  if(lv.doMechanic==='pick-the-match'&&lv.doSubSteps){
+    doSubStep=0;
+    doSubStepMax=lv.doSubSteps.length;
+    doSubScores=[];
+    showPickTheMatchStep(idx,0);
+  } else if(lv.doMechanic==='claim-builder'&&lv.doSubSteps){
+    doSubStep=0;
+    doSubStepMax=lv.doSubSteps.length;
+    doSubScores=[];
+    showClaimBuilderStep(idx,0);
+  } else if(lv.doMechanic==='hotspot'){
+    showHotspot(idx);
+  } else if(lv.doMechanic==='what-comes-next'){
+    showWhatComesNext(idx);
+  } else {
+    // coach-click or simple single-select
+    showSingleSelect(idx,'do');
+  }
+}
+
+// ===== SINGLE SELECT (Coach-Click) =====
+function showSingleSelect(idx,phase){
+  const lv=levels[idx];
+  const isProve=phase==='prove';
+  const prompt=isProve?lv.proveQuestion:lv.doPrompt;
+  const options=isProve?lv.proveOptions:lv.doOptions;
+  const wrongFB=isProve?lv.proveWrongFeedback:lv.doWrongFeedback;
+
+  $('phaseLabel').textContent=isProve?'PROVE IT':'YOUR TURN';
+  $('interactionPrompt').textContent=prompt;
+
+  const row=$('optionsRow');
+  row.innerHTML='';
+  selectedOption=null;
+
+  options.forEach(opt=>{
+    const card=document.createElement('div');
+    card.className='option-card';
+    card.dataset.id=opt.id;
+    card.textContent=`${opt.id}) ${opt.text}`;
+    card.addEventListener('click',()=>{
+      if(processing)return;
+      row.querySelectorAll('.option-card:not(.wrong-dim):not(.locked)').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedOption=opt.id;
+      $('lockInBtn').disabled=false;
+    });
+    if(opt._eliminated)card.classList.add('wrong-dim');
+    // Level 1 guided glow: subtly highlight correct option during DO only
+    if(currentLevel===0&&!isProve&&opt.correct)card.classList.add('guided-glow');
+    row.appendChild(card);
+  });
+
+  $('lockInBtn').style.display='inline-block';
+  $('lockInBtn').disabled=true;
+  $('lockInBtn').onclick=()=>{
+    if(processing||!selectedOption)return;
+    processing=true;
+    handleAnswer(idx,phase,selectedOption,options,wrongFB);
+  };
+}
+
+function handleAnswer(idx,phase,answer,options,wrongFB){
+  const lv=levels[idx];
+  const correct=options.find(o=>o.id===answer&&o.correct);
+  const timeSincePhase=Date.now()-phaseStartTime;
+
+  if(correct){
+    // Correct!
+    consecutiveFastWrongs=0;
+    const card=document.querySelector(`#optionsRow .option-card[data-id="${answer}"]`);
+    if(card)card.classList.add('correct');
+    playCorrect();
+    showPointsAnimation();
+
+    $('lockInBtn').style.display='none';
+    $('coachingBar').classList.remove('visible');$('coachingBar').style.display='none';
+    $('tryAgainBtn').classList.remove('visible');$('tryAgainBtn').style.display='none';
+
+    // Highlight arena
+    safeCall(()=>{if(lv.highlightArena)lv.highlightArena('correct',phase);},'Arena highlight failed');
+
+    setTimeout(()=>{
+      processing=false;
+      if(phase==='do'){
+        advanceToProve(idx);
+      } else {
+        completeLevel(idx);
+      }
+    },1200);
+  } else {
+    // Wrong
+    wrongCount++;
+    const card=document.querySelector(`#optionsRow .option-card[data-id="${answer}"]`);
+    if(card)card.classList.add('wrong');
+    playWrong();
+    setTimeout(()=>{if(card)card.classList.remove('wrong');card?.classList.add('wrong-dim');},500);
+
+    // Fast guess check
+    if(timeSincePhase<2000){
+      consecutiveFastWrongs++;
+      if(consecutiveFastWrongs>=2){
+        showAntiguessScreen(idx,phase);
+        return;
+      }
+    }
+
+    // Coaching
+    const fb=wrongFB?wrongFB[answer]:'Look more carefully at the evidence in the arena.';
+    $('coachingBar').textContent=fb;
+    $('coachingBar').classList.add('visible');$('coachingBar').style.display='block';
+
+    // Arena nudge
+    safeCall(()=>{if(lv.highlightArena)lv.highlightArena('wrong',phase,answer);},'Arena nudge failed');
+
+    processing=false;
+
+    // 3 resets safety - check before showing retry UI
+    if(levelResets>=3){
+      forceAdvance(idx);return;
+    }
+
+    // Try Again
+    $('lockInBtn').style.display='none';
+    $('tryAgainBtn').classList.add('visible');$('tryAgainBtn').style.display='inline-block';
+    $('tryAgainBtn').onclick=()=>{
+      $('tryAgainBtn').classList.remove('visible');$('tryAgainBtn').style.display='none';
+      $('coachingBar').classList.remove('visible');$('coachingBar').style.display='none';
+      selectedOption=null;
+      $('lockInBtn').style.display='inline-block';
+      $('lockInBtn').disabled=true;
+      phaseStartTime=Date.now();
+
+      // Check hint thresholds
+      if(wrongCount===1&&hintsUsed===0){showHintAuto(idx,1);}
+      else if(wrongCount===2&&hintsUsed<=1){showHintAuto(idx,2);}
+      else if(wrongCount>=3&&hintsUsed<=2){showStepByStep(idx);}
+    };
+  }
+}
+
+// ===== PICK THE MATCH (Multi-step DO) =====
+function showPickTheMatchStep(idx,step){
+  const lv=levels[idx];
+  const sub=lv.doSubSteps[step];
+  if(!sub){
+    // All steps done, advance to prove
+    advanceToProve(idx);return;
+  }
+
+  clearInteraction();
+  $('phaseLabel').textContent=`YOUR TURN (Card ${step+1} of ${lv.doSubSteps.length})`;
+  $('interactionPrompt').innerHTML=`<div style="margin-bottom:4px;font-size:13px;color:var(--accent-yellow);">${sub.label}</div>Match this feature to the correct environment:`;
+
+  const row=$('optionsRow');row.innerHTML='';
+  selectedOption=null;
+  phaseStartTime=Date.now();
+  wrongCount=0; // reset per card for anti-guessing
+
+  sub.options.forEach(opt=>{
+    const card=document.createElement('div');
+    card.className='option-card';card.dataset.id=opt.id;
+    card.textContent=opt.text;
+    card.addEventListener('click',()=>{
+      if(processing)return;
+      row.querySelectorAll('.option-card:not(.wrong-dim):not(.locked)').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');selectedOption=opt.id;$('lockInBtn').disabled=false;
+    });
+    row.appendChild(card);
+  });
+
+  $('lockInBtn').style.display='inline-block';$('lockInBtn').disabled=true;
+  $('lockInBtn').onclick=()=>{
+    if(processing||!selectedOption)return;processing=true;
+    handlePickTheMatchAnswer(idx,step,selectedOption);
+  };
+}
+
+function handlePickTheMatchAnswer(idx,step,answer){
+  const lv=levels[idx];
+  const sub=lv.doSubSteps[step];
+  const correct=sub.options.find(o=>o.id===answer&&o.correct);
+  const timeSincePhase=Date.now()-phaseStartTime;
+
+  if(correct){
+    consecutiveFastWrongs=0;
+    const card=document.querySelector(`#optionsRow .option-card[data-id="${answer}"]`);
+    if(card)card.classList.add('correct');
+    playCorrect();showPointsAnimation();
+    doSubScores.push(hintsUsed);
+
+    setTimeout(()=>{
+      processing=false;
+      doSubStep++;
+      wrongCount=0;hintsUsed=0;
+      if(doSubStep<doSubStepMax){
+        showPickTheMatchStep(idx,doSubStep);
+      } else {
+        advanceToProve(idx);
+      }
+    },800);
+  } else {
+    wrongCount++;
+    const card=document.querySelector(`#optionsRow .option-card[data-id="${answer}"]`);
+    if(card)card.classList.add('wrong');
+    playWrong();
+    setTimeout(()=>{if(card)card.classList.remove('wrong');card?.classList.add('wrong-dim');},500);
+
+    if(timeSincePhase<2000){
+      consecutiveFastWrongs++;
+      if(consecutiveFastWrongs>=2){showAntiguessScreen(idx,'do');return;}
+    }
+
+    const fb=sub.wrongFeedback?sub.wrongFeedback[answer]:'Look at the arena for clues.';
+    $('coachingBar').textContent=fb;$('coachingBar').classList.add('visible');$('coachingBar').style.display='block';
+
+    safeCall(()=>{if(lv.highlightArena)lv.highlightArena('wrong','do',answer,step);},'Arena nudge failed');
+
+    processing=false;
+    if(levelResets>=3){forceAdvance(idx);return;}
+
+    $('lockInBtn').style.display='none';
+    $('tryAgainBtn').classList.add('visible');$('tryAgainBtn').style.display='inline-block';
+    $('tryAgainBtn').onclick=()=>{
+      $('tryAgainBtn').classList.remove('visible');$('tryAgainBtn').style.display='none';
+      $('coachingBar').classList.remove('visible');$('coachingBar').style.display='none';
+      selectedOption=null;$('lockInBtn').style.display='inline-block';$('lockInBtn').disabled=true;
+      phaseStartTime=Date.now();
+      if(wrongCount===1&&hintsUsed===0)showHintAuto(idx,1);
+      else if(wrongCount===2&&hintsUsed<=1)showHintAuto(idx,2);
+      else if(wrongCount>=3&&hintsUsed<=2)showStepByStep(idx);
+    };
+  }
+}
+
+// ===== HOTSPOT =====
+function showHotspot(idx){
+  const lv=levels[idx];
+  if(!lv.doHotspots){advanceToProve(idx);return;}
+  $('phaseLabel').textContent='YOUR TURN';
+  $('interactionPrompt').textContent=lv.doPrompt;
+  phaseStartTime=Date.now();
+  // Hotspot zones are created by buildArena, we just enable them
+  document.querySelectorAll('.hotspot-zone').forEach(z=>{
+    z.style.pointerEvents='auto';
+    z.onclick=function(){
+      if(processing)return;processing=true;
+      const zoneId=this.dataset.zone;
+      handleHotspotClick(idx,zoneId,this);
+    };
+  });
+}
+
+function handleHotspotClick(idx,zoneId,el){
+  const lv=levels[idx];
+  const correctZone=lv.doHotspots.find(h=>h.id===zoneId&&h.correct);
+  const timeSincePhase=Date.now()-phaseStartTime;
+
+  if(correctZone){
+    consecutiveFastWrongs=0;
+    el.classList.add('correct-zone');
+    playCorrect();showPointsAnimation();
+    const label=el.querySelector('.hotspot-label');
+    if(label)label.classList.add('visible');
+    safeCall(()=>{if(lv.highlightArena)lv.highlightArena('correct','do');},'');
+    document.querySelectorAll('.hotspot-zone').forEach(z=>z.style.pointerEvents='none');
+    setTimeout(()=>{processing=false;advanceToProve(idx);},1200);
+  } else {
+    wrongCount++;
+    el.classList.add('wrong-zone');
+    playWrong();
+    setTimeout(()=>el.classList.remove('wrong-zone'),500);
+
+    if(timeSincePhase<1500){
+      consecutiveFastWrongs++;
+      if(consecutiveFastWrongs>=2){showAntiguessScreen(idx,'do');return;}
+    }
+
+    const fb=lv.doHotspots.find(h=>h.id===zoneId)?.wrongFeedback||'That part didn\'t change. Look for what\'s different.';
+    $('coachingBar').textContent=fb;$('coachingBar').classList.add('visible');$('coachingBar').style.display='block';
+    safeCall(()=>{if(lv.highlightArena)lv.highlightArena('wrong','do',zoneId);},'');
+
+    processing=false;
+    phaseStartTime=Date.now();
+
+    if(wrongCount>=3&&hintsUsed<=2){
+      showStepByStep(idx);
+    } else if(wrongCount===2&&hintsUsed<=1){
+      showHintAuto(idx,2);
+    } else if(wrongCount===1&&hintsUsed===0){
+      showHintAuto(idx,1);
+    }
+    if(levelResets>=3){forceAdvance(idx);return;}
+  }
+}
+
+// ===== WHAT COMES NEXT =====
+function showWhatComesNext(idx){
+  const lv=levels[idx];
+  if(!lv.doOptions){advanceToProve(idx);return;}
+  $('phaseLabel').textContent='YOUR TURN';
+  $('interactionPrompt').innerHTML=lv.doPrompt;
+
+  const row=$('optionsRow');row.innerHTML='';
+  // Show existing chain
+  const chainHtml=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;justify-content:center;margin-bottom:8px;width:100%;">
+    <div class="chain-step complete">1. Rat placed in isolation</div><span class="chain-arrow">&#8594;</span>
+    <div class="chain-step complete">2. No social contact</div><span class="chain-arrow">&#8594;</span>
+    <div class="chain-step complete">3. Morphine consumption rises</div><span class="chain-arrow">&#8594;</span>
+    <div class="chain-step chain-slot">4. ?</div>
+  </div>`;
+  row.innerHTML=chainHtml;
+
+  // Option cards below
+  const optDiv=document.createElement('div');
+  optDiv.style.cssText='display:flex;flex-wrap:wrap;gap:10px;justify-content:center;width:100%;margin-top:4px;';
+  selectedOption=null;phaseStartTime=Date.now();
+
+  lv.doOptions.forEach(opt=>{
+    const card=document.createElement('div');card.className='option-card';card.dataset.id=opt.id;
+    card.textContent=`${opt.id}) ${opt.text}`;
+    card.addEventListener('click',()=>{
+      if(processing)return;
+      optDiv.querySelectorAll('.option-card:not(.wrong-dim)').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');selectedOption=opt.id;$('lockInBtn').disabled=false;
+    });
+    optDiv.appendChild(card);
+  });
+  row.appendChild(optDiv);
+
+  $('lockInBtn').style.display='inline-block';$('lockInBtn').disabled=true;
+  $('lockInBtn').onclick=()=>{
+    if(processing||!selectedOption)return;processing=true;
+    handleWhatComesNextAnswer(idx,selectedOption);
+  };
+}
+
+function handleWhatComesNextAnswer(idx,answer){
+  const lv=levels[idx];
+  const correct=lv.doOptions.find(o=>o.id===answer&&o.correct);
+  const timeSincePhase=Date.now()-phaseStartTime;
+
+  if(correct){
+    consecutiveFastWrongs=0;
+    const card=document.querySelector(`#optionsRow .option-card[data-id="${answer}"]`);
+    if(card)card.classList.add('correct');
+    // Fill in chain slot
+    const slot=document.querySelector('.chain-slot');
+    if(slot){slot.classList.remove('chain-slot');slot.classList.add('complete');slot.textContent=`4. ${correct.text}`;}
+    playCorrect();showPointsAnimation();
+    safeCall(()=>{if(lv.highlightArena)lv.highlightArena('correct','do');},'');
+    $('lockInBtn').style.display='none';
+    setTimeout(()=>{processing=false;advanceToProve(idx);},1200);
+  } else {
+    wrongCount++;
+    const card=document.querySelector(`#optionsRow .option-card[data-id="${answer}"]`);
+    if(card)card.classList.add('wrong');playWrong();
+    setTimeout(()=>{if(card)card.classList.remove('wrong');card?.classList.add('wrong-dim');},500);
+
+    if(timeSincePhase<2000){consecutiveFastWrongs++;if(consecutiveFastWrongs>=2){showAntiguessScreen(idx,'do');return;}}
+
+    const fb=lv.doWrongFeedback?lv.doWrongFeedback[answer]:'Think about what happens when an animal consumes too much morphine.';
+    $('coachingBar').textContent=fb;$('coachingBar').classList.add('visible');$('coachingBar').style.display='block';
+    safeCall(()=>{if(lv.highlightArena)lv.highlightArena('wrong','do',answer);},'');
+
+    processing=false;
+    if(levelResets>=3){forceAdvance(idx);return;}
+
+    $('lockInBtn').style.display='none';
+    $('tryAgainBtn').classList.add('visible');$('tryAgainBtn').style.display='inline-block';
+    $('tryAgainBtn').onclick=()=>{
+      $('tryAgainBtn').classList.remove('visible');$('tryAgainBtn').style.display='none';
+      $('coachingBar').classList.remove('visible');$('coachingBar').style.display='none';
+      selectedOption=null;$('lockInBtn').style.display='inline-block';$('lockInBtn').disabled=true;
+      phaseStartTime=Date.now();
+      if(wrongCount===1&&hintsUsed===0)showHintAuto(idx,1);
+      else if(wrongCount===2&&hintsUsed<=1)showHintAuto(idx,2);
+      else if(wrongCount>=3&&hintsUsed<=2)showStepByStep(idx);
+    };
+  }
+}
+
+// ===== CLAIM BUILDER =====
+function showClaimBuilderStep(idx,step){
+  const lv=levels[idx];
+  if(!lv.doSubSteps){advanceToProve(idx);return;}
+  const sub=lv.doSubSteps[step];
+  if(!sub){advanceToProve(idx);return;}
+
+  clearInteraction();
+  $('phaseLabel').textContent=`BUILD YOUR CLAIM (Step ${step+1} of ${lv.doSubSteps.length})`;
+  // Show previously locked steps
+  let lockedHtml='';
+  for(let i=0;i<step;i++){
+    const prev=lv.doSubSteps[i];
+    const correctOpt=prev.options.find(o=>o.correct);
+    lockedHtml+=`<div class="claim-locked">${prev.stepLabel}: ${correctOpt.text}</div>`;
+  }
+  $('interactionPrompt').innerHTML=lockedHtml+`<div style="margin-top:4px;">${sub.stepLabel} — Select:</div>`;
+
+  const row=$('optionsRow');row.innerHTML='';
+  selectedOption=null;phaseStartTime=Date.now();wrongCount=0;
+
+  sub.options.forEach(opt=>{
+    const card=document.createElement('div');card.className='option-card';card.dataset.id=opt.id;
+    card.textContent=opt.text;
+    card.addEventListener('click',()=>{
+      if(processing)return;
+      row.querySelectorAll('.option-card:not(.wrong-dim)').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');selectedOption=opt.id;$('lockInBtn').disabled=false;
+    });
+    row.appendChild(card);
+  });
+
+  $('lockInBtn').style.display='inline-block';$('lockInBtn').disabled=true;
+  $('lockInBtn').onclick=()=>{
+    if(processing||!selectedOption)return;processing=true;
+    handleClaimBuilderAnswer(idx,step,selectedOption);
+  };
+}
+
+function handleClaimBuilderAnswer(idx,step,answer){
+  const lv=levels[idx];
+  const sub=lv.doSubSteps[step];
+  const correct=sub.options.find(o=>o.id===answer&&o.correct);
+  const timeSincePhase=Date.now()-phaseStartTime;
+
+  if(correct){
+    consecutiveFastWrongs=0;
+    const card=document.querySelector(`#optionsRow .option-card[data-id="${answer}"]`);
+    if(card)card.classList.add('correct');
+    playCorrect();showPointsAnimation();
+    doSubScores.push(hintsUsed);
+
+    setTimeout(()=>{
+      processing=false;doSubStep++;wrongCount=0;hintsUsed=0;
+      if(doSubStep<doSubStepMax)showClaimBuilderStep(idx,doSubStep);
+      else{
+        safeCall(()=>{if(lv.highlightArena)lv.highlightArena('correct','do');},'');
+        setTimeout(()=>advanceToProve(idx),800);
+      }
+    },800);
+  } else {
+    wrongCount++;
+    const card=document.querySelector(`#optionsRow .option-card[data-id="${answer}"]`);
+    if(card)card.classList.add('wrong');playWrong();
+    setTimeout(()=>{if(card)card.classList.remove('wrong');card?.classList.add('wrong-dim');},500);
+
+    if(timeSincePhase<1500){consecutiveFastWrongs++;if(consecutiveFastWrongs>=2){showAntiguessScreen(idx,'do');return;}}
+
+    const fb=sub.wrongFeedback?sub.wrongFeedback[answer]:'Look at the evidence board for clues.';
+    $('coachingBar').textContent=fb;$('coachingBar').classList.add('visible');$('coachingBar').style.display='block';
+    safeCall(()=>{if(lv.highlightArena)lv.highlightArena('wrong','do',answer,step);},'');
+
+    processing=false;
+    if(levelResets>=3){forceAdvance(idx);return;}
+
+    $('lockInBtn').style.display='none';
+    $('tryAgainBtn').classList.add('visible');$('tryAgainBtn').style.display='inline-block';
+    $('tryAgainBtn').onclick=()=>{
+      $('tryAgainBtn').classList.remove('visible');$('tryAgainBtn').style.display='none';
+      $('coachingBar').classList.remove('visible');$('coachingBar').style.display='none';
+      selectedOption=null;$('lockInBtn').style.display='inline-block';$('lockInBtn').disabled=true;
+      phaseStartTime=Date.now();
+      if(wrongCount===1&&hintsUsed===0)showHintAuto(idx,1);
+      else if(wrongCount===2&&hintsUsed<=1)showHintAuto(idx,2);
+      else if(wrongCount>=3&&hintsUsed<=2)showStepByStep(idx);
+    };
+  }
+}
+
+// ===== PROVE PHASE =====
+function advanceToProve(idx){
+  if(currentPhase==='prove')return;
+  currentPhase='prove';
+  wrongCount=0;
+  const lv=levels[idx];
+  clearInteraction();
+
+  // Calculate DO hints for multi-step and save for scoring
+  if(doSubScores.length>0){
+    hintsUsed=Math.max(...doSubScores);
+  }
+  // Save DO-phase hint level for final score, reset for PROVE phase
+  gameState.levels[idx]._doHints=hintsUsed;
+  hintsUsed=0;
+  showSingleSelect(idx,'prove');
+}
+
+// ===== HINTS =====
+function showHintAuto(idx,level){
+  const lv=levels[idx];
+  if(!lv.hintLadder)return;
+  if(level===1){
+    hintsUsed=Math.max(hintsUsed,1);
+    const h=lv.hintLadder.hint1;
+    showHintPopup(h.text,'&#128161;');
+    if(h.glowTerms)h.glowTerms.forEach(t=>document.querySelector(`.vh-term[data-term="${t}"]`)?.classList.add('glow'));
+  } else if(level===2){
+    hintsUsed=Math.max(hintsUsed,2);
+    const h=lv.hintLadder.hint2;
+    showHintPopup(h.text,'&#128269;');
+    // Only eliminate options during single-select phases (PROVE or coach-click DO)
+    // Never during multi-step DO (pick-the-match, claim-builder) where options change per step
+    const isMultiStepDo=currentPhase==='do'&&(lv.doMechanic==='pick-the-match'||lv.doMechanic==='claim-builder');
+    if(h.eliminateOption&&!isMultiStepDo){
+      const card=document.querySelector(`#optionsRow .option-card[data-id="${h.eliminateOption}"]`);
+      if(card&&!card.classList.contains('wrong-dim'))card.classList.add('wrong-dim');
+    }
+  }
+}
+
+function showHintPopup(text,icon){
+  const panel=$('hintPanel');
+  panel.querySelector('.hint-icon').innerHTML=icon;
+  panel.querySelector('.hint-text').textContent=text;
+  $('hintOverlay').classList.add('active');$('hintOverlay').style.display='flex';
+}
+$('hintDismiss').onclick=()=>{$('hintOverlay').classList.remove('active');$('hintOverlay').style.display='none';};
+
+function showStepByStep(idx){
+  const lv=levels[idx];
+  if(!lv.hintLadder||!lv.hintLadder.stepByStep)return;
+  hintsUsed=Math.max(hintsUsed,3);
+  const steps=lv.hintLadder.stepByStep;
+  let si=0;
+
+  function showStep(){
+    $('stepPanel').querySelector('.step-counter').textContent=`Step ${si+1} of ${steps.length}`;
+    $('stepPanel').querySelector('.step-text').textContent=steps[si];
+    $('stepNext').textContent=si<steps.length-1?'Next':'Got It';
+    $('stepOverlay').classList.add('active');$('stepOverlay').style.display='flex';
+  }
+  showStep();
+  $('stepNext').onclick=()=>{
+    si++;
+    if(si>=steps.length){$('stepOverlay').classList.remove('active');$('stepOverlay').style.display='none';}
+    else showStep();
+  };
+}
+
+// Manual hint button
+$('hintBtn').onclick=()=>{
+  const lv=levels[currentLevel];
+  if(!lv||!lv.hintLadder)return;
+  if(hintsUsed<1)showHintAuto(currentLevel,1);
+  else if(hintsUsed<2)showHintAuto(currentLevel,2);
+  else showStepByStep(currentLevel);
+};
+
+// ===== ANTI-GUESSING =====
+function showAntiguessScreen(idx,phase){
+  consecutiveFastWrongs=0;
+  const ag=$('antiguessScreen');
+  ag.querySelector('.ag-text').textContent='Take your time. Look at the evidence in the arena before choosing.';
+  ag.classList.add('active');ag.style.display='flex';
+  let countdown=5;
+  ag.querySelector('.ag-timer').textContent=countdown;
+  if(antiguessInterval)clearInterval(antiguessInterval);
+  antiguessInterval=setInterval(()=>{
+    countdown--;
+    ag.querySelector('.ag-timer').textContent=countdown;
+    if(countdown<=0){
+      clearInterval(antiguessInterval);antiguessInterval=null;
+      ag.classList.remove('active');ag.style.display='none';
+      processing=false;
+      levelResets++;
+      gameState.levels[idx].resets++;
+      if(levelResets>=3){forceAdvance(idx);}
+      else startLevel(idx);
+    }
+  },1000);
+}
+
+// ===== FORCE ADVANCE (50%) =====
+function forceAdvance(idx){
+  processing=true;
+  const gs=gameState.levels[idx];
+  gs.score=50;gs.completed=true;gs.timeSeconds=Math.round((Date.now()-levelStartTime)/1000);
+  updateProgress();
+  updateMeter();
+
+  // Disable all interaction
+  document.querySelectorAll('.hotspot-zone').forEach(z=>z.style.pointerEvents='none');
+  $('lockInBtn').style.display='none';
+  $('tryAgainBtn').classList.remove('visible');$('tryAgainBtn').style.display='none';
+  $('optionsRow').innerHTML='';
+
+  $('coachingBar').textContent='Let\'s move on — you\'ll see this idea again.';
+  $('coachingBar').classList.add('visible');$('coachingBar').style.display='block';
+
+  setTimeout(()=>{
+    processing=false;
+    checkMilestone(idx);
+  },2000);
+}
+
+// ===== COMPLETE LEVEL =====
+function completeLevel(idx){
+  const gs=gameState.levels[idx];
+  if(gs.completed)return;
+  gs.completed=true;
+  gs.timeSeconds=Math.round((Date.now()-levelStartTime)/1000);
+
+  // Final hint level = max of DO-phase and PROVE-phase hints
+  const doHints=gs._doHints||0;
+  const totalHints=Math.max(doHints,hintsUsed);
+  gs.hintsUsed=totalHints;
+  gs.attempts=wrongCount+1;
+
+  // Score based on highest hint tier used across DO+PROVE
+  if(totalHints===0)gs.score=100;
+  else if(totalHints===1)gs.score=85;
+  else if(totalHints===2)gs.score=70;
+  else if(totalHints>=3)gs.score=60;
+  if(gs.resets>0)gs.score=50;
+
+  updateProgress();
+  updateMeter();
+
+  // First try affirmation
+  if(gs.score===100){
+    showCelebration(getAffirmation(),'Perfect evidence reading!',1500);
+  }
+
+  setTimeout(()=>{
+    processing=false;
+    checkMilestone(idx);
+  },1500);
+}
+
+function updateMeter(){
+  const completed=gameState.levels.filter(l=>l.completed).length;
+  $('meterFill').style.height=(completed/6*100)+'%';
+  $('evidenceCounter').textContent=`${completed} / 6`;
+}
+
+// ===== MILESTONES =====
+function checkMilestone(idx){
+  const completed=gameState.levels.filter(l=>l.completed).length;
+  const requiredDone=gameState.levels.filter(l=>l.required&&l.completed).length===4;
+  const allDone=completed===6;
+
+  if(allDone&&!bonusCompleteShown){
+    bonusCompleteShown=true;
+    gameState.allComplete=true;
+    showCelebration('BONUS COMPLETE!','All evidence collected!',3000);
+    fireParticles(15,['#FFD700','#00D4FF','#2ED573','#FF4757']);
+    setTimeout(()=>showReceipt(),3500);
+    return;
+  }
+
+  if(requiredDone&&!requiredCompleteShown){
+    requiredCompleteShown=true;
+    gameState.requiredComplete=true;
+    showChoiceScreen();
+    return;
+  }
+
+  // Every 2 levels celebration
+  if(completed>0&&completed%2===0){
+    showCelebration(getAffirmation(),'Evidence collecting!',2000);
+    fireParticles(10,['#00D4FF','#FFD93D','#2ED573']);
+    setTimeout(()=>{advanceToNextLevel(idx);},2200);
+  } else {
+    advanceToNextLevel(idx);
+  }
+}
+
+function advanceToNextLevel(idx){
+  const next=idx+1;
+  if(next>=levels.length)showReceipt();
+  else startLevel(next);
+}
+
+// ===== CELEBRATION =====
+function showCelebration(text,sub,duration){
+  const cel=$('celebrationOverlay');
+  cel.querySelector('.celeb-text').textContent=text;
+  cel.querySelector('.celeb-sub').textContent=sub||'';
+  // Remove old affirmation
+  const oldAff=cel.querySelector('.affirmation');if(oldAff)oldAff.remove();
+  cel.classList.add('active');cel.style.display='flex';
+  const safety=setTimeout(()=>{cel.classList.remove('active');cel.style.display='none';},duration+2000);
+  setTimeout(()=>{clearTimeout(safety);cel.classList.remove('active');cel.style.display='none';},duration);
+}
+
+function showPointsAnimation(){
+  const el=document.createElement('div');
+  el.className='points-anim';el.textContent='\u2714 Correct!';
+  el.style.top='40%';el.style.left='50%';el.style.transform='translateX(-50%)';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1200);
+}
+
+// ===== CHOICE SCREEN =====
+function showChoiceScreen(){
+  showCelebration('You did it!','All required evidence collected!',2000);
+  fireParticles(12,['#FFD700','#00D4FF','#2ED573']);
+  setTimeout(()=>{
+    const cs=$('choiceScreen');
+    cs.querySelector('.choice-title').textContent='Investigation Complete!';
+    cs.querySelector('.choice-sub').textContent='Continue to Bonus Levels for extra credit?';
+    const btns=cs.querySelector('div:last-child');btns.innerHTML='';
+    const keepBtn=document.createElement('button');keepBtn.className='choice-btn keep-going';keepBtn.textContent='Keep Going';
+    keepBtn.onclick=()=>{cs.classList.remove('active');cs.style.display='none';startLevel(4);};
+    const seeBtn=document.createElement('button');seeBtn.className='choice-btn see-score';seeBtn.textContent='See Score';
+    seeBtn.onclick=()=>{cs.classList.remove('active');cs.style.display='none';showReceipt();};
+    btns.appendChild(keepBtn);btns.appendChild(seeBtn);
+    cs.classList.add('active');cs.style.display='flex';
+  },2200);
+}
+
+// ===== GRADING =====
+function calcOverallScore(){
+  const req=gameState.levels.filter(l=>l.required&&l.completed);
+  if(req.length===0)return 0;
+  const base=req.reduce((s,l)=>s+l.score,0)/4;
+  const bonus=gameState.levels.filter(l=>!l.required&&l.completed).length*5;
+  return Math.min(100,Math.round(base+bonus));
+}
+
+// ===== RECEIPT =====
+function showReceipt(){
+  if(receiptRendered)return;receiptRendered=true;
+  closeAllOverlays();
+  if(ambientInterval){clearInterval(ambientInterval);ambientInterval=null;}
+  try{speechSynthesis.cancel();}catch(e){}
+
+  gameState.totalTimeSeconds=gameState.levels.filter(l=>l.completed).reduce((s,l)=>s+l.timeSeconds,0);
+  const overall=calcOverallScore();
+  gameState.overallScore=overall;
+
+  let gradeClass='grade-red',gradeLabel='Needs More Practice';
+  if(overall>=85){gradeClass='grade-green';gradeLabel='Mastery';}
+  else if(overall>=70){gradeClass='grade-yellow';gradeLabel='Approaching Mastery';}
+
+  const completedCount=gameState.levels.filter(l=>l.completed).length;
+  const allDone=completedCount===6;
+  const reqDone=gameState.levels.filter(l=>l.required&&l.completed).length===4;
+
+  let statusText='In Progress';
+  if(allDone)statusText='All Complete (Bonus!)';
+  else if(reqDone)statusText='Required Complete';
+
+  let rowsHtml='';
+  gameState.levels.forEach(l=>{
+    if(!l.completed)return;
+    const m=Math.floor(l.timeSeconds/60);
+    const s=(l.timeSeconds%60).toString().padStart(2,'0');
+    const sc=l.score>=85?'grade-green':l.score>=70?'grade-yellow':'grade-red';
+    const bonus=l.required?'':'bonus-row';
+    rowsHtml+=`<tr class="${bonus}"><td>${l.required?l.levelNum:'&#11088; '+l.levelNum}</td><td>${escHtml(l.levelName)}</td><td class="${sc}">${l.score}%</td><td>${l.attempts||1}</td><td>${m}:${s}</td></tr>`;
+  });
+
+  const totalM=Math.floor(gameState.totalTimeSeconds/60);
+  const totalS=(gameState.totalTimeSeconds%60).toString().padStart(2,'0');
+
+  $('receiptContent').innerHTML=`
+    <div class="receipt-header">
+      <h2>${escHtml(teacherName)}'s Simulations</h2>
+      <h3>Addiction &amp; The Rat Park Experiment — Tuesday Score Report</h3>
+    </div>
+    <div class="receipt-name-row">
+      <input type="text" id="receiptName" value="${escHtml(studentName)}" placeholder="Your name" maxlength="60">
+      <button onclick="this.disabled=true;this.textContent='Locked';document.getElementById('receiptName').readOnly=true;">Lock</button>
+    </div>
+    <div id="overallGrade">
+      <div class="grade-pct ${gradeClass}">${overall}%</div>
+      <div class="grade-label">${gradeLabel}</div>
+    </div>
+    <table id="levelTable">
+      <thead><tr><th>#</th><th>Evidence</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div style="font-size:12px;color:var(--text-dim);text-align:center;">Total Time: ${totalM}:${totalS} &nbsp;|&nbsp; Status: ${statusText}</div>
+    <div class="receipt-footer">
+      <div class="upload-msg">Take a screenshot and upload to Google Classroom</div>
+      <button class="print-btn" onclick="window.print()">&#128424; Print</button>
+      <button class="restart-btn" onclick="document.getElementById('confirmDialog').classList.add('active');document.getElementById('confirmDialog').style.display='flex';">Start Over</button>
+    </div>`;
+
+  $('receiptScreen').classList.add('active');$('receiptScreen').style.display='block';
+  gameContainer.classList.remove('active');gameContainer.style.display='none';
+}
+
+// Confirm dialog
+$('cdYes').onclick=()=>{location.reload();};
+$('cdNo').onclick=()=>{$('confirmDialog').classList.remove('active');$('confirmDialog').style.display='none';};
+
+// ===== VOCAB =====
+$('vocabBtn').onclick=()=>{$('vocabPopup').classList.add('active');$('vocabPopup').style.display='block';};
+$('vocabClose').onclick=()=>{$('vocabPopup').classList.remove('active');$('vocabPopup').style.display='none';};
+
+// ===== RESET LEVEL =====
+$('resetLevelBtn').onclick=()=>{
+  if(processing)return;
+  const gs=gameState.levels[currentLevel];
+  if(gs&&gs.completed)return;
+  levelResets++;gs.resets++;
+  totalResets++;
+  try{speechSynthesis.cancel();}catch(e){}
+  if(resumeInterval)clearInterval(resumeInterval);
+  closeAllOverlays();
+  if(levelResets>=3){forceAdvance(currentLevel);}
+  else{startLevel(currentLevel);}
+};
+
+// ===== VISIBILITY CHANGE =====
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    if(ambientInterval){clearInterval(ambientInterval);ambientInterval=null;}
+    if(antiguessInterval){clearInterval(antiguessInterval);antiguessInterval=null;}
+    try{speechSynthesis.cancel();}catch(e){}
+    if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}
+  }
+});
+
+// ===== SAFE CALL =====
+function safeCall(fn,msg){try{fn();}catch(e){console.error(msg,e);}}
+
+// ================================================================
+// ARENA BUILDERS - Level 1
+// ================================================================
+function buildArenaLevel1(){
+  const arena=$('arenaContent');
+  arena.innerHTML=`
+  <svg viewBox="0 0 700 380" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;">
+    <defs>
+      <linearGradient id="cageGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#555"/><stop offset="40%" stop-color="#3a3a3a"/><stop offset="100%" stop-color="#222"/></linearGradient>
+      <linearGradient id="parkGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2d6b3d"/><stop offset="50%" stop-color="#1d4a2a"/><stop offset="100%" stop-color="#102a18"/></linearGradient>
+      <linearGradient id="redBar" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#c0392b"/><stop offset="50%" stop-color="#FF4757"/><stop offset="100%" stop-color="#FF6B81"/></linearGradient>
+      <linearGradient id="greenBar" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#1B8C4A"/><stop offset="50%" stop-color="#2ED573"/><stop offset="100%" stop-color="#7BED9F"/></linearGradient>
+      <linearGradient id="morphBottle" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8e44ad"/><stop offset="100%" stop-color="#6c3483"/></linearGradient>
+      <linearGradient id="waterBottle" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3498db"/><stop offset="100%" stop-color="#2471a3"/></linearGradient>
+      <linearGradient id="floorCage" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#444"/><stop offset="100%" stop-color="#333"/></linearGradient>
+      <linearGradient id="floorPark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8B6914"/><stop offset="100%" stop-color="#6B4E10"/></linearGradient>
+      <radialGradient id="lightCage" cx="50%" cy="30%"><stop offset="0%" stop-color="rgba(255,255,255,0.06)"/><stop offset="100%" stop-color="rgba(0,0,0,0)"/></radialGradient>
+      <radialGradient id="lightPark" cx="50%" cy="30%"><stop offset="0%" stop-color="rgba(100,255,150,0.08)"/><stop offset="100%" stop-color="rgba(0,0,0,0)"/></radialGradient>
+    </defs>
+
+    <!-- ======= CAGE SIDE ======= -->
+    <rect x="8" y="8" width="335" height="238" rx="10" fill="url(#cageGrad)" stroke="#777" stroke-width="2"/>
+    <rect x="8" y="8" width="335" height="238" rx="10" fill="url(#lightCage)"/>
+    <text x="175" y="30" text-anchor="middle" fill="#999" font-size="13" font-weight="bold" letter-spacing="2">THE CAGE</text>
+
+    <!-- Cage bars with shading -->
+    ${[28,56,84,112,140,196,224,252,280,308].map(x=>`<line x1="${x}" y1="38" x2="${x}" y2="235" stroke="#8a8a8a" stroke-width="4" stroke-linecap="round"/><line x1="${x+1.5}" y1="38" x2="${x+1.5}" y2="235" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`).join('')}
+    <!-- Top/bottom cage rails -->
+    <rect x="20" y="36" width="310" height="5" rx="2" fill="#999"/>
+    <rect x="20" y="232" width="310" height="5" rx="2" fill="#999"/>
+
+    <!-- Cage floor -->
+    <rect x="20" y="205" width="310" height="30" rx="3" fill="url(#floorCage)" opacity="0.6"/>
+
+    <!-- Isolated rat (detailed) -->
+    <g id="cageRat" transform="translate(158,168)">
+      <ellipse cx="0" cy="8" rx="26" ry="16" fill="#bfa07a"/><!-- body -->
+      <ellipse cx="0" cy="8" rx="23" ry="13" fill="#d4b896"/><!-- belly highlight -->
+      <ellipse cx="-18" cy="-4" rx="14" ry="11" fill="#c8a882"/><!-- head -->
+      <ellipse cx="-24" cy="-14" rx="6" ry="8" fill="#d4b896" stroke="#bfa07a" stroke-width="0.8"/><!-- ear L -->
+      <ellipse cx="-24" cy="-14" rx="3.5" ry="5" fill="#e8b4b4"/><!-- ear inner L -->
+      <ellipse cx="-12" cy="-14" rx="6" ry="8" fill="#d4b896" stroke="#bfa07a" stroke-width="0.8"/><!-- ear R -->
+      <ellipse cx="-12" cy="-14" rx="3.5" ry="5" fill="#e8b4b4"/><!-- ear inner R -->
+      <circle cx="-23" cy="-6" r="2.5" fill="#1a1a1a"/><!-- eye -->
+      <circle cx="-24" cy="-6.5" r="0.8" fill="#fff"/><!-- eye highlight -->
+      <ellipse cx="-30" cy="-2" rx="3" ry="2.5" fill="#e8a0a0"/><!-- nose -->
+      <line x1="-33" y1="-3" x2="-42" y2="-6" stroke="#c8a882" stroke-width="0.7"/><!-- whisker -->
+      <line x1="-33" y1="-1" x2="-42" y2="0" stroke="#c8a882" stroke-width="0.7"/>
+      <line x1="-33" y1="1" x2="-42" y2="4" stroke="#c8a882" stroke-width="0.7"/>
+      <path d="M 22 4 Q 35 -8 42 2 Q 48 10 40 8" fill="none" stroke="#bfa07a" stroke-width="2" stroke-linecap="round"/><!-- tail -->
+      <ellipse cx="-12" cy="18" rx="5" ry="3" fill="#c0a070"/><!-- paw front -->
+      <ellipse cx="10" cy="20" rx="5" ry="3" fill="#c0a070"/><!-- paw back -->
+    </g>
+    <!-- Sad posture indicator -->
+    <text x="175" y="205" text-anchor="middle" fill="#888" font-size="8" font-style="italic">alone</text>
+
+    <!-- Morphine bottle (cage) - detailed -->
+    <g transform="translate(262,115)">
+      <rect x="-3" y="-8" width="22" height="8" rx="2" fill="#7d3c98"/><!-- cap -->
+      <rect x="-1" y="0" width="18" height="48" rx="4" fill="url(#morphBottle)"/>
+      <rect x="1" y="20" width="14" height="26" rx="2" fill="#9b59b6" opacity="0.5"/><!-- liquid -->
+      <text x="8" y="62" text-anchor="middle" fill="#bf80d9" font-size="7" font-weight="bold">MORPHINE</text>
+      <!-- drip line -->
+      <line x1="8" y1="48" x2="-30" y2="62" stroke="#9b59b6" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.6"/>
+      <circle cx="-30" cy="62" r="2" fill="#9b59b6" opacity="0.6"/>
+    </g>
+
+    <!-- ======= RAT PARK SIDE ======= -->
+    <rect x="357" y="8" width="335" height="238" rx="10" fill="url(#parkGrad)" stroke="#3ddc84" stroke-width="2"/>
+    <rect x="357" y="8" width="335" height="238" rx="10" fill="url(#lightPark)"/>
+    <text x="525" y="30" text-anchor="middle" fill="#7BED9F" font-size="13" font-weight="bold" letter-spacing="2">RAT PARK</text>
+
+    <!-- Park floor (wood chips) -->
+    <rect x="365" y="210" width="320" height="30" rx="4" fill="url(#floorPark)" opacity="0.7"/>
+    ${[375,395,420,448,475,505,530,558,585,615,640,660].map(x=>`<rect x="${x}" y="${213+Math.random()*8}" width="${8+Math.random()*12}" height="${3+Math.random()*3}" rx="1.5" fill="#A0884${Math.floor(Math.random()*6)}" opacity="0.5"/>`).join('')}
+
+    <!-- Running wheel (detailed) -->
+    <g transform="translate(398,95)">
+      <circle cx="0" cy="0" r="24" fill="none" stroke="#A08060" stroke-width="4"/>
+      <circle cx="0" cy="0" r="22" fill="none" stroke="#8B7355" stroke-width="1"/>
+      <circle cx="0" cy="0" r="3" fill="#8B7355"/>
+      ${[0,45,90,135,180,225,270,315].map(a=>{const rad=a*Math.PI/180;return`<line x1="${Math.cos(rad)*3}" y1="${Math.sin(rad)*3}" x2="${Math.cos(rad)*22}" y2="${Math.sin(rad)*22}" stroke="#8B7355" stroke-width="1.2"/>`;}).join('')}
+      <!-- Stand -->
+      <line x1="0" y1="24" x2="0" y2="35" stroke="#8B7355" stroke-width="3"/>
+      <rect x="-10" y="33" width="20" height="4" rx="2" fill="#8B7355"/>
+    </g>
+
+    <!-- Wooden platforms (3D-ish) -->
+    <g>
+      <rect x="450" y="118" width="55" height="10" rx="3" fill="#A08060"/><rect x="450" y="118" width="55" height="4" rx="2" fill="#B89870"/>
+      <rect x="450" y="128" width="3" height="20" fill="#8B6914"/><rect x="502" y="128" width="3" height="20" fill="#8B6914"/>
+    </g>
+    <g>
+      <rect x="520" y="85" width="45" height="10" rx="3" fill="#A08060"/><rect x="520" y="85" width="45" height="4" rx="2" fill="#B89870"/>
+      <rect x="522" y="95" width="3" height="30" fill="#8B6914"/><rect x="560" y="95" width="3" height="30" fill="#8B6914"/>
+    </g>
+    <g>
+      <rect x="570" y="148" width="60" height="10" rx="3" fill="#A08060"/><rect x="570" y="148" width="60" height="4" rx="2" fill="#B89870"/>
+    </g>
+
+    <!-- Tin can hiding spots -->
+    <rect x="380" y="185" width="28" height="22" rx="6" fill="#7f8c8d" stroke="#95a5a6" stroke-width="1"/><ellipse cx="394" cy="185" rx="14" ry="3" fill="#8a9ba8"/>
+
+    <!-- Park rats (4, detailed) -->
+    <g transform="translate(468,108)"><!-- Rat on platform -->
+      <ellipse cx="0" cy="5" rx="18" ry="11" fill="#c8a882"/><ellipse cx="0" cy="5" rx="15" ry="8" fill="#d4b896"/>
+      <ellipse cx="-13" cy="-3" rx="9" ry="7" fill="#c8a882"/>
+      <ellipse cx="-17" cy="-10" rx="4" ry="5.5" fill="#d4b896"/><ellipse cx="-17" cy="-10" rx="2.5" ry="3.5" fill="#e8b4b4"/>
+      <ellipse cx="-10" cy="-10" rx="4" ry="5.5" fill="#d4b896"/><ellipse cx="-10" cy="-10" rx="2.5" ry="3.5" fill="#e8b4b4"/>
+      <circle cx="-17" cy="-4" r="1.8" fill="#1a1a1a"/><circle cx="-17.5" cy="-4.5" r="0.6" fill="#fff"/>
+      <ellipse cx="-22" cy="-1" rx="2" ry="1.5" fill="#e8a0a0"/>
+      <path d="M 15 2 Q 24 -6 28 2" fill="none" stroke="#c8a882" stroke-width="1.5" stroke-linecap="round"/>
+    </g>
+    <g transform="translate(540,78)"><!-- Rat on upper platform -->
+      <ellipse cx="0" cy="4" rx="16" ry="10" fill="#d4b896"/><ellipse cx="0" cy="4" rx="13" ry="7" fill="#e0c8a8"/>
+      <ellipse cx="-11" cy="-3" rx="8" ry="6" fill="#d4b896"/>
+      <ellipse cx="-14" cy="-9" rx="3.5" ry="5" fill="#d4b896"/><ellipse cx="-14" cy="-9" rx="2" ry="3" fill="#e8b4b4"/>
+      <circle cx="-14" cy="-4" r="1.5" fill="#1a1a1a"/><circle cx="-14.5" cy="-4.5" r="0.5" fill="#fff"/>
+      <ellipse cx="-19" cy="-1" rx="1.8" ry="1.3" fill="#e8a0a0"/>
+      <path d="M 13 1 Q 20 -5 24 1" fill="none" stroke="#d4b896" stroke-width="1.3"/>
+    </g>
+    <g transform="translate(590,140)"><!-- Rat on lower platform -->
+      <ellipse cx="0" cy="4" rx="17" ry="11" fill="#c0a070"/><ellipse cx="0" cy="4" rx="14" ry="8" fill="#d0b080"/>
+      <ellipse cx="-12" cy="-3" rx="9" ry="7" fill="#c0a070"/>
+      <ellipse cx="-16" cy="-10" rx="4" ry="5.5" fill="#c0a070"/><ellipse cx="-16" cy="-10" rx="2.5" ry="3.5" fill="#e8b4b4"/>
+      <circle cx="-16" cy="-4" r="1.8" fill="#1a1a1a"/><circle cx="-16.5" cy="-4.5" r="0.6" fill="#fff"/>
+      <ellipse cx="-21" cy="-1" rx="2" ry="1.5" fill="#e8a0a0"/>
+    </g>
+    <g transform="translate(420,195)"><!-- Rat on floor -->
+      <ellipse cx="0" cy="5" rx="18" ry="11" fill="#b89870"/><ellipse cx="0" cy="5" rx="15" ry="8" fill="#c8a882"/>
+      <ellipse cx="-13" cy="-3" rx="9" ry="7" fill="#b89870"/>
+      <ellipse cx="-17" cy="-10" rx="4" ry="5.5" fill="#c8a882"/><ellipse cx="-17" cy="-10" rx="2.5" ry="3.5" fill="#e8b4b4"/>
+      <circle cx="-17" cy="-4" r="1.8" fill="#1a1a1a"/><circle cx="-17.5" cy="-4.5" r="0.6" fill="#fff"/>
+      <ellipse cx="-22" cy="-1" rx="2" ry="1.5" fill="#e8a0a0"/>
+      <path d="M 15 3 Q 26 -4 30 5" fill="none" stroke="#b89870" stroke-width="1.5"/>
+    </g>
+
+    <!-- Morphine + Water bottles (park, detailed) -->
+    <g transform="translate(638,52)">
+      <rect x="-3" y="-6" width="18" height="6" rx="2" fill="#7d3c98"/>
+      <rect x="-1" y="0" width="14" height="40" rx="3" fill="url(#morphBottle)"/>
+      <rect x="1" y="22" width="10" height="16" rx="2" fill="#9b59b6" opacity="0.4"/>
+      <text x="6" y="46" text-anchor="middle" fill="#bf80d9" font-size="6">Morphine</text>
+    </g>
+    <g transform="translate(662,52)">
+      <rect x="-3" y="-6" width="18" height="6" rx="2" fill="#2471a3"/>
+      <rect x="-1" y="0" width="14" height="40" rx="3" fill="url(#waterBottle)"/>
+      <rect x="1" y="10" width="10" height="28" rx="2" fill="#5dade2" opacity="0.4"/>
+      <text x="6" y="46" text-anchor="middle" fill="#85c1e9" font-size="6">Water</text>
+    </g>
+
+    <!-- Divider line -->
+    <line x1="350" y1="15" x2="350" y2="242" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="6,4"/>
+
+    <!-- ======= BAR GRAPH ======= -->
+    <rect x="30" y="256" width="640" height="118" rx="8" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+    <text x="350" y="275" text-anchor="middle" fill="#ccc" font-size="11" font-weight="bold" letter-spacing="1">MORPHINE CONSUMED</text>
+
+    <!-- Y-axis with tick marks -->
+    <line x1="130" y1="282" x2="130" y2="365" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <line x1="126" y1="290" x2="130" y2="290" stroke="rgba(255,255,255,0.3)" stroke-width="1"/><text x="122" y="293" text-anchor="end" fill="#aaa" font-size="8">High</text>
+    <line x1="126" y1="325" x2="130" y2="325" stroke="rgba(255,255,255,0.3)" stroke-width="1"/><text x="122" y="328" text-anchor="end" fill="#999" font-size="8">Med</text>
+    <line x1="126" y1="360" x2="130" y2="360" stroke="rgba(255,255,255,0.3)" stroke-width="1"/><text x="122" y="363" text-anchor="end" fill="#888" font-size="8">Low</text>
+    <!-- X-axis -->
+    <line x1="130" y1="365" x2="620" y2="365" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+
+    <!-- Bars - drawn at final size, hidden initially, fade in -->
+    <rect id="cageBar" x="190" y="295" width="90" height="70" fill="url(#redBar)" rx="5" opacity="0" style="transition:opacity 1.5s ease-out"/>
+    <rect id="parkBar" x="410" y="353" width="90" height="12" fill="url(#greenBar)" rx="5" opacity="0" style="transition:opacity 1.5s ease-out"/>
+
+    <!-- Bar labels -->
+    <text id="cageBarLabel" x="235" y="378" text-anchor="middle" fill="#FF6B81" font-size="10" font-weight="bold" opacity="0">Caged Rats</text>
+    <text id="parkBarLabel" x="455" y="378" text-anchor="middle" fill="#7BED9F" font-size="10" font-weight="bold" opacity="0">Rat Park Rats</text>
+
+    <!-- 19x label (hidden initially) -->
+    <g id="gapLabel" opacity="0">
+      <line x1="286" y1="310" x2="405" y2="310" stroke="rgba(255,217,61,0.5)" stroke-width="1" stroke-dasharray="3"/>
+      <rect x="310" y="298" width="70" height="22" rx="6" fill="rgba(255,217,61,0.15)" stroke="#FFD93D" stroke-width="1"/>
+      <text x="345" y="314" text-anchor="middle" fill="#FFD93D" font-size="11" font-weight="bold">19x more</text>
+    </g>
+  </svg>`;
+}
+
+function watchArenaLevel1(){
+  const gen=arenaGen;
+  // Fade in cage bar (tall/red)
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const cageBar=document.getElementById('cageBar');
+    if(cageBar)cageBar.setAttribute('opacity','1');
+  },2000);
+  // Fade in park bar (short/green)
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const parkBar=document.getElementById('parkBar');
+    if(parkBar)parkBar.setAttribute('opacity','1');
+  },4500);
+  // Show labels
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const cl=document.getElementById('cageBarLabel');const pl=document.getElementById('parkBarLabel');
+    if(cl){cl.style.transition='opacity 0.6s';cl.setAttribute('opacity','1');}
+    if(pl){pl.style.transition='opacity 0.6s';pl.setAttribute('opacity','1');}
+  },7000);
+  // Show 19x comparison label
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const gl=document.getElementById('gapLabel');
+    if(gl){gl.style.transition='opacity 0.8s';gl.setAttribute('opacity','1');}
+  },9000);
+}
+
+function highlightArenaLevel1(type,phase,answer){
+  // On correct DO: cage bar pulses green
+  if(type==='correct'&&phase==='do'){
+    const cageBar=document.getElementById('cageBar');
+    if(cageBar){cageBar.style.stroke='#2ED573';cageBar.style.strokeWidth='3';}
+  }
+  // On wrong DO: cage bar gets gold outline
+  if(type==='wrong'&&phase==='do'){
+    const cageBar=document.getElementById('cageBar');
+    if(cageBar){cageBar.style.stroke='#FFD93D';cageBar.style.strokeWidth='3';
+      setTimeout(()=>{if(cageBar){cageBar.style.stroke='';cageBar.style.strokeWidth='';}},3000);
+    }
+  }
+  // On correct prove: green flash on arena
+  if(type==='correct'&&phase==='prove'){
+    const arena=$('arena');arena.style.boxShadow='inset 0 0 30px rgba(46,213,115,0.3)';
+    setTimeout(()=>{arena.style.boxShadow='';},1500);
+  }
+  // Wrong prove: highlight both environments
+  if(type==='wrong'&&phase==='prove'){
+    const arena=$('arena');arena.style.boxShadow='inset 0 0 20px rgba(255,217,61,0.2)';
+    setTimeout(()=>{arena.style.boxShadow='';},3000);
+  }
+}
+
+// ================================================================
+// ARENA BUILDERS - Level 2
+// ================================================================
+function buildArenaLevel2(){
+  const arena=$('arenaContent');
+  // Reuse defs from Level 1 where possible via IDs
+  arena.innerHTML=`
+  <svg viewBox="0 0 700 380" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;">
+    <defs>
+      <linearGradient id="cg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#555"/><stop offset="40%" stop-color="#3a3a3a"/><stop offset="100%" stop-color="#222"/></linearGradient>
+      <linearGradient id="pg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2d6b3d"/><stop offset="50%" stop-color="#1d4a2a"/><stop offset="100%" stop-color="#102a18"/></linearGradient>
+      <linearGradient id="mBot2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8e44ad"/><stop offset="100%" stop-color="#6c3483"/></linearGradient>
+      <linearGradient id="wBot2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3498db"/><stop offset="100%" stop-color="#2471a3"/></linearGradient>
+      <radialGradient id="lc2" cx="50%" cy="30%"><stop offset="0%" stop-color="rgba(255,255,255,0.05)"/><stop offset="100%" stop-color="rgba(0,0,0,0)"/></radialGradient>
+      <radialGradient id="lp2" cx="50%" cy="30%"><stop offset="0%" stop-color="rgba(100,255,150,0.07)"/><stop offset="100%" stop-color="rgba(0,0,0,0)"/></radialGradient>
+    </defs>
+
+    <!-- ======= CAGE ======= -->
+    <rect x="8" y="8" width="335" height="365" rx="10" fill="url(#cg2)" stroke="#777" stroke-width="2"/>
+    <rect x="8" y="8" width="335" height="365" rx="10" fill="url(#lc2)"/>
+    <text x="175" y="30" text-anchor="middle" fill="#999" font-size="13" font-weight="bold" letter-spacing="2">THE CAGE</text>
+
+    <!-- Cage bars -->
+    ${[24,52,80,108,136,200,228,256,284,312].map(x=>`<line x1="${x}" y1="38" x2="${x}" y2="360" stroke="#8a8a8a" stroke-width="3.5" stroke-linecap="round"/><line x1="${x+1.2}" y1="38" x2="${x+1.2}" y2="360" stroke="rgba(255,255,255,0.06)" stroke-width="0.8"/>`).join('')}
+    <rect x="16" y="36" width="316" height="4" rx="2" fill="#999"/>
+    <rect x="16" y="358" width="316" height="4" rx="2" fill="#999"/>
+
+    <!-- Cage floor -->
+    <rect x="20" y="310" width="310" height="50" rx="3" fill="rgba(68,68,68,0.5)"/>
+
+    <!-- Isolated rat (detailed, hunched posture) -->
+    <g transform="translate(170,270)">
+      <ellipse cx="0" cy="8" rx="26" ry="16" fill="#bfa07a"/>
+      <ellipse cx="0" cy="8" rx="22" ry="12" fill="#d4b896"/>
+      <ellipse cx="-18" cy="-2" rx="13" ry="10" fill="#c8a882"/>
+      <ellipse cx="-24" cy="-12" rx="5.5" ry="7.5" fill="#d4b896" stroke="#bfa07a" stroke-width="0.7"/>
+      <ellipse cx="-24" cy="-12" rx="3" ry="4.5" fill="#e8b4b4"/>
+      <ellipse cx="-13" cy="-12" rx="5.5" ry="7.5" fill="#d4b896" stroke="#bfa07a" stroke-width="0.7"/>
+      <ellipse cx="-13" cy="-12" rx="3" ry="4.5" fill="#e8b4b4"/>
+      <circle cx="-23" cy="-4" r="2.2" fill="#1a1a1a"/><circle cx="-23.5" cy="-4.5" r="0.7" fill="#fff"/>
+      <ellipse cx="-30" cy="0" rx="2.8" ry="2" fill="#e8a0a0"/>
+      <line x1="-33" y1="-1" x2="-41" y2="-4" stroke="#c8a882" stroke-width="0.6"/>
+      <line x1="-33" y1="1" x2="-41" y2="1" stroke="#c8a882" stroke-width="0.6"/>
+      <line x1="-33" y1="3" x2="-41" y2="5" stroke="#c8a882" stroke-width="0.6"/>
+      <path d="M 22 5 Q 34 -6 40 3 Q 45 10 38 9" fill="none" stroke="#bfa07a" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="-10" cy="18" rx="4.5" ry="2.5" fill="#c0a070"/>
+      <ellipse cx="10" cy="20" rx="4.5" ry="2.5" fill="#c0a070"/>
+    </g>
+
+    <!-- Morphine bottle (cage) -->
+    <g transform="translate(255,155)" id="cageMorphine">
+      <rect x="-2" y="-7" width="20" height="7" rx="2" fill="#7d3c98"/>
+      <rect x="0" y="0" width="16" height="48" rx="4" fill="url(#mBot2)"/>
+      <rect x="2" y="22" width="12" height="24" rx="2" fill="#9b59b6" opacity="0.4"/>
+      <text x="8" y="60" text-anchor="middle" fill="#bf80d9" font-size="7" font-weight="bold">MORPHINE</text>
+    </g>
+
+    <!-- CAGE CALLOUTS -->
+    <g id="cageCallout1" opacity="0">
+      <rect x="50" y="52" width="135" height="30" rx="8" fill="rgba(20,10,10,0.8)" stroke="#FF6B81" stroke-width="1.5"/>
+      <circle cx="60" cy="67" r="4" fill="#FF4757"/><text x="125" y="72" text-anchor="middle" fill="#FF6B81" font-size="11" font-weight="bold">Small space</text>
+    </g>
+    <g id="cageCallout2" opacity="0">
+      <rect x="55" y="95" width="145" height="30" rx="8" fill="rgba(20,10,10,0.8)" stroke="#FF6B81" stroke-width="1.5"/>
+      <circle cx="65" cy="110" r="4" fill="#FF4757"/><text x="135" y="115" text-anchor="middle" fill="#FF6B81" font-size="11" font-weight="bold">No other rats</text>
+    </g>
+    <g id="cageCallout3" opacity="0">
+      <rect x="60" y="138" width="120" height="30" rx="8" fill="rgba(20,10,10,0.8)" stroke="#FF6B81" stroke-width="1.5"/>
+      <circle cx="70" cy="153" r="4" fill="#FF4757"/><text x="128" y="158" text-anchor="middle" fill="#FF6B81" font-size="11" font-weight="bold">Bare walls</text>
+    </g>
+    <g id="cageCallout4" opacity="0">
+      <rect x="50" y="330" width="155" height="28" rx="8" fill="rgba(20,10,20,0.8)" stroke="#9b59b6" stroke-width="1.5"/>
+      <circle cx="60" cy="344" r="4" fill="#9b59b6"/><text x="135" y="349" text-anchor="middle" fill="#DDA0DD" font-size="11" font-weight="bold">Morphine only</text>
+    </g>
+
+    <!-- Divider -->
+    <line x1="350" y1="15" x2="350" y2="368" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="5,4"/>
+
+    <!-- ======= RAT PARK ======= -->
+    <rect x="357" y="8" width="335" height="365" rx="10" fill="url(#pg2)" stroke="#3ddc84" stroke-width="2"/>
+    <rect x="357" y="8" width="335" height="365" rx="10" fill="url(#lp2)"/>
+    <text x="525" y="30" text-anchor="middle" fill="#7BED9F" font-size="13" font-weight="bold" letter-spacing="2">RAT PARK</text>
+
+    <!-- Park floor (wood chips) -->
+    <rect x="365" y="310" width="320" height="55" rx="4" fill="rgba(139,105,20,0.5)"/>
+    ${Array.from({length:18},(_,i)=>{const x=370+i*17;const y=318+Math.random()*18;const w=6+Math.random()*14;return`<rect x="${x}" y="${y}" width="${w}" height="${2+Math.random()*3}" rx="1" fill="#B0984${Math.floor(Math.random()*8)}" opacity="${0.3+Math.random()*0.3}"/>`;}).join('')}
+
+    <!-- Running wheel (detailed) -->
+    <g transform="translate(398,100)">
+      <circle cx="0" cy="0" r="26" fill="none" stroke="#A08060" stroke-width="4"/>
+      <circle cx="0" cy="0" r="24" fill="none" stroke="#8B7355" stroke-width="1"/>
+      <circle cx="0" cy="0" r="3" fill="#8B7355"/>
+      ${[0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180;return`<line x1="${Math.cos(r)*3}" y1="${Math.sin(r)*3}" x2="${Math.cos(r)*24}" y2="${Math.sin(r)*24}" stroke="#8B7355" stroke-width="1"/>`;}).join('')}
+      <line x1="0" y1="26" x2="0" y2="40" stroke="#8B7355" stroke-width="3"/>
+      <rect x="-12" y="38" width="24" height="4" rx="2" fill="#8B7355"/>
+    </g>
+
+    <!-- Platforms with legs -->
+    <g><rect x="455" y="140" width="58" height="10" rx="3" fill="#A08060"/><rect x="455" y="140" width="58" height="4" rx="2" fill="#B89870"/><rect x="457" y="150" width="3" height="18" fill="#8B6914"/><rect x="508" y="150" width="3" height="18" fill="#8B6914"/></g>
+    <g><rect x="530" y="100" width="48" height="10" rx="3" fill="#A08060"/><rect x="530" y="100" width="48" height="4" rx="2" fill="#B89870"/><rect x="532" y="110" width="3" height="25" fill="#8B6914"/><rect x="573" y="110" width="3" height="25" fill="#8B6914"/></g>
+    <g><rect x="575" y="170" width="62" height="10" rx="3" fill="#A08060"/><rect x="575" y="170" width="62" height="4" rx="2" fill="#B89870"/></g>
+
+    <!-- Tin cans -->
+    <rect x="382" y="240" width="30" height="24" rx="7" fill="#7f8c8d" stroke="#95a5a6"/><ellipse cx="397" cy="240" rx="15" ry="3.5" fill="#8a9ba8"/>
+    <rect x="540" y="258" width="26" height="22" rx="7" fill="#7f8c8d" stroke="#95a5a6"/><ellipse cx="553" cy="258" rx="13" ry="3" fill="#8a9ba8"/>
+
+    <!-- Park rats (4 detailed) -->
+    <g transform="translate(475,130)"><ellipse cx="0" cy="5" rx="18" ry="11" fill="#c8a882"/><ellipse cx="0" cy="5" rx="15" ry="8" fill="#d4b896"/><ellipse cx="-13" cy="-3" rx="9" ry="7" fill="#c8a882"/><ellipse cx="-17" cy="-10" rx="4" ry="5.5" fill="#d4b896"/><ellipse cx="-17" cy="-10" rx="2.5" ry="3.5" fill="#e8b4b4"/><ellipse cx="-10" cy="-10" rx="4" ry="5.5" fill="#d4b896"/><ellipse cx="-10" cy="-10" rx="2.5" ry="3.5" fill="#e8b4b4"/><circle cx="-17" cy="-4" r="1.8" fill="#1a1a1a"/><circle cx="-17.5" cy="-4.5" r="0.6" fill="#fff"/><ellipse cx="-22" cy="-1" rx="2" ry="1.5" fill="#e8a0a0"/><path d="M 15 3 Q 24 -5 28 3" fill="none" stroke="#c8a882" stroke-width="1.5"/></g>
+    <g transform="translate(550,90)"><ellipse cx="0" cy="4" rx="16" ry="10" fill="#d4b896"/><ellipse cx="0" cy="4" rx="13" ry="7" fill="#e0c8a8"/><ellipse cx="-11" cy="-3" rx="8" ry="6" fill="#d4b896"/><ellipse cx="-14" cy="-9" rx="3.5" ry="5" fill="#d4b896"/><ellipse cx="-14" cy="-9" rx="2" ry="3" fill="#e8b4b4"/><circle cx="-14" cy="-4" r="1.5" fill="#1a1a1a"/><circle cx="-14.5" cy="-4.5" r="0.5" fill="#fff"/><ellipse cx="-19" cy="-1" rx="1.8" ry="1.3" fill="#e8a0a0"/></g>
+    <g transform="translate(598,162)"><ellipse cx="0" cy="4" rx="17" ry="11" fill="#c0a070"/><ellipse cx="0" cy="4" rx="14" ry="8" fill="#d0b080"/><ellipse cx="-12" cy="-3" rx="9" ry="7" fill="#c0a070"/><ellipse cx="-16" cy="-10" rx="4" ry="5.5" fill="#c0a070"/><ellipse cx="-16" cy="-10" rx="2.5" ry="3.5" fill="#e8b4b4"/><circle cx="-16" cy="-4" r="1.8" fill="#1a1a1a"/><circle cx="-16.5" cy="-4.5" r="0.6" fill="#fff"/><ellipse cx="-21" cy="-1" rx="2" ry="1.5" fill="#e8a0a0"/></g>
+    <g transform="translate(425,260)"><ellipse cx="0" cy="5" rx="18" ry="11" fill="#b89870"/><ellipse cx="0" cy="5" rx="15" ry="8" fill="#c8a882"/><ellipse cx="-13" cy="-3" rx="9" ry="7" fill="#b89870"/><ellipse cx="-17" cy="-10" rx="4" ry="5.5" fill="#c8a882"/><ellipse cx="-17" cy="-10" rx="2.5" ry="3.5" fill="#e8b4b4"/><circle cx="-17" cy="-4" r="1.8" fill="#1a1a1a"/><circle cx="-17.5" cy="-4.5" r="0.6" fill="#fff"/><ellipse cx="-22" cy="-1" rx="2" ry="1.5" fill="#e8a0a0"/></g>
+
+    <!-- Morphine + Water bottles (park) -->
+    <g transform="translate(640,65)" id="parkMorphine">
+      <rect x="-2" y="-6" width="18" height="6" rx="2" fill="#7d3c98"/>
+      <rect x="0" y="0" width="14" height="38" rx="3" fill="url(#mBot2)"/>
+      <rect x="2" y="18" width="10" height="18" rx="2" fill="#9b59b6" opacity="0.4"/>
+      <text x="7" y="44" text-anchor="middle" fill="#bf80d9" font-size="6">Morphine</text>
+    </g>
+    <g transform="translate(665,65)">
+      <rect x="-2" y="-6" width="18" height="6" rx="2" fill="#2471a3"/>
+      <rect x="0" y="0" width="14" height="38" rx="3" fill="url(#wBot2)"/>
+      <rect x="2" y="8" width="10" height="28" rx="2" fill="#5dade2" opacity="0.3"/>
+      <text x="7" y="44" text-anchor="middle" fill="#85c1e9" font-size="6">Water</text>
+    </g>
+
+    <!-- PARK CALLOUTS -->
+    <g id="parkCallout1" opacity="0">
+      <rect x="420" y="42" width="130" height="30" rx="8" fill="rgba(10,30,15,0.85)" stroke="#7BED9F" stroke-width="1.5"/>
+      <circle cx="432" cy="57" r="4" fill="#2ED573"/><text x="492" y="62" text-anchor="middle" fill="#7BED9F" font-size="11" font-weight="bold">200x larger</text>
+    </g>
+    <g id="parkCallout2" opacity="0">
+      <rect x="430" y="200" width="150" height="30" rx="8" fill="rgba(10,30,15,0.85)" stroke="#7BED9F" stroke-width="1.5"/>
+      <circle cx="442" cy="215" r="4" fill="#2ED573"/><text x="513" y="220" text-anchor="middle" fill="#7BED9F" font-size="11" font-weight="bold">8+ rats together</text>
+    </g>
+    <g id="parkCallout3" opacity="0">
+      <rect x="383" y="335" width="215" height="28" rx="8" fill="rgba(10,30,15,0.85)" stroke="#7BED9F" stroke-width="1.5"/>
+      <circle cx="395" cy="349" r="4" fill="#2ED573"/><text x="498" y="354" text-anchor="middle" fill="#7BED9F" font-size="10" font-weight="bold">Wheels, platforms, hiding spots</text>
+    </g>
+    <g id="parkCallout4" opacity="0">
+      <rect x="600" y="120" width="90" height="30" rx="8" fill="rgba(20,10,30,0.85)" stroke="#DDA0DD" stroke-width="1.5"/>
+      <text x="645" y="140" text-anchor="middle" fill="#DDA0DD" font-size="9" font-weight="bold">Morphine</text>
+      <text x="645" y="150" text-anchor="middle" fill="#DDA0DD" font-size="9" font-weight="bold">AND water</text>
+    </g>
+  </svg>`;
+}
+
+function watchArenaLevel2(){
+  const gen=arenaGen;
+  const cageIds=['cageCallout1','cageCallout2','cageCallout3','cageCallout4'];
+  cageIds.forEach((id,i)=>{
+    arenaTimeout(()=>{
+      if(arenaGen!==gen)return;
+      const el=document.getElementById(id);
+      if(el){el.style.transition='opacity 0.7s ease-out';el.setAttribute('opacity','1');}
+    },1200+i*1000);
+  });
+  const parkIds=['parkCallout1','parkCallout2','parkCallout3','parkCallout4'];
+  parkIds.forEach((id,i)=>{
+    arenaTimeout(()=>{
+      if(arenaGen!==gen)return;
+      const el=document.getElementById(id);
+      if(el){el.style.transition='opacity 0.7s ease-out';el.setAttribute('opacity','1');}
+    },6500+i*1000);
+  });
+}
+
+function highlightArenaLevel2(type,phase,answer,step){
+  if(type==='correct'){
+    const arena=$('arena');arena.style.boxShadow='inset 0 0 30px rgba(46,213,115,0.3)';
+    setTimeout(()=>{arena.style.boxShadow='';},1500);
+  }
+  if(type==='wrong'&&phase==='do'){
+    if(step===0){
+      const el=document.getElementById('cageCallout2');
+      if(el){el.style.transition='opacity 0.3s';el.setAttribute('opacity','1');}
+    } else if(step===1){
+      // Highlight both morphine bottles
+      const arena=$('arena');arena.style.boxShadow='inset 0 0 15px rgba(155,89,182,0.3)';
+      setTimeout(()=>{arena.style.boxShadow='';},3000);
+    } else if(step===2){
+      const el=document.getElementById('parkCallout3');
+      if(el){el.style.transition='opacity 0.3s';el.setAttribute('opacity','1');}
+    }
+  }
+  if(type==='wrong'&&phase==='prove'){
+    const arena=$('arena');arena.style.boxShadow='inset 0 0 20px rgba(255,217,61,0.2)';
+    setTimeout(()=>{arena.style.boxShadow='';},3000);
+  }
+}
+// ================================================================
+// ARENA BUILDERS - Level 3: Same Rat, New Home (Hotspot)
+// ================================================================
+function buildArenaLevel3(){
+  const arena=$('arenaContent');
+  arena.innerHTML=`
+  <svg viewBox="0 0 700 380" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;">
+    <defs>
+      <linearGradient id="cg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#555"/><stop offset="40%" stop-color="#3a3a3a"/><stop offset="100%" stop-color="#222"/></linearGradient>
+      <linearGradient id="pg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2d6b3d"/><stop offset="50%" stop-color="#1d4a2a"/><stop offset="100%" stop-color="#102a18"/></linearGradient>
+      <linearGradient id="rb3" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#c0392b"/><stop offset="100%" stop-color="#FF6B81"/></linearGradient>
+      <linearGradient id="gb3" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#1B8C4A"/><stop offset="100%" stop-color="#7BED9F"/></linearGradient>
+    </defs>
+
+    <!-- ======= CAGE SIDE (BEFORE) ======= -->
+    <rect x="8" y="8" width="290" height="275" rx="10" fill="url(#cg3)" stroke="#777" stroke-width="2"/>
+    <rect x="20" y="26" width="60" height="20" rx="4" fill="rgba(255,107,129,0.15)" stroke="#FF6B81" stroke-width="1"/>
+    <text x="50" y="40" text-anchor="middle" fill="#FF6B81" font-size="9" font-weight="bold">BEFORE</text>
+    <text x="155" y="24" text-anchor="middle" fill="#999" font-size="12" font-weight="bold" letter-spacing="1">THE CAGE</text>
+
+    <!-- Cage bars -->
+    ${[22,46,70,94,118,190,214,238,262,286].map(x=>`<line x1="${x}" y1="50" x2="${x}" y2="272" stroke="#8a8a8a" stroke-width="3" stroke-linecap="round"/>`).join('')}
+    <rect x="15" y="48" width="275" height="4" rx="2" fill="#999"/>
+    <rect x="15" y="270" width="275" height="4" rx="2" fill="#999"/>
+    <rect x="18" y="238" width="268" height="30" rx="3" fill="rgba(68,68,68,0.4)"/>
+
+    <!-- Labeled rat in cage (detailed) -->
+    <g transform="translate(150,175)">
+      <ellipse cx="0" cy="8" rx="24" ry="15" fill="#bfa07a"/><ellipse cx="0" cy="8" rx="20" ry="11" fill="#d4b896"/>
+      <ellipse cx="-16" cy="-2" rx="12" ry="9" fill="#c8a882"/>
+      <ellipse cx="-22" cy="-11" rx="5" ry="7" fill="#d4b896"/><ellipse cx="-22" cy="-11" rx="3" ry="4.5" fill="#e8b4b4"/>
+      <ellipse cx="-12" cy="-11" rx="5" ry="7" fill="#d4b896"/><ellipse cx="-12" cy="-11" rx="3" ry="4.5" fill="#e8b4b4"/>
+      <circle cx="-21" cy="-4" r="2" fill="#1a1a1a"/><circle cx="-21.5" cy="-4.5" r="0.7" fill="#fff"/>
+      <ellipse cx="-27" cy="0" rx="2.5" ry="1.8" fill="#e8a0a0"/>
+      <line x1="-30" y1="-1" x2="-37" y2="-3" stroke="#c8a882" stroke-width="0.6"/>
+      <line x1="-30" y1="1" x2="-37" y2="1" stroke="#c8a882" stroke-width="0.6"/>
+      <path d="M 20 4 Q 32 -5 36 4" fill="none" stroke="#bfa07a" stroke-width="1.5"/>
+      <ellipse cx="-8" cy="17" rx="4" ry="2.5" fill="#c0a070"/>
+    </g>
+    <!-- Rat label with pointer -->
+    <g id="ratLabel3" opacity="0">
+      <rect x="105" y="210" width="90" height="22" rx="6" fill="rgba(255,217,61,0.2)" stroke="#FFD93D" stroke-width="1.2"/>
+      <text x="150" y="225" text-anchor="middle" fill="#FFD93D" font-size="10" font-weight="bold">This rat</text>
+      <line x1="150" y1="210" x2="150" y2="195" stroke="#FFD93D" stroke-width="1" stroke-dasharray="3"/>
+    </g>
+
+    <!-- Mini consumption bar (cage - HIGH) -->
+    <g transform="translate(215,70)">
+      <rect x="0" y="0" width="18" height="90" rx="3" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+      <rect id="miniBarCage" x="2" y="20" width="14" height="70" fill="url(#rb3)" rx="2" opacity="0" style="transition:opacity 1.2s ease-out"/>
+      <text id="miniBarCageLabel" x="9" y="-5" text-anchor="middle" fill="#FF6B81" font-size="9" font-weight="bold" opacity="0">HIGH</text>
+    </g>
+
+    <!-- Morphine in cage -->
+    <g transform="translate(240,115)">
+      <rect x="-2" y="-5" width="18" height="5" rx="1.5" fill="#7d3c98"/>
+      <rect x="0" y="0" width="14" height="38" rx="3" fill="#8e44ad"/>
+      <rect x="2" y="16" width="10" height="20" rx="2" fill="#9b59b6" opacity="0.4"/>
+    </g>
+
+    <!-- ======= ARROW ======= -->
+    <path id="arrowPath3" d="M 305 160 C 330 80, 380 80, 405 160" fill="none" stroke="#FFD93D" stroke-width="3.5" stroke-dasharray="10,5" opacity="0"/>
+    <polygon id="arrowHead3" points="398,148 415,160 398,172" fill="#FFD93D" opacity="0"/>
+    <g id="arrowLabel3" opacity="0">
+      <rect x="325" y="72" width="55" height="20" rx="5" fill="rgba(255,217,61,0.15)" stroke="#FFD93D" stroke-width="1"/>
+      <text x="352" y="86" text-anchor="middle" fill="#FFD93D" font-size="9" font-weight="bold">MOVED</text>
+    </g>
+
+    <!-- ======= RAT PARK SIDE (AFTER) ======= -->
+    <rect x="402" y="8" width="290" height="275" rx="10" fill="url(#pg3)" stroke="#3ddc84" stroke-width="2"/>
+    <rect x="620" y="26" width="60" height="20" rx="4" fill="rgba(46,213,115,0.15)" stroke="#2ED573" stroke-width="1"/>
+    <text x="650" y="40" text-anchor="middle" fill="#2ED573" font-size="9" font-weight="bold">AFTER</text>
+    <text x="547" y="24" text-anchor="middle" fill="#7BED9F" font-size="12" font-weight="bold" letter-spacing="1">RAT PARK</text>
+
+    <!-- Park features -->
+    <g transform="translate(432,88)">
+      <circle cx="0" cy="0" r="22" fill="none" stroke="#A08060" stroke-width="3.5"/>
+      <circle cx="0" cy="0" r="2.5" fill="#8B7355"/>
+      ${[0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180;return`<line x1="${Math.cos(r)*2.5}" y1="${Math.sin(r)*2.5}" x2="${Math.cos(r)*20}" y2="${Math.sin(r)*20}" stroke="#8B7355" stroke-width="1"/>`;}).join('')}
+      <line x1="0" y1="22" x2="0" y2="34" stroke="#8B7355" stroke-width="2.5"/><rect x="-10" y="32" width="20" height="3" rx="1.5" fill="#8B7355"/>
+    </g>
+    <rect x="478" y="122" width="50" height="9" rx="3" fill="#A08060"/><rect x="478" y="122" width="50" height="3.5" rx="2" fill="#B89870"/>
+    <rect x="550" y="92" width="42" height="9" rx="3" fill="#A08060"/><rect x="550" y="92" width="42" height="3.5" rx="2" fill="#B89870"/>
+    <rect x="580" y="155" width="55" height="9" rx="3" fill="#A08060"/><rect x="580" y="155" width="55" height="3.5" rx="2" fill="#B89870"/>
+    <rect x="410" y="245" width="275" height="25" rx="3" fill="rgba(139,105,20,0.4)"/>
+
+    <!-- Park friend rats -->
+    <g transform="translate(498,115)"><ellipse cx="0" cy="4" rx="14" ry="9" fill="#d4b896"/><ellipse cx="-10" cy="-2" rx="7" ry="5.5" fill="#c8a882"/><ellipse cx="-13" cy="-8" rx="3" ry="4.5" fill="#d4b896"/><ellipse cx="-13" cy="-8" rx="2" ry="3" fill="#e8b4b4"/><circle cx="-13" cy="-3" r="1.5" fill="#1a1a1a"/></g>
+    <g transform="translate(568,85)"><ellipse cx="0" cy="4" rx="13" ry="8" fill="#c0a070"/><ellipse cx="-9" cy="-2" rx="7" ry="5.5" fill="#c0a070"/><ellipse cx="-12" cy="-8" rx="3" ry="4" fill="#c0a070"/><ellipse cx="-12" cy="-8" rx="2" ry="2.5" fill="#e8b4b4"/><circle cx="-12" cy="-3" r="1.5" fill="#1a1a1a"/></g>
+    <g transform="translate(445,215)"><ellipse cx="0" cy="4" rx="14" ry="9" fill="#b89870"/><ellipse cx="-10" cy="-2" rx="7" ry="5.5" fill="#b89870"/><ellipse cx="-13" cy="-8" rx="3" ry="4" fill="#c8a882"/><ellipse cx="-13" cy="-8" rx="2" ry="2.5" fill="#e8b4b4"/><circle cx="-13" cy="-3" r="1.5" fill="#1a1a1a"/></g>
+
+    <!-- Rat arrives in park (detailed, hidden initially) -->
+    <g id="ratInPark3" opacity="0" transform="translate(535,160)">
+      <ellipse cx="0" cy="6" rx="22" ry="13" fill="#bfa07a"/><ellipse cx="0" cy="6" rx="18" ry="10" fill="#d4b896"/>
+      <ellipse cx="-15" cy="-2" rx="11" ry="8.5" fill="#c8a882"/>
+      <ellipse cx="-20" cy="-10" rx="4.5" ry="6.5" fill="#d4b896"/><ellipse cx="-20" cy="-10" rx="2.8" ry="4" fill="#e8b4b4"/>
+      <ellipse cx="-12" cy="-10" rx="4.5" ry="6.5" fill="#d4b896"/><ellipse cx="-12" cy="-10" rx="2.8" ry="4" fill="#e8b4b4"/>
+      <circle cx="-20" cy="-3.5" r="2" fill="#1a1a1a"/><circle cx="-20.5" cy="-4" r="0.6" fill="#fff"/>
+      <ellipse cx="-26" cy="0" rx="2.3" ry="1.6" fill="#e8a0a0"/>
+      <path d="M 18 3 Q 28 -5 33 3" fill="none" stroke="#bfa07a" stroke-width="1.5"/>
+    </g>
+    <g id="ratLabelPark3" opacity="0">
+      <rect x="494" y="193" width="82" height="22" rx="6" fill="rgba(255,217,61,0.2)" stroke="#FFD93D" stroke-width="1.2"/>
+      <text x="535" y="208" text-anchor="middle" fill="#FFD93D" font-size="10" font-weight="bold">This rat</text>
+      <line x1="535" y1="193" x2="535" y2="180" stroke="#FFD93D" stroke-width="1" stroke-dasharray="3"/>
+    </g>
+
+    <!-- Mini consumption bar (park) -->
+    <g transform="translate(580,130)">
+      <rect x="0" y="0" width="18" height="90" rx="3" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+      <rect id="miniBarPark" x="2" y="75" width="14" height="15" fill="url(#gb3)" rx="2" opacity="0" style="transition:opacity 1.2s ease-out"/>
+      <text id="miniBarParkLabel" x="9" y="-5" text-anchor="middle" fill="#7BED9F" font-size="9" font-weight="bold" opacity="0">LOW</text>
+    </g>
+
+    <!-- Bottles park -->
+    <g transform="translate(652,52)"><rect x="-2" y="-5" width="16" height="5" rx="1.5" fill="#7d3c98"/><rect x="0" y="0" width="12" height="32" rx="2.5" fill="#8e44ad"/><rect x="2" y="14" width="8" height="16" rx="1.5" fill="#9b59b6" opacity="0.4"/></g>
+    <g transform="translate(672,52)"><rect x="-2" y="-5" width="16" height="5" rx="1.5" fill="#2471a3"/><rect x="0" y="0" width="12" height="32" rx="2.5" fill="#3498db"/><rect x="2" y="8" width="8" height="22" rx="1.5" fill="#5dade2" opacity="0.3"/></g>
+
+    <!-- ======= BOTTOM EXPLANATION ======= -->
+    <rect x="30" y="295" width="640" height="78" rx="8" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+    <g id="explainText3" opacity="0">
+      <text x="350" y="320" text-anchor="middle" fill="#ddd" font-size="13">Same rat. Same drug. Different environment. Different result.</text>
+    </g>
+    <g id="explainText3b" opacity="0">
+      <rect x="195" y="335" width="310" height="28" rx="8" fill="rgba(255,217,61,0.1)" stroke="#FFD93D" stroke-width="1"/>
+      <text x="350" y="354" text-anchor="middle" fill="#FFD93D" font-size="12" font-weight="bold">The VARIABLE that changed = the ENVIRONMENT</text>
+    </g>
+  </svg>`;
+
+  // Add hotspot zones
+  const arenaEl=$('arenaContent');
+  const zA=document.createElement('div');zA.className='hotspot-zone';zA.dataset.zone='A';
+  zA.style.cssText='position:absolute;left:17%;top:42%;width:80px;height:55px;border-radius:50%;';
+  const lA=document.createElement('div');lA.className='hotspot-label';lA.textContent='Same rat — didn\'t change';lA.style.cssText='top:-22px;left:50%;transform:translateX(-50%);';
+  zA.appendChild(lA);arenaEl.appendChild(zA);
+
+  const zB=document.createElement('div');zB.className='hotspot-zone';zB.dataset.zone='B';
+  zB.style.cssText='position:absolute;left:31%;top:28%;width:55px;height:55px;border-radius:50%;';
+  const lB=document.createElement('div');lB.className='hotspot-label';lB.textContent='Same drug — didn\'t change';lB.style.cssText='top:-22px;left:50%;transform:translateX(-50%);';
+  zB.appendChild(lB);arenaEl.appendChild(zB);
+
+  const zC=document.createElement('div');zC.className='hotspot-zone';zC.dataset.zone='C';
+  zC.style.cssText='position:absolute;right:1%;top:4%;width:42%;height:72%;border-radius:12px;';
+  const lC=document.createElement('div');lC.className='hotspot-label';lC.textContent='ENVIRONMENT';lC.style.cssText='top:50%;left:50%;transform:translate(-50%,-50%);font-size:16px;';
+  zC.appendChild(lC);arenaEl.appendChild(zC);
+
+  document.querySelectorAll('.hotspot-zone').forEach(z=>z.style.pointerEvents='none');
+}
+
+function watchArenaLevel3(){
+  const gen=arenaGen;
+  // Show rat label
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const rl=document.getElementById('ratLabel3');if(rl){rl.style.transition='opacity 0.6s';rl.setAttribute('opacity','1');}
+  },1500);
+  // Show high mini bar (fade in)
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const mb=document.getElementById('miniBarCage');
+    if(mb)mb.setAttribute('opacity','1');
+    const ml=document.getElementById('miniBarCageLabel');if(ml){ml.style.transition='opacity 0.5s';ml.setAttribute('opacity','1');}
+  },3000);
+  // Show arrow + label
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const ap=document.getElementById('arrowPath3');if(ap){ap.style.transition='opacity 0.8s';ap.setAttribute('opacity','1');}
+    const ah=document.getElementById('arrowHead3');if(ah){ah.style.transition='opacity 0.8s';ah.setAttribute('opacity','1');}
+    const al=document.getElementById('arrowLabel3');if(al){al.style.transition='opacity 0.6s';al.setAttribute('opacity','1');}
+  },6000);
+  // Show rat in park
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const rp=document.getElementById('ratInPark3');if(rp){rp.style.transition='opacity 0.8s';rp.setAttribute('opacity','1');}
+    const rlp=document.getElementById('ratLabelPark3');if(rlp){rlp.style.transition='opacity 0.6s';rlp.setAttribute('opacity','1');}
+  },9000);
+  // Show low mini bar (fade in)
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const mp=document.getElementById('miniBarPark');
+    if(mp)mp.setAttribute('opacity','1');
+    const mpl=document.getElementById('miniBarParkLabel');if(mpl){mpl.style.transition='opacity 0.5s';mpl.setAttribute('opacity','1');}
+  },11000);
+  // Explanation text
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const e1=document.getElementById('explainText3');if(e1){e1.style.transition='opacity 0.6s';e1.setAttribute('opacity','1');}
+    const e2=document.getElementById('explainText3b');if(e2){e2.style.transition='opacity 0.6s';e2.setAttribute('opacity','1');}
+  },14000);
+}
+
+function highlightArenaLevel3(type,phase,answer){
+  if(type==='correct'&&phase==='do'){
+    const arena=$('arena');arena.style.boxShadow='inset 0 0 30px rgba(46,213,115,0.3)';
+    setTimeout(()=>{arena.style.boxShadow='';},1500);
+  }
+  if(type==='wrong'&&phase==='do'){
+    if(answer==='A'){
+      const rl=document.getElementById('ratLabel3');if(rl){rl.setAttribute('opacity','1');}
+      const rlp=document.getElementById('ratLabelPark3');if(rlp){rlp.setAttribute('opacity','1');}
+    } else if(answer==='B'){
+      // Highlight both morphine bottles
+      const arena=$('arena');arena.style.boxShadow='inset 0 0 15px rgba(155,89,182,0.3)';
+      setTimeout(()=>{arena.style.boxShadow='';},3000);
+    }
+    // Always softly highlight the correct zone
+    const zC=document.querySelector('.hotspot-zone[data-zone="C"]');
+    if(zC)zC.style.background='rgba(0,212,255,0.08)';
+  }
+  if(type==='wrong'&&phase==='prove'){
+    const ap=document.getElementById('arrowPath3');if(ap)ap.setAttribute('opacity','1');
+    const ah=document.getElementById('arrowHead3');if(ah)ah.setAttribute('opacity','1');
+  }
+  if(type==='correct'&&phase==='prove'){
+    const arena=$('arena');arena.style.boxShadow='inset 0 0 30px rgba(46,213,115,0.3)';
+    setTimeout(()=>{arena.style.boxShadow='';},1500);
+  }
+}
+
+// ================================================================
+// ARENA BUILDERS - Level 4: Finding the Variable (What Comes Next)
+// ================================================================
+function buildArenaLevel4(){
+  const arena=$('arenaContent');
+  arena.innerHTML=`
+  <svg viewBox="0 0 700 380" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;">
+    <defs>
+      <linearGradient id="cg4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3a4a"/><stop offset="100%" stop-color="#1a1a2a"/></linearGradient>
+    </defs>
+
+    <!-- Small cage/park reference at top -->
+    <rect x="10" y="10" width="165" height="105" rx="8" fill="#333" stroke="#777" stroke-width="1.5"/>
+    <text x="92" y="26" text-anchor="middle" fill="#FF6B81" font-size="10" font-weight="bold">CAGE</text>
+    ${[18,38,58,78,98,118,138,158].map(x=>`<line x1="${x}" y1="30" x2="${x}" y2="106" stroke="#777" stroke-width="1.5"/>`).join('')}
+    <rect x="14" y="29" width="155" height="2.5" rx="1" fill="#888"/>
+    <rect x="14" y="104" width="155" height="2.5" rx="1" fill="#888"/>
+    <!-- Detailed cage rat -->
+    <g transform="translate(92,68)">
+      <ellipse cx="0" cy="4" rx="14" ry="9" fill="#bfa07a"/><ellipse cx="0" cy="4" rx="11" ry="6.5" fill="#d4b896"/>
+      <ellipse cx="-10" cy="-2" rx="7" ry="5.5" fill="#c8a882"/>
+      <ellipse cx="-13" cy="-7" rx="3" ry="4" fill="#d4b896"/><ellipse cx="-13" cy="-7" rx="2" ry="2.5" fill="#e8b4b4"/>
+      <circle cx="-13" cy="-3" r="1.3" fill="#1a1a1a"/><circle cx="-13.3" cy="-3.3" r="0.4" fill="#fff"/>
+      <ellipse cx="-16" cy="0" rx="1.5" ry="1" fill="#e8a0a0"/>
+      <path d="M 12 2 Q 18 -3 20 2" fill="none" stroke="#bfa07a" stroke-width="1"/>
+    </g>
+
+    <rect x="190" y="10" width="165" height="105" rx="8" fill="#1a3a25" stroke="#3ddc84" stroke-width="1.5"/>
+    <text x="272" y="26" text-anchor="middle" fill="#7BED9F" font-size="10" font-weight="bold">RAT PARK</text>
+    <!-- Park features mini -->
+    <circle cx="215" cy="55" r="12" fill="none" stroke="#8B7355" stroke-width="2"/>
+    <rect x="240" y="65" width="28" height="5" rx="2" fill="#8B6914"/>
+    <rect x="280" y="50" width="25" height="5" rx="2" fill="#8B6914"/>
+    <!-- Detailed park rats -->
+    <g transform="translate(248,58)"><ellipse cx="0" cy="3" rx="10" ry="6.5" fill="#c8a882"/><ellipse cx="-7" cy="-1" rx="5" ry="4" fill="#c8a882"/><ellipse cx="-9" cy="-5" rx="2.5" ry="3.5" fill="#d4b896"/><circle cx="-9" cy="-2" r="1" fill="#1a1a1a"/></g>
+    <g transform="translate(278,43)"><ellipse cx="0" cy="3" rx="9" ry="6" fill="#d4b896"/><ellipse cx="-6" cy="-1" rx="4.5" ry="3.5" fill="#d4b896"/><circle cx="-8" cy="-2" r="1" fill="#1a1a1a"/></g>
+    <g transform="translate(310,58)"><ellipse cx="0" cy="3" rx="10" ry="6" fill="#c0a070"/><ellipse cx="-7" cy="-1" rx="5" ry="4" fill="#c0a070"/><circle cx="-9" cy="-2" r="1" fill="#1a1a1a"/></g>
+    <rect x="198" y="90" width="150" height="12" rx="3" fill="rgba(139,105,20,0.4)"/>
+
+    <!-- DATA TABLE -->
+    <rect x="30" y="125" width="640" height="175" rx="10" fill="rgba(0,0,0,0.4)" stroke="rgba(0,212,255,0.2)" stroke-width="1"/>
+    <text x="350" y="148" text-anchor="middle" fill="#FFD93D" font-size="12" font-weight="bold" letter-spacing="1">CONDITION COMPARISON DATA</text>
+
+    <!-- Table headers with underline -->
+    <rect x="38" y="155" width="624" height="24" rx="4" fill="rgba(0,212,255,0.08)"/>
+    <text x="140" y="171" text-anchor="middle" fill="#00D4FF" font-size="10" font-weight="bold">Condition</text>
+    <text x="370" y="171" text-anchor="middle" fill="#00D4FF" font-size="10" font-weight="bold">What's Different?</text>
+    <text x="590" y="171" text-anchor="middle" fill="#00D4FF" font-size="10" font-weight="bold">Morphine Level</text>
+
+    <!-- Row 1 -->
+    <g id="tableRow1" opacity="0">
+      <rect x="38" y="182" width="624" height="38" rx="4" fill="rgba(255,71,87,0.08)" stroke="rgba(255,71,87,0.2)" stroke-width="0.5"/>
+      <circle cx="52" cy="201" r="6" fill="#FF4757" opacity="0.4"/>
+      <text x="140" y="204" text-anchor="middle" fill="#FF6B81" font-size="10" font-weight="600">Alone in a bare cage</text>
+      <text x="370" y="204" text-anchor="middle" fill="#ccc" font-size="10">No social contact, no enrichment</text>
+      <rect x="530" y="188" width="118" height="26" rx="6" fill="rgba(255,71,87,0.8)"/>
+      <text x="589" y="206" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">VERY HIGH</text>
+    </g>
+
+    <!-- Row 2 -->
+    <g id="tableRow2" opacity="0">
+      <rect x="38" y="224" width="624" height="38" rx="4" fill="rgba(255,165,2,0.06)" stroke="rgba(255,165,2,0.2)" stroke-width="0.5"/>
+      <circle cx="52" cy="243" r="6" fill="#FFA502" opacity="0.4"/>
+      <text x="140" y="246" text-anchor="middle" fill="#FFA502" font-size="10" font-weight="600">Alone with toys/wheels</text>
+      <text x="370" y="246" text-anchor="middle" fill="#ccc" font-size="10">Has enrichment, still no social contact</text>
+      <rect x="530" y="230" width="118" height="26" rx="6" fill="rgba(255,165,2,0.8)"/>
+      <text x="589" y="248" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">HIGH</text>
+    </g>
+
+    <!-- Row 3 -->
+    <g id="tableRow3" opacity="0">
+      <rect x="38" y="266" width="624" height="38" rx="4" fill="rgba(46,213,115,0.06)" stroke="rgba(46,213,115,0.2)" stroke-width="0.5"/>
+      <circle cx="52" cy="285" r="6" fill="#2ED573" opacity="0.4"/>
+      <text x="140" y="288" text-anchor="middle" fill="#2ED573" font-size="10" font-weight="600">With other rats in park</text>
+      <text x="370" y="288" text-anchor="middle" fill="#ccc" font-size="10">Has social contact + enrichment</text>
+      <rect x="530" y="272" width="118" height="26" rx="6" fill="rgba(46,213,115,0.8)"/>
+      <text x="589" y="290" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">VERY LOW</text>
+    </g>
+
+    <!-- Comparison brackets -->
+    <g id="smallDropBracket" opacity="0">
+      <line x1="652" y1="201" x2="662" y2="201" stroke="#FFA502" stroke-width="2"/>
+      <line x1="662" y1="201" x2="662" y2="243" stroke="#FFA502" stroke-width="2"/>
+      <line x1="652" y1="243" x2="662" y2="243" stroke="#FFA502" stroke-width="2"/>
+      <rect x="665" y="214" width="30" height="20" rx="4" fill="rgba(255,165,2,0.1)" stroke="#FFA502" stroke-width="0.8"/>
+      <text x="680" y="222" text-anchor="middle" fill="#FFA502" font-size="7" font-weight="bold">Small</text>
+      <text x="680" y="231" text-anchor="middle" fill="#FFA502" font-size="7" font-weight="bold">drop</text>
+    </g>
+
+    <g id="bigDropBracket" opacity="0">
+      <line x1="652" y1="243" x2="670" y2="243" stroke="#2ED573" stroke-width="3"/>
+      <line x1="670" y1="243" x2="670" y2="285" stroke="#2ED573" stroke-width="3"/>
+      <line x1="652" y1="285" x2="670" y2="285" stroke="#2ED573" stroke-width="3"/>
+      <rect x="673" y="254" width="24" height="24" rx="6" fill="rgba(46,213,115,0.15)" stroke="#2ED573" stroke-width="1.2"/>
+      <text x="685" y="264" text-anchor="middle" fill="#2ED573" font-size="8" font-weight="bold">BIG</text>
+      <text x="685" y="276" text-anchor="middle" fill="#2ED573" font-size="8" font-weight="bold">drop!</text>
+    </g>
+
+    <!-- Bottom key insight -->
+    <g id="l4insight" opacity="0">
+      <rect x="180" y="318" width="340" height="32" rx="8" fill="rgba(255,217,61,0.1)" stroke="#FFD93D" stroke-width="1"/>
+      <text x="350" y="339" text-anchor="middle" fill="#FFD93D" font-size="12" font-weight="bold">Social contact made the biggest difference</text>
+    </g>
+  </svg>`;
+}
+
+function watchArenaLevel4(){
+  const gen=arenaGen;
+  arenaTimeout(()=>{if(arenaGen!==gen)return;const r=document.getElementById('tableRow1');if(r){r.style.transition='opacity 0.8s';r.setAttribute('opacity','1');}},2000);
+  arenaTimeout(()=>{if(arenaGen!==gen)return;const r=document.getElementById('tableRow2');if(r){r.style.transition='opacity 0.8s';r.setAttribute('opacity','1');}},5000);
+  arenaTimeout(()=>{if(arenaGen!==gen)return;const r=document.getElementById('tableRow3');if(r){r.style.transition='opacity 0.8s';r.setAttribute('opacity','1');}},8000);
+  arenaTimeout(()=>{if(arenaGen!==gen)return;
+    const s=document.getElementById('smallDropBracket');if(s){s.style.transition='opacity 0.6s';s.setAttribute('opacity','1');}
+  },11000);
+  arenaTimeout(()=>{if(arenaGen!==gen)return;
+    const b=document.getElementById('bigDropBracket');if(b){b.style.transition='opacity 0.6s';b.setAttribute('opacity','1');}
+    const ins=document.getElementById('l4insight');if(ins){ins.style.transition='opacity 0.6s';ins.setAttribute('opacity','1');}
+  },13000);
+}
+
+function highlightArenaLevel4(type,phase,answer){
+  if(type==='correct'){
+    const arena=$('arena');arena.style.boxShadow='inset 0 0 30px rgba(46,213,115,0.3)';
+    setTimeout(()=>{arena.style.boxShadow='';},1500);
+    // Make sure table row 1 red cell pulses
+    const r1=document.getElementById('tableRow1');if(r1)r1.setAttribute('opacity','1');
+  }
+  if(type==='wrong'&&phase==='do'){
+    // Glow dependence term
+    document.querySelector('.vh-term[data-term="dependence"]')?.classList.add('glow');
+    const r1=document.getElementById('tableRow1');if(r1)r1.setAttribute('opacity','1');
+  }
+  if(type==='wrong'&&phase==='prove'){
+    const b=document.getElementById('bigDropBracket');if(b)b.setAttribute('opacity','1');
+    const r3=document.getElementById('tableRow3');if(r3)r3.setAttribute('opacity','1');
+  }
+}
+
+// ================================================================
+// ARENA BUILDERS - Level 5: Weighing All Evidence (Coach-Click)
+// ================================================================
+function buildArenaLevel5(){
+  const arena=$('arenaContent');
+  arena.innerHTML=`
+  <svg viewBox="0 0 700 380" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;">
+    <defs>
+      <linearGradient id="cardBg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(0,30,60,0.9)"/><stop offset="100%" stop-color="rgba(0,15,40,0.95)"/></linearGradient>
+      <linearGradient id="cardBg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(40,20,0,0.9)"/><stop offset="100%" stop-color="rgba(25,12,0,0.95)"/></linearGradient>
+      <linearGradient id="rb5" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#c0392b"/><stop offset="100%" stop-color="#FF6B81"/></linearGradient>
+      <linearGradient id="gb5" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#1B8C4A"/><stop offset="100%" stop-color="#7BED9F"/></linearGradient>
+    </defs>
+
+    <!-- Header -->
+    <rect x="120" y="5" width="460" height="28" rx="8" fill="rgba(255,217,61,0.08)" stroke="rgba(255,217,61,0.3)" stroke-width="1"/>
+    <text x="350" y="24" text-anchor="middle" fill="#FFD93D" font-size="12" font-weight="bold">Both show environment matters. Which one PROVES it?</text>
+
+    <!-- ===== CARD 1: Consumption Gap ===== -->
+    <g id="card1L5">
+      <rect x="20" y="42" width="310" height="290" rx="12" fill="url(#cardBg1)" stroke="#00D4FF" stroke-width="2"/>
+      <!-- Card header -->
+      <rect x="20" y="42" width="310" height="38" rx="12" fill="rgba(0,212,255,0.08)"/>
+      <rect x="20" y="68" width="310" height="12" fill="rgba(0,212,255,0.08)"/>
+      <circle cx="40" cy="61" r="8" fill="rgba(0,212,255,0.2)" stroke="#00D4FF" stroke-width="1.5"/>
+      <text x="40" y="65" text-anchor="middle" fill="#00D4FF" font-size="10" font-weight="bold">1</text>
+      <text x="180" y="58" text-anchor="middle" fill="#00D4FF" font-size="11" font-weight="bold">Consumption Gap</text>
+      <text x="180" y="74" text-anchor="middle" fill="#8ab4c8" font-size="9">Different rats in different places</text>
+
+      <!-- Mini bar graph with proper axes -->
+      <rect x="45" y="145" width="260" height="130" rx="6" fill="rgba(0,0,0,0.3)"/>
+      <!-- Y-axis -->
+      <line x1="80" y1="155" x2="80" y2="265" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+      <text x="72" y="165" text-anchor="end" fill="#888" font-size="7">High</text>
+      <text x="72" y="260" text-anchor="end" fill="#888" font-size="7">Low</text>
+      <!-- X-axis -->
+      <line x1="80" y1="265" x2="290" y2="265" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+      <!-- Cage bar (tall) -->
+      <rect x="110" y="165" width="55" height="100" rx="4" fill="url(#rb5)" opacity="0.85"/>
+      <text x="137" y="275" text-anchor="middle" fill="#FF6B81" font-size="8" font-weight="bold">Caged</text>
+      <!-- Park bar (tiny) -->
+      <rect x="220" y="247" width="55" height="18" rx="4" fill="url(#gb5)" opacity="0.85"/>
+      <text x="247" y="275" text-anchor="middle" fill="#7BED9F" font-size="8" font-weight="bold">Park</text>
+      <!-- 19x label -->
+      <line x1="170" y1="200" x2="215" y2="200" stroke="rgba(255,217,61,0.4)" stroke-width="1" stroke-dasharray="3"/>
+      <rect x="175" y="192" width="35" height="15" rx="4" fill="rgba(255,217,61,0.1)"/>
+      <text x="192" y="203" text-anchor="middle" fill="#FFD93D" font-size="8" font-weight="bold">19x</text>
+
+      <!-- Key info -->
+      <text x="175" y="98" text-anchor="middle" fill="#ccc" font-size="10">Caged rats drank</text>
+      <text x="175" y="114" text-anchor="middle" fill="#FF6B81" font-size="14" font-weight="bold">19x more morphine</text>
+
+      <!-- Weakness callout -->
+      <rect x="45" y="288" width="260" height="34" rx="6" fill="rgba(255,71,87,0.06)" stroke="rgba(255,71,87,0.2)" stroke-width="0.8"/>
+      <text x="175" y="303" text-anchor="middle" fill="#FF8A9A" font-size="9">But these are DIFFERENT rats</text>
+      <text x="175" y="316" text-anchor="middle" fill="#997070" font-size="8">Maybe some rats just drink more?</text>
+    </g>
+
+    <!-- ===== CARD 3: Same Rat ===== -->
+    <g id="card3L5">
+      <rect x="370" y="42" width="310" height="290" rx="12" fill="url(#cardBg3)" stroke="#FFA502" stroke-width="2"/>
+      <!-- Card header -->
+      <rect x="370" y="42" width="310" height="38" rx="12" fill="rgba(255,165,2,0.08)"/>
+      <rect x="370" y="68" width="310" height="12" fill="rgba(255,165,2,0.08)"/>
+      <circle cx="390" cy="61" r="8" fill="rgba(255,165,2,0.2)" stroke="#FFA502" stroke-width="1.5"/>
+      <text x="390" y="65" text-anchor="middle" fill="#FFA502" font-size="10" font-weight="bold">3</text>
+      <text x="530" y="58" text-anchor="middle" fill="#FFA502" font-size="11" font-weight="bold">Same Rat, New Home</text>
+      <text x="530" y="74" text-anchor="middle" fill="#c49040" font-size="9">SAME rat in different places</text>
+
+      <!-- Before/After diagram -->
+      <!-- Cage box -->
+      <rect x="390" y="95" width="108" height="75" rx="6" fill="#2a2a2a" stroke="#777" stroke-width="1.5"/>
+      <text x="444" y="110" text-anchor="middle" fill="#999" font-size="9" font-weight="bold">CAGE</text>
+      <!-- Bars on cage side -->
+      ${[398,408,418,428,438,448,458,468,478,488].map(x=>`<line x1="${x}" y1="113" x2="${x}" y2="163" stroke="#777" stroke-width="1.5"/>`).join('')}
+      <!-- Detailed rat in cage -->
+      <g transform="translate(444,140)">
+        <ellipse cx="0" cy="3" rx="12" ry="7.5" fill="#bfa07a"/><ellipse cx="0" cy="3" rx="9" ry="5.5" fill="#d4b896"/>
+        <ellipse cx="-8" cy="-2" rx="6" ry="4.5" fill="#c8a882"/>
+        <ellipse cx="-11" cy="-6" rx="2.5" ry="3.5" fill="#d4b896"/><ellipse cx="-11" cy="-6" rx="1.5" ry="2" fill="#e8b4b4"/>
+        <circle cx="-10" cy="-2.5" r="1.2" fill="#1a1a1a"/><circle cx="-10.3" cy="-2.8" r="0.4" fill="#fff"/>
+        <path d="M 10 1 Q 15 -3 17 1" fill="none" stroke="#bfa07a" stroke-width="1"/>
+      </g>
+      <!-- Consumption bar (HIGH) -->
+      <rect x="393" y="100" width="8" height="0" rx="2" fill="url(#rb5)"/>
+      <rect x="393" y="103" width="8" height="52" rx="2" fill="url(#rb5)" opacity="0.8"/>
+      <text x="397" y="97" text-anchor="middle" fill="#FF6B81" font-size="7" font-weight="bold">HIGH</text>
+
+      <!-- Arrow -->
+      <path d="M 503 132 C 518 108, 538 108, 553 132" fill="none" stroke="#FFD93D" stroke-width="2.5" stroke-dasharray="6,3"/>
+      <polygon points="549,124 558,132 549,140" fill="#FFD93D"/>
+
+      <!-- Park box -->
+      <rect x="558" y="95" width="108" height="75" rx="6" fill="#152a18" stroke="#3ddc84" stroke-width="1.5"/>
+      <text x="612" y="110" text-anchor="middle" fill="#7BED9F" font-size="9" font-weight="bold">PARK</text>
+      <!-- Mini park features -->
+      <circle cx="575" cy="125" r="8" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+      <rect x="593" y="130" width="18" height="3" rx="1" fill="#8B6914"/>
+      <rect x="620" y="120" width="16" height="3" rx="1" fill="#8B6914"/>
+      <!-- Park friend rats (tiny) -->
+      <ellipse cx="600" cy="146" rx="6" ry="4" fill="#d4b896"/><circle cx="596" cy="143" r="0.8" fill="#1a1a1a"/>
+      <ellipse cx="625" cy="140" rx="5" ry="3.5" fill="#c0a070"/><circle cx="622" cy="138" r="0.8" fill="#1a1a1a"/>
+      <!-- Same rat arriving -->
+      <g transform="translate(612,150)">
+        <ellipse cx="0" cy="3" rx="12" ry="7.5" fill="#bfa07a"/><ellipse cx="0" cy="3" rx="9" ry="5.5" fill="#d4b896"/>
+        <ellipse cx="-8" cy="-2" rx="6" ry="4.5" fill="#c8a882"/>
+        <ellipse cx="-11" cy="-6" rx="2.5" ry="3.5" fill="#d4b896"/><ellipse cx="-11" cy="-6" rx="1.5" ry="2" fill="#e8b4b4"/>
+        <circle cx="-10" cy="-2.5" r="1.2" fill="#1a1a1a"/><circle cx="-10.3" cy="-2.8" r="0.4" fill="#fff"/>
+      </g>
+      <!-- Consumption bar (LOW) -->
+      <rect x="561" y="155" width="8" height="10" rx="2" fill="url(#gb5)" opacity="0.8"/>
+      <text x="565" y="152" text-anchor="middle" fill="#7BED9F" font-size="7" font-weight="bold">LOW</text>
+
+      <!-- Key strengths -->
+      <rect x="390" y="180" width="270" height="60" rx="6" fill="rgba(255,217,61,0.06)" stroke="rgba(255,217,61,0.15)" stroke-width="0.8"/>
+      <text x="525" y="198" text-anchor="middle" fill="#FFD93D" font-size="10" font-weight="bold">Same rat = controlled test</text>
+      <text x="525" y="214" text-anchor="middle" fill="#ccc" font-size="9">Same drug, same rat</text>
+      <text x="525" y="228" text-anchor="middle" fill="#ccc" font-size="9">Only the environment changed</text>
+
+      <!-- Conclusion -->
+      <rect x="390" y="248" width="270" height="34" rx="6" fill="rgba(46,213,115,0.08)" stroke="rgba(46,213,115,0.25)" stroke-width="0.8"/>
+      <text x="525" y="266" text-anchor="middle" fill="#2ED573" font-size="11" font-weight="bold">Dependence DROPPED</text>
+      <text x="525" y="280" text-anchor="middle" fill="#70c090" font-size="8">Environment caused the change</text>
+
+      <!-- Strength callout -->
+      <rect x="390" y="288" width="270" height="34" rx="6" fill="rgba(46,213,115,0.06)" stroke="rgba(46,213,115,0.2)" stroke-width="0.8"/>
+      <text x="525" y="303" text-anchor="middle" fill="#7BED9F" font-size="9">Same rat PROVES environment was the cause</text>
+      <text x="525" y="316" text-anchor="middle" fill="#508060" font-size="8">This is a controlled experiment</text>
+    </g>
+
+    <!-- VS badge -->
+    <rect x="330" y="170" width="40" height="28" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <text x="350" y="189" text-anchor="middle" fill="#aaa" font-size="12" font-weight="bold">VS</text>
+
+    <!-- Dimmed other cards at bottom -->
+    <rect x="30" y="345" width="120" height="28" rx="6" fill="rgba(0,0,0,0.25)" stroke="#444" stroke-width="0.8"/>
+    <text x="90" y="363" text-anchor="middle" fill="#555" font-size="8">Evidence #2 (dimmed)</text>
+    <rect x="165" y="345" width="120" height="28" rx="6" fill="rgba(0,0,0,0.25)" stroke="#444" stroke-width="0.8"/>
+    <text x="225" y="363" text-anchor="middle" fill="#555" font-size="8">Evidence #4 (dimmed)</text>
+  </svg>`;
+}
+
+function watchArenaLevel5(){
+  const gen=arenaGen;
+  // Card 1 highlights first
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const c1=document.getElementById('card1L5');
+    if(c1){c1.querySelector('rect').style.stroke='#00D4FF';c1.querySelector('rect').style.strokeWidth='3';}
+  },1500);
+  // Then Card 3
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const c1=document.getElementById('card1L5');
+    if(c1){c1.querySelector('rect').style.strokeWidth='2';}
+    const c3=document.getElementById('card3L5');
+    if(c3){c3.querySelector('rect').style.stroke='#FFD93D';c3.querySelector('rect').style.strokeWidth='3';}
+  },6000);
+  // Reset to neutral
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const c3=document.getElementById('card3L5');
+    if(c3)c3.querySelector('rect').style.strokeWidth='2';
+  },10000);
+}
+
+function highlightArenaLevel5(type,phase,answer){
+  if(type==='correct'){
+    const c3=document.getElementById('card3L5');
+    if(c3){c3.querySelector('rect').style.stroke='#2ED573';c3.querySelector('rect').style.strokeWidth='4';}
+    const arena=$('arena');arena.style.boxShadow='inset 0 0 30px rgba(46,213,115,0.3)';
+    setTimeout(()=>{arena.style.boxShadow='';},1500);
+  }
+  if(type==='wrong'){
+    const c3=document.getElementById('card3L5');
+    if(c3){c3.querySelector('rect').style.stroke='#FFD93D';c3.querySelector('rect').style.strokeWidth='3';}
+  }
+}
+
+// ================================================================
+// ARENA BUILDERS - Level 6: The Verdict (Claim Builder)
+// ================================================================
+function buildArenaLevel6(){
+  const arena=$('arenaContent');
+  arena.innerHTML=`
+  <svg viewBox="0 0 700 380" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;">
+    <defs>
+      <linearGradient id="silCage" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#1a1a1a"/></linearGradient>
+      <linearGradient id="silPark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#152a18"/><stop offset="100%" stop-color="#0a150c"/></linearGradient>
+      <radialGradient id="spotlight" cx="50%" cy="60%"><stop offset="0%" stop-color="rgba(255,217,61,0.06)"/><stop offset="60%" stop-color="rgba(0,0,0,0)"/></radialGradient>
+    </defs>
+
+    <!-- Dimmed silhouette backgrounds -->
+    <rect x="8" y="8" width="335" height="195" rx="10" fill="url(#silCage)" stroke="#444" stroke-width="1" opacity="0.5"/>
+    <text x="175" y="30" text-anchor="middle" fill="#444" font-size="10" font-weight="bold" letter-spacing="1">THE CAGE</text>
+    <!-- Silhouette bars -->
+    ${[24,48,72,96,120,192,216,240,264,288,312].map(x=>`<line x1="${x}" y1="35" x2="${x}" y2="192" stroke="#333" stroke-width="2"/>`).join('')}
+    <!-- Ghost rat -->
+    <g opacity="0.2" transform="translate(170,130)">
+      <ellipse cx="0" cy="6" rx="20" ry="12" fill="#555"/>
+      <ellipse cx="-14" cy="-2" rx="10" ry="7" fill="#555"/>
+      <circle cx="-19" cy="-4" r="1.5" fill="#777"/>
+    </g>
+
+    <rect x="357" y="8" width="335" height="195" rx="10" fill="url(#silPark)" stroke="#444" stroke-width="1" opacity="0.5"/>
+    <text x="525" y="30" text-anchor="middle" fill="#3a5a3a" font-size="10" font-weight="bold" letter-spacing="1">RAT PARK</text>
+    <!-- Ghost park features -->
+    <g opacity="0.15">
+      <circle cx="398" cy="80" r="16" fill="none" stroke="#555" stroke-width="2"/>
+      <rect x="440" y="100" width="40" height="5" rx="2" fill="#555"/>
+      <ellipse cx="470" cy="110" rx="10" ry="7" fill="#555"/>
+      <ellipse cx="510" cy="95" rx="9" ry="6" fill="#555"/>
+      <ellipse cx="550" cy="120" rx="10" ry="7" fill="#555"/>
+    </g>
+    <!-- Divider -->
+    <line x1="350" y1="12" x2="350" y2="198" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="4"/>
+
+    <!-- Spotlight glow -->
+    <rect x="0" y="0" width="700" height="380" fill="url(#spotlight)"/>
+
+    <!-- ===== CARD 3 RECAP (hidden initially) ===== -->
+    <g id="card3Recap" opacity="0">
+      <rect x="100" y="215" width="500" height="155" rx="14" fill="rgba(0,0,0,0.65)" stroke="#FFA502" stroke-width="2"/>
+      <!-- Header -->
+      <rect x="100" y="215" width="500" height="36" rx="14" fill="rgba(255,165,2,0.08)"/>
+      <rect x="100" y="240" width="500" height="11" fill="rgba(255,165,2,0.08)"/>
+      <circle cx="120" cy="233" r="7" fill="rgba(255,165,2,0.2)" stroke="#FFA502" stroke-width="1.2"/>
+      <text x="120" y="237" text-anchor="middle" fill="#FFA502" font-size="9" font-weight="bold">3</text>
+      <text x="350" y="238" text-anchor="middle" fill="#FFA502" font-size="12" font-weight="bold">Key Evidence: Same Rat, New Environment</text>
+
+      <!-- Before/After mini-diagram -->
+      <!-- Cage side -->
+      <rect x="130" y="260" width="100" height="52" rx="6" fill="#2a2a2a" stroke="#777" stroke-width="1.2"/>
+      <text x="180" y="275" text-anchor="middle" fill="#999" font-size="8" font-weight="bold">CAGE</text>
+      <!-- Mini bars -->
+      ${[138,148,158,168,178,188,198,208,218].map(x=>`<line x1="${x}" y1="278" x2="${x}" y2="305" stroke="#666" stroke-width="1.2"/>`).join('')}
+      <!-- Rat -->
+      <g transform="translate(180,293)"><ellipse cx="0" cy="2" rx="8" ry="5" fill="#bfa07a"/><ellipse cx="-5" cy="-1" rx="4" ry="3" fill="#c8a882"/><circle cx="-7" cy="-2" r="0.8" fill="#1a1a1a"/></g>
+      <!-- HIGH bar -->
+      <rect x="133" y="265" width="7" height="38" rx="2" fill="#FF4757" opacity="0.8"/>
+      <text x="136" y="262" text-anchor="middle" fill="#FF6B81" font-size="7" font-weight="bold">HIGH</text>
+
+      <!-- Arrow -->
+      <path d="M 235 286 C 255 262, 285 262, 305 286" fill="none" stroke="#FFD93D" stroke-width="2.5" stroke-dasharray="6,3"/>
+      <polygon points="300,278 310,286 300,294" fill="#FFD93D"/>
+      <text x="270" y="260" text-anchor="middle" fill="#FFD93D" font-size="8" font-weight="bold">MOVED</text>
+
+      <!-- Park side -->
+      <rect x="310" y="260" width="100" height="52" rx="6" fill="#152a18" stroke="#3ddc84" stroke-width="1.2"/>
+      <text x="360" y="275" text-anchor="middle" fill="#7BED9F" font-size="8" font-weight="bold">PARK</text>
+      <!-- Mini features -->
+      <circle cx="325" cy="288" r="6" fill="none" stroke="#8B7355" stroke-width="1.2"/>
+      <rect x="340" y="293" width="14" height="2" rx="1" fill="#8B6914"/>
+      <!-- Park rats -->
+      <g transform="translate(345,290)"><ellipse cx="0" cy="2" rx="6" ry="4" fill="#d4b896"/><circle cx="-4" cy="0" r="0.8" fill="#1a1a1a"/></g>
+      <g transform="translate(360,285)"><ellipse cx="0" cy="2" rx="5" ry="3.5" fill="#c0a070"/><circle cx="-3.5" cy="0" r="0.7" fill="#1a1a1a"/></g>
+      <!-- Same rat in park -->
+      <g transform="translate(365,298)"><ellipse cx="0" cy="2" rx="8" ry="5" fill="#bfa07a"/><ellipse cx="-5" cy="-1" rx="4" ry="3" fill="#c8a882"/><circle cx="-7" cy="-2" r="0.8" fill="#1a1a1a"/></g>
+      <!-- LOW bar -->
+      <rect x="313" y="299" width="7" height="8" rx="2" fill="#2ED573" opacity="0.8"/>
+      <text x="316" y="296" text-anchor="middle" fill="#7BED9F" font-size="7" font-weight="bold">LOW</text>
+
+      <!-- Key text -->
+      <rect x="428" y="258" width="160" height="58" rx="8" fill="rgba(255,217,61,0.05)" stroke="rgba(255,217,61,0.15)" stroke-width="0.8"/>
+      <text x="508" y="276" text-anchor="middle" fill="#FFD93D" font-size="10" font-weight="bold">Same rat + same drug</text>
+      <text x="508" y="292" text-anchor="middle" fill="#ccc" font-size="9">New environment</text>
+      <text x="508" y="308" text-anchor="middle" fill="#2ED573" font-size="10" font-weight="bold">= Less drinking</text>
+
+      <!-- Conclusion line -->
+      <rect x="130" y="322" width="450" height="38" rx="8" fill="rgba(255,217,61,0.06)" stroke="rgba(255,217,61,0.2)" stroke-width="1"/>
+      <text x="355" y="338" text-anchor="middle" fill="#FFD93D" font-size="11" font-weight="bold">PROVES environment caused the change</text>
+      <text x="355" y="354" text-anchor="middle" fill="#b0a060" font-size="9">The drug was the same. The rat was the same. Only the place changed.</text>
+    </g>
+
+    <!-- ===== CASE REVIEW BADGE (hidden initially) ===== -->
+    <g id="caseReviewBadge" opacity="0">
+      <rect x="210" y="90" width="280" height="60" rx="14" fill="rgba(0,0,0,0.7)" stroke="#FFD700" stroke-width="2.5"/>
+      <rect x="210" y="90" width="280" height="60" rx="14" fill="rgba(255,215,0,0.05)"/>
+      <!-- Magnifying glass icon -->
+      <circle cx="240" cy="120" r="10" fill="none" stroke="#FFD700" stroke-width="2"/>
+      <line x1="248" y1="127" x2="255" y2="134" stroke="#FFD700" stroke-width="2.5" stroke-linecap="round"/>
+      <text x="360" y="116" text-anchor="middle" fill="#FFD700" font-size="18" font-weight="bold" letter-spacing="2">CASE REVIEW</text>
+      <text x="360" y="136" text-anchor="middle" fill="#b0a040" font-size="10">Put it all together</text>
+    </g>
+  </svg>`;
+}
+
+function watchArenaLevel6(){
+  const gen=arenaGen;
+  // Card 3 recap fades in
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const c=document.getElementById('card3Recap');if(c){c.style.transition='opacity 1s';c.setAttribute('opacity','1');}
+  },2000);
+  // Case review badge
+  arenaTimeout(()=>{
+    if(arenaGen!==gen)return;
+    const b=document.getElementById('caseReviewBadge');if(b){b.style.transition='opacity 0.8s';b.setAttribute('opacity','1');}
+  },8000);
+}
+
+function highlightArenaLevel6(type,phase,answer,step){
+  if(type==='correct'){
+    const arena=$('arena');arena.style.boxShadow='inset 0 0 30px rgba(46,213,115,0.3)';
+    setTimeout(()=>{arena.style.boxShadow='';},1500);
+  }
+  if(type==='wrong'&&phase==='do'){
+    const c=document.getElementById('card3Recap');if(c){c.style.transition='opacity 0.5s';c.setAttribute('opacity','1');}
+  }
+  if(type==='wrong'&&phase==='prove'){
+    const c=document.getElementById('card3Recap');if(c)c.setAttribute('opacity','1');
+  }
+}
+
+</script>
+</body>
+</html>
