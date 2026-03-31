@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Mr. Jawad's Simulation — Mass Extinction Cascade</title>
+<style>
+:root{
+--bg1:#F0F4F8;--bg2:#E8EEF4;--accent1:#3B82F6;--accent2:#10B981;--accent3:#8B5CF6;
+--text:#1E293B;--textLight:#475569;--white:#FFFFFF;--card:#FFFFFF;
+--correct:#16A34A;--wrong:#DC2626;--hint1:#FFF9C4;--hint2:#FFE0B2;
+--gold:#F59E0B;--shadow:0 2px 8px rgba(0,0,0,0.08);
+--radius:12px;--radiusSm:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);overflow:hidden;height:100vh;width:100vw;-webkit-tap-highlight-color:transparent}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px}
+
+/* WELCOME SCREEN */
+#welcomeScreen{position:fixed;inset:0;background:linear-gradient(135deg,#F0F4F8,#DBEAFE);z-index:9999;display:flex;align-items:center;justify-content:center;overflow-y:auto}
+.welcome-box{background:var(--white);border-radius:20px;padding:40px 36px;max-width:440px;width:90%;box-shadow:0 8px 32px rgba(59,130,246,0.15);text-align:center}
+.welcome-box h1{font-size:22px;color:var(--accent1);margin-bottom:4px;font-weight:700}
+.welcome-box h2{font-size:15px;color:var(--textLight);font-weight:400;margin-bottom:24px}
+.welcome-box .hook{font-size:17px;font-style:italic;color:var(--accent3);margin-bottom:24px;line-height:1.5}
+.welcome-box label{display:block;text-align:left;font-size:13px;font-weight:600;color:var(--textLight);margin-bottom:4px;margin-top:14px}
+.welcome-box input{width:100%;padding:12px 14px;border:2px solid #CBD5E1;border-radius:var(--radiusSm);font-size:16px;transition:border-color .2s}
+.welcome-box input:focus{border-color:var(--accent1);outline:none}
+#startBtn{margin-top:24px;width:100%;padding:16px;background:var(--accent1);color:var(--white);font-size:18px;font-weight:700;border-radius:var(--radius);transition:background .2s}
+#startBtn:hover{background:#2563EB}
+#startBtn:disabled{background:#94A3B8;cursor:not-allowed}
+
+/* MAIN LAYOUT */
+#gameContainer{display:none;height:100vh;flex-direction:column;overflow:hidden}
+#topBar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--white);border-bottom:2px solid #E2E8F0;min-height:52px;flex-shrink:0}
+.round-badge{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:var(--accent1)}
+.round-badge .icon{width:32px;height:32px;background:var(--accent1);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--white);font-size:16px}
+.hud-group{display:flex;align-items:center;gap:16px}
+.hud-score{font-weight:700;font-size:15px;color:var(--accent3)}
+.hud-progress{display:flex;gap:4px;align-items:center}
+.prog-dot{width:12px;height:12px;border-radius:50%;background:#CBD5E1;transition:background .3s}
+.prog-dot.done{background:var(--correct)}
+.prog-dot.current{background:var(--accent1);animation:dotPulse 1.5s ease infinite}
+.prog-dot.bonus{border:2px solid var(--gold);background:transparent}
+.prog-dot.bonus.done{background:var(--gold)}
+
+/* MIDDLE AREA: 3-col */
+#middleArea{display:flex;flex:1;overflow:hidden;min-height:0}
+#controlPanel{width:230px;flex-shrink:0;background:var(--white);border-right:2px solid #E2E8F0;padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+#dataPanel{width:250px;flex-shrink:0;background:var(--white);border-left:2px solid #E2E8F0;padding:12px;overflow-y:auto;display:flex;flex-direction:column}
+
+/* CONTROLS */
+.ctrl-label{font-size:12px;font-weight:700;color:var(--textLight);text-transform:uppercase;letter-spacing:.5px}
+.slider-group{background:#F1F5F9;border-radius:var(--radiusSm);padding:12px;position:relative}
+.slider-group.locked{opacity:.55;pointer-events:none}
+.slider-group.locked::after{content:'🔒';position:absolute;top:8px;right:8px;font-size:14px}
+.slider-group.active{border:2px solid var(--accent1);opacity:1}
+.slider-group h4{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.slider-stops{display:flex;justify-content:space-between;margin-bottom:6px}
+.slider-stops span{font-size:10px;color:var(--textLight)}
+input[type=range]{width:100%;accent-color:var(--accent1);height:28px}
+.slider-val{text-align:center;font-weight:700;font-size:14px;color:var(--accent1);margin-top:4px}
+#runBtn{width:100%;padding:14px;background:var(--accent2);color:var(--white);font-size:16px;font-weight:700;border-radius:var(--radius);margin-top:auto;transition:all .2s;min-height:52px}
+#runBtn:hover{background:#059669}
+#runBtn:disabled{background:#94A3B8;cursor:not-allowed}
+#runBtn.pulse{animation:btnPulse 1.2s ease infinite}
+.guided-overlay{background:#DBEAFE;border-radius:var(--radiusSm);padding:10px;font-size:13px;color:var(--accent1);line-height:1.4;border-left:3px solid var(--accent1)}
+
+/* DATA TABLE */
+.dt-title{font-size:13px;font-weight:700;color:var(--textLight);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+#dataTable{width:100%;border-collapse:collapse;font-size:11px}
+#dataTable th{background:#F1F5F9;padding:6px 4px;text-align:center;font-weight:600;color:var(--textLight);border-bottom:2px solid #E2E8F0;font-size:10px}
+#dataTable td{padding:5px 4px;text-align:center;border-bottom:1px solid #F1F5F9;font-size:11px;transition:background .3s}
+#dataTable tr.current{background:#EFF6FF;font-weight:600}
+#dataTable tr.highlight td{background:#FEF3C7}
+.dt-cell-error{position:relative}
+.dt-cell-error::after{content:'⚠️';position:absolute;top:-2px;right:0;font-size:10px}
+.dt-cell-error.pulse{animation:cellPulse 1s ease infinite}
+
+/* INTERACTION ZONE */
+#interactionZone{min-height:140px;max-height:40vh;background:var(--white);border-top:2px solid #E2E8F0;padding:16px 20px;overflow-y:auto;flex-shrink:0;word-wrap:break-word;overflow-wrap:break-word}
+.phase-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent3);margin-bottom:6px}
+.phase-prompt{font-size:16px;font-weight:600;color:var(--text);margin-bottom:14px;line-height:1.4}
+.options-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.opt-card{flex:1;min-width:140px;padding:14px 12px;background:#F8FAFC;border:2px solid #E2E8F0;border-radius:var(--radius);font-size:14px;color:var(--text);text-align:left;line-height:1.4;transition:all .2s;min-height:48px;position:relative}
+.opt-card:hover{border-color:var(--accent1);background:#EFF6FF}
+.opt-card.selected{border-color:var(--accent1);background:#DBEAFE;font-weight:600}
+.opt-card.correct-reveal{border-color:var(--correct);background:#DCFCE7;font-weight:600}
+.opt-card.wrong-reveal{border-color:var(--wrong);background:#FEE2E2}
+.opt-card.dimmed{opacity:.4;pointer-events:none;text-decoration:line-through}
+.opt-card.eliminated{opacity:.35;pointer-events:none;text-decoration:line-through;border-color:#94A3B8}
+#lockInBtn{padding:14px 32px;background:var(--accent1);color:var(--white);font-size:16px;font-weight:700;border-radius:var(--radius);transition:all .2s;min-height:48px;display:none}
+#lockInBtn:hover{background:#2563EB}
+#lockInBtn:disabled{background:#94A3B8;cursor:not-allowed;display:block}
+#lockInBtn.visible{display:inline-block}
+.feedback-bar{padding:12px 16px;border-radius:var(--radiusSm);font-size:14px;margin-top:10px;line-height:1.4;display:none}
+.feedback-bar.correct{display:block;background:#DCFCE7;color:#166534;border-left:4px solid var(--correct)}
+.feedback-bar.wrong{display:block;background:#FEE2E2;color:#991B1B;border-left:4px solid var(--wrong)}
+#tryAgainBtn{margin-top:10px;padding:12px 28px;background:var(--accent1);color:var(--white);font-size:15px;font-weight:600;border-radius:var(--radius);display:none;min-height:48px}
+#tryAgainBtn.visible{display:inline-block}
+#confirmDataBtn{padding:12px 28px;background:var(--accent2);color:var(--white);font-size:15px;font-weight:600;border-radius:var(--radius);min-height:48px;transition:all .2s}
+#confirmDataBtn:disabled{background:#94A3B8;cursor:not-allowed}
+.record-prompt{font-size:14px;color:var(--textLight);margin-bottom:10px}
+
+/* PREDICT */
+.predict-cards{display:flex;gap:12px;flex-wrap:wrap}
+.predict-card{flex:1;min-width:180px;padding:16px;background:#F8FAFC;border:2px solid #E2E8F0;border-radius:var(--radius);font-size:14px;line-height:1.4;cursor:pointer;transition:all .2s;min-height:48px}
+.predict-card:hover{border-color:var(--accent3);background:#F5F3FF}
+.predict-card.selected{border-color:var(--accent3);background:#EDE9FE;font-weight:600}
+.predict-result{font-size:15px;font-weight:700;margin:8px 0}
+.predict-result.correct{color:var(--correct)}
+.predict-result.wrong{color:var(--wrong)}
+
+/* BOTTOM BAR */
+#bottomBar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--white);border-top:2px solid #E2E8F0;min-height:48px;flex-shrink:0}
+.bottom-left{display:flex;gap:8px}
+.bottom-center{font-size:13px;color:var(--textLight);font-weight:500}
+.bottom-right{display:flex;gap:8px}
+.bar-btn{padding:8px 14px;background:#F1F5F9;border:1px solid #E2E8F0;border-radius:var(--radiusSm);font-size:13px;font-weight:600;color:var(--text);min-height:40px;transition:all .2s}
+.bar-btn:hover{background:#E2E8F0}
+.bar-btn:disabled{opacity:.4;cursor:not-allowed}
+.bar-btn.danger{color:var(--wrong)}
+
+/* ARENA ELEMENTS — SVG cross-section */
+#arenaPanel{flex:1;min-width:0;position:relative;overflow:hidden;background:#2C1810}
+#arenaSvg{position:absolute;inset:0;width:100%;height:100%}
+
+/* Dust particles floating in debris cloud */
+.dust-float{position:absolute;width:4px;height:4px;border-radius:50%;background:rgba(200,180,140,.45);pointer-events:none}
+.dust-float.d1{animation:dustDrift1 6s linear infinite}
+.dust-float.d2{animation:dustDrift2 8s linear infinite}
+.dust-float.d3{animation:dustDrift3 7s linear infinite}
+.dust-float.d4{animation:dustDrift4 9s linear infinite}
+.dust-float.d5{animation:dustDrift5 5s linear infinite}
+@keyframes dustDrift1{0%{transform:translate(0,0);opacity:.3}25%{opacity:.6}50%{transform:translate(30px,-8px);opacity:.4}100%{transform:translate(60px,2px);opacity:.2}}
+@keyframes dustDrift2{0%{transform:translate(0,0);opacity:.2}50%{transform:translate(-40px,5px);opacity:.5}100%{transform:translate(-80px,-3px);opacity:.15}}
+@keyframes dustDrift3{0%{transform:translate(0,0);opacity:.35}50%{transform:translate(20px,10px);opacity:.55}100%{transform:translate(50px,-5px);opacity:.25}}
+@keyframes dustDrift4{0%{transform:translate(0,0);opacity:.25}50%{transform:translate(-25px,-6px);opacity:.5}100%{transform:translate(-55px,4px);opacity:.2}}
+@keyframes dustDrift5{0%{transform:translate(0,0);opacity:.4}50%{transform:translate(35px,3px);opacity:.6}100%{transform:translate(70px,-7px);opacity:.3}}
+
+/* Sun ray shimmer */
+.svg-ray{transition:opacity 2s ease,stroke-width 1.5s ease}
+.svg-ray.blocked{opacity:.06;stroke-width:.5}
+
+/* SVG organism groups */
+.svg-org-group{transition:opacity 2s ease,transform 1.5s ease}
+.svg-org-group.wilted{opacity:.25;transform:scale(.7)}
+.svg-org-group.stressed{opacity:.6;transform:scale(.85)}
+
+/* Health bar SVG rects */
+.hb-fill-svg{transition:transform 2s ease;transform-origin:left center}
+
+/* Chain arrow glow */
+.chain-arrow-svg{transition:opacity .6s ease}
+.chain-arrow-svg .arrow-body{fill:rgba(255,255,255,.12);stroke:rgba(255,255,255,.2);stroke-width:1;transition:fill .6s,stroke .6s}
+.chain-arrow-svg.active .arrow-body{fill:rgba(255,215,0,.35);stroke:#FFD700;stroke-width:1.5}
+.chain-arrow-svg .arrow-label{fill:rgba(255,255,255,.35);font-size:8px;font-weight:700;transition:fill .6s}
+.chain-arrow-svg.active .arrow-label{fill:rgba(255,255,255,.9)}
+.chain-arrow-svg.active .arrow-head{fill:#FFD700}
+
+/* Spotlight ring for staged animation */
+.spotlight-ring{opacity:0;transition:opacity .5s ease}
+.spotlight-ring.show{opacity:1}
+
+/* Arena labels */
+.arena-label{font-family:'Segoe UI',system-ui,sans-serif;font-weight:700;pointer-events:none;transition:opacity .5s}
+.arena-label.hidden{opacity:0}
+
+/* Impact burst CSS */
+.impact-ring{transform-origin:center;transform:scale(0);opacity:0;transition:transform .6s ease-out,opacity .9s ease}
+.impact-ring.show{transform:scale(1);opacity:1}
+.impact-ring.fade{opacity:0}
+
+/* Asteroid */
+#asteroidG{transition:transform 1.5s ease-in}
+#asteroidG.offscreen{transform:translateY(-80px)}
+#asteroidG.strike{transform:translateY(0)}
+
+/* Sunlight % overlay */
+.sunlight-pct{position:absolute;top:3%;right:4%;background:rgba(255,255,255,.88);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;color:var(--text);z-index:10;transition:color .5s,background .5s;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.sunlight-pct.danger{color:var(--wrong);background:rgba(255,220,220,.9)}
+
+/* Focus banner over arena */
+#focusBanner{position:absolute;top:0;left:0;right:0;z-index:20;padding:10px 16px;background:rgba(59,130,246,.92);color:var(--white);font-size:14px;font-weight:600;text-align:center;transform:translateY(-100%);transition:transform .4s ease,opacity .4s ease;opacity:0}
+#focusBanner.show{transform:translateY(0);opacity:1}
+#focusBanner.subtle{background:rgba(59,130,246,.5);font-size:12px;padding:6px 12px}
+
+/* Debris label over arena */
+.debris-label{position:absolute;top:24%;left:4%;font-size:11px;font-weight:700;color:rgba(255,255,255,.85);z-index:10;background:rgba(0,0,0,.4);padding:3px 10px;border-radius:10px;opacity:0;transition:opacity .5s;letter-spacing:.3px}
+.debris-label.show{opacity:1}
+
+/* Impact label */
+.impact-label{position:absolute;top:42%;left:50%;transform:translateX(-50%);font-size:13px;font-weight:800;color:#FFD700;text-shadow:0 0 10px rgba(255,215,0,.7),0 0 20px rgba(255,100,0,.3);opacity:0;transition:opacity .5s;z-index:10;letter-spacing:.5px}
+.impact-label.show{opacity:1}
+
+/* Bonus banner */
+.bonus-banner{background:linear-gradient(90deg,var(--accent3),var(--accent1));color:var(--white);font-size:13px;font-weight:700;text-align:center;padding:6px;border-radius:var(--radiusSm);margin-bottom:8px;letter-spacing:.5px}
+
+/* HIGHLIGHT HELPERS */
+.hl-yellow{box-shadow:0 0 12px rgba(245,158,11,.6)!important;border:2px solid #F59E0B!important}
+.hl-pulse{animation:hlPulse 1.2s ease infinite}
+
+/* VOCAB POPUP */
+#vocabOverlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:5000;display:none;align-items:center;justify-content:center}
+#vocabOverlay.show{display:flex}
+.vocab-panel{background:var(--white);border-radius:16px;padding:24px;max-width:440px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.vocab-panel h3{font-size:18px;color:var(--accent1);margin-bottom:16px}
+.vocab-item{padding:12px;background:#F8FAFC;border-radius:var(--radiusSm);margin-bottom:8px;border-left:4px solid var(--accent1)}
+.vocab-item strong{color:var(--accent1);font-size:14px;display:block;margin-bottom:2px}
+.vocab-item span{font-size:13px;color:var(--textLight)}
+.vocab-close{margin-top:12px;padding:10px 24px;background:var(--accent1);color:var(--white);font-size:14px;font-weight:600;border-radius:var(--radiusSm)}
+
+/* HINT OVERLAY */
+#hintOverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:4000;display:none;align-items:center;justify-content:center}
+#hintOverlay.show{display:flex}
+.hint-panel{background:var(--white);border-radius:16px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.hint-panel.h1{border-top:4px solid #F59E0B}
+.hint-panel.h2{border-top:4px solid #F97316}
+.hint-panel.sbs{border-top:4px solid var(--accent3)}
+.hint-panel h4{font-size:16px;margin-bottom:12px}
+.hint-panel p{font-size:14px;line-height:1.5;margin-bottom:12px}
+.hint-btn{padding:10px 24px;background:var(--accent1);color:var(--white);font-size:14px;font-weight:600;border-radius:var(--radiusSm);min-height:44px}
+.sbs-counter{font-size:12px;color:var(--textLight);margin-bottom:8px}
+
+/* COACHING BAR */
+.coaching-bar{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#FEF3C7;border:2px solid #F59E0B;border-radius:var(--radius);padding:14px 20px;max-width:500px;width:90%;z-index:3000;font-size:14px;color:#92400E;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.1);animation:slideUp .3s ease}
+.coaching-bar .dismiss{margin-top:8px;padding:6px 16px;background:#F59E0B;color:var(--white);font-size:12px;font-weight:600;border-radius:var(--radiusSm)}
+
+/* CELEBRATION */
+#celebOverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:6000;display:none;align-items:center;justify-content:center}
+#celebOverlay.show{display:flex}
+.celeb-box{text-align:center;animation:celebPop .5s ease}
+.celeb-box h2{font-size:28px;color:var(--white);text-shadow:0 2px 8px rgba(0,0,0,.3);margin-bottom:8px}
+.celeb-box p{font-size:18px;color:rgba(255,255,255,.9);text-shadow:0 1px 4px rgba(0,0,0,.2)}
+.celeb-box .affirmation{font-size:22px;color:var(--white);text-shadow:0 2px 8px rgba(0,0,0,.3);margin-top:12px;animation:fadeInUp .5s ease .3s both}
+.celeb-choices{margin-top:20px;display:flex;gap:12px;justify-content:center}
+.celeb-choices button{padding:14px 28px;font-size:16px;font-weight:700;border-radius:var(--radius);min-height:48px}
+.celeb-choices .primary{background:var(--accent2);color:var(--white)}
+.celeb-choices .secondary{background:rgba(255,255,255,.2);color:var(--white);border:2px solid rgba(255,255,255,.5)}
+
+/* RECEIPT */
+#receiptScreen{display:none;position:fixed;inset:0;background:var(--bg1);z-index:8000;overflow-y:auto;padding:20px}
+#receiptScreen.show{display:block}
+.receipt-box{max-width:650px;margin:0 auto;background:var(--white);border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);overflow:hidden}
+.receipt-header{background:linear-gradient(135deg,var(--accent1),var(--accent3));padding:24px;text-align:center;color:var(--white)}
+.receipt-header h2{font-size:20px;margin-bottom:4px}
+.receipt-header h3{font-size:14px;font-weight:400;opacity:.9}
+.receipt-body{padding:24px}
+.receipt-name-row{display:flex;gap:8px;align-items:center;margin-bottom:20px}
+.receipt-name-row input{flex:1;padding:10px 12px;border:2px solid #CBD5E1;border-radius:var(--radiusSm);font-size:15px}
+.receipt-name-row input:disabled{background:#F1F5F9;color:var(--text)}
+.receipt-name-row button{padding:10px 18px;background:var(--accent1);color:var(--white);font-size:13px;font-weight:600;border-radius:var(--radiusSm);min-height:40px}
+.overall-score{text-align:center;margin:20px 0}
+.overall-pct{font-size:52px;font-weight:800;display:block}
+.overall-pct.green{color:var(--correct)}
+.overall-pct.yellow{color:#CA8A04}
+.overall-pct.red{color:var(--wrong)}
+.overall-label{font-size:15px;font-weight:600;color:var(--textLight);margin-top:4px}
+.receipt-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+.receipt-table th{background:#F1F5F9;padding:8px;text-align:center;font-weight:600;border-bottom:2px solid #E2E8F0}
+.receipt-table td{padding:8px;text-align:center;border-bottom:1px solid #F1F5F9}
+.receipt-table tr:nth-child(even){background:#F8FAFC}
+.receipt-table .bonus-row{background:#FFF7ED}
+.receipt-table .score-cell.green{color:var(--correct);font-weight:700}
+.receipt-table .score-cell.yellow{color:#CA8A04;font-weight:700}
+.receipt-table .score-cell.red{color:var(--wrong);font-weight:700}
+.receipt-status{text-align:center;font-size:15px;font-weight:600;margin:12px 0;padding:10px;background:#F1F5F9;border-radius:var(--radiusSm)}
+.receipt-upload{text-align:center;margin:16px 0;font-size:14px;color:var(--textLight);padding:12px;background:#EFF6FF;border-radius:var(--radiusSm)}
+.receipt-actions{display:flex;gap:10px;justify-content:center;margin-top:16px}
+.receipt-actions button{padding:12px 24px;font-size:14px;font-weight:600;border-radius:var(--radiusSm);min-height:44px}
+
+/* PARTICLE LAYER */
+#particleLayer{position:fixed;inset:0;pointer-events:none;z-index:5500;overflow:hidden}
+.particle{position:absolute;width:8px;height:8px;border-radius:50%;display:none}
+
+/* CONFIRM DIALOG */
+#confirmDialog{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:none;align-items:center;justify-content:center}
+#confirmDialog.show{display:flex}
+.confirm-box{background:var(--white);border-radius:16px;padding:24px;max-width:380px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.confirm-box p{font-size:15px;margin-bottom:16px;line-height:1.4}
+.confirm-box .btn-row{display:flex;gap:10px;justify-content:center}
+.confirm-box button{padding:10px 22px;font-size:14px;font-weight:600;border-radius:var(--radiusSm);min-height:44px}
+
+/* ANIMATIONS */
+@keyframes dotPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+@keyframes btnPulse{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.4)}50%{box-shadow:0 0 0 10px rgba(16,185,129,0)}}
+@keyframes hlPulse{0%,100%{box-shadow:0 0 8px rgba(245,158,11,.4)}50%{box-shadow:0 0 16px rgba(245,158,11,.7)}}
+@keyframes slideUp{from{transform:translateX(-50%) translateY(40px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+@keyframes celebPop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes fadeInUp{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes cellPulse{0%,100%{background:#FEF9C3}50%{background:#FDE68A}}
+
+/* PRINT */
+@media print{
+#topBar,#bottomBar,#controlPanel,#arenaPanel,#dataPanel,#middleArea,#interactionZone,.bar-btn,#particleLayer{display:none!important}
+#receiptScreen{position:static!important;padding:0!important}
+.receipt-box{box-shadow:none!important;max-width:100%!important}
+.receipt-actions{display:none!important}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media(max-width:900px){
+#controlPanel{width:180px}#dataPanel{width:200px}
+}
+@media(max-width:700px){
+#middleArea{flex-direction:column}
+#controlPanel,#dataPanel{width:100%;max-height:30vh;border:none;border-bottom:2px solid #E2E8F0}
+}
+</style>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div id="welcomeScreen">
+<div class="welcome-box">
+<h1>Mr. Jawad's Simulations</h1>
+<h2>Mass Extinction Cascade &mdash; Lab</h2>
+<div class="hook">"What if the asteroid had been smaller &mdash; would anything survive?"</div>
+<label for="studentNameInput">Your Name</label>
+<input type="text" id="studentNameInput" placeholder="Enter your name" maxlength="40" autocomplete="off">
+<label for="teacherNameInput">Teacher Name (optional)</label>
+<input type="text" id="teacherNameInput" placeholder="Mr. Jawad" maxlength="40" autocomplete="off">
+<button id="startBtn" disabled>Start Lab</button>
+</div>
+</div>
+
+<!-- GAME CONTAINER -->
+<div id="gameContainer">
+<!-- TOP BAR -->
+<div id="topBar">
+<div class="round-badge"><div class="icon">&#128300;</div><span id="roundLabel">Round 1: Asteroid Impact</span></div>
+<div class="hud-group">
+<div class="hud-score" id="hudScore">Score: 0</div>
+<div class="hud-progress" id="hudProgress"></div>
+</div>
+</div>
+
+<!-- MIDDLE AREA -->
+<div id="middleArea">
+<!-- VARIABLE CONTROLS -->
+<div id="controlPanel">
+<div class="ctrl-label">Variables</div>
+<div class="slider-group" id="sg_asteroidSize">
+<h4>Asteroid Size</h4>
+<div class="slider-stops"><span>Small</span><span>Med</span><span>Large</span><span>Massive</span></div>
+<input type="range" id="sl_asteroidSize" min="0" max="3" step="1" value="0">
+<div class="slider-val" id="sv_asteroidSize">Small</div>
+</div>
+<div class="slider-group" id="sg_debrisThickness">
+<h4>Debris Thickness</h4>
+<div class="slider-stops"><span>Thin</span><span>Mod</span><span>Dense</span><span>Total</span></div>
+<input type="range" id="sl_debrisThickness" min="0" max="3" step="1" value="0">
+<div class="slider-val" id="sv_debrisThickness">Thin</div>
+</div>
+<div class="slider-group" id="sg_debrisDuration">
+<h4>Debris Duration</h4>
+<div class="slider-stops"><span>Months</span><span>Years</span><span>Decades</span></div>
+<input type="range" id="sl_debrisDuration" min="0" max="2" step="1" value="0">
+<div class="slider-val" id="sv_debrisDuration">Months</div>
+</div>
+<div id="guidedBox" class="guided-overlay" style="display:none"></div>
+<button id="runBtn" disabled>RUN</button>
+</div>
+
+<!-- SCIENCE ARENA — SVG cross-section -->
+<div id="arenaPanel">
+<div id="focusBanner"></div>
+<div class="sunlight-pct" id="sunPct">&#9728;&#65039; 100% reaching surface</div>
+<div class="debris-label" id="debrisLabel">Debris Cloud</div>
+<div class="impact-label" id="impactLabel">Impact Event</div>
+<!-- Floating dust particles (CSS animated, hidden until debris active) -->
+<div id="dustLayer" style="position:absolute;inset:0;pointer-events:none;z-index:2;opacity:0;transition:opacity 1.5s">
+<div class="dust-float d1" style="top:24%;left:12%"></div>
+<div class="dust-float d2" style="top:28%;left:35%"></div>
+<div class="dust-float d3" style="top:22%;left:58%"></div>
+<div class="dust-float d4" style="top:26%;left:78%"></div>
+<div class="dust-float d5" style="top:30%;left:45%"></div>
+<div class="dust-float d1" style="top:25%;left:90%"></div>
+<div class="dust-float d3" style="top:29%;left:20%"></div>
+<div class="dust-float d2" style="top:23%;left:65%"></div>
+</div>
+<svg id="arenaSvg" viewBox="0 0 600 450" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%">
+<defs>
+<!-- Sky gradient -->
+<linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0%" stop-color="#5BA3D9"/>
+<stop offset="25%" stop-color="#87CEEB"/>
+<stop offset="50%" stop-color="#B0D4E8"/>
+<stop offset="60%" stop-color="#C8B08A"/>
+<stop offset="100%" stop-color="#4A3728"/>
+</linearGradient>
+<!-- Sun gradient -->
+<radialGradient id="gSun" cx="50%" cy="50%" r="50%">
+<stop offset="0%" stop-color="#FFF7A0"/>
+<stop offset="40%" stop-color="#FFD700"/>
+<stop offset="100%" stop-color="#FFA500"/>
+</radialGradient>
+<!-- Sun corona -->
+<radialGradient id="gCorona" cx="50%" cy="50%" r="50%">
+<stop offset="0%" stop-color="rgba(255,215,0,.3)"/>
+<stop offset="100%" stop-color="rgba(255,215,0,0)"/>
+</radialGradient>
+<!-- Health bar fills -->
+<linearGradient id="gPlantBar"><stop offset="0%" stop-color="#15803D"/><stop offset="100%" stop-color="#4ADE80"/></linearGradient>
+<linearGradient id="gHerbBar"><stop offset="0%" stop-color="#92400E"/><stop offset="100%" stop-color="#EAB308"/></linearGradient>
+<linearGradient id="gPredBar"><stop offset="0%" stop-color="#991B1B"/><stop offset="100%" stop-color="#F87171"/></linearGradient>
+<!-- Terrain texture -->
+<linearGradient id="gTerrain" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0%" stop-color="#8B7355"/>
+<stop offset="40%" stop-color="#6B5743"/>
+<stop offset="100%" stop-color="#4A3728"/>
+</linearGradient>
+<!-- Debris cloud gradient -->
+<linearGradient id="gDebris" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0%" stop-color="rgba(60,40,20,.0)" id="debrisStop1"/>
+<stop offset="50%" stop-color="rgba(50,35,20,.0)" id="debrisStop2"/>
+<stop offset="100%" stop-color="rgba(40,30,15,.0)" id="debrisStop3"/>
+</linearGradient>
+</defs>
+
+<!-- Sky background -->
+<rect width="600" height="450" fill="url(#gSky)"/>
+
+<!-- Stars in sky (subtle) -->
+<circle cx="50" cy="18" r="1" fill="rgba(255,255,255,.3)"/>
+<circle cx="150" cy="12" r=".8" fill="rgba(255,255,255,.25)"/>
+<circle cx="480" cy="20" r="1" fill="rgba(255,255,255,.3)"/>
+<circle cx="540" cy="8" r=".7" fill="rgba(255,255,255,.2)"/>
+
+<!-- Sun corona glow -->
+<circle id="sunCorona" cx="300" cy="38" r="50" fill="url(#gCorona)" opacity="1" style="transition:opacity 1.5s"/>
+<!-- Sun body -->
+<circle id="sunBody" cx="300" cy="38" r="22" fill="url(#gSun)" style="transition:opacity 1.5s"/>
+
+<!-- Sun rays (animated light beams) -->
+<g id="sunRaysG">
+<line class="svg-ray" x1="180" y1="60" x2="140" y2="185" stroke="#FFD700" stroke-width="2.5" opacity=".35"/>
+<line class="svg-ray" x1="220" y1="60" x2="200" y2="185" stroke="#FFD700" stroke-width="2" opacity=".3"/>
+<line class="svg-ray" x1="260" y1="60" x2="250" y2="185" stroke="#FFD700" stroke-width="3" opacity=".4"/>
+<line class="svg-ray" x1="300" y1="60" x2="300" y2="185" stroke="#FFD700" stroke-width="2.5" opacity=".35"/>
+<line class="svg-ray" x1="340" y1="60" x2="350" y2="185" stroke="#FFD700" stroke-width="2" opacity=".3"/>
+<line class="svg-ray" x1="380" y1="60" x2="400" y2="185" stroke="#FFD700" stroke-width="3" opacity=".4"/>
+<line class="svg-ray" x1="420" y1="60" x2="460" y2="185" stroke="#FFD700" stroke-width="2.5" opacity=".35"/>
+<line class="svg-ray" x1="230" y1="60" x2="220" y2="185" stroke="#FFA500" stroke-width="1.5" opacity=".2"/>
+<line class="svg-ray" x1="370" y1="60" x2="380" y2="185" stroke="#FFA500" stroke-width="1.5" opacity=".2"/>
+</g>
+
+<!-- Atmosphere / Debris cloud layer -->
+<rect id="debrisRect" x="0" y="105" width="600" height="80" fill="url(#gDebris)" style="transition:opacity 1s"/>
+
+<!-- Surface terrain (wavy) -->
+<path d="M0,195 Q50,188 100,192 Q150,198 200,190 Q250,194 280,187 Q320,190 360,195 Q400,188 440,192 Q500,196 550,189 L600,193 L600,450 L0,450 Z" fill="url(#gTerrain)"/>
+<!-- Rock details on surface -->
+<ellipse cx="90" cy="196" rx="12" ry="5" fill="#7A6548" opacity=".6"/>
+<ellipse cx="320" cy="192" rx="8" ry="4" fill="#7A6548" opacity=".5"/>
+<ellipse cx="510" cy="194" rx="10" ry="4" fill="#7A6548" opacity=".55"/>
+<!-- Small vegetation tufts on terrain -->
+<path d="M60,192 Q63,185 66,192" stroke="#5A7A3A" stroke-width="2" fill="none" opacity=".5"/>
+<path d="M160,194 Q163,187 166,194" stroke="#5A7A3A" stroke-width="2" fill="none" opacity=".4"/>
+<path d="M430,190 Q433,183 436,190" stroke="#5A7A3A" stroke-width="2" fill="none" opacity=".5"/>
+
+<!-- ===== ASTEROID ===== -->
+<g id="asteroidG" class="offscreen">
+<!-- Asteroid body -->
+<ellipse cx="120" cy="190" rx="16" ry="14" fill="#6B6B6B" stroke="#4A4A4A" stroke-width="1"/>
+<ellipse cx="120" cy="190" rx="16" ry="14" fill="none" stroke="#888" stroke-width=".5" opacity=".4"/>
+<!-- Craters -->
+<circle cx="114" cy="185" r="3" fill="#555" opacity=".6"/>
+<circle cx="125" cy="192" r="2" fill="#555" opacity=".5"/>
+<circle cx="118" cy="195" r="1.5" fill="#555" opacity=".4"/>
+<!-- Highlight -->
+<ellipse cx="112" cy="183" rx="4" ry="3" fill="rgba(200,200,200,.3)"/>
+<!-- Trail -->
+<line x1="120" y1="176" x2="120" y2="140" stroke="rgba(255,150,50,.3)" stroke-width="4" stroke-linecap="round"/>
+<line x1="120" y1="176" x2="118" y2="150" stroke="rgba(255,200,100,.15)" stroke-width="8" stroke-linecap="round"/>
+</g>
+
+<!-- Impact burst rings -->
+<g id="impactBurstG">
+<circle class="impact-ring" cx="120" cy="192" r="20" fill="rgba(255,200,0,.5)" stroke="rgba(255,100,0,.6)" stroke-width="2"/>
+<circle class="impact-ring" cx="120" cy="192" r="35" fill="rgba(255,150,0,.2)" stroke="rgba(255,80,0,.3)" stroke-width="1.5"/>
+<circle class="impact-ring" cx="120" cy="192" r="55" fill="none" stroke="rgba(255,200,0,.15)" stroke-width="1"/>
+</g>
+
+<!-- ===== ECOSYSTEM SECTION ===== -->
+
+<!-- PLANTS ROW — y: 215–260 -->
+<g id="orgPlants">
+<!-- Spotlight ring -->
+<rect class="spotlight-ring" id="spotPlants" x="18" y="210" width="564" height="55" rx="8" fill="none" stroke="#FFD700" stroke-width="2" opacity=".5"/>
+<!-- Plant organisms group -->
+<g id="plantIcons" class="svg-org-group">
+<!-- Tree 1 -->
+<polygon points="48,252 62,222 76,252" fill="#2D8B4E" opacity=".9"/>
+<polygon points="52,244 62,228 72,244" fill="#3BA55D"/>
+<rect x="59" y="252" width="6" height="8" fill="#6B4423" rx="1"/>
+<!-- Tree 2 -->
+<polygon points="85,254 97,226 109,254" fill="#2D8B4E" opacity=".85"/>
+<polygon points="88,246 97,230 106,246" fill="#3BA55D"/>
+<rect x="94" y="254" width="5" height="7" fill="#6B4423" rx="1"/>
+<!-- Fern cluster -->
+<path d="M120,256 Q128,240 122,230" stroke="#3BA55D" stroke-width="2.5" fill="none"/>
+<path d="M122,256 Q130,242 128,234" stroke="#2D8B4E" stroke-width="2" fill="none"/>
+<path d="M126,256 Q120,244 124,236" stroke="#4ADE80" stroke-width="1.5" fill="none"/>
+<!-- Small bush -->
+<ellipse cx="145" cy="254" rx="10" ry="6" fill="#2D8B4E" opacity=".8"/>
+<ellipse cx="143" cy="252" rx="7" ry="5" fill="#3BA55D"/>
+</g>
+<!-- Label -->
+<text x="170" y="242" class="arena-label" fill="#4ADE80" font-size="11">Plants</text>
+<!-- Health bar background -->
+<rect x="220" y="235" width="240" height="14" rx="7" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+<!-- Health bar fill -->
+<rect id="hbPlants" x="220" y="235" width="240" height="14" rx="7" fill="url(#gPlantBar)" class="hb-fill-svg"/>
+<!-- Health % text -->
+<text id="hpPlants" x="470" y="247" fill="#fff" font-size="11" font-weight="700" font-family="system-ui">100%</text>
+</g>
+
+<!-- CHAIN ARROW 1 — y: 262–280 -->
+<g id="ca1" class="chain-arrow-svg">
+<path class="arrow-body" d="M295,266 L305,266 L305,278 L310,278 L300,288 L290,278 L295,278 Z"/>
+<polygon class="arrow-head" points="300,288 290,278 310,278" fill="rgba(255,255,255,.15)"/>
+<text class="arrow-label" x="316" y="280">Food Chain</text>
+</g>
+
+<!-- HERBIVORES ROW — y: 290–335 -->
+<g id="orgHerbs">
+<rect class="spotlight-ring" id="spotHerbs" x="18" y="285" width="564" height="55" rx="8" fill="none" stroke="#FFD700" stroke-width="2" opacity=".5"/>
+<!-- Herbivore organisms -->
+<g id="herbIcons" class="svg-org-group">
+<!-- Triceratops 1 (simplified) -->
+<path d="M55,328 Q55,310 65,308 L75,304 L82,308 Q78,302 82,298 L86,302 Q84,298 88,296 L90,300 L88,306 L92,310 Q95,312 95,320 L95,328 L88,328 L88,322 L78,322 L78,328 L72,328 L72,320 L62,322 L62,328 Z" fill="#A16207" opacity=".85"/>
+<circle cx="78" cy="310" r="1.5" fill="#2C1810"/>
+<!-- Horn detail -->
+<line x1="82" y1="304" x2="80" y2="298" stroke="#D4A853" stroke-width="1.5" stroke-linecap="round"/>
+<!-- Triceratops 2 (smaller) -->
+<path d="M108,330 Q108,316 116,314 L124,310 L128,314 Q126,310 130,308 L131,311 L129,314 L132,316 Q134,318 134,324 L134,330 L128,330 L128,326 L120,326 L120,330 L114,330 L114,324 L110,326 L110,330 Z" fill="#B8860B" opacity=".75"/>
+<circle cx="120" cy="316" r="1.2" fill="#2C1810"/>
+</g>
+<text x="170" y="317" class="arena-label" fill="#EAB308" font-size="11">Herbivores</text>
+<rect x="220" y="310" width="240" height="14" rx="7" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+<rect id="hbHerbs" x="220" y="310" width="240" height="14" rx="7" fill="url(#gHerbBar)" class="hb-fill-svg"/>
+<text id="hpHerbs" x="470" y="322" fill="#fff" font-size="11" font-weight="700" font-family="system-ui">100%</text>
+</g>
+
+<!-- CHAIN ARROW 2 — y: 337–355 -->
+<g id="ca2" class="chain-arrow-svg">
+<path class="arrow-body" d="M295,341 L305,341 L305,353 L310,353 L300,363 L290,353 L295,353 Z"/>
+<polygon class="arrow-head" points="300,363 290,353 310,353" fill="rgba(255,255,255,.15)"/>
+<text class="arrow-label" x="316" y="355">Chain Reaction</text>
+</g>
+
+<!-- PREDATORS ROW — y: 365–410 -->
+<g id="orgPreds">
+<rect class="spotlight-ring" id="spotPreds" x="18" y="360" width="564" height="55" rx="8" fill="none" stroke="#FFD700" stroke-width="2" opacity=".5"/>
+<!-- Predator organisms -->
+<g id="predIcons" class="svg-org-group">
+<!-- T-Rex 1 (simplified silhouette) -->
+<path d="M55,403 L55,395 L52,390 L52,385 L56,382 L60,378 L65,375 L72,372 L80,370 L85,372 L88,370 L92,372 L90,375 L85,374 L82,376 L84,378 L90,380 L92,384 L90,388 L92,392 L92,398 L92,403 L86,403 L86,396 L82,392 L78,396 L78,403 L72,403 L72,394 L68,390 L64,394 L64,403 Z" fill="#DC2626" opacity=".85"/>
+<circle cx="82" cy="375" r="1.5" fill="#FFF" opacity=".8"/>
+<circle cx="82" cy="375" r=".8" fill="#2C1810"/>
+<!-- Small teeth detail -->
+<path d="M85,374 L86,376 L87,374 L88,376" stroke="#FFF" stroke-width=".5" fill="none" opacity=".6"/>
+<!-- T-Rex 2 (smaller) -->
+<path d="M105,405 L105,398 L103,394 L104,390 L108,386 L114,384 L120,382 L125,384 L127,382 L129,384 L127,386 L122,385 L120,387 L122,389 L126,390 L128,394 L126,397 L126,400 L126,405 L122,405 L122,400 L118,396 L116,400 L116,405 L112,405 L112,398 L108,395 L106,398 L106,405 Z" fill="#B91C1C" opacity=".7"/>
+<circle cx="120" cy="385" r="1.2" fill="#FFF" opacity=".7"/>
+</g>
+<text x="170" y="392" class="arena-label" fill="#F87171" font-size="11">Predators</text>
+<rect x="220" y="385" width="240" height="14" rx="7" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+<rect id="hbPreds" x="220" y="385" width="240" height="14" rx="7" fill="url(#gPredBar)" class="hb-fill-svg"/>
+<text id="hpPreds" x="470" y="397" fill="#fff" font-size="11" font-weight="700" font-family="system-ui">100%</text>
+</g>
+
+</svg>
+</div>
+
+<!-- DATA TABLE -->
+<div id="dataPanel">
+<div class="dt-title">Lab Data</div>
+<table id="dataTable">
+<thead>
+<tr><th>Rnd</th><th>Variable</th><th>Setting</th><th>Sun%</th><th>Plant</th><th>Herb</th><th>Pred</th></tr>
+</thead>
+<tbody id="dataBody"></tbody>
+</table>
+</div>
+</div>
+
+<!-- INTERACTION ZONE -->
+<div id="interactionZone"></div>
+
+<!-- BOTTOM BAR -->
+<div id="bottomBar">
+<div class="bottom-left">
+<button class="bar-btn" id="vocabBtn">&#128214; Vocab</button>
+<button class="bar-btn" id="hintBtn">&#128161; Hint</button>
+</div>
+<div class="bottom-center" id="roundCounter">Round 1 of 6</div>
+<div class="bottom-right">
+<button class="bar-btn" id="resetLevelBtn">&#8635; Reset Level</button>
+<button class="bar-btn danger" id="newRunBtn">New Run</button>
+</div>
+</div>
+</div>
+
+<!-- OVERLAYS -->
+<div id="vocabOverlay"><div class="vocab-panel">
+<h3>&#128214; Key Vocabulary</h3>
+<div class="vocab-item"><strong>IMPACT EVENT</strong><span>Powerful collision that changes Earth. Look for the asteroid strike animation and crater flash in the arena.</span></div>
+<div class="vocab-item"><strong>DEBRIS CLOUD</strong><span>Dust and rock blocking sunlight. Look for the dark dust layer in the atmosphere controlled by the thickness slider.</span></div>
+<div class="vocab-item"><strong>FOOD CHAIN</strong><span>Connected feeding relationships in ecosystems. Look for the three linked organism rows (plants, herbivores, predators) with connecting arrows.</span></div>
+<div class="vocab-item"><strong>CHAIN REACTION</strong><span>Each change causing the next. Look for the bold directional arrows connecting every cascade step, pulsing as each activates.</span></div>
+<button class="vocab-close" id="vocabClose">Got it</button>
+</div></div>
+
+<div id="hintOverlay"></div>
+<div id="celebOverlay"></div>
+<div id="receiptScreen"></div>
+<div id="confirmDialog"></div>
+<div id="particleLayer"></div>
+
+<script>
+// ============ UTILITIES ============
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function $(id){return document.getElementById(id)}
+function closeAllOverlays(){
+  document.querySelectorAll('.coaching-bar').forEach(e=>e.remove());
+  $('hintOverlay').classList.remove('show');$('hintOverlay').innerHTML='';
+  $('vocabOverlay').classList.remove('show');
+  $('celebOverlay').classList.remove('show');$('celebOverlay').innerHTML='';
+  $('confirmDialog').classList.remove('show');
+}
+let arenaGen=0;
+function safeTimeout(fn,ms){const g=arenaGen;return setTimeout(()=>{if(arenaGen===g)try{fn()}catch(e){console.error('safeTimeout err',e)}},ms)}
+let processing=false;
+let audioCtx=null;
+function getAudioCtx(){if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}return audioCtx}
+function playTone(freq,dur){try{const c=getAudioCtx();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=freq;g.gain.value=0.08;o.start();o.stop(c.currentTime+dur)}catch(e){}}
+function playCorrect(){playTone(523,.08);setTimeout(()=>playTone(659,.08),80);setTimeout(()=>playTone(784,.12),160)}
+function playWrong(){playTone(220,.15)}
+
+// ============ GAME STATE ============
+const SIZES=['Small','Medium','Large','Massive'];
+const THICKS=['Thin','Moderate','Dense','Total blackout'];
+const DURS=['Months','Years','Decades'];
+let state={
+  studentName:'',teacherName:'Mr. Jawad',
+  currentRound:0,phase:'',
+  scores:[],totalScore:0,
+  roundData:[],
+  sliders:{asteroidSize:0,debrisThickness:0,debrisDuration:0},
+  initialSliders:{},
+  wrongCount:0,hintsUsed:0,levelResets:0,
+  roundStartTime:0,
+  consecutiveFastWrongs:0,
+  selectedOption:-1,
+  predictionChoice:-1,predictionCorrect:null,
+  requiredCompleteShown:false,bonusCompleteShown:false,receiptRendered:false,
+  dataErrors:{},recordVerified:false,
+  sliderChanged:false
+};
+
+const AFFIRMATIONS=[
+  n=>n+' is proud of you!',
+  n=>n+' knew you could do it!',
+  n=>"That's the kind of thinking "+n+' loves to see!',
+  n=>n+' says: you are getting it!',
+  n=>'Strong work — '+n+' sees your effort!',
+  n=>n+' is impressed right now!',
+  n=>"You are showing "+n+' what you can do!',
+  n=>n+' says: keep that energy!'
+];
+let lastAffirmIdx=-1;
+function getAffirmation(){let i;do{i=Math.floor(Math.random()*AFFIRMATIONS.length)}while(i===lastAffirmIdx&&AFFIRMATIONS.length>1);lastAffirmIdx=i;return AFFIRMATIONS[i](state.teacherName)}
+
+// ============ ROUND DATA ============
+const ROUNDS=[
+// ROUND 1
+{
+  num:1,name:'Asteroid Impact',required:true,guided:true,hasPrediction:false,isBonus:false,
+  scienceSkill:'Observe and describe the relationship between asteroid size and downstream debris/food chain effects',
+  focusPrompt:'Watch what happens to the debris cloud and the food chain health bars when you make the asteroid bigger.',
+  activeVars:['asteroidSize'],
+  lockedDefaults:{debrisThickness:2,debrisDuration:1},
+  guidedText:'Try sliding the asteroid from Small to Massive, then press RUN.',
+  outcome:{sunlight:3,plantHealth:0,herbPop:0,predPop:0},
+  recordData:{variable:'Asteroid Size',setting:'Massive',sunlight:3,plantHealth:0,herbPop:0,predPop:0},
+  intentionalError:null,
+  recordVerification:{prompt:'Check the Sunlight % column — what number does it show?',targetCol:'sunlight',correctVal:'3%'},
+  prove:{
+    question:'Why did all three health bars drop after a Massive asteroid?',
+    options:['The asteroid directly killed every organism on impact','The debris cloud blocked sunlight, which collapsed the food chain step by step','The predators ran out of water after the impact'],
+    correct:1,
+    wrongFeedback:[
+      {text:'The asteroid hit one spot — but the damage spread everywhere. Look at the debris cloud. What did it block?',hl:'debrisCloud'},
+      null,
+      {text:'Water is not shown on the model. Look at the chain reaction arrows — what connects the debris cloud to the predators?',hl:'chainArrows'}
+    ]
+  },
+  hints:{
+    hint1:{text:'Look at the sunlight percentage in the atmosphere layer — how much sunlight reached the plants?',hl:'sunPct'},
+    hint2:{text:'It is not about water. Follow the arrows from debris cloud downward.',eliminate:2},
+    stepByStep:['You set asteroid to Massive — a huge debris cloud formed.','The debris cloud blocked sunlight — look at the sunlight % dropping.','Plants needed sunlight. When plants died, herbivores starved, then predators starved. Pick the option about the chain.']
+  },
+  watchSequence:'standard'
+},
+// ROUND 2
+{
+  num:2,name:'Duration Damage',required:true,guided:true,hasPrediction:false,isBonus:false,
+  scienceSkill:'Observe how debris cloud duration determines whether the food chain can recover or permanently collapses',
+  focusPrompt:'Watch the health bars one at a time — what happens to plants, then herbivores, then predators when debris lasts Decades?',
+  activeVars:['debrisDuration'],
+  lockedDefaults:{asteroidSize:2,debrisThickness:2},
+  guidedText:'Set duration to Decades, then press RUN.',
+  outcome:{sunlight:5,plantHealth:0,herbPop:0,predPop:0},
+  recordData:{variable:'Duration',setting:'Decades',sunlight:5,plantHealth:0,herbPop:0,predPop:0},
+  intentionalError:{col:'herbPop',wrongVal:4,correctVal:0,coaching:'Nice catch — plants were at 0% for decades, so herbivores had no food. 0% is right.',missCoaching:'Hold on — look at the flagged cell. If plants are at 0% for decades, can herbivores survive at all?'},
+  recordVerification:{prompt:'The computer sometimes logs data wrong. Check each number — does it match what you saw?',targetCol:null,correctVal:null},
+  prove:{
+    question:'Why does a longer debris cloud cause more food chain damage?',
+    options:['Plants cannot regrow if sunlight is blocked too long','The asteroid gets bigger over time','Predators eat faster when it is dark'],
+    correct:0,
+    wrongFeedback:[
+      null,
+      {text:'The asteroid already hit — its size did not change. Look at the duration slider. What stayed blocked?',hl:'durationSlider'},
+      {text:'Predator behavior is not what changed. Look at the plant health bar — what happened to it over decades?',hl:'plantBar'}
+    ]
+  },
+  hints:{
+    hint1:{text:'Look at the plant health bar at Months versus Decades — did plants recover in both?',hl:'plantBar'},
+    hint2:{text:'The asteroid already hit. Focus on what the duration slider controls.',eliminate:1},
+    stepByStep:['You changed how long the debris cloud lasted.','At Months, plants started recovering — see the health bar bounce back.','At Decades, plants never recovered. If plants die permanently, the whole food chain follows. Pick the option about plants and sunlight.']
+  },
+  watchSequence:'staged'
+},
+// ROUND 3
+{num:3,name:'Thickness Test',required:true,guided:false,hasPrediction:true,isBonus:false,
+activeVars:['debrisThickness'],lockedDefaults:{asteroidSize:2,debrisDuration:1},
+focusPrompt:'Before you press RUN, predict what Total blackout does to the WHOLE food chain — not just plants.',
+outcome:{sunlight:0,plantHealth:0,herbPop:0,predPop:0},
+recordData:{variable:'Thickness',setting:'Total blackout',sunlight:0,plantHealth:0,herbPop:0,predPop:0},
+intentionalError:null,
+recordVerification:{prompt:'Check the data table — compare this round to your earlier rounds. Do the numbers make sense?',targetCol:null,correctVal:null},
+prediction:{prompt:'If I set debris cloud to Total blackout, I think...',optA:'Plants will die first, then herbivores and predators will follow — the whole chain collapses',optB:'Only plants will die — herbivores and predators will not be affected',correct:0},
+prove:{
+  question:'What pattern connects debris thickness to plant survival?',
+  options:['Thicker debris helps plants grow stronger','Debris thickness does not affect plants at all','Thicker debris blocks more sunlight, killing more plants'],
+  correct:2,
+  wrongFeedback:[
+    {text:'Look at the plant health bar — did plants get stronger at Total blackout? Compare to the data table from earlier rounds.',hl:'plantBar'},
+    {text:'The data table shows plant health changed. Compare Round 1 to Round 3 — did plant health stay the same?',hl:'sunPct'},
+    null
+  ]
+},
+hints:{
+  hint1:{text:'Look at the data table — compare the Sunlight % in Round 1 (Dense debris) to Round 3 (Total blackout). What happened to the number?',hl:'sunPct'},
+  hint2:{text:'Plants did not get stronger. Look at what happened to plant health when sunlight dropped to 0%.',eliminate:0},
+  stepByStep:['In Round 1, Dense debris let 3% sunlight through. In Round 3, Total blackout let 0% through.','Both times, plants died — but Total blackout was worse.','Thicker debris blocks more sunlight. More blocked sunlight means more plant death. Pick the option that says thicker equals more damage.']
+},
+watchSequence:'standard'},
+// ROUND 4
+{num:4,name:'Tipping Point',required:true,guided:false,hasPrediction:true,isBonus:false,
+activeVars:['asteroidSize'],lockedDefaults:{debrisThickness:2,debrisDuration:1},
+focusPrompt:'Predict whether a Medium asteroid is big enough to collapse the food chain — then test it.',
+outcome:{sunlight:12,plantHealth:0,herbPop:0,predPop:0},
+recordData:{variable:'Asteroid Size',setting:'Medium',sunlight:12,plantHealth:0,herbPop:0,predPop:0},
+intentionalError:{col:'sunlight',wrongVal:22,correctVal:12,coaching:'Good eye — the sun rays were almost completely blocked. 12% is what the arena showed.',missCoaching:'Look at the flagged cell. The table says 22% sunlight, but the plant health bar shows 0%. Could plants really be dead at 22% sunlight? Check the sun rays.'},
+recordVerification:{prompt:'Check for computer mistakes again — does every number match what you saw on screen?',targetCol:null,correctVal:null},
+prediction:{prompt:'If I set asteroid size to Medium (with Dense debris and Years duration), I think...',optA:'The food chain will survive because Medium is not big enough',optB:'The food chain will collapse because Dense debris for Years is still too much',correct:1},
+prove:{
+  question:'You tested Medium — what does your data prove about it?',
+  options:['Medium is too small to collapse the food chain','Medium collapses the food chain when debris is Dense for Years','Medium and Massive cause exactly the same amount of damage'],
+  correct:1,
+  wrongFeedback:[
+    {text:'Too small? Look at your Round 4 data — did the food chain survive or collapse at Medium?',hl:'plantBar'},
+    null,
+    {text:'Compare Round 1 (Massive) and Round 4 (Medium) in the data table — are the sunlight percentages the same?',hl:'sunPct'}
+  ]
+},
+hints:{
+  hint1:{text:'Look at the data table for Round 4 — what happened to the predator population when you used a Medium asteroid?',hl:'chainArrows'},
+  hint2:{text:'Massive and Medium are not identical — check the sunlight numbers. Focus on whether Medium collapsed the chain.',eliminate:2},
+  stepByStep:['You set the asteroid to Medium with Dense debris for Years.','All three health bars dropped to zero — the food chain collapsed completely.','So Medium IS big enough to collapse the food chain under these conditions. Pick the option that says Medium caused collapse.']
+},
+watchSequence:'standard'},
+// ROUND 5
+{num:5,name:'Survival Edge',required:false,guided:false,hasPrediction:false,isBonus:true,
+activeVars:['asteroidSize','debrisDuration'],lockedDefaults:{debrisThickness:2},
+focusPrompt:'You now control TWO variables — find the combination where the food chain BARELY survives.',
+outcome:{sunlight:65,plantHealth:58,herbPop:35,predPop:12},
+recordData:{variable:'Size + Duration',setting:'Small + Months',sunlight:65,plantHealth:58,herbPop:35,predPop:12},
+intentionalError:null,
+recordVerification:{prompt:'Check your data — the numbers show the result of your combination.',targetCol:null,correctVal:null},
+prove:{
+  question:'Why did the food chain survive with your combination?',
+  options:['A smaller asteroid and shorter duration let sunlight return before plants died completely','The debris cloud cleared, but it did not matter — plants were already dead','The predators found food from a different source outside the food chain'],
+  correct:0,
+  wrongFeedback:[
+    null,
+    {text:'Look at the plant health bar — it is not at zero. Plants started recovering when the debris cleared. If plants were already dead, the bar would show 0%.',hl:'plantBar'},
+    {text:'The model does not show any food sources outside the chain. Look at the food chain arrows — predators depend on herbivores, who depend on plants. There is no other path.',hl:'chainArrows'}
+  ]
+},
+hints:{
+  hint1:{text:'Look at the sunlight percentage — did it stay at 0% or recover?',hl:'sunPct'},
+  hint2:{text:'The model does not show any food sources outside the chain. Focus on what changed about sunlight.',eliminate:2},
+  stepByStep:['You used a smaller asteroid and shorter duration.','The debris cloud cleared before plants died completely — sunlight returned.','When sunlight returned, plants recovered, and the food chain survived. Pick the option about sunlight returning.']
+},
+watchSequence:'standard'},
+// ROUND 6
+{num:6,name:'Extinction Threshold',required:false,guided:false,hasPrediction:false,isBonus:true,
+activeVars:['asteroidSize','debrisThickness','debrisDuration'],lockedDefaults:{},
+focusPrompt:'Two starting setups are loaded — run both and compare. Which one is closer to the collapse edge?',
+outcome:{sunlight:0,plantHealth:0,herbPop:0,predPop:0},
+recordData:{variable:'All Three',setting:'Custom',sunlight:0,plantHealth:0,herbPop:0,predPop:0},
+intentionalError:null,
+recordVerification:{prompt:'Check your data from your exploration run.',targetCol:null,correctVal:null},
+prove:{
+  question:'Which variable matters MOST for collapsing the food chain?',
+  options:['Asteroid size matters most — the other sliders barely changed anything','Duration matters most — even a massive asteroid is harmless if debris clears fast','No single slider determined everything — the combination of all three decided the outcome'],
+  correct:2,
+  wrongFeedback:[
+    {text:'In Round 5 you found that a small asteroid with short duration did not collapse the chain — but in Round 4, a Medium asteroid with long duration did. Duration and thickness mattered too, not just size.',hl:'durationSlider'},
+    {text:'Duration is important — but it is not the only factor. In Case A, Small asteroid with Dense debris for Decades still did not fully collapse the chain. If duration were everything, Decades should always cause collapse.',hl:'debrisCloud'},
+    null
+  ]
+},
+hints:{
+  hint1:{text:'Compare Case A and Case B in the arena — one used a small asteroid with long duration, the other used a medium asteroid with short duration. Did either one by itself determine the result?',hl:'chainArrows'},
+  hint2:{text:'Duration is important, but it is not everything — Case A had Decades and did not fully collapse. Look at what was different between the combinations.',eliminate:1},
+  stepByStep:['Case A: Small + Dense + Decades resulted in herbivores barely surviving. Case B: Medium + Thin + Years resulted in everything surviving.','Neither size alone nor duration alone determined collapse — the combination of all three sliders together decided the outcome.','Pick the option that says no single slider determined everything.']
+},
+caseMode:true,
+caseA:{asteroidSize:0,debrisThickness:2,debrisDuration:2,label:'Case A: Small + Dense + Decades',outcome:{sunlight:8,plantHealth:0,herbPop:8,predPop:0}},
+caseB:{asteroidSize:1,debrisThickness:0,debrisDuration:1,label:'Case B: Medium + Thin + Years',outcome:{sunlight:55,plantHealth:45,herbPop:30,predPop:10}},
+watchSequence:'standard'}
+];
+
+// ============ PARTICLES ============
+const PARTICLE_POOL=[];
+function initParticles(){const layer=$('particleLayer');for(let i=0;i<15;i++){const p=document.createElement('div');p.className='particle';p.style.display='none';layer.appendChild(p);PARTICLE_POOL.push(p)}}
+let particleIdx=0;
+function spawnParticle(x,y,color){const p=PARTICLE_POOL[particleIdx%15];particleIdx++;p.style.display='block';p.style.left=x+'px';p.style.top=y+'px';p.style.background=color;p.style.transform='scale(1)';p.style.opacity='1';p.style.transition='none';void p.offsetHeight;const dx=(Math.random()-.5)*200,dy=-Math.random()*200-50;p.style.transition='all 1.2s ease-out';p.style.left=(x+dx)+'px';p.style.top=(y+dy)+'px';p.style.opacity='0';p.style.transform='scale(0.3)';setTimeout(()=>{p.style.display='none'},1300)}
+function burstParticles(n,cx,cy){const colors=['#FFD700','#3B82F6','#10B981','#F59E0B','#8B5CF6','#EF4444'];for(let i=0;i<Math.min(n,15);i++){setTimeout(()=>spawnParticle(cx+Math.random()*100-50,cy+Math.random()*60-30,colors[i%colors.length]),i*50)}}
+
+// ============ INIT ============
+const studentInput=$('studentNameInput');
+const teacherInput=$('teacherNameInput');
+const startBtn=$('startBtn');
+studentInput.addEventListener('input',()=>{startBtn.disabled=studentInput.value.trim().length<1});
+startBtn.addEventListener('click',startGame);
+
+function startGame(){
+  if(processing)return;processing=true;
+  state.studentName=studentInput.value.trim();
+  state.teacherName=teacherInput.value.trim()||'Mr. Jawad';
+  $('welcomeScreen').style.display='none';
+  $('gameContainer').style.display='flex';
+  initParticles();buildProgressDots();initSunRays();
+  loadRound(0);
+  processing=false;
+}
+
+function buildProgressDots(){
+  const c=$('hudProgress');c.innerHTML='';
+  ROUNDS.forEach((r,i)=>{const d=document.createElement('div');d.className='prog-dot'+(r.isBonus?' bonus':'');d.id='dot_'+i;c.appendChild(d)});
+}
+function updateProgressDots(){
+  ROUNDS.forEach((r,i)=>{
+    const d=$('dot_'+i);if(!d)return;
+    d.className='prog-dot'+(r.isBonus?' bonus':'');
+    if(state.scores[i]!==undefined)d.classList.add('done');
+    if(i===state.currentRound)d.classList.add('current');
+  });
+}
+
+function initSunRays(){/* Sun rays are now inline SVG — no init needed */}
+
+// ============ SLIDER CONTROLS ============
+const sliderEls={asteroidSize:$('sl_asteroidSize'),debrisThickness:$('sl_debrisThickness'),debrisDuration:$('sl_debrisDuration')};
+const sliderLabels={asteroidSize:SIZES,debrisThickness:THICKS,debrisDuration:DURS};
+Object.keys(sliderEls).forEach(k=>{
+  sliderEls[k].addEventListener('input',()=>{
+    const v=parseInt(sliderEls[k].value);
+    state.sliders[k]=v;
+    $('sv_'+k).textContent=sliderLabels[k][v];
+    state.sliderChanged=true;
+    updateRunBtn();
+    if(k==='asteroidSize')updateAsteroidSize(v);
+  });
+});
+function updateRunBtn(){
+  const r=ROUNDS[state.currentRound];if(!r)return;
+  const btn=$('runBtn');
+  if(state.phase==='change'&&state.sliderChanged){btn.disabled=false;btn.classList.add('pulse')}
+  else{btn.disabled=true;btn.classList.remove('pulse')}
+}
+$('runBtn').addEventListener('click',onRun);
+
+function setupSliders(round){
+  const r=round;
+  ['asteroidSize','debrisThickness','debrisDuration'].forEach(k=>{
+    const sg=$('sg_'+k);const sl=sliderEls[k];
+    if(r.activeVars.includes(k)){
+      sg.classList.remove('locked');sg.classList.add('active');
+      sl.disabled=false;
+      if(r.guided){sl.value=0;state.sliders[k]=0;$('sv_'+k).textContent=sliderLabels[k][0]}
+    }else{
+      sg.classList.add('locked');sg.classList.remove('active');
+      sl.disabled=true;
+      const dv=r.lockedDefaults[k]!==undefined?r.lockedDefaults[k]:0;
+      sl.value=dv;state.sliders[k]=dv;$('sv_'+k).textContent=sliderLabels[k][dv];
+    }
+  });
+  state.initialSliders={...state.sliders};
+  state.sliderChanged=false;
+}
+
+const ASTEROID_SCALES=[.6,.85,1.1,1.5];
+function updateAsteroidSize(v){
+  const g=$('asteroidG');
+  g.style.transform='scale('+ASTEROID_SCALES[v]+') translateY(-80px)';
+  g.classList.add('offscreen');g.classList.remove('strike');
+}
+
+// ============ ARENA VISUALS (SVG) ============
+const HB_MAX=240; // max health bar width in SVG units
+
+function setHealthBar(id,pct){
+  const el=$(id);if(!el)return;
+  el.style.transform='scaleX('+Math.max(0,pct/100)+')';
+}
+function setHealthText(id,pct){
+  const el=$(id);if(!el)return;
+  el.textContent=pct+'%';
+}
+function setOrgState(groupId,pct){
+  const icons=$(groupId);if(!icons)return;
+  icons.classList.remove('wilted','stressed');
+  if(pct<=0)icons.classList.add('wilted');
+  else if(pct<=40)icons.classList.add('stressed');
+}
+function setDebrisCloud(thkIdx){
+  // 0=clear, 1=thin, 2=moderate/dense, 3=blackout
+  const opacities=[[0,0,0],[.2,.15,.1],[.6,.5,.4],[.92,.85,.8]];
+  const o=opacities[thkIdx]||[0,0,0];
+  $('debrisStop1').setAttribute('stop-color','rgba(60,40,20,'+o[0]+')');
+  $('debrisStop2').setAttribute('stop-color','rgba(50,35,20,'+o[1]+')');
+  $('debrisStop3').setAttribute('stop-color','rgba(40,30,15,'+o[2]+')');
+  // Show dust particles
+  $('dustLayer').style.opacity=thkIdx>=1?String(.3+thkIdx*.2):'0';
+}
+function setSunDim(sunPct){
+  const dimLevel=Math.max(0,1-sunPct/100);
+  $('sunBody').style.opacity=String(Math.max(.15,1-dimLevel*.85));
+  $('sunCorona').style.opacity=String(Math.max(.05,1-dimLevel*.9));
+  document.querySelectorAll('.svg-ray').forEach(r=>{
+    if(sunPct<50)r.classList.add('blocked');
+    else r.classList.remove('blocked');
+  });
+  $('sunPct').textContent='\u2600\uFE0F '+sunPct+'% reaching surface';
+  if(sunPct<30){$('sunPct').classList.add('danger')}
+  else{$('sunPct').classList.remove('danger')}
+}
+function setSpotlight(which){
+  ['spotPlants','spotHerbs','spotPreds'].forEach(id=>{
+    const el=$(id);if(el)el.classList.remove('show');
+  });
+  if(which){const el=$('spot'+which);if(el)el.classList.add('show')}
+}
+
+function resetArena(){
+  // Sun
+  $('sunBody').style.opacity='1';$('sunCorona').style.opacity='1';
+  document.querySelectorAll('.svg-ray').forEach(r=>r.classList.remove('blocked'));
+  $('sunPct').textContent='\u2600\uFE0F 100% reaching surface';
+  $('sunPct').classList.remove('danger');
+  // Debris
+  setDebrisCloud(0);
+  $('debrisLabel').classList.remove('show');
+  $('dustLayer').style.opacity='0';
+  // Impact
+  $('impactLabel').classList.remove('show');
+  document.querySelectorAll('.impact-ring').forEach(r=>{r.classList.remove('show','fade')});
+  // Asteroid
+  const ag=$('asteroidG');ag.classList.add('offscreen');ag.classList.remove('strike');
+  ag.style.transform='scale(1) translateY(-80px)';
+  // Health bars
+  setHealthBar('hbPlants',100);setHealthText('hpPlants',100);
+  setHealthBar('hbHerbs',100);setHealthText('hpHerbs',100);
+  setHealthBar('hbPreds',100);setHealthText('hpPreds',100);
+  // Organism visual state
+  setOrgState('plantIcons',100);setOrgState('herbIcons',100);setOrgState('predIcons',100);
+  // Spotlights
+  setSpotlight(null);
+  // Chain arrows
+  ['ca1','ca2'].forEach(id=>{$(id).classList.remove('active')});
+  removeHighlights();
+}
+
+function removeHighlights(){
+  document.querySelectorAll('.hl-yellow,.hl-pulse').forEach(el=>{el.classList.remove('hl-yellow','hl-pulse')});
+}
+
+function applyHighlight(target){
+  removeHighlights();
+  const map={
+    debrisCloud:['debrisLabel'],
+    chainArrows:['ca1','ca2'],
+    sunPct:['sunPct'],
+    plantBar:['orgPlants'],
+    durationSlider:['sg_debrisDuration'],
+    sunlightCells:[]
+  };
+  const els=map[target]||[];
+  els.forEach(id=>{const e=$(id);if(e){e.classList.add('hl-yellow','hl-pulse')}});
+}
+
+function animateWatchStandard(round,cb){
+  const gen=arenaGen;const o=round.outcome;
+  const sz=state.sliders.asteroidSize;
+  // Position asteroid at correct scale, off-screen
+  const ag=$('asteroidG');
+  ag.style.transition='none';
+  ag.style.transform='scale('+ASTEROID_SCALES[sz]+') translateY(-80px)';
+  ag.classList.add('offscreen');ag.classList.remove('strike');
+  void ag.offsetHeight;
+  ag.style.transition='transform 1.5s ease-in';
+  safeTimeout(()=>{
+    // Asteroid strikes
+    ag.style.transform='scale('+ASTEROID_SCALES[sz]+') translateY(0)';
+    ag.classList.remove('offscreen');ag.classList.add('strike');
+    safeTimeout(()=>{
+      // Impact burst
+      document.querySelectorAll('.impact-ring').forEach(r=>r.classList.add('show'));
+      $('impactLabel').classList.add('show');
+      playTone(100,.2);
+      safeTimeout(()=>{document.querySelectorAll('.impact-ring').forEach(r=>r.classList.add('fade'))},900);
+      // Debris cloud
+      safeTimeout(()=>{
+        const thkIdx=state.sliders.debrisThickness;
+        setDebrisCloud(thkIdx);
+        $('debrisLabel').classList.add('show');
+        setSunDim(o.sunlight);
+      },600);
+      // Health bars cascade
+      safeTimeout(()=>{
+        setHealthBar('hbPlants',o.plantHealth);setHealthText('hpPlants',o.plantHealth);
+        setOrgState('plantIcons',o.plantHealth);
+        $('ca1').classList.add('active');
+      },1500);
+      safeTimeout(()=>{
+        setHealthBar('hbHerbs',o.herbPop);setHealthText('hpHerbs',o.herbPop);
+        setOrgState('herbIcons',o.herbPop);
+        $('ca2').classList.add('active');
+      },2800);
+      safeTimeout(()=>{
+        setHealthBar('hbPreds',o.predPop);setHealthText('hpPreds',o.predPop);
+        setOrgState('predIcons',o.predPop);
+      },3800);
+      safeTimeout(()=>{if(arenaGen===gen)cb()},5500);
+    },300);
+  },200);
+}
+
+function animateWatchStaged(round,cb){
+  const gen=arenaGen;const o=round.outcome;
+  const sz=state.sliders.asteroidSize;
+  const ag=$('asteroidG');
+  ag.style.transition='none';
+  ag.style.transform='scale('+ASTEROID_SCALES[sz]+') translateY(-80px)';
+  void ag.offsetHeight;
+  ag.style.transition='transform 1.5s ease-in';
+  safeTimeout(()=>{
+    ag.style.transform='scale('+ASTEROID_SCALES[sz]+') translateY(0)';
+    safeTimeout(()=>{
+      document.querySelectorAll('.impact-ring').forEach(r=>r.classList.add('show'));
+      $('impactLabel').classList.add('show');
+      playTone(100,.2);
+      safeTimeout(()=>{document.querySelectorAll('.impact-ring').forEach(r=>r.classList.add('fade'))},900);
+      const thkIdx=state.sliders.debrisThickness;
+      safeTimeout(()=>{
+        setDebrisCloud(thkIdx);
+        $('debrisLabel').classList.add('show');
+        setSunDim(o.sunlight);
+      },500);
+      // Stage 1: Plants spotlight
+      safeTimeout(()=>{
+        setSpotlight('Plants');
+        setHealthBar('hbPlants',o.plantHealth);setHealthText('hpPlants',o.plantHealth);
+        setOrgState('plantIcons',o.plantHealth);
+        $('ca1').classList.add('active');
+      },1500);
+      // Stage 2: Herbs spotlight
+      safeTimeout(()=>{
+        setSpotlight('Herbs');
+        setHealthBar('hbHerbs',o.herbPop);setHealthText('hpHerbs',o.herbPop);
+        setOrgState('herbIcons',o.herbPop);
+        $('ca2').classList.add('active');
+      },3500);
+      // Stage 3: Preds spotlight
+      safeTimeout(()=>{
+        setSpotlight('Preds');
+        setHealthBar('hbPreds',o.predPop);setHealthText('hpPreds',o.predPop);
+        setOrgState('predIcons',o.predPop);
+      },5000);
+      // All visible
+      safeTimeout(()=>{
+        setSpotlight(null);
+        if(arenaGen===gen)cb();
+      },7000);
+    },300);
+  },200);
+}
+
+// ============ LOAD ROUND ============
+function loadRound(idx){
+  arenaGen++;
+  closeAllOverlays();
+  if(idx>=ROUNDS.length){showReceipt();return}
+  state.currentRound=idx;
+  state.wrongCount=0;state.hintsUsed=0;state.levelResets=0;
+  state.selectedOption=-1;state.predictionChoice=-1;state.predictionCorrect=null;
+  state.consecutiveFastWrongs=0;state.recordVerified=false;state.dataErrors={};
+  state.sliderChanged=false;
+  state.roundStartTime=Date.now();
+  const r=ROUNDS[idx];
+  $('roundLabel').textContent='Round '+r.num+': '+r.name;
+  $('roundCounter').textContent='Round '+r.num+' of '+ROUNDS.length;
+  $('hudScore').textContent='Score: '+state.totalScore;
+  updateProgressDots();
+  resetArena();
+  setupSliders(r);
+  $('hintBtn').disabled=false;
+  $('resetLevelBtn').disabled=false;
+  // Show guided overlay
+  if(r.guided&&r.guidedText){$('guidedBox').style.display='block';$('guidedBox').textContent=r.guidedText}
+  else{$('guidedBox').style.display='none'}
+  // Bonus banner
+  if(r.isBonus){
+    const bb=document.getElementById('bonusBannerEl');if(bb)bb.remove();
+    const bEl=document.createElement('div');bEl.className='bonus-banner';bEl.id='bonusBannerEl';
+    bEl.textContent='\u26A1 BONUS: Multi-Variable Challenge \u26A1';
+    $('controlPanel').insertBefore(bEl,$('controlPanel').firstChild);
+  }else{const bb=document.getElementById('bonusBannerEl');if(bb)bb.remove()}
+  // Case mode state
+  state.caseADone=false;state.caseBDone=false;state.freeExplore=false;
+  // Start phase
+  if(r.hasPrediction){showPredictPhase()}
+  else if(r.caseMode){showCasePhase()}
+  else{showChangePhase()}
+}
+
+// ============ DYNAMIC OUTCOME CALC ============
+function calcOutcome(sz,thk,dur){
+  // sz:0-3, thk:0-3, dur:0-2
+  // Base debris factor from asteroid size
+  const szFactor=[0.15,0.4,0.7,1.0][sz];
+  const thkFactor=[0.2,0.45,0.75,1.0][thk];
+  const durFactor=[0.3,0.7,1.0][dur];
+  const debrisIntensity=szFactor*thkFactor;
+  const sunlight=Math.max(0,Math.round(100*(1-debrisIntensity)));
+  // Plant survival depends on sunlight and duration
+  const plantStress=debrisIntensity*durFactor;
+  const plantHealth=Math.max(0,Math.round(100*(1-plantStress*1.3)));
+  // Herbivore depends on plants (delayed cascade)
+  const herbPop=Math.max(0,Math.round(plantHealth*0.7-(plantStress>0.6?20:0)));
+  // Predator depends on herbivores
+  const predPop=Math.max(0,Math.round(herbPop*0.5-(plantStress>0.7?10:0)));
+  return{sunlight,plantHealth,herbPop,predPop};
+}
+
+// ============ PHASE: CASE MODE (Round 6) ============
+function showCasePhase(){
+  state.phase='change';
+  const r=ROUNDS[state.currentRound];
+  const iz=$('interactionZone');
+  let html='<div class="phase-label">CHANGE</div>';
+  html+='<div class="phase-prompt">'+esc(r.focusPrompt)+'</div>';
+  html+='<div class="options-row">';
+  html+='<button class="opt-card" id="caseABtn" style="min-height:60px"><strong>Case A:</strong> Small + Dense + Decades</button>';
+  html+='<button class="opt-card" id="caseBBtn" style="min-height:60px"><strong>Case B:</strong> Medium + Thin + Years</button>';
+  html+='</div>';
+  html+='<div id="caseStatus" style="font-size:13px;color:var(--textLight);margin-top:8px">Run both cases first, then explore on your own.</div>';
+  iz.innerHTML=html;
+  $('runBtn').disabled=true;$('runBtn').classList.remove('pulse');
+  iz.querySelector('#caseABtn').addEventListener('click',()=>{
+    if(processing||state.caseADone)return;
+    processing=true;state.caseADone=true;
+    iz.querySelector('#caseABtn').classList.add('selected');iz.querySelector('#caseABtn').style.pointerEvents='none';
+    const ca=r.caseA;
+    // Set sliders to Case A values
+    Object.keys(sliderEls).forEach(k=>{sliderEls[k].value=ca[k];state.sliders[k]=ca[k];$('sv_'+k).textContent=sliderLabels[k][ca[k]]});
+    updateAsteroidSize(ca.asteroidSize);
+    const tempOutcome=ca.outcome;
+    const origOutcome=r.outcome;r.outcome=tempOutcome;
+    showFocusBanner('Case A: Small asteroid + Dense debris + Decades duration');
+    safeTimeout(()=>{
+      animateWatchStandard(r,()=>{
+        r.outcome=origOutcome;
+        safeTimeout(()=>{
+          resetArena();
+          iz.querySelector('#caseStatus').textContent=state.caseBDone?'Both cases done! Sliders are now unlocked — explore freely, then press RUN.':'Now run Case B.';
+          if(state.caseADone&&state.caseBDone)unlockFreeExplore(r);
+          processing=false;
+        },1000);
+      });
+    },2500);
+  });
+  iz.querySelector('#caseBBtn').addEventListener('click',()=>{
+    if(processing||state.caseBDone)return;
+    processing=true;state.caseBDone=true;
+    iz.querySelector('#caseBBtn').classList.add('selected');iz.querySelector('#caseBBtn').style.pointerEvents='none';
+    const cb_data=r.caseB;
+    Object.keys(sliderEls).forEach(k=>{sliderEls[k].value=cb_data[k];state.sliders[k]=cb_data[k];$('sv_'+k).textContent=sliderLabels[k][cb_data[k]]});
+    updateAsteroidSize(cb_data.asteroidSize);
+    const tempOutcome=cb_data.outcome;
+    const origOutcome=r.outcome;r.outcome=tempOutcome;
+    showFocusBanner('Case B: Medium asteroid + Thin debris + Years duration');
+    safeTimeout(()=>{
+      animateWatchStandard(r,()=>{
+        r.outcome=origOutcome;
+        safeTimeout(()=>{
+          resetArena();
+          iz.querySelector('#caseStatus').textContent=state.caseADone?'Both cases done! Sliders are now unlocked — explore freely, then press RUN.':'Now run Case A.';
+          if(state.caseADone&&state.caseBDone)unlockFreeExplore(r);
+          processing=false;
+        },1000);
+      });
+    },2500);
+  });
+}
+function unlockFreeExplore(r){
+  state.freeExplore=true;
+  // Unlock all sliders
+  ['asteroidSize','debrisThickness','debrisDuration'].forEach(k=>{
+    $('sg_'+k).classList.remove('locked');$('sg_'+k).classList.add('active');
+    sliderEls[k].disabled=false;
+  });
+  state.sliderChanged=false;
+  $('runBtn').disabled=true;
+  // Update interaction zone for free explore
+  const iz=$('interactionZone');
+  iz.innerHTML='<div class="phase-label">CHANGE</div><div class="phase-prompt">Now adjust the sliders yourself — can you find the combination where the food chain JUST BARELY collapses?</div><div style="font-size:13px;color:var(--accent3)">All three sliders are now unlocked. Press RUN when ready.</div>';
+}
+
+// ============ PHASE: PREDICT ============
+function showPredictPhase(){
+  state.phase='predict';
+  const r=ROUNDS[state.currentRound];
+  const iz=$('interactionZone');
+  iz.innerHTML='<div class="phase-label">PREDICT</div><div class="phase-prompt">'+esc(r.prediction.prompt)+'</div><div class="predict-cards"><button class="predict-card" data-idx="0"><strong>A:</strong> '+esc(r.prediction.optA)+'</button><button class="predict-card" data-idx="1"><strong>B:</strong> '+esc(r.prediction.optB)+'</button></div><button id="lockPredictBtn" class="hint-btn" style="margin-top:12px" disabled>Lock In Prediction</button>';
+  let predTime=Date.now();
+  iz.querySelectorAll('.predict-card').forEach(c=>{
+    c.addEventListener('click',()=>{
+      if(processing)return;
+      const elapsed=Date.now()-predTime;
+      if(elapsed<1000){showCoaching('Let\'s look at both options first.');
+        iz.querySelectorAll('.predict-card').forEach(pc=>{pc.style.boxShadow='0 0 8px rgba(139,92,246,.5)';setTimeout(()=>{pc.style.boxShadow=''},2000)});
+        return;
+      }
+      iz.querySelectorAll('.predict-card').forEach(pc=>pc.classList.remove('selected'));
+      c.classList.add('selected');
+      state.predictionChoice=parseInt(c.dataset.idx);
+      iz.querySelector('#lockPredictBtn').disabled=false;
+    });
+  });
+  iz.querySelector('#lockPredictBtn').addEventListener('click',()=>{
+    if(processing||state.predictionChoice<0)return;
+    processing=true;
+    iz.querySelectorAll('.predict-card').forEach(c=>c.style.pointerEvents='none');
+    iz.querySelector('#lockPredictBtn').disabled=true;
+    state.predictionCorrect=(state.predictionChoice===r.prediction.correct);
+    processing=false;
+    showChangePhase();
+  });
+}
+
+// ============ PHASE: CHANGE ============
+function showChangePhase(){
+  state.phase='change';
+  const r=ROUNDS[state.currentRound];
+  const iz=$('interactionZone');
+  let html='<div class="phase-label">CHANGE</div>';
+  let prompt=r.guided?r.guidedText:'Adjust the active variable, then press RUN.';
+  if(r.isBonus&&!r.caseMode){
+    prompt='Adjust '+r.activeVars.map(v=>v==='asteroidSize'?'asteroid size':v==='debrisThickness'?'debris thickness':'duration').join(' and ')+', then press RUN.';
+  }
+  html+='<div class="phase-prompt">'+esc(prompt)+'</div>';
+  if(state.predictionChoice>=0){
+    html+='<div style="font-size:13px;color:var(--accent3);margin-bottom:8px">Your prediction is locked in.</div>';
+  }
+  iz.innerHTML=html;
+  $('runBtn').disabled=true;$('runBtn').classList.remove('pulse');
+  state.sliderChanged=false;
+  updateRunBtn();
+}
+
+function onRun(){
+  if(processing)return;
+  if(state.phase!=='change')return;
+  const r=ROUNDS[state.currentRound];
+  // Check slider changed
+  if(!state.sliderChanged){
+    showCoaching('Move the slider first — then hit Run.');
+    r.activeVars.forEach(k=>{$('sg_'+k).classList.add('hl-yellow');setTimeout(()=>$('sg_'+k).classList.remove('hl-yellow'),2000)});
+    return;
+  }
+  processing=true;
+  $('runBtn').disabled=true;$('runBtn').classList.remove('pulse');
+  $('guidedBox').style.display='none';
+  // Disable sliders
+  Object.keys(sliderEls).forEach(k=>sliderEls[k].disabled=true);
+  // For bonus rounds or free explore, compute dynamic outcome
+  if(r.isBonus||state.freeExplore){
+    const dynOutcome=calcOutcome(state.sliders.asteroidSize,state.sliders.debrisThickness,state.sliders.debrisDuration);
+    r.outcome=dynOutcome;
+    // Build setting description from active variables
+    const parts=[];
+    if(r.activeVars.includes('asteroidSize'))parts.push(SIZES[state.sliders.asteroidSize]);
+    if(r.activeVars.includes('debrisThickness'))parts.push(THICKS[state.sliders.debrisThickness]);
+    if(r.activeVars.includes('debrisDuration'))parts.push(DURS[state.sliders.debrisDuration]);
+    const setting=parts.join(' + ');
+    const varLabel=r.activeVars.length>2?'All Three':r.activeVars.map(v=>v==='asteroidSize'?'Size':v==='debrisThickness'?'Thickness':'Duration').join(' + ');
+    r.recordData={variable:varLabel,setting:setting,sunlight:dynOutcome.sunlight,plantHealth:dynOutcome.plantHealth,herbPop:dynOutcome.herbPop,predPop:dynOutcome.predPop};
+  }
+  // Show focus prompt
+  const fp=state.freeExplore?'Watch what happens with your combination — does the food chain collapse or survive?':r.focusPrompt;
+  showFocusBanner(fp);
+  // Start WATCH
+  safeTimeout(()=>{showWatchPhase()},2500);
+}
+
+// ============ PHASE: WATCH ============
+function showWatchPhase(){
+  state.phase='watch';
+  const r=ROUNDS[state.currentRound];
+  $('interactionZone').innerHTML='<div class="phase-label">WATCH</div><div class="phase-prompt">Observe the cascade...</div>';
+  let watchDone=false;
+  const cb=()=>{
+    if(watchDone)return;
+    watchDone=true;
+    // Fade focus banner
+    $('focusBanner').classList.remove('show');
+    safeTimeout(()=>{
+      // Show prediction result if applicable
+      if(state.predictionChoice>=0){
+        state.predictionCorrect=(state.predictionChoice===r.prediction.correct);
+        const iz=$('interactionZone');
+        iz.innerHTML='<div class="predict-result '+(state.predictionCorrect?'correct':'wrong')+'">'+(state.predictionCorrect?'\u2705 Your prediction was correct!':'\u274C Your prediction was not quite right — let\'s see why.')+'</div>';
+        safeTimeout(()=>showRecordPhase(),2000);
+      }else{
+        showRecordPhase();
+      }
+      processing=false;
+    },500);
+  };
+  // Safety timeout
+  const safetyMs=8000;
+  const safetyTimer=safeTimeout(()=>{cb()},safetyMs);
+  if(r.watchSequence==='staged'){animateWatchStaged(r,()=>{clearTimeout(safetyTimer);cb()})}
+  else{animateWatchStandard(r,()=>{clearTimeout(safetyTimer);cb()})}
+}
+
+function showFocusBanner(text){
+  const b=$('focusBanner');b.textContent=text;b.classList.remove('subtle');b.classList.add('show');
+  safeTimeout(()=>{b.classList.add('subtle')},3000);
+}
+
+// ============ PHASE: RECORD ============
+function showRecordPhase(){
+  state.phase='record';
+  const r=ROUNDS[state.currentRound];
+  // Add data to table
+  const rd=r.recordData;
+  let rowData={...rd};
+  // Apply intentional error
+  if(r.intentionalError){
+    state.dataErrors[r.intentionalError.col]={wrongVal:r.intentionalError.wrongVal,correctVal:r.intentionalError.correctVal};
+    rowData[r.intentionalError.col]=r.intentionalError.wrongVal;
+  }
+  state.roundData[state.currentRound]=rowData;
+  rebuildDataTable();
+  // Show RECORD UI in interaction zone
+  const iz=$('interactionZone');
+  let html='<div class="phase-label">RECORD</div>';
+  html+='<div class="record-prompt">'+esc(r.recordVerification.prompt)+'</div>';
+  if(r.intentionalError){
+    html+='<div style="font-size:13px;color:var(--textLight);margin-bottom:10px">Tap any cell with a warning badge to fix it.</div>';
+  }else if(r.recordVerification.targetCol){
+    html+='<div style="font-size:13px;color:var(--textLight);margin-bottom:10px">Find the correct value in the data table, then confirm.</div>';
+  }
+  html+='<button id="confirmDataBtn" '+(r.intentionalError?'':'')+'onclick="onConfirmData()">Confirm Data</button>';
+  iz.innerHTML=html;
+  state.recordVerified=false;
+  // If there's a cell check (Round 1 style), we need the student to interact
+  if(r.recordVerification.targetCol&&!r.intentionalError){
+    $('confirmDataBtn').disabled=true;
+    // Highlight target cell - student must click it
+    highlightDataCell(state.currentRound,r.recordVerification.targetCol);
+  }
+}
+
+function rebuildDataTable(){
+  const body=$('dataBody');body.innerHTML='';
+  state.roundData.forEach((rd,i)=>{
+    if(!rd)return;
+    const r=ROUNDS[i];
+    const isCurrent=(i===state.currentRound);
+    let tr=document.createElement('tr');
+    if(isCurrent)tr.className='current';
+    const ie=r.intentionalError;
+    const cols=['variable','setting','sunlight','plantHealth','herbPop','predPop'];
+    tr.innerHTML='<td>'+r.num+'</td>';
+    cols.forEach(c=>{
+      let val=rd[c];
+      let cls='';
+      if(c==='sunlight'||c==='plantHealth'||c==='herbPop'||c==='predPop')val=val+'%';
+      if(ie&&c===ie.col&&rd[c]===ie.wrongVal&&!state.recordVerified){
+        cls='dt-cell-error';
+      }
+      const td=document.createElement('td');
+      td.className=cls;
+      td.textContent=val;
+      td.dataset.round=i;td.dataset.col=c;
+      if(cls){
+        td.style.cursor='pointer';
+        td.addEventListener('click',()=>onFixDataCell(i,c));
+      }
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+}
+
+function highlightDataCell(roundIdx,col){
+  const cells=document.querySelectorAll('#dataBody td');
+  cells.forEach(td=>{
+    if(parseInt(td.dataset.round)===roundIdx&&td.dataset.col===col){
+      td.classList.add('hl-yellow');td.style.cursor='pointer';
+      td.addEventListener('click',()=>{
+        td.classList.remove('hl-yellow');
+        $('confirmDataBtn').disabled=false;
+      },{once:true});
+    }
+  });
+}
+
+function onFixDataCell(roundIdx,col){
+  const r=ROUNDS[roundIdx];
+  if(!r.intentionalError||col!==r.intentionalError.col)return;
+  // Fix the error
+  state.roundData[roundIdx][col]=r.intentionalError.correctVal;
+  state.recordVerified=true;
+  rebuildDataTable();
+  showCoaching(r.intentionalError.coaching);
+}
+window.onConfirmData=function(){
+  if(processing)return;
+  const r=ROUNDS[state.currentRound];
+  // Check if error was NOT caught
+  if(r.intentionalError&&!state.recordVerified){
+    // Check timing - if confirmed within 1s, coach
+    showCoaching(r.intentionalError.missCoaching);
+    // Highlight the error cell
+    const cells=document.querySelectorAll('#dataBody td.dt-cell-error');
+    cells.forEach(c=>c.classList.add('pulse'));
+    return;
+  }
+  state.recordVerified=true;
+  showProvePhase();
+};
+
+// ============ PHASE: PROVE ============
+function showProvePhase(){
+  state.phase='prove';
+  const r=ROUNDS[state.currentRound];
+  const p=r.prove;
+  const iz=$('interactionZone');
+  // Round 1 coaching bridge
+  if(r.guided&&state.currentRound===0){
+    iz.innerHTML='<div class="phase-label" style="color:var(--accent2)">YOUR TURN</div><div class="phase-prompt">Did you see the debris cloud block the sunlight? Now show me what you learned.</div>';
+    safeTimeout(()=>buildProveUI(r,p,iz),2200);
+  }else{
+    buildProveUI(r,p,iz);
+  }
+}
+function buildProveUI(r,p,iz){
+  let html='<div class="phase-label">PROVE</div>';
+  html+='<div class="phase-prompt">'+esc(p.question)+'</div>';
+  html+='<div class="options-row" id="proveOptionsRow">';
+  const labels=['A','B','C'];
+  p.options.forEach((opt,i)=>{
+    // Round 1 guided: faint glow on correct option
+    const glow=(r.guided&&state.currentRound===0&&i===p.correct)?' style="box-shadow:0 0 12px rgba(16,185,129,.25);border-color:rgba(16,185,129,.35)"':'';
+    html+='<button class="opt-card" data-idx="'+i+'"'+glow+'><strong>'+labels[i]+':</strong> '+esc(opt)+'</button>';
+  });
+  html+='</div>';
+  html+='<button id="lockInBtn" class="visible" disabled>Lock In</button>';
+  html+='<div class="feedback-bar" id="proveFeedback"></div>';
+  html+='<button id="tryAgainBtn">Try Again</button>';
+  iz.innerHTML=html;
+  state.selectedOption=-1;
+  let phaseStartTime=Date.now();
+  // Option selection
+  iz.querySelectorAll('#proveOptionsRow .opt-card').forEach(c=>{
+    c.addEventListener('click',()=>{
+      if(processing)return;
+      if(c.classList.contains('dimmed')||c.classList.contains('eliminated'))return;
+      iz.querySelectorAll('#proveOptionsRow .opt-card').forEach(pc=>pc.classList.remove('selected'));
+      c.classList.add('selected');
+      state.selectedOption=parseInt(c.dataset.idx);
+      iz.querySelector('#lockInBtn').disabled=false;
+    });
+  });
+  iz.querySelector('#lockInBtn').addEventListener('click',()=>onProveSubmit(phaseStartTime));
+  iz.querySelector('#tryAgainBtn').addEventListener('click',()=>{
+    if(processing)return;
+    processing=true;
+    removeHighlights();
+    const fb=iz.querySelector('#proveFeedback');fb.className='feedback-bar';fb.style.display='none';
+    iz.querySelector('#tryAgainBtn').classList.remove('visible');
+    iz.querySelectorAll('#proveOptionsRow .opt-card').forEach(c=>c.classList.remove('selected','correct-reveal','wrong-reveal'));
+    state.selectedOption=-1;
+    const lib=iz.querySelector('#lockInBtn');
+    lib.disabled=true;lib.style.display='';
+    phaseStartTime=Date.now();
+    processing=false;
+  });
+}
+
+function onProveSubmit(phaseStartTime){
+  if(processing||state.selectedOption<0)return;
+  processing=true;
+  const r=ROUNDS[state.currentRound];
+  const p=r.prove;
+  const iz=$('interactionZone');
+  const elapsed=Date.now()-phaseStartTime;
+  const card=iz.querySelector('#proveOptionsRow .opt-card[data-idx="'+state.selectedOption+'"]');
+  if(state.selectedOption===p.correct){
+    // CORRECT
+    card.classList.add('correct-reveal');
+    playCorrect();
+    const fb=iz.querySelector('#proveFeedback');
+    fb.className='feedback-bar correct';fb.textContent='Correct!';fb.style.display='block';
+    iz.querySelector('#lockInBtn').style.display='none';
+    // Score
+    let score=100;
+    if(state.levelResets>0)score=50;
+    else if(state.hintsUsed>=3)score=60;
+    else if(state.hintsUsed===2)score=70;
+    else if(state.hintsUsed===1)score=85;
+    // Prediction bonus
+    if(r.hasPrediction&&state.predictionCorrect===false&&score===100)score=85;
+    state.scores[state.currentRound]=score;
+    state.totalScore=calcTotalScore();
+    $('hudScore').textContent='Score: '+state.totalScore;
+    const timeS=Math.round((Date.now()-state.roundStartTime)/1000);
+    if(!state.roundData[state.currentRound])state.roundData[state.currentRound]=r.recordData;
+    state.roundData[state.currentRound]._score=score;
+    state.roundData[state.currentRound]._time=timeS;
+    state.roundData[state.currentRound]._attempts=state.wrongCount+1;
+    updateProgressDots();
+    safeTimeout(()=>{
+      processing=false;
+      checkMilestone();
+    },1500);
+  }else{
+    // WRONG
+    card.classList.add('wrong-reveal');
+    playWrong();
+    state.wrongCount++;
+    // Fast guess gate
+    if(elapsed<2000){
+      state.consecutiveFastWrongs++;
+      if(state.consecutiveFastWrongs>=2){
+        showCoaching('Take a moment and think about what you saw in the arena.');
+        state.consecutiveFastWrongs=0;
+        safeTimeout(()=>{
+          card.classList.remove('wrong-reveal');card.classList.add('dimmed');
+          state.selectedOption=-1;
+          processing=false;
+        },5000);
+        return;
+      }
+    }else{state.consecutiveFastWrongs=0}
+    const wf=p.wrongFeedback[state.selectedOption];
+    const fb=iz.querySelector('#proveFeedback');
+    fb.className='feedback-bar wrong';
+    fb.textContent=wf?wf.text:'That is not quite right. Look at the arena for clues.';
+    fb.style.display='block';
+    if(wf&&wf.hl)applyHighlight(wf.hl);
+    iz.querySelector('#tryAgainBtn').classList.add('visible');
+    iz.querySelector('#lockInBtn').style.display='none';
+    // Handle hints
+    if(state.wrongCount===1)state.hintsUsed=Math.max(state.hintsUsed,1);
+    if(state.wrongCount>=2)state.hintsUsed=Math.max(state.hintsUsed,2);
+    safeTimeout(()=>{
+      card.classList.remove('wrong-reveal');card.classList.add('dimmed');
+      state.selectedOption=-1;
+      processing=false;
+    },800);
+  }
+}
+
+// ============ HINT SYSTEM ============
+$('hintBtn').addEventListener('click',showHint);
+function showHint(){
+  if(state.phase!=='prove'&&state.phase!=='do')return;
+  const r=ROUNDS[state.currentRound];
+  const h=r.hints;
+  if(state.hintsUsed===0){
+    state.hintsUsed=1;showHintPanel('h1','Hint 1',h.hint1.text,h.hint1.hl);
+  }else if(state.hintsUsed===1){
+    state.hintsUsed=2;
+    showHintPanel('h2','Hint 2',h.hint2.text);
+    // Eliminate option
+    if(h.hint2.eliminate!==undefined){
+      const cards=$('interactionZone').querySelectorAll('#proveOptionsRow .opt-card');
+      cards.forEach(c=>{if(parseInt(c.dataset.idx)===h.hint2.eliminate)c.classList.add('eliminated')});
+    }
+  }else{
+    state.hintsUsed=3;showStepByStep(h.stepByStep);
+  }
+}
+function showHintPanel(cls,title,text,hl){
+  const ov=$('hintOverlay');
+  ov.innerHTML='<div class="hint-panel '+cls+'"><h4>'+esc(title)+'</h4><p>'+esc(text)+'</p><button class="hint-btn" onclick="document.getElementById(\'hintOverlay\').classList.remove(\'show\')">Got it</button></div>';
+  ov.classList.add('show');
+  if(hl)applyHighlight(hl);
+}
+function showStepByStep(panels){
+  let idx=0;
+  function showPanel(){
+    const ov=$('hintOverlay');
+    ov.innerHTML='<div class="hint-panel sbs"><h4>Step-by-Step</h4><div class="sbs-counter">Step '+(idx+1)+' of '+panels.length+'</div><p>'+esc(panels[idx])+'</p><button class="hint-btn" id="sbsNextBtn">'+(idx<panels.length-1?'Next':'Got it')+'</button></div>';
+    ov.classList.add('show');
+    ov.querySelector('#sbsNextBtn').addEventListener('click',()=>{
+      idx++;
+      if(idx>=panels.length){ov.classList.remove('show')}
+      else{showPanel()}
+    });
+  }
+  showPanel();
+}
+
+// ============ COACHING ============
+function showCoaching(text){
+  closeAllOverlays();
+  const bar=document.createElement('div');
+  bar.className='coaching-bar';
+  bar.innerHTML=esc(text)+'<br><button class="dismiss" onclick="this.parentElement.remove()">OK</button>';
+  document.body.appendChild(bar);
+  setTimeout(()=>{if(bar.parentElement)bar.remove()},8000);
+}
+
+// ============ SCORING ============
+function calcTotalScore(){
+  let reqScores=[];let bonusCount=0;
+  ROUNDS.forEach((r,i)=>{
+    if(state.scores[i]!==undefined){
+      if(r.required)reqScores.push(state.scores[i]);
+      else bonusCount++;
+    }
+  });
+  if(reqScores.length===0)return 0;
+  const avg=Math.round(reqScores.reduce((a,b)=>a+b,0)/reqScores.length);
+  return Math.min(100,avg+bonusCount*5);
+}
+
+// ============ MILESTONES ============
+function checkMilestone(){
+  const reqDone=ROUNDS.filter((r,i)=>r.required&&state.scores[i]!==undefined).length;
+  const totalDone=ROUNDS.filter((r,i)=>state.scores[i]!==undefined).length;
+  const allReqDone=reqDone===ROUNDS.filter(r=>r.required).length;
+  const allDone=totalDone===ROUNDS.length;
+  if(allDone&&!state.bonusCompleteShown){
+    state.bonusCompleteShown=true;
+    showCelebration('BONUS COMPLETE!',getAffirmation(),null,3000,()=>showReceipt());
+    return;
+  }
+  if(allReqDone&&!state.requiredCompleteShown){
+    state.requiredCompleteShown=true;
+    showCelebration('You did it!',getAffirmation(),['Keep Going','See Score'],0,(choice)=>{
+      if(choice==='See Score')showReceipt();
+      else loadRound(state.currentRound+1);
+    });
+    return;
+  }
+  // Every 2 rounds celebrate
+  if(totalDone>0&&totalDone%2===0){
+    const score=state.scores[state.currentRound];
+    const affirmation=(score===100)?getAffirmation():'Keep it up!';
+    showCelebration('Nice!',affirmation,null,2000,()=>loadRound(state.currentRound+1));
+  }else{
+    loadRound(state.currentRound+1);
+  }
+}
+
+// ============ CELEBRATION ============
+function showCelebration(title,subtitle,choices,autoMs,cb){
+  const ov=$('celebOverlay');
+  let html='<div class="celeb-box"><h2>'+esc(title)+'</h2>';
+  if(subtitle)html+='<div class="affirmation">'+esc(subtitle)+'</div>';
+  if(choices){
+    html+='<div class="celeb-choices">';
+    choices.forEach(c=>{html+='<button class="'+(c==='Keep Going'?'primary':'secondary')+'" data-choice="'+esc(c)+'">'+esc(c)+'</button>'});
+    html+='</div>';
+  }
+  html+='</div>';
+  ov.innerHTML=html;ov.classList.add('show');
+  burstParticles(12,window.innerWidth/2,window.innerHeight/2);
+  if(choices){
+    ov.querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click',()=>{ov.classList.remove('show');if(cb)cb(b.dataset.choice)});
+    });
+  }else if(autoMs>0){
+    safeTimeout(()=>{ov.classList.remove('show');if(cb)cb()},autoMs);
+  }
+  // Safety
+  safeTimeout(()=>{if(ov.classList.contains('show')&&!choices){ov.classList.remove('show');if(cb)cb()}},autoMs+3000);
+}
+
+// ============ RECEIPT ============
+function showReceipt(){
+  if(state.receiptRendered)return;state.receiptRendered=true;
+  $('resetLevelBtn').disabled=true;$('hintBtn').disabled=true;
+  const rs=$('receiptScreen');
+  const totalTime=ROUNDS.reduce((sum,r,i)=>{const rd=state.roundData[i];return sum+(rd&&rd._time?rd._time:0)},0);
+  const pct=calcTotalScore();
+  const colorCls=pct>=85?'green':pct>=70?'yellow':'red';
+  const label=pct>=85?'Strong Mastery':pct>=70?'Developing':'Needs More Practice';
+  const allReq=ROUNDS.filter((r,i)=>r.required&&state.scores[i]!==undefined).length===ROUNDS.filter(r=>r.required).length;
+  const allDone=ROUNDS.filter((r,i)=>state.scores[i]!==undefined).length===ROUNDS.length;
+  let statusText=allDone?'\u2705 All Complete (Bonus!)':allReq?'\u2705 Required Complete':'\u23F3 In Progress';
+  let rows='';
+  ROUNDS.forEach((r,i)=>{
+    const s=state.scores[i];
+    if(s===undefined)return;
+    const rd=state.roundData[i]||{};
+    const sc=s>=85?'green':s>=70?'yellow':'red';
+    const mins=Math.floor((rd._time||0)/60);const secs=((rd._time||0)%60).toString().padStart(2,'0');
+    rows+='<tr class="'+(r.isBonus?'bonus-row':'')+'"><td>'+(r.isBonus?'\u2B50 ':'')+r.num+'</td><td>'+esc(r.name)+'</td><td class="score-cell '+sc+'">'+s+'%</td><td>'+(rd._attempts||1)+'</td><td>'+mins+':'+secs+'</td></tr>';
+  });
+  const mins=Math.floor(totalTime/60);const secs=(totalTime%60).toString().padStart(2,'0');
+  rs.innerHTML='<div class="receipt-box"><div class="receipt-header"><h2>Mr. Jawad\'s Simulations</h2><h3>Mass Extinction Cascade — Wednesday Score Report</h3></div><div class="receipt-body"><div class="receipt-name-row"><input type="text" id="receiptName" value="'+esc(state.studentName)+'" placeholder="Your name"><button id="lockNameBtn">Lock</button></div><div class="overall-score"><span class="overall-pct '+colorCls+'">'+pct+'%</span><div class="overall-label">'+esc(label)+'</div></div><table class="receipt-table"><thead><tr><th>#</th><th>Round</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead><tbody>'+rows+'</tbody></table><div class="receipt-status">Total Time: '+mins+':'+secs+' &nbsp;&nbsp; Status: '+statusText+'</div><div class="receipt-upload">\uD83D\uDCF8 Take a screenshot and upload to Google Classroom</div><div class="receipt-actions"><button onclick="window.print()" style="background:var(--accent1);color:white">\uD83D\uDDA8\uFE0F Print</button><button onclick="confirmStartOver()" style="background:#F1F5F9;color:var(--text);border:1px solid #CBD5E1">Start Over</button></div></div></div>';
+  rs.classList.add('show');
+  rs.querySelector('#lockNameBtn').addEventListener('click',()=>{
+    const inp=rs.querySelector('#receiptName');
+    inp.disabled=true;rs.querySelector('#lockNameBtn').textContent='Locked';rs.querySelector('#lockNameBtn').disabled=true;
+  });
+}
+
+window.confirmStartOver=function(){
+  const d=$('confirmDialog');
+  d.innerHTML='<div class="confirm-box"><p>Are you sure you want to start over? All progress will be lost.</p><div class="btn-row"><button style="background:var(--wrong);color:white" onclick="doStartOver()">Yes, Start Over</button><button style="background:#F1F5F9;color:var(--text);border:1px solid #CBD5E1" onclick="document.getElementById(\'confirmDialog\').classList.remove(\'show\')">Cancel</button></div></div>';
+  d.classList.add('show');
+};
+window.doStartOver=function(){
+  $('confirmDialog').classList.remove('show');
+  $('receiptScreen').classList.remove('show');$('receiptScreen').innerHTML='';
+  state.scores=[];state.totalScore=0;state.roundData=[];state.levelResets=0;
+  state.requiredCompleteShown=false;state.bonusCompleteShown=false;state.receiptRendered=false;
+  $('dataBody').innerHTML='';
+  loadRound(0);
+};
+
+// ============ RESET LEVEL ============
+$('resetLevelBtn').addEventListener('click',()=>{
+  if(state.scores[state.currentRound]!==undefined)return; // completed
+  arenaGen++;
+  closeAllOverlays();
+  $('focusBanner').classList.remove('show');
+  state.levelResets++;
+  state.wrongCount=0;state.selectedOption=-1;state.predictionChoice=-1;
+  state.predictionCorrect=null;state.consecutiveFastWrongs=0;
+  state.sliderChanged=false;state.recordVerified=false;
+  state.caseADone=false;state.caseBDone=false;state.freeExplore=false;
+  // Clear incomplete round data from table
+  delete state.roundData[state.currentRound];
+  rebuildDataTable();
+  processing=false;
+  resetArena();
+  // Safety valve: after 3 resets, auto-score 50% and advance
+  if(state.levelResets>=3){
+    const r=ROUNDS[state.currentRound];
+    state.scores[state.currentRound]=50;
+    state.totalScore=calcTotalScore();
+    const timeS=Math.round((Date.now()-state.roundStartTime)/1000);
+    state.roundData[state.currentRound]={...r.recordData,_score:50,_time:timeS,_attempts:0};
+    rebuildDataTable();
+    updateProgressDots();
+    $('hudScore').textContent='Score: '+state.totalScore;
+    $('interactionZone').innerHTML='';
+    showCoaching("Let's move on — you will see this idea again.");
+    safeTimeout(()=>{checkMilestone()},2500);
+    return;
+  }
+  const r=ROUNDS[state.currentRound];
+  setupSliders(r);
+  if(r.guided&&r.guidedText){$('guidedBox').style.display='block';$('guidedBox').textContent=r.guidedText}
+  if(r.hasPrediction)showPredictPhase();
+  else if(r.caseMode)showCasePhase();
+  else showChangePhase();
+});
+
+// ============ NEW RUN ============
+$('newRunBtn').addEventListener('click',()=>{
+  if(state.receiptRendered)return;
+  const d=$('confirmDialog');
+  d.innerHTML='<div class="confirm-box"><p>Start a completely new run? All progress will be lost.</p><div class="btn-row"><button style="background:var(--wrong);color:white" onclick="doStartOver()">Yes</button><button style="background:#F1F5F9;border:1px solid #CBD5E1;color:var(--text)" onclick="document.getElementById(\'confirmDialog\').classList.remove(\'show\')">Cancel</button></div></div>';
+  d.classList.add('show');
+});
+
+// ============ VOCAB ============
+$('vocabBtn').addEventListener('click',()=>{$('vocabOverlay').classList.add('show')});
+$('vocabClose').addEventListener('click',()=>{$('vocabOverlay').classList.remove('show')});
+$('vocabOverlay').addEventListener('click',(e)=>{if(e.target===$('vocabOverlay'))$('vocabOverlay').classList.remove('show')});
+
+// ============ VISIBILITY HANDLER ============
+document.addEventListener('visibilitychange',()=>{
+  // Nothing critical to clear for now; intervals tracked individually
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,2303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulation — Mass Extinction Cascade</title>
+<style>
+:root {
+  --bg-dark: #0F0A1A;
+  --bg-mid: #1A0F2E;
+  --bg-card: #241540;
+  --bg-card-hover: #2E1B50;
+  --neon-green: #39FF14;
+  --hot-pink: #FF1493;
+  --gold: #FFD700;
+  --streak-orange: #FF6B35;
+  --electric-blue: #00D4FF;
+  --accent-purple: #A855F7;
+  --text-primary: #F0E6FF;
+  --text-secondary: #B8A0D8;
+  --text-dim: #7B6A94;
+  --correct-green: #22C55E;
+  --wrong-red: #EF4444;
+  --hint-yellow: #FFF9C4;
+  --hint-orange: #FFE0B2;
+  --mon-color: #3B82F6;
+  --tue-color: #F59E0B;
+  --wed-color: #10B981;
+  --font-display: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; font-family: var(--font-body); background: var(--bg-dark); color: var(--text-primary); }
+
+/* ========== WELCOME SCREEN ========== */
+#welcomeScreen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-mid) 50%, #2D1060 100%);
+  display: flex; align-items: center; justify-content: center;
+  overflow-y: auto;
+}
+.welcome-inner {
+  text-align: center; padding: 30px 24px; max-width: 500px; width: 90%;
+}
+.welcome-inner h1 {
+  font-size: 26px; font-weight: 700; color: var(--gold);
+  margin-bottom: 6px; line-height: 1.2;
+}
+.welcome-inner h2 {
+  font-size: 16px; font-weight: 400; color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.welcome-hook {
+  font-size: 15px; color: var(--hot-pink); margin-bottom: 24px;
+  font-style: italic; line-height: 1.4;
+}
+.welcome-field { margin-bottom: 16px; text-align: left; }
+.welcome-field label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.welcome-field input {
+  width: 100%; padding: 12px 14px; font-size: 16px;
+  background: var(--bg-card); border: 2px solid #4A3570; border-radius: 8px;
+  color: var(--text-primary); outline: none; transition: border-color 0.2s;
+}
+.welcome-field input:focus { border-color: var(--neon-green); }
+.welcome-field .optional-tag { font-size: 11px; color: var(--text-dim); }
+#startBtn {
+  display: inline-block; margin-top: 12px; padding: 14px 40px;
+  font-size: 18px; font-weight: 700; color: var(--bg-dark);
+  background: linear-gradient(135deg, var(--neon-green), #20E000);
+  border: none; border-radius: 10px; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  min-height: 52px;
+}
+#startBtn:hover { transform: scale(1.04); box-shadow: 0 0 20px rgba(57,255,20,0.4); }
+#startBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+.welcome-lt {
+  margin-top: 20px; padding: 12px; border-radius: 8px;
+  background: rgba(57,255,20,0.08); border: 1px solid rgba(57,255,20,0.2);
+  font-size: 13px; color: var(--text-secondary); line-height: 1.5;
+}
+.welcome-lt strong { color: var(--neon-green); }
+
+/* ========== MAIN GAME LAYOUT ========== */
+#gameContainer {
+  display: none; flex-direction: column; height: 100vh; width: 100%;
+  background: linear-gradient(180deg, var(--bg-dark) 0%, var(--bg-mid) 100%);
+}
+/* TOP BAR */
+#topBar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px; min-height: 50px;
+  background: rgba(15,10,26,0.95); border-bottom: 2px solid var(--accent-purple);
+  flex-shrink: 0; gap: 8px; flex-wrap: wrap;
+}
+.round-counter {
+  font-size: 17px; font-weight: 700; color: var(--text-primary);
+  padding: 4px 12px; border-radius: 6px;
+  border: 2px solid var(--accent-purple);
+  animation: counterPulse 2s ease-in-out infinite;
+}
+@keyframes counterPulse {
+  0%,100% { border-color: var(--accent-purple); }
+  50% { border-color: var(--hot-pink); }
+}
+.score-display { font-size: 17px; font-weight: 700; color: var(--gold); position: relative; }
+.streak-display {
+  font-size: 15px; font-weight: 600; color: var(--streak-orange);
+  padding: 2px 10px; border-radius: 12px; transition: all 0.3s;
+}
+.streak-display.bronze { background: rgba(205,127,50,0.2); border: 1px solid #CD7F32; color: #CD7F32; }
+.streak-display.silver { background: rgba(192,192,192,0.2); border: 1px solid #C0C0C0; color: #C0C0C0; }
+.streak-display.gold { background: rgba(255,215,0,0.25); border: 1px solid var(--gold); color: var(--gold); }
+.points-float {
+  position: absolute; top: -4px; right: -10px; font-size: 18px; font-weight: 700;
+  color: var(--neon-green); pointer-events: none;
+  animation: floatUp 1.2s ease-out forwards;
+}
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(1.3); }
+}
+
+/* DEFENSE GRID */
+#defenseGrid {
+  display: flex; gap: 4px; padding: 6px 16px; justify-content: center;
+  background: rgba(15,10,26,0.7); flex-shrink: 0;
+}
+.grid-seg {
+  width: 11%; max-width: 60px; height: 8px; border-radius: 4px;
+  background: #2A1F3D; border: 1px solid #3A2D55; transition: all 0.5s;
+  position: relative; overflow: hidden;
+}
+.grid-seg.lit { border-color: transparent; }
+.grid-seg.lit::after {
+  content: ''; position: absolute; inset: 0; border-radius: 3px;
+  animation: segGlow 1.5s ease-in-out infinite alternate;
+}
+.grid-seg.lit-blue::after { background: var(--mon-color); box-shadow: 0 0 8px var(--mon-color); }
+.grid-seg.lit-amber::after { background: var(--tue-color); box-shadow: 0 0 8px var(--tue-color); }
+.grid-seg.lit-green::after { background: var(--wed-color); box-shadow: 0 0 8px var(--wed-color); }
+.grid-seg.lit-gold::after { background: var(--gold); box-shadow: 0 0 12px var(--gold); }
+.grid-seg.lit-dual::after { background: linear-gradient(90deg, var(--tue-color), var(--wed-color)); box-shadow: 0 0 10px var(--tue-color); }
+@keyframes segGlow { 0% { opacity: 0.7; } 100% { opacity: 1; } }
+
+/* MIDDLE AREA */
+#middleArea {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  min-height: 0;
+}
+
+/* CONTEXT VISUAL PANEL */
+#contextPanel {
+  flex-shrink: 0; padding: 10px 16px; min-height: 120px; max-height: 42vh;
+  overflow-y: auto; position: relative;
+  border-bottom: 1px solid rgba(168,85,247,0.3);
+}
+.context-badge {
+  display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px;
+  border-radius: 10px; margin-bottom: 6px;
+}
+.context-badge.monday { background: rgba(59,130,246,0.2); color: var(--mon-color); border: 1px solid var(--mon-color); }
+.context-badge.tuesday { background: rgba(245,158,11,0.2); color: var(--tue-color); border: 1px solid var(--tue-color); }
+.context-badge.wednesday { background: rgba(16,185,129,0.2); color: var(--wed-color); border: 1px solid var(--wed-color); }
+.context-badge.alldays { background: rgba(255,215,0,0.15); color: var(--gold); border: 1px solid var(--gold); }
+.context-caption {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.4;
+  margin-bottom: 8px;
+}
+#arenaBox {
+  width: 100%; min-height: 100px; position: relative;
+  background: var(--bg-card); border-radius: 10px;
+  overflow: hidden;
+}
+#arena {
+  width: 100%; height: 100%; min-height: 100px;
+}
+
+/* INTERACTION ZONE */
+#interactionZone {
+  flex: 1; min-height: 140px; max-height: 45vh;
+  overflow-y: auto; padding: 12px 16px;
+  display: flex; flex-direction: column; align-items: center;
+  word-wrap: break-word; overflow-wrap: break-word;
+}
+.focus-prompt {
+  font-size: 14px; color: var(--electric-blue); text-align: center;
+  padding: 8px 16px; margin-bottom: 10px; line-height: 1.4;
+  background: rgba(0,212,255,0.08); border-radius: 8px;
+  border: 1px solid rgba(0,212,255,0.2);
+  animation: focusFadeIn 0.5s ease-out;
+}
+@keyframes focusFadeIn { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
+.mechanic-prompt {
+  font-size: 16px; font-weight: 600; color: var(--text-primary);
+  text-align: center; margin-bottom: 12px; line-height: 1.3;
+}
+.options-row {
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+  width: 100%; max-width: 600px;
+}
+.option-card {
+  flex: 1 1 160px; max-width: 280px; min-height: 52px;
+  padding: 12px 16px; border-radius: 10px; cursor: pointer;
+  background: var(--bg-card); border: 2px solid #4A3570;
+  color: var(--text-primary); font-size: 14px; line-height: 1.3;
+  text-align: center; transition: all 0.2s; display: flex;
+  align-items: center; justify-content: center;
+  word-wrap: break-word; overflow-wrap: break-word;
+}
+.option-card:hover:not(.disabled):not(.locked) {
+  background: var(--bg-card-hover); border-color: var(--accent-purple);
+  transform: translateY(-2px);
+}
+.option-card.selected { border-color: var(--electric-blue); background: rgba(0,212,255,0.1); }
+.option-card.correct {
+  border-color: var(--correct-green); background: rgba(34,197,94,0.15);
+  animation: correctFlash 0.5s ease-out;
+}
+@keyframes correctFlash {
+  0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
+  50% { box-shadow: 0 0 20px 4px rgba(34,197,94,0.4); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.option-card.wrong {
+  border-color: var(--wrong-red); background: rgba(239,68,68,0.15);
+  animation: wrongShake 0.5s ease-out;
+}
+@keyframes wrongShake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.option-card.dimmed { opacity: 0.35; pointer-events: none; border-style: dashed; }
+.option-card.disabled { opacity: 0.35; pointer-events: none; }
+.option-card.locked { pointer-events: none; }
+.option-card.highlighted { border-color: var(--gold); box-shadow: 0 0 12px rgba(255,215,0,0.3); }
+
+/* LOCK IN BUTTON */
+.lock-in-btn {
+  margin-top: 14px; padding: 12px 36px; font-size: 16px; font-weight: 700;
+  background: linear-gradient(135deg, var(--neon-green), #20E000);
+  color: var(--bg-dark); border: none; border-radius: 10px;
+  cursor: pointer; min-height: 48px; transition: all 0.2s;
+}
+.lock-in-btn:hover:not(:disabled) { transform: scale(1.04); box-shadow: 0 0 16px rgba(57,255,20,0.4); }
+.lock-in-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* TRY AGAIN BUTTON */
+.try-again-btn {
+  margin-top: 10px; padding: 12px 32px; font-size: 15px; font-weight: 600;
+  background: linear-gradient(135deg, var(--electric-blue), #0099CC);
+  color: #fff; border: none; border-radius: 10px; cursor: pointer;
+  min-height: 48px; transition: all 0.2s;
+}
+.try-again-btn:hover { transform: scale(1.04); box-shadow: 0 0 12px rgba(0,212,255,0.4); }
+
+/* COACHING BAR */
+.coaching-bar {
+  width: 100%; max-width: 560px; padding: 10px 16px; margin-top: 8px;
+  border-radius: 8px; font-size: 13px; line-height: 1.4;
+  animation: slideUp 0.3s ease-out;
+}
+@keyframes slideUp { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+.coaching-bar.hint1 { background: rgba(255,249,196,0.1); border: 1px solid rgba(255,249,196,0.3); color: #FFF9C4; }
+.coaching-bar.hint-sbs { background: rgba(255,224,178,0.1); border: 1px solid rgba(255,224,178,0.3); color: #FFE0B2; }
+.coaching-bar.wrong-feedback { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #FCA5A5; }
+
+/* HOTSPOT */
+.hotspot-area { cursor: crosshair; }
+.hotspot-ring {
+  position: absolute; width: 40px; height: 40px; border-radius: 50%;
+  border: 3px solid; transform: translate(-50%, -50%); pointer-events: none;
+  animation: ringPop 0.5s ease-out forwards;
+}
+@keyframes ringPop {
+  0% { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
+  50% { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%,-50%) scale(1); opacity: 0.7; }
+}
+.hotspot-ring.correct-ring { border-color: var(--correct-green); box-shadow: 0 0 12px var(--correct-green); }
+.hotspot-ring.wrong-ring { border-color: var(--wrong-red); box-shadow: 0 0 10px var(--wrong-red); }
+
+/* STEP BY STEP OVERLAY */
+#sbsOverlay {
+  display: none; position: fixed; inset: 0; z-index: 5000;
+  background: rgba(15,10,26,0.92); align-items: center; justify-content: center;
+  padding: 20px;
+}
+#sbsOverlay.visible { display: flex; }
+.sbs-card {
+  background: var(--bg-card); border: 2px solid var(--accent-purple);
+  border-radius: 14px; padding: 24px; max-width: 480px; width: 90%;
+  text-align: center;
+}
+.sbs-card h3 { font-size: 16px; color: var(--hint-orange); margin-bottom: 14px; }
+.sbs-card p { font-size: 14px; color: var(--text-primary); line-height: 1.5; margin-bottom: 16px; }
+.sbs-next-btn {
+  padding: 10px 28px; font-size: 15px; font-weight: 600;
+  background: var(--accent-purple); color: #fff; border: none;
+  border-radius: 8px; cursor: pointer; min-height: 48px;
+}
+
+/* BOTTOM BAR */
+#bottomBar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px; min-height: 46px;
+  background: rgba(15,10,26,0.95); border-top: 1px solid rgba(168,85,247,0.3);
+  flex-shrink: 0; gap: 6px; flex-wrap: wrap;
+}
+.bottom-btn {
+  padding: 6px 14px; font-size: 13px; font-weight: 600;
+  background: var(--bg-card); border: 1px solid #4A3570;
+  color: var(--text-secondary); border-radius: 6px; cursor: pointer;
+  min-height: 36px; transition: all 0.2s;
+}
+.bottom-btn:hover { background: var(--bg-card-hover); border-color: var(--accent-purple); }
+.bottom-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.source-badge {
+  font-size: 12px; padding: 3px 10px; border-radius: 10px;
+  font-weight: 600;
+}
+.source-badge.mon { background: rgba(59,130,246,0.15); color: var(--mon-color); }
+.source-badge.tue { background: rgba(245,158,11,0.15); color: var(--tue-color); }
+.source-badge.wed { background: rgba(16,185,129,0.15); color: var(--wed-color); }
+.source-badge.all { background: rgba(255,215,0,0.12); color: var(--gold); }
+
+/* VOCAB PANEL */
+#vocabOverlay {
+  display: none; position: fixed; inset: 0; z-index: 6000;
+  background: rgba(15,10,26,0.9);
+  align-items: center; justify-content: center; padding: 20px;
+}
+#vocabOverlay.visible { display: flex; }
+.vocab-card {
+  background: var(--bg-card); border: 2px solid var(--accent-purple);
+  border-radius: 14px; padding: 24px; max-width: 440px; width: 90%;
+}
+.vocab-card h3 { font-size: 17px; color: var(--gold); margin-bottom: 14px; text-align: center; }
+.vocab-item { margin-bottom: 12px; padding: 8px 12px; border-radius: 8px; background: rgba(168,85,247,0.08); }
+.vocab-item strong { color: var(--neon-green); font-size: 14px; }
+.vocab-item span { color: var(--text-secondary); font-size: 13px; display: block; margin-top: 2px; }
+.vocab-close-btn {
+  display: block; margin: 12px auto 0; padding: 8px 24px;
+  background: var(--accent-purple); color: #fff; border: none;
+  border-radius: 8px; cursor: pointer; font-size: 14px; min-height: 40px;
+}
+
+/* CELEBRATION OVERLAY */
+#celebrationOverlay {
+  display: none; position: fixed; inset: 0; z-index: 7000;
+  background: rgba(15,10,26,0.85);
+  align-items: center; justify-content: center;
+  flex-direction: column; padding: 20px;
+}
+#celebrationOverlay.visible { display: flex; }
+.celeb-text {
+  font-size: 28px; font-weight: 700; text-align: center;
+  animation: celebPop 0.5s ease-out;
+}
+@keyframes celebPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.celeb-affirmation {
+  font-size: 22px; color: #fff; text-align: center;
+  margin-top: 10px; text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  animation: affirmFade 1.5s ease-out forwards;
+}
+@keyframes affirmFade {
+  0% { opacity: 0; transform: translateY(8px); }
+  20% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* MILESTONE CHOICE */
+#milestoneOverlay {
+  display: none; position: fixed; inset: 0; z-index: 7500;
+  background: rgba(15,10,26,0.9);
+  align-items: center; justify-content: center;
+  flex-direction: column; padding: 20px; text-align: center;
+}
+#milestoneOverlay.visible { display: flex; }
+
+/* PARTICLE LAYER */
+#particleLayer {
+  position: fixed; inset: 0; z-index: 6500; pointer-events: none;
+}
+.particle {
+  position: absolute; display: none; border-radius: 50%;
+  pointer-events: none;
+}
+.particle.active {
+  display: block;
+  animation: particleFly 1.5s ease-out forwards;
+}
+@keyframes particleFly {
+  0% { opacity: 1; transform: translate(0,0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.3); }
+}
+
+/* RECEIPT SCREEN */
+#receiptScreen {
+  display: none; position: fixed; inset: 0; z-index: 9000;
+  background: linear-gradient(135deg, var(--bg-dark), var(--bg-mid));
+  overflow-y: auto; padding: 20px;
+}
+#receiptScreen.visible { display: block; }
+.receipt-inner {
+  max-width: 600px; margin: 0 auto; padding: 20px;
+  background: var(--bg-card); border-radius: 14px;
+  border: 2px solid var(--accent-purple);
+}
+.receipt-inner h2 { font-size: 20px; color: var(--gold); text-align: center; margin-bottom: 4px; }
+.receipt-inner h3 { font-size: 14px; color: var(--text-secondary); text-align: center; margin-bottom: 16px; font-weight: 400; }
+.receipt-name-row { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+.receipt-name-row input {
+  flex: 1; padding: 10px 12px; font-size: 15px;
+  background: var(--bg-dark); border: 2px solid #4A3570; border-radius: 8px;
+  color: var(--text-primary); outline: none;
+}
+.receipt-name-row input:disabled { opacity: 0.6; }
+.receipt-lock-btn {
+  padding: 10px 16px; font-size: 13px; font-weight: 600;
+  background: var(--accent-purple); color: #fff; border: none;
+  border-radius: 8px; cursor: pointer; min-height: 42px;
+}
+.receipt-grade {
+  text-align: center; padding: 16px; margin-bottom: 16px;
+  border-radius: 10px; background: rgba(0,0,0,0.3);
+}
+.receipt-grade .pct { font-size: 48px; font-weight: 700; }
+.receipt-grade .label { font-size: 14px; margin-top: 4px; }
+.receipt-grade.green .pct { color: var(--correct-green); }
+.receipt-grade.yellow .pct { color: var(--gold); }
+.receipt-grade.red .pct { color: var(--wrong-red); }
+.receipt-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
+.receipt-table th {
+  background: rgba(168,85,247,0.15); padding: 8px 6px;
+  text-align: left; color: var(--text-secondary); font-weight: 600;
+  border-bottom: 1px solid #4A3570;
+}
+.receipt-table td {
+  padding: 7px 6px; border-bottom: 1px solid rgba(74,53,112,0.4);
+  color: var(--text-primary);
+}
+.receipt-table tr:nth-child(even) td { background: rgba(168,85,247,0.04); }
+.receipt-table .bonus-row td { font-style: italic; }
+.receipt-table .score-green { color: var(--correct-green); font-weight: 600; }
+.receipt-table .score-yellow { color: var(--gold); font-weight: 600; }
+.receipt-table .score-red { color: var(--wrong-red); font-weight: 600; }
+.receipt-footer { text-align: center; font-size: 13px; color: var(--text-secondary); margin-top: 12px; line-height: 1.6; }
+.receipt-btn {
+  display: inline-block; margin: 8px 6px; padding: 10px 24px;
+  font-size: 14px; font-weight: 600; border: none; border-radius: 8px;
+  cursor: pointer; min-height: 44px;
+}
+.receipt-print-btn { background: var(--accent-purple); color: #fff; }
+.receipt-start-over-btn { background: var(--bg-dark); color: var(--text-secondary); border: 1px solid #4A3570; }
+
+/* CONFIRM DIALOG */
+#confirmOverlay {
+  display: none; position: fixed; inset: 0; z-index: 9500;
+  background: rgba(15,10,26,0.9); align-items: center; justify-content: center;
+}
+#confirmOverlay.visible { display: flex; }
+.confirm-card {
+  background: var(--bg-card); border: 2px solid var(--wrong-red);
+  border-radius: 14px; padding: 24px; max-width: 380px; width: 90%; text-align: center;
+}
+.confirm-card p { font-size: 15px; color: var(--text-primary); margin-bottom: 16px; }
+.confirm-card button { margin: 0 6px; padding: 10px 20px; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; min-height: 44px; }
+.confirm-yes { background: var(--wrong-red); color: #fff; }
+.confirm-no { background: var(--bg-dark); color: var(--text-secondary); border: 1px solid #4A3570; }
+
+/* COACHING OVERLAY (anti-guessing) */
+#coachingGateOverlay {
+  display: none; position: fixed; inset: 0; z-index: 5500;
+  background: rgba(15,10,26,0.92);
+  align-items: center; justify-content: center; padding: 20px;
+}
+#coachingGateOverlay.visible { display: flex; }
+.gate-card {
+  background: var(--bg-card); border: 2px solid var(--streak-orange);
+  border-radius: 14px; padding: 24px; max-width: 420px; width: 90%; text-align: center;
+}
+.gate-card p { font-size: 15px; color: var(--text-primary); margin-bottom: 4px; line-height: 1.5; }
+.gate-timer { font-size: 13px; color: var(--text-dim); margin-top: 8px; }
+
+/* SVG ARENA STYLES */
+.arena-svg { width: 100%; height: auto; display: block; }
+.arena-svg text { font-family: var(--font-body); }
+.pulse-highlight { animation: pulseHL 1s ease-in-out infinite alternate; }
+@keyframes pulseHL { 0% { opacity: 0.5; } 100% { opacity: 1; } }
+.glow-green { filter: drop-shadow(0 0 6px rgba(34,197,94,0.7)); }
+.glow-yellow { filter: drop-shadow(0 0 6px rgba(255,215,0,0.6)); }
+.glow-red { filter: drop-shadow(0 0 6px rgba(239,68,68,0.6)); }
+.glow-blue { filter: drop-shadow(0 0 6px rgba(59,130,246,0.6)); }
+
+/* PRINT CSS */
+@media print {
+  #gameContainer, #topBar, #bottomBar, #defenseGrid, #contextPanel,
+  #interactionZone, #particleLayer, #celebrationOverlay, #milestoneOverlay,
+  #vocabOverlay, #sbsOverlay, #coachingGateOverlay, #confirmOverlay,
+  .receipt-print-btn, .receipt-start-over-btn, #welcomeScreen { display: none !important; }
+  #receiptScreen { display: block !important; position: static !important; background: #fff !important; }
+  .receipt-inner { border: 2px solid #333 !important; background: #fff !important; }
+  .receipt-inner, .receipt-inner * { color: #111 !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div id="welcomeScreen">
+  <div class="welcome-inner">
+    <h1>Mr. Jawad's Simulations</h1>
+    <h2>Mass Extinction Cascade — Boss Level Gauntlet</h2>
+    <p class="welcome-hook">"The asteroid hit again. Stop the chain reaction before everything crashes."</p>
+    <div class="welcome-field">
+      <label for="studentNameInput">Your Name</label>
+      <input type="text" id="studentNameInput" placeholder="Enter your name..." maxlength="40" autocomplete="off">
+    </div>
+    <div class="welcome-field">
+      <label for="teacherNameInput">Teacher Name <span class="optional-tag">(optional)</span></label>
+      <input type="text" id="teacherNameInput" placeholder="e.g. Mr. Jawad" maxlength="40" autocomplete="off">
+    </div>
+    <button id="startBtn" disabled>Start the Gauntlet</button>
+    <div class="welcome-lt">
+      <strong>Learning Target:</strong> I can link impact event, debris cloud, and food chain in order to explain the full chain reaction.
+    </div>
+  </div>
+</div>
+
+<!-- GAME CONTAINER -->
+<div id="gameContainer">
+  <div id="topBar">
+    <span class="round-counter" id="roundCounter">Round 1 of 8</span>
+    <span class="score-display" id="scoreDisplay">Score: 0</span>
+    <span class="streak-display" id="streakDisplay"></span>
+  </div>
+  <div id="defenseGrid"></div>
+  <div id="middleArea">
+    <div id="contextPanel">
+      <div id="contextBadge"></div>
+      <div id="contextCaption" class="context-caption"></div>
+      <div id="arenaBox"><div id="arena"></div></div>
+    </div>
+    <div id="interactionZone"></div>
+  </div>
+  <div id="bottomBar">
+    <button class="bottom-btn" id="vocabBtn">Vocab</button>
+    <button class="bottom-btn" id="hintBtn">Hint</button>
+    <span id="sourceBadge" class="source-badge"></span>
+    <button class="bottom-btn" id="resetLevelBtn">Reset Level</button>
+  </div>
+</div>
+
+<!-- OVERLAYS -->
+<div id="vocabOverlay">
+  <div class="vocab-card">
+    <h3>Key Vocabulary</h3>
+    <div class="vocab-item"><strong>IMPACT EVENT</strong><span>Powerful collision that changes Earth</span></div>
+    <div class="vocab-item"><strong>DEBRIS CLOUD</strong><span>Dust and rock blocking sunlight</span></div>
+    <div class="vocab-item"><strong>FOOD CHAIN</strong><span>Connected feeding relationships in ecosystems</span></div>
+    <div class="vocab-item"><strong>CHAIN REACTION</strong><span>Each change causing the next</span></div>
+    <button class="vocab-close-btn" id="vocabCloseBtn">Close</button>
+  </div>
+</div>
+<div id="sbsOverlay"><div class="sbs-card" id="sbsCard"></div></div>
+<div id="celebrationOverlay"></div>
+<div id="milestoneOverlay"></div>
+<div id="particleLayer"></div>
+<div id="receiptScreen"></div>
+<div id="confirmOverlay"></div>
+<div id="coachingGateOverlay"></div>
+
+<script>
+// ============================================================
+// UTILITY & SAFETY HELPERS
+// ============================================================
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+let audioCtx = null;
+function getAudioContext() {
+  try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
+  catch(e) { return null; }
+}
+function playTone(freq, dur) {
+  try {
+    const ctx = getAudioContext(); if (!ctx) return;
+    const osc = ctx.createOscillator(); const g = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + dur);
+  } catch(e) {}
+}
+function playCorrectSound() { playTone(523, 0.12); setTimeout(() => playTone(659, 0.12), 80); setTimeout(() => playTone(784, 0.15), 160); }
+function playWrongSound() { playTone(220, 0.2); }
+
+// Generation counter for stale callback prevention
+let arenaGen = 0;
+function safeTimeout(fn, ms) {
+  const gen = arenaGen;
+  return setTimeout(() => { if (arenaGen === gen) try { fn(); } catch(e) { console.error('safeTimeout error', e); } }, ms);
+}
+function safeCall(fn, msg) { try { fn(); } catch(e) { console.error(msg, e); } }
+
+// Particle pool
+const PARTICLE_POOL = [];
+function initParticles() {
+  const layer = document.getElementById('particleLayer');
+  for (let i = 0; i < 15; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle'; p.style.display = 'none';
+    layer.appendChild(p); PARTICLE_POOL.push(p);
+  }
+}
+let particleIdx = 0;
+function spawnParticle(x, y, color) {
+  const p = PARTICLE_POOL[particleIdx % 15]; particleIdx++;
+  p.className = 'particle'; p.style.display = 'none';
+  void p.offsetWidth;
+  const tx = (Math.random() - 0.5) * 200;
+  const ty = -(Math.random() * 150 + 50);
+  p.style.cssText = `display:block;left:${x}px;top:${y}px;width:8px;height:8px;background:${color};--tx:${tx}px;--ty:${ty}px;`;
+  p.className = 'particle active';
+  setTimeout(() => { p.style.display = 'none'; p.className = 'particle'; }, 1500);
+}
+function burstParticles(count, color) {
+  const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+  for (let i = 0; i < Math.min(count, 15); i++) {
+    setTimeout(() => spawnParticle(cx + (Math.random()-0.5)*100, cy + (Math.random()-0.5)*60, color), i * 40);
+  }
+}
+
+// Overlay management
+function closeAllOverlays() {
+  document.querySelectorAll('#celebrationOverlay, #milestoneOverlay, #sbsOverlay, #coachingGateOverlay, #confirmOverlay').forEach(el => {
+    el.classList.remove('visible'); el.innerHTML = el.id === 'sbsOverlay' ? '<div class="sbs-card" id="sbsCard"></div>' : '';
+  });
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let processing = false;
+let studentName = '';
+let teacherName = 'Mr. Jawad';
+let currentRound = 0;
+let streak = 0;
+let bestStreak = 0;
+let totalScore = 0;
+let phase = ''; // 'do' or 'prove'
+let wrongCount = 0;
+let hintLevel = 0; // 0=none, 1=hint1 used, 2=sbs used
+let levelResets = 0;
+let roundStartTime = 0;
+let consecutiveFastWrongs = 0;
+let lastWrongTime = 0;
+let sameWrongCount = {};
+let requiredCompleteShown = false;
+let bonusCompleteShown = false;
+let receiptRendered = false;
+let roundPhaseStartTime = 0;
+let allIntervals = [];
+
+function trackInterval(id) { allIntervals.push(id); return id; }
+function clearAllIntervals() { allIntervals.forEach(id => clearInterval(id)); allIntervals = []; }
+
+// Affirmations
+const affirmations = [];
+function buildAffirmations() {
+  const t = teacherName;
+  affirmations.length = 0;
+  affirmations.push(
+    `${t} is proud of you!`, `${t} knew you could do it!`,
+    `That's the kind of thinking ${t} loves to see!`, `${t} says: you're getting it!`,
+    `Strong work — ${t} sees your effort!`, `${t} is impressed right now!`,
+    `You're showing ${t} what you can do!`, `${t} says: keep that energy!`
+  );
+}
+let lastAffirmIdx = -1;
+function getAffirmation() {
+  let idx;
+  do { idx = Math.floor(Math.random() * affirmations.length); } while (idx === lastAffirmIdx && affirmations.length > 1);
+  lastAffirmIdx = idx;
+  return affirmations[idx];
+}
+
+// Per-round state
+const roundData = [];
+function initRoundData() {
+  roundData.length = 0;
+  ROUNDS.forEach((r, i) => {
+    roundData.push({
+      roundNum: i + 1, name: r.name, required: r.required, sourceDay: r.sourceDay,
+      completed: false, score: 0, attempts: 0, hintsUsed: 0, resets: 0, timeSeconds: 0
+    });
+  });
+}
+
+// ============================================================
+// ROUND DEFINITIONS (data-driven)
+// ============================================================
+const ROUNDS = [
+  // ROUND 1
+  {
+    name: 'Cascade Sequence', sourceDay: 'Monday', required: true, mechanic: 'pick',
+    focusPrompt: "Remember Monday's cascade model — follow the arrows from the debris cloud to the next step.",
+    contextCaption: "From Monday: This model shows the chain reaction after the asteroid struck Earth. Each arrow connects one step to the next.",
+    contextBadge: 'monday',
+    doPrompt: 'What happens RIGHT AFTER the debris cloud forms?',
+    doOptions: ['Sunlight gets blocked', 'Herbivores starve', 'Predators die'],
+    doCorrect: 0,
+    doWrongFeedback: [
+      null,
+      'Follow the arrows — what does the debris cloud touch FIRST?',
+      'Follow the arrows — what does the debris cloud touch FIRST?'
+    ],
+    proveQuestion: 'Why does blocked sunlight collapse the food chain?',
+    proveOptions: ['It makes Earth too cold for animals', 'Animals cannot see to find food', 'Plants cannot grow without sunlight'],
+    proveCorrect: 2,
+    proveWrongFeedback: [
+      'Temperature matters, but the food chain starts with plants — what do plants need?',
+      'Animals can still see — but what happens to the bottom of the food chain without light?',
+      null
+    ],
+    hintLadder: {
+      hint1: "Look at the cascade model — the arrows go in order. Find the arrow leaving 'debris cloud' and see what it points to.",
+      sbs: [
+        "The cascade model zooms in on three steps: debris cloud, blocked sunlight, plant death. 'Blocked sunlight' is circled.",
+        "The debris cloud blocks the sun. That is the NEXT step. Tap the option that matches."
+      ]
+    },
+    gridColor: 'lit-blue',
+    buildArena: buildCascadeArena,
+    onCorrectDo: animateCorrectR1Do,
+    onWrongDoNudge: nudgeR1Do,
+    onCorrectProve: null,
+  },
+  // ROUND 2
+  {
+    name: 'Iridium Evidence', sourceDay: 'Tuesday', required: true, mechanic: 'hotspot',
+    focusPrompt: "Remember Tuesday's rock strata diagram — find the thin layer where the asteroid left its mark.",
+    contextCaption: "From Tuesday: This rock strata diagram shows layers of limestone. One thin layer contains a chemical clue from the asteroid.",
+    contextBadge: 'tuesday',
+    doPrompt: 'Tap the layer where the debris cloud left evidence.',
+    hotspotTarget: { yMin: 0.40, yMax: 0.60 }, // middle third
+    doWrongFeedbackByZone: {
+      above: 'That layer is from AFTER the extinction — the evidence is in the thin line BELOW this layer.',
+      below: 'That layer is full of fossils from BEFORE the impact — look for the thin, dark layer between the two limestone sections.',
+      default: 'Look for the thin dark line between the thick limestone layers.'
+    },
+    proveQuestion: 'What does the iridium in the clay prove?',
+    proveOptions: ['A debris cloud spread across Earth', 'Dinosaurs lived in this rock layer', 'These rocks are very old'],
+    proveCorrect: 0,
+    proveWrongFeedback: [
+      null,
+      'Iridium is not from dinosaurs — it is rare on Earth but common in asteroids. What would asteroid dust in a rock layer prove?',
+      'Age is not what iridium tells us — iridium came from space. What event spread asteroid material everywhere?'
+    ],
+    hintLadder: {
+      hint1: "Look at the strata diagram — find the thin dark line between the thick limestone layers. That is where the asteroid's dust settled.",
+      sbs: [
+        "The strata diagram zooms in. The clay layer is circled with a bright highlight. Label: 'This thin layer = asteroid dust.'",
+        "The iridium in this clay came from the asteroid. It proves the debris cloud spread everywhere. Tap this layer."
+      ]
+    },
+    gridColor: 'lit-amber',
+    buildArena: buildStrataArena,
+    onCorrectDo: animateCorrectR2Do,
+    onWrongDoNudge: nudgeR2Do,
+  },
+  // ROUNDS 3-8: TODO — will be injected in Stage 2
+  { name: 'Debris Thickness Prediction', sourceDay: 'Wednesday', required: true, mechanic: 'wcn',
+    focusPrompt: "Remember Wednesday's lab — when you set debris cloud to Total Blackout, watch what happened to plants.",
+    contextCaption: "From Wednesday: This lab model shows what happens when the debris cloud blocks ALL sunlight. The thickness slider is set to Total Blackout.",
+    contextBadge: 'wednesday',
+    doPrompt: 'Plants just died. What happens NEXT in the food chain?',
+    sequenceShown: ['Impact Event', 'Debris Cloud (Total Blackout)', 'Sunlight Blocked', 'Plants Die'],
+    doOptions: ['All sunlight blocked — plants die next', 'Herbivores adapt to eating rocks', 'Herbivores starve — they eat plants'],
+    doCorrect: 2,
+    doWrongFeedback: [
+      'Plants already died — you are looking for what happens AFTER that. Look at who eats plants.',
+      'Herbivores eat plants, not rocks. If plants are gone, what happens to the animals that depend on them?',
+      null
+    ],
+    proveQuestion: 'Why did herbivores die BEFORE predators?',
+    proveOptions: ['Predators are stronger than herbivores', 'Herbivores eat plants — plants died first', 'The asteroid hit herbivores directly'],
+    proveCorrect: 1,
+    proveWrongFeedback: [
+      'Strength does not decide the order — the food chain does. What do herbivores eat?',
+      null,
+      'The asteroid did not hit animals directly — it triggered a chain reaction. What did herbivores lose when plants died?'
+    ],
+    hintLadder: {
+      hint1: "Look at the food chain on the model — follow the arrow from dead plants to the next organism. Who eats plants?",
+      sbs: [
+        "The cascade model zooms to show just: dead plants, herbivores, predators. The herbivore icon is circled. Label: 'Herbivores eat plants.'",
+        "Plants died, so herbivores have no food. They starve next. Tap the option about herbivores."
+      ]
+    },
+    gridColor: 'lit-green',
+    buildArena: buildLabArena,
+    onCorrectDo: animateCorrectR3Do,
+    onWrongDoNudge: nudgeR3Do,
+  },
+  { name: 'First Clue', sourceDay: 'Monday', required: true, mechanic: 'coach',
+    focusPrompt: "The debris cloud step is glowing on the cascade model. What first clue proved that step really happened?",
+    contextCaption: "From Monday: One step in the chain reaction is highlighted. A geologist found the very first clue that proved this step occurred.",
+    contextBadge: 'monday',
+    doPrompt: 'What first clue proved the debris cloud happened?',
+    doOptions: ['A satellite image of a buried crater', 'A graph showing species populations crashing', 'A thin clay layer with asteroid iridium'],
+    doCorrect: 2,
+    doWrongFeedback: [
+      'The crater proves the IMPACT EVENT, not the debris cloud. Look at the highlighted step — what kind of evidence would prove dust spread through the atmosphere?',
+      'The population crash proves the FOOD CHAIN collapsed. The highlighted step is about dust in the atmosphere — what physical clue proved that dust existed?',
+      null
+    ],
+    proveQuestion: 'Why was the clay layer discovery so important?',
+    proveOptions: ['Iridium is rare on Earth but common in asteroids', 'The clay proved the rocks were very old', 'The geologist found dinosaur fossils inside it'],
+    proveCorrect: 0,
+    proveWrongFeedback: [
+      null,
+      'The age of the rocks was already known — what made the clay SPECIAL was what was inside it. What rare element came from space?',
+      'No fossils were in the clay — the team found a rare element called iridium. Where does iridium come from?'
+    ],
+    hintLadder: {
+      hint1: "Look at the highlighted step on the cascade model — it says 'debris cloud.' Now look at the cliff image. Which layer in the rocks could be leftover dust from the asteroid?",
+      sbs: [
+        "The cascade model shows the highlighted debris cloud step. An arrow points from it to the cliff panel, where the clay layer is circled. Label: 'Debris cloud = dust settled into this layer.'",
+        "The clay layer contains iridium from the asteroid. That proves the debris cloud was real. Tap the clay layer option."
+      ]
+    },
+    gridColor: 'lit-blue',
+    buildArena: buildR4Arena,
+    onCorrectDo: animateCorrectR4Do,
+    onWrongDoNudge: nudgeR4Do,
+  },
+  { name: 'Evidence Matching', sourceDay: 'Tuesday', required: true, mechanic: 'pick',
+    focusPrompt: "Remember Tuesday's evidence board — each piece of evidence proved a different step in the chain reaction.",
+    contextCaption: "From Tuesday: Three pieces of evidence each proved a different link in the chain reaction. Match the iridium clay layer to the step it proves.",
+    contextBadge: 'tuesday',
+    doPrompt: 'The iridium clay layer proves which chain reaction step?',
+    doOptions: ['Impact event', 'Debris cloud', 'Food chain collapse'],
+    doCorrect: 1,
+    doWrongFeedback: [
+      'The crater proves the impact event. Iridium is asteroid DUST that spread through the air — which step involves dust spreading?',
+      null,
+      'The population crash graph proves food chain collapse. Iridium is a chemical — it proves something about what spread through the atmosphere.'
+    ],
+    proveQuestion: 'Which evidence proves the food chain collapsed?',
+    proveOptions: ['The Chicxulub crater image', 'The iridium clay layer', 'The species population crash graph'],
+    proveCorrect: 2,
+    proveWrongFeedback: [
+      'The crater shows WHERE the asteroid hit — not what happened to living things. Which evidence shows population numbers?',
+      'Iridium proves the debris cloud existed. Which evidence directly shows species dying off?',
+      null
+    ],
+    hintLadder: {
+      hint1: "Look at the evidence board — iridium is asteroid dust found in rocks. Dust that spread through the atmosphere matches which step on the cascade model?",
+      sbs: [
+        "The three evidence cards are shown next to the three cascade steps. The iridium card and the debris cloud step are both circled and connected by a dotted line.",
+        "Iridium = asteroid dust. Dust in the atmosphere = debris cloud. Tap 'Debris cloud.'"
+      ]
+    },
+    gridColor: 'lit-amber',
+    buildArena: buildR5Arena,
+    onCorrectDo: animateCorrectR5Do,
+    onWrongDoNudge: nudgeR5Do,
+  },
+  { name: 'New Variable Prediction', sourceDay: 'Wednesday', required: true, mechanic: 'wcn',
+    focusPrompt: "Remember Wednesday's lab — when asteroid size and debris were both small, what happened to the food chain?",
+    contextCaption: "From Wednesday: A NEW scenario. Asteroid = Small. Debris cloud = Thin. Duration = Months. Use what you learned in the lab.",
+    contextBadge: 'wednesday',
+    doPrompt: 'With these settings, what happens to the food chain?',
+    sequenceShown: ['Small Asteroid', 'Thin Debris Cloud', 'Most Sunlight Passes Through'],
+    doOptions: ['Food chain survives — debris clears fast', 'Full collapse — all organisms die', 'Only predators survive'],
+    doCorrect: 0,
+    doWrongFeedback: [
+      null,
+      'Full collapse happened when debris was Dense or Total Blackout. These settings are much lighter — how much sunlight gets through?',
+      'Predators depend on the WHOLE food chain. If plants survive, what happens to herbivores? And then predators?'
+    ],
+    proveQuestion: 'Which variable MOST controls whether the food chain survives?',
+    proveOptions: ['Asteroid size', 'Debris cloud thickness', 'Duration of the debris cloud'],
+    proveCorrect: 1,
+    proveWrongFeedback: [
+      'Asteroid size affects how MUCH debris launches — but what directly blocks the sunlight plants need? Look at the model.',
+      null,
+      'Duration matters, but if the debris is thin, sunlight still gets through no matter how long it lasts. What blocks the light?'
+    ],
+    hintLadder: {
+      hint1: "Look at the lab model — the debris cloud thickness slider controls how much sunlight passes through. In Wednesday's lab, what happened when thickness was low?",
+      sbs: [
+        "The model shows two snapshots: Dense debris (dark, no sun) vs. Thin debris (light, sun passes). Labels: 'Dense = collapse' and 'Thin = survival.'",
+        "Thin debris lets sunlight through. Plants survive. The food chain holds. Tap the survival option."
+      ]
+    },
+    gridColor: 'lit-green',
+    buildArena: buildR6Arena,
+    onCorrectDo: animateCorrectR6Do,
+    onWrongDoNudge: nudgeR6Do,
+  },
+  { name: 'Cross-Day Synthesis', sourceDay: 'Tue + Wed', required: false, mechanic: 'hotspot',
+    focusPrompt: "Two arrows point to the same cascade step — follow them and tap where they meet.",
+    contextCaption: "From Tuesday AND Wednesday: The iridium evidence and the thickness slider both connect to the SAME step. Follow the arrows.",
+    contextBadge: 'alldays',
+    doPrompt: 'Both arrows point to one step. Tap it.',
+    hotspotTarget: { xMin: 0.33, xMax: 0.53, yMin: 0.22, yMax: 0.50 },
+    doWrongFeedbackByZone: {
+      left: 'That is not where the arrows point. Follow the amber line from the iridium card — where does it end?',
+      right: 'Follow the green line from the thickness slider — it does not point here. Where do BOTH lines meet?',
+      above: 'Close — but the arrows meet one step BEFORE blocked sunlight. Look where both lines end.',
+      below: 'Close — but the arrows meet one step BEFORE blocked sunlight. Look where both lines end.',
+      default: 'Follow both colored arrows to where they converge and tap that spot.'
+    },
+    proveQuestion: 'Why do iridium evidence AND the thickness slider BOTH connect to debris cloud?',
+    proveOptions: ['One proves it happened, the other tests what it does', 'They both measure how thick the dust was', 'They are from the same day\'s simulation'],
+    proveCorrect: 0,
+    proveWrongFeedback: [
+      null,
+      'The iridium does not measure thickness — it proves the dust EXISTS. The slider tests what thickness DOES. How are those two roles different?',
+      'They are from different days — Tuesday and Wednesday. But they connect to the same cascade step. Why would two different tools point to the same step?'
+    ],
+    hintLadder: {
+      hint1: "Follow the two colored arrows — one amber, one green. They both end at the same spot. Tap where they meet.",
+      sbs: [
+        "The cascade zooms in to show just the convergence area. Both arrows are highlighted with a circle around the '?' where they meet.",
+        "The amber arrow is the iridium evidence. The green arrow is the thickness slider. They both point to the debris cloud. Tap the '?' target."
+      ]
+    },
+    gridColor: 'lit-dual',
+    buildArena: buildR7Arena,
+    onCorrectDo: animateCorrectR7Do,
+    onWrongDoNudge: nudgeR7Do,
+  },
+  { name: 'Full Claim', sourceDay: 'All 3 Days', required: false, mechanic: 'claim',
+    focusPrompt: "Use everything from this week — Monday's story, Tuesday's evidence, Wednesday's lab — to finish this claim.",
+    contextCaption: "From ALL 3 DAYS: Build the strongest claim about WHY the chain reaction collapsed the food chain. Choose the best evidence.",
+    contextBadge: 'alldays',
+    doPrompt: "Finish the claim: 'The impact event caused a chain reaction that collapsed the food chain because ___.'",
+    doOptions: [
+      'scientists found iridium in rocks on every continent',
+      'the debris cloud blocked sunlight, killing plants, then herbivores, then predators',
+      'the asteroid was very large and hit Earth hard'
+    ],
+    doCorrect: 1,
+    doWrongFeedback: [
+      'That is evidence the debris cloud existed — but it does not explain WHY the food chain collapsed. What actually killed the organisms in order?',
+      null,
+      'The size of the asteroid started the chain reaction, but the claim asks WHY the food chain collapsed. What happened step by step after the impact?'
+    ],
+    proveQuestion: 'Which day let you TEST whether a smaller impact still collapses the food chain?',
+    proveOptions: ["Monday's Story Map", "Wednesday's Cause-and-Effect Lab", "Tuesday's Detective Investigation"],
+    proveCorrect: 1,
+    proveWrongFeedback: [
+      'Monday TOLD you the story of the cascade. Which day let you change the variables and RUN the test yourself?',
+      null,
+      'Tuesday showed you the EVIDENCE. Which day gave you sliders to test different scenarios?'
+    ],
+    hintLadder: {
+      hint1: "The claim needs to explain the MECHANISM — HOW did one thing lead to another? Look at the cascade arrows and describe the steps in order.",
+      sbs: [
+        "The cascade is shown with three options overlaid. Option A is dimmed (labeled 'evidence, not mechanism'). Option C is dimmed (labeled 'starting event, not chain'). Option B is highlighted with the full cascade sequence underlined.",
+        "The claim needs the step-by-step chain: debris blocks sun, plants die, herbivores die, predators die. Tap option B."
+      ]
+    },
+    gridColor: 'lit-gold',
+    buildArena: buildR8Arena,
+    onCorrectDo: animateCorrectR8Do,
+    onWrongDoNudge: nudgeR8Do,
+  },
+];
+
+// ============================================================
+// SVG HELPER FUNCTIONS — reusable biological shapes
+// ============================================================
+function svgAsteroid(cx, cy, r) {
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#asteroidFill)"/>
+    <circle cx="${cx-r*0.3}" cy="${cy-r*0.25}" r="${r*0.22}" fill="#5C4A3A" opacity="0.7"/>
+    <circle cx="${cx+r*0.25}" cy="${cy+r*0.2}" r="${r*0.15}" fill="#4A3A2A" opacity="0.6"/>
+    <circle cx="${cx-r*0.1}" cy="${cy+r*0.35}" r="${r*0.12}" fill="#5C4A3A" opacity="0.5"/>
+    <ellipse cx="${cx+r*0.35}" cy="${cy-r*0.15}" rx="${r*0.18}" ry="${r*0.1}" fill="#6B5B4B" opacity="0.4" transform="rotate(-20,${cx+r*0.35},${cy-r*0.15})"/>`;
+}
+function svgSun(cx, cy, r, opacity) {
+  let s = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#FFD700" opacity="${opacity*0.6}"/>`;
+  s += `<circle cx="${cx}" cy="${cy}" r="${r*0.7}" fill="#FFEC80" opacity="${opacity*0.4}"/>`;
+  for (let i = 0; i < 8; i++) {
+    const a = (i/8)*Math.PI*2;
+    const x1 = cx + Math.cos(a)*(r+2), y1 = cy + Math.sin(a)*(r+2);
+    const x2 = cx + Math.cos(a)*(r+7), y2 = cy + Math.sin(a)*(r+7);
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#FFD700" stroke-width="1.5" opacity="${opacity*0.5}" stroke-linecap="round"/>`;
+  }
+  return s;
+}
+function svgTree(cx, cy, h, alive) {
+  const trunkH = h*0.35, canopyR = h*0.35;
+  const green = alive ? '#22C55E' : '#78350F';
+  const trunk = alive ? '#8B6914' : '#5C4A3A';
+  let s = `<rect x="${cx-2}" y="${cy-trunkH}" width="4" height="${trunkH}" rx="1" fill="${trunk}"/>`;
+  s += `<ellipse cx="${cx}" cy="${cy-trunkH-canopyR*0.5}" rx="${canopyR}" ry="${canopyR*0.8}" fill="${green}" opacity="${alive?0.8:0.5}"/>`;
+  if (alive) s += `<ellipse cx="${cx-canopyR*0.4}" cy="${cy-trunkH-canopyR*0.7}" rx="${canopyR*0.5}" ry="${canopyR*0.5}" fill="#16A34A" opacity="0.6"/>`;
+  return s;
+}
+function svgDino(cx, cy, size, type, alive) {
+  const c = alive ? (type==='herb' ? '#A78BFA' : '#F87171') : '#4A3A2A';
+  const o = alive ? 0.9 : 0.5;
+  if (type === 'herb') {
+    return `<g opacity="${o}"><ellipse cx="${cx}" cy="${cy}" rx="${size*0.6}" ry="${size*0.3}" fill="${c}"/>
+      <ellipse cx="${cx-size*0.55}" cy="${cy-size*0.25}" rx="${size*0.15}" ry="${size*0.12}" fill="${c}"/>
+      <line x1="${cx-size*0.45}" y1="${cy-size*0.15}" x2="${cx-size*0.35}" y2="${cy}" stroke="${c}" stroke-width="${size*0.08}"/>
+      <rect x="${cx-size*0.2}" y="${cy+size*0.2}" width="${size*0.08}" height="${size*0.2}" rx="1" fill="${c}"/>
+      <rect x="${cx+size*0.15}" y="${cy+size*0.2}" width="${size*0.08}" height="${size*0.2}" rx="1" fill="${c}"/>
+      <circle cx="${cx-size*0.6}" cy="${cy-size*0.28}" r="${size*0.04}" fill="#1F1F2E"/></g>`;
+  } else {
+    return `<g opacity="${o}"><ellipse cx="${cx}" cy="${cy}" rx="${size*0.4}" ry="${size*0.25}" fill="${c}"/>
+      <ellipse cx="${cx+size*0.3}" cy="${cy-size*0.2}" rx="${size*0.18}" ry="${size*0.14}" fill="${c}"/>
+      <rect x="${cx-size*0.05}" y="${cy+size*0.15}" width="${size*0.1}" height="${size*0.22}" rx="1" fill="${c}"/>
+      <rect x="${cx+size*0.15}" y="${cy+size*0.15}" width="${size*0.1}" height="${size*0.22}" rx="1" fill="${c}"/>
+      <line x1="${cx-size*0.35}" y1="${cy}" x2="${cx-size*0.55}" y2="${cy+size*0.15}" stroke="${c}" stroke-width="${size*0.06}"/>
+      <circle cx="${cx+size*0.38}" cy="${cy-size*0.24}" r="${size*0.04}" fill="#1F1F2E"/>
+      <path d="M${cx+size*0.44},${cy-size*0.16} L${cx+size*0.52},${cy-size*0.2} L${cx+size*0.44},${cy-size*0.12}" fill="none" stroke="${c}" stroke-width="${size*0.03}"/></g>`;
+  }
+}
+function svgStars(count, w, h) {
+  let s = '';
+  for (let i = 0; i < count; i++) {
+    const x = (i*137.508)%w, y = (i*89.3)%(h*0.6);
+    const r = 0.5 + (i%3)*0.5;
+    s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#E0D8F0" opacity="${0.15+(i%4)*0.08}"/>`;
+  }
+  return s;
+}
+function svgGradArrow(x1, y1, x2, y2, id, color, highlight) {
+  const w = highlight ? 3.5 : 2;
+  const op = highlight ? 1 : 0.7;
+  return `<line id="${id}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${w}" opacity="${op}" marker-end="url(#ah_${id})" ${highlight?'class="pulse-highlight"':''}/>
+    <defs><marker id="ah_${id}" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="${color}" opacity="${op}"/></marker></defs>`;
+}
+function svgCommonDefs() {
+  return `<defs>
+    <linearGradient id="asteroidFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#A0845E"/><stop offset="50%" stop-color="#7B6347"/><stop offset="100%" stop-color="#5C4A3A"/>
+    </linearGradient>
+    <linearGradient id="debrisGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6B7280" stop-opacity="0.1"/><stop offset="30%" stop-color="#9CA3AF" stop-opacity="0.6"/>
+      <stop offset="70%" stop-color="#9CA3AF" stop-opacity="0.6"/><stop offset="100%" stop-color="#6B7280" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E1040"/><stop offset="100%" stop-color="#0F0A1A"/>
+    </linearGradient>
+    <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2D1F0E"/><stop offset="100%" stop-color="#1A1208"/>
+    </linearGradient>
+    <linearGradient id="clayGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#92400E" stop-opacity="0.6"/><stop offset="50%" stop-color="#B45309" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#92400E" stop-opacity="0.6"/>
+    </linearGradient>
+    <marker id="arrowHead" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0,9 3.5,0 7" fill="#7B6A94"/>
+    </marker>
+  </defs>`;
+}
+
+// ============================================================
+// ARENA BUILDERS (HIGH-QUALITY SVG)
+// ============================================================
+
+function buildCascadeArena(round) {
+  const arena = document.getElementById('arena');
+  arena.innerHTML = '';
+  const W = 700, H = 210;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="arena-svg" xmlns="http://www.w3.org/2000/svg">`;
+  svg += svgCommonDefs();
+  svg += `<rect width="${W}" height="${H}" fill="url(#skyGrad)" rx="8"/>`;
+  svg += svgStars(25, W, H);
+  svg += `<rect x="0" y="${H-28}" width="${W}" height="28" fill="url(#groundGrad)"/>`;
+  svg += `<rect x="0" y="${H-30}" width="${W}" height="4" fill="#3D2E1A" opacity="0.5"/>`;
+  svg += `<text x="${W/2}" y="18" text-anchor="middle" fill="#B8A0D8" font-size="11" font-weight="700" letter-spacing="1">EXTINCTION CASCADE MODEL</text>`;
+  const stepDefs = [
+    { label: 'Impact Event', x: 18, w: 80, color: '#EF4444', icon: 'asteroid' },
+    { label: 'Debris Cloud', x: 120, w: 80, color: '#F59E0B', icon: 'cloud' },
+    { label: 'Blocked Sunlight', x: 225, w: 85, color: '#6366F1', icon: 'sun' },
+    { label: 'Plant Death', x: 340, w: 75, color: '#84CC16', icon: 'plant' },
+    { label: 'Herbivore Starvation', x: 445, w: 95, color: '#EC4899', icon: 'herb' },
+    { label: 'Predator Death', x: 570, w: 90, color: '#DC2626', icon: 'pred' }
+  ];
+  const boxY = 32, boxH = 100, iconY = 65;
+  for (let i = 0; i < stepDefs.length - 1; i++) {
+    const s = stepDefs[i], n = stepDefs[i+1];
+    const hl = (round === 0 && i === 1);
+    svg += svgGradArrow(s.x + s.w, iconY, n.x, iconY, `arrow_${i}`, hl ? '#F59E0B' : '#4A3570', hl);
+  }
+  stepDefs.forEach((s, i) => {
+    const icx = s.x + s.w/2;
+    svg += `<rect id="step_${i}" x="${s.x}" y="${boxY}" width="${s.w}" height="${boxH}" rx="8" fill="${s.color}12" stroke="${s.color}" stroke-width="1.5"/>`;
+    if (s.icon === 'asteroid') {
+      svg += svgAsteroid(icx, iconY-2, 14);
+      for (let a = 0; a < 6; a++) { const angle=(a/6)*Math.PI*2+0.5; const ox=Math.cos(angle)*20,oy=Math.sin(angle)*20; svg += `<line x1="${icx+ox*0.7}" y1="${iconY-2+oy*0.7}" x2="${icx+ox}" y2="${iconY-2+oy}" stroke="#EF4444" stroke-width="1" opacity="0.5"/>`; }
+    } else if (s.icon === 'cloud') {
+      svg += `<ellipse cx="${icx}" cy="${iconY-4}" rx="28" ry="14" fill="#9CA3AF" opacity="0.4"/>`;
+      svg += `<ellipse cx="${icx-10}" cy="${iconY-8}" rx="16" ry="10" fill="#9CA3AF" opacity="0.3"/>`;
+      svg += `<ellipse cx="${icx+12}" cy="${iconY-2}" rx="18" ry="10" fill="#78716C" opacity="0.35"/>`;
+      for (let p=0;p<6;p++) svg += `<circle cx="${icx-15+p*7}" cy="${iconY+8+p%3*3}" r="1.5" fill="#D1D5DB" opacity="0.4"/>`;
+    } else if (s.icon === 'sun') {
+      svg += svgSun(icx, iconY-5, 13, 0.3);
+      svg += `<line x1="${icx-10}" y1="${iconY-15}" x2="${icx+10}" y2="${iconY+5}" stroke="#EF4444" stroke-width="2" opacity="0.6"/>`;
+      svg += `<line x1="${icx+10}" y1="${iconY-15}" x2="${icx-10}" y2="${iconY+5}" stroke="#EF4444" stroke-width="2" opacity="0.6"/>`;
+    } else if (s.icon === 'plant') {
+      svg += svgTree(icx-10, iconY+14, 28, false); svg += svgTree(icx+10, iconY+14, 24, false);
+    } else if (s.icon === 'herb') { svg += svgDino(icx, iconY, 22, 'herb', false);
+    } else if (s.icon === 'pred') { svg += svgDino(icx, iconY, 22, 'pred', false); }
+    const words = s.label.split(' ');
+    words.forEach((word, wi) => { svg += `<text x="${icx}" y="${boxY+boxH-18+wi*11}" text-anchor="middle" fill="${s.color}" font-size="8" font-weight="600">${word}</text>`; });
+  });
+  if (round === 0) svg += `<line id="hlArrow1" x1="${stepDefs[1].x+stepDefs[1].w}" y1="${iconY}" x2="${stepDefs[2].x}" y2="${iconY}" stroke="#F59E0B" stroke-width="4" class="pulse-highlight" marker-end="url(#ah_arrow_1)"/>`;
+  svg += `</svg>`;
+  arena.innerHTML = svg;
+}
+function animateCorrectR1Do() {
+  safeCall(() => {
+    const arrow = document.getElementById('hlArrow1');
+    if (arrow) { arrow.style.stroke = '#22C55E'; arrow.classList.remove('pulse-highlight'); arrow.classList.add('glow-green'); }
+    const step2 = document.getElementById('step_2');
+    if (step2) { step2.style.fill = 'rgba(99,102,241,0.25)'; step2.style.stroke = '#22C55E'; step2.style.strokeWidth = '2.5'; }
+  }, 'R1 correct anim');
+}
+function nudgeR1Do() {
+  safeCall(() => { const arrow = document.getElementById('hlArrow1'); if (arrow) { arrow.classList.add('pulse-highlight'); arrow.style.stroke = '#FFD700'; } }, 'R1 nudge');
+}
+
+function buildStrataArena(round) {
+  const arena = document.getElementById('arena');
+  arena.innerHTML = '';
+  const W = 700, H = 220;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="arena-svg hotspot-area" xmlns="http://www.w3.org/2000/svg" id="strataSvg">`;
+  svg += svgCommonDefs();
+  svg += `<rect width="${W}" height="${H}" fill="#0F0A1A" rx="8"/>`;
+  svg += `<text x="${W/2}" y="18" text-anchor="middle" fill="#B8A0D8" font-size="11" font-weight="700" letter-spacing="1">ROCK STRATA CROSS-SECTION</text>`;
+  svg += `<path d="M40,30 Q200,26 350,32 Q500,28 660,31" fill="none" stroke="#6B7280" stroke-width="1.5" opacity="0.3"/>`;
+  svg += `<rect x="40" y="32" width="620" height="54" rx="3" fill="#D1D5DB" opacity="0.12"/>`;
+  for (let i=0;i<10;i++) svg += `<line x1="${60+i*58}" y1="${40+(i%3)*6}" x2="${78+i*58}" y2="${41+(i%3)*6}" stroke="#9CA3AF" stroke-width="0.4" opacity="0.2"/>`;
+  svg += `<text x="350" y="52" text-anchor="middle" fill="#9CA3AF" font-size="9" font-weight="500">Fossil-Poor Limestone (after extinction)</text>`;
+  for (let i=0;i<5;i++) svg += `<circle cx="${100+i*120}" cy="${66+(i%2)*4}" r="1.5" fill="#9CA3AF" opacity="0.2"/>`;
+  svg += `<rect id="clayLayer" x="40" y="92" width="620" height="28" rx="2" fill="url(#clayGrad)"/>`;
+  svg += `<rect x="40" y="92" width="620" height="28" rx="2" fill="none" stroke="#D97706" stroke-width="1.5" stroke-dasharray="5,3"/>`;
+  for (let i=0;i<15;i++) { const sx=60+i*40+(i*7)%20, sy=98+(i*11)%16; svg += `<circle cx="${sx}" cy="${sy}" r="${0.8+(i%3)*0.6}" fill="#FCD34D" opacity="${0.3+(i%4)*0.1}"/>`; }
+  svg += `<text x="350" y="109" text-anchor="middle" fill="#FCD34D" font-size="9" font-weight="600">? Thin Boundary Layer — What is inside? ?</text>`;
+  svg += `<polygon points="345,85 350,90 355,85" fill="#FCD34D" opacity="0.5"/>`;
+  svg += `<polygon points="345,127 350,122 355,127" fill="#FCD34D" opacity="0.5"/>`;
+  svg += `<rect x="40" y="126" width="620" height="72" rx="3" fill="#D2B48C" opacity="0.15"/>`;
+  for (let i=0;i<12;i++) svg += `<line x1="${55+i*50}" y1="${142+(i%4)*8}" x2="${72+i*50}" y2="${143+(i%4)*8}" stroke="#C4A882" stroke-width="0.4" opacity="0.2"/>`;
+  svg += `<text x="350" y="142" text-anchor="middle" fill="#D2B48C" font-size="9" font-weight="500">Fossil-Rich Limestone (before extinction)</text>`;
+  const fp = [[100,165],[220,170],[340,160],[460,172],[580,164]];
+  fp.forEach(([fx,fy], fi) => {
+    if (fi%2===0) { svg += `<circle cx="${fx}" cy="${fy}" r="8" fill="none" stroke="#A08060" stroke-width="1.2" opacity="0.6"/><path d="M${fx+4},${fy} A4,4 0 1,0 ${fx-4},${fy}" fill="none" stroke="#A08060" stroke-width="0.8" opacity="0.5"/><circle cx="${fx}" cy="${fy}" r="2" fill="#A08060" opacity="0.4"/>`; }
+    else { svg += `<ellipse cx="${fx}" cy="${fy}" rx="10" ry="6" fill="#A08060" opacity="0.3"/><ellipse cx="${fx}" cy="${fy}" rx="6" ry="4" fill="#8B7355" opacity="0.25"/>`; for(let s=-2;s<=2;s++) svg += `<line x1="${fx+s*3}" y1="${fy-5}" x2="${fx+s*3}" y2="${fy+5}" stroke="#8B7355" stroke-width="0.4" opacity="0.25"/>`; }
+  });
+  svg += `<rect x="160" y="178" width="14" height="3" rx="1" fill="#C4A882" opacity="0.3" transform="rotate(-15,167,179)"/>`;
+  svg += `<line x1="30" y1="32" x2="30" y2="198" stroke="#4A3570" stroke-width="1"/>`;
+  svg += `<text x="20" y="60" text-anchor="middle" fill="#7B6A94" font-size="7" transform="rotate(-90,20,60)">AFTER</text>`;
+  svg += `<text x="20" y="165" text-anchor="middle" fill="#7B6A94" font-size="7" transform="rotate(-90,20,165)">BEFORE</text>`;
+  svg += `<text x="${W/2}" y="${H-6}" text-anchor="middle" fill="#7B6A94" font-size="8">Tap the layer where the asteroid left evidence</text>`;
+  svg += `</svg>`;
+  arena.innerHTML = svg;
+}
+function animateCorrectR2Do() {
+  safeCall(() => {
+    const clay = document.getElementById('clayLayer');
+    if (clay) { clay.style.fill = '#22C55E'; clay.style.opacity = '0.7'; }
+    const svgEl = document.querySelector('#arena svg');
+    if (svgEl) { const lbl = document.createElementNS('http://www.w3.org/2000/svg','text'); lbl.setAttribute('x','350'); lbl.setAttribute('y','109'); lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('fill','#22C55E'); lbl.setAttribute('font-size','10'); lbl.setAttribute('font-weight','700'); lbl.textContent = 'Iridium Clay Layer — Proof of DEBRIS CLOUD'; svgEl.appendChild(lbl); }
+  }, 'R2 correct anim');
+}
+function nudgeR2Do(zone) { safeCall(() => { const clay = document.getElementById('clayLayer'); if (clay) { clay.classList.add('pulse-highlight'); clay.style.opacity = '0.9'; } }, 'R2 nudge'); }
+
+function buildLabArena(round) {
+  const arena = document.getElementById('arena');
+  arena.innerHTML = '';
+  const W = 700, H = 220;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="arena-svg" xmlns="http://www.w3.org/2000/svg">`;
+  svg += svgCommonDefs();
+  svg += `<rect width="${W}" height="${H}" fill="#0A0F0A" rx="8"/>`;
+  svg += svgStars(15, W, H);
+  svg += `<text x="${W/2}" y="18" text-anchor="middle" fill="#10B981" font-size="11" font-weight="700" letter-spacing="1">WEDNESDAY'S LAB — TOTAL BLACKOUT</text>`;
+  svg += `<rect x="15" y="28" width="140" height="50" rx="6" fill="#111" stroke="#374151"/><text x="85" y="42" text-anchor="middle" fill="#9CA3AF" font-size="8">Debris Thickness</text>`;
+  svg += `<rect x="25" y="48" width="120" height="14" rx="4" fill="#1F2937"/><rect x="25" y="48" width="120" height="14" rx="4" fill="#EF4444" opacity="0.5"/>`;
+  svg += `<circle cx="140" cy="55" r="6" fill="#EF4444" stroke="#fff" stroke-width="1"/><text x="85" y="58" text-anchor="middle" fill="#fff" font-size="7" font-weight="700">TOTAL BLACKOUT</text>`;
+  svg += svgSun(350, 50, 18, 0.15);
+  svg += `<rect x="160" y="30" width="380" height="44" rx="8" fill="url(#debrisGrad)"/>`;
+  svg += `<ellipse cx="280" cy="46" rx="60" ry="16" fill="#6B7280" opacity="0.4"/><ellipse cx="380" cy="42" rx="50" ry="14" fill="#78716C" opacity="0.35"/>`;
+  svg += `<text x="350" y="55" text-anchor="middle" fill="#D1D5DB" font-size="9" font-weight="600">DENSE DEBRIS CLOUD</text>`;
+  for (let i=0;i<7;i++) { const rx=200+i*50; svg += `<line x1="${rx-4}" y1="78" x2="${rx+4}" y2="88" stroke="#EF4444" stroke-width="1.5" opacity="0.5"/><line x1="${rx+4}" y1="78" x2="${rx-4}" y2="88" stroke="#EF4444" stroke-width="1.5" opacity="0.5"/>`; }
+  svg += `<text x="350" y="98" text-anchor="middle" fill="#EF4444" font-size="8" opacity="0.7">NO SUNLIGHT REACHES GROUND</text>`;
+  svg += `<rect x="0" y="${H-55}" width="${W}" height="55" fill="url(#groundGrad)"/><rect x="0" y="${H-57}" width="${W}" height="3" fill="#3D2E1A" opacity="0.5"/>`;
+  svg += `<rect id="r3Plants" x="40" y="108" width="160" height="70" rx="8" fill="#84CC1608" stroke="#84CC16"/>`;
+  svg += svgTree(80, 160, 30, false) + svgTree(110, 162, 26, false) + svgTree(140, 158, 28, false);
+  svg += `<text x="120" y="124" text-anchor="middle" fill="#EF4444" font-size="10" font-weight="700">PLANTS</text>`;
+  svg += `<rect x="60" y="133" width="100" height="6" rx="3" fill="#1F2937"/><rect x="60" y="133" width="0" height="6" rx="3" fill="#EF4444"/><text x="170" y="139" fill="#EF4444" font-size="8" font-weight="600">0%</text>`;
+  svg += `<line id="r3ArrowPH" x1="200" y1="145" x2="250" y2="145" stroke="#7B6A94" stroke-width="2" marker-end="url(#arrowHead)"/><text x="225" y="140" text-anchor="middle" fill="#7B6A94" font-size="7">eats</text>`;
+  svg += `<rect id="r3Herb" x="255" y="108" width="170" height="70" rx="8" fill="#EC489908" stroke="#EC4899"/>`;
+  svg += svgDino(310, 155, 24, 'herb', true) + svgDino(370, 158, 20, 'herb', true);
+  svg += `<text x="340" y="124" text-anchor="middle" fill="#EC4899" font-size="10" font-weight="700">HERBIVORES</text>`;
+  svg += `<rect x="275" y="133" width="100" height="6" rx="3" fill="#1F2937"/><rect x="275" y="133" width="100" height="6" rx="3" fill="#10B981"/><text x="385" y="139" fill="#10B981" font-size="8" font-weight="600">100%</text>`;
+  svg += `<line x1="425" y1="145" x2="475" y2="145" stroke="#7B6A94" stroke-width="2" marker-end="url(#arrowHead)"/><text x="450" y="140" text-anchor="middle" fill="#7B6A94" font-size="7">eats</text>`;
+  svg += `<rect id="r3Pred" x="480" y="108" width="170" height="70" rx="8" fill="#DC262608" stroke="#DC2626"/>`;
+  svg += svgDino(540, 152, 24, 'pred', true) + svgDino(600, 155, 20, 'pred', true);
+  svg += `<text x="565" y="124" text-anchor="middle" fill="#DC2626" font-size="10" font-weight="700">PREDATORS</text>`;
+  svg += `<rect x="500" y="133" width="100" height="6" rx="3" fill="#1F2937"/><rect x="500" y="133" width="100" height="6" rx="3" fill="#10B981"/><text x="610" y="139" fill="#10B981" font-size="8" font-weight="600">100%</text>`;
+  svg += `<rect x="180" y="${H-18}" width="340" height="16" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)"/>`;
+  svg += `<text x="350" y="${H-7}" text-anchor="middle" fill="#FCA5A5" font-size="8">FREEZE FRAME: Plants just died. What happens next?</text>`;
+  svg += `</svg>`;
+  arena.innerHTML = svg;
+}
+function animateCorrectR3Do() { safeCall(() => { const herb = document.getElementById('r3Herb'); if (herb) { herb.style.fill = 'rgba(239,68,68,0.12)'; herb.style.stroke = '#EF4444'; } const arrow = document.getElementById('r3ArrowPH'); if (arrow) { arrow.style.stroke = '#22C55E'; arrow.classList.add('glow-green'); } }, 'R3 correct'); }
+function nudgeR3Do() { safeCall(() => { const arrow = document.getElementById('r3ArrowPH'); if (arrow) { arrow.classList.add('pulse-highlight'); arrow.style.stroke = '#FFD700'; } const herb = document.getElementById('r3Herb'); if (herb) { herb.classList.add('pulse-highlight'); } }, 'R3 nudge'); }
+
+function buildR4Arena(round) {
+  const arena = document.getElementById('arena');
+  arena.innerHTML = '';
+  const W = 700, H = 210;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="arena-svg" xmlns="http://www.w3.org/2000/svg">`;
+  svg += svgCommonDefs();
+  svg += `<rect width="${W}" height="${H}" fill="url(#skyGrad)" rx="8"/>`;
+  svg += svgStars(12, W, H);
+  const steps = [{ label:'Impact',x:195,w:62,color:'#EF4444'},{label:'Debris Cloud',x:278,w:72,color:'#F59E0B'},{label:'Blocked Sun',x:374,w:68,color:'#6366F1'},{label:'Plant Death',x:466,w:68,color:'#84CC16'},{label:'Herb Starve',x:556,w:64,color:'#EC4899'},{label:'Pred Death',x:640,w:56,color:'#DC2626'}];
+  const cy = 46;
+  for (let i=0;i<steps.length-1;i++) svg += `<line x1="${steps[i].x+steps[i].w}" y1="${cy}" x2="${steps[i+1].x}" y2="${cy}" stroke="#4A3570" stroke-width="1.5" marker-end="url(#arrowHead)"/>`;
+  steps.forEach((s,i) => { const hl=(i===1); svg += `<rect id="r4step_${i}" x="${s.x}" y="${cy-18}" width="${s.w}" height="36" rx="5" fill="${s.color}${hl?'30':'12'}" stroke="${s.color}" stroke-width="${hl?'2.5':'1'}"/>`; if(hl) svg += `<rect x="${s.x-3}" y="${cy-21}" width="${s.w+6}" height="42" rx="7" fill="none" stroke="#F59E0B" stroke-width="2" class="pulse-highlight"/>`; svg += `<text x="${s.x+s.w/2}" y="${cy+4}" text-anchor="middle" fill="${s.color}" font-size="${hl?'8.5':'7.5'}" font-weight="600">${s.label}</text>`; });
+  svg += `<rect x="10" y="80" width="170" height="120" rx="6" fill="#1A1510" stroke="#8B7355" stroke-width="1.5"/>`;
+  svg += `<text x="95" y="96" text-anchor="middle" fill="#D2B48C" font-size="9" font-weight="700">Monday's Cliff Face</text>`;
+  svg += `<rect x="22" y="102" width="146" height="28" rx="2" fill="#D1D5DB" opacity="0.12"/>`;
+  svg += `<text x="95" y="120" text-anchor="middle" fill="#9CA3AF" font-size="7">After</text>`;
+  svg += `<rect id="r4Clay" x="22" y="134" width="146" height="14" rx="1" fill="url(#clayGrad)"/>`;
+  for(let i=0;i<8;i++) svg += `<circle cx="${30+i*18}" cy="141" r="${0.8+(i%3)*0.4}" fill="#FCD34D" opacity="${0.3+(i%3)*0.15}"/>`;
+  svg += `<text x="95" y="144" text-anchor="middle" fill="#FCD34D" font-size="7" font-weight="600">Clay Layer</text>`;
+  svg += `<rect x="22" y="152" width="146" height="34" rx="2" fill="#D2B48C" opacity="0.15"/>`;
+  svg += `<circle cx="50" cy="168" r="5" fill="none" stroke="#A08060" stroke-width="0.8" opacity="0.4"/><ellipse cx="100" cy="172" rx="7" ry="4" fill="#A08060" opacity="0.2"/>`;
+  svg += `<text x="95" y="164" text-anchor="middle" fill="#D2B48C" font-size="7">Before (fossils)</text>`;
+  svg += `<circle cx="35" cy="186" r="4" fill="#60A5FA"/><line x1="35" y1="190" x2="35" y2="196" stroke="#60A5FA" stroke-width="1.5"/><line x1="35" y1="193" x2="40" y2="190" stroke="#60A5FA" stroke-width="1"/>`;
+  svg += `<text x="400" y="95" text-anchor="middle" fill="#B8A0D8" font-size="10" font-weight="600">Which evidence from the cliff</text><text x="400" y="108" text-anchor="middle" fill="#B8A0D8" font-size="10" font-weight="600">proved the highlighted step?</text>`;
+  svg += `<path d="M280,64 Q200,80 170,110" fill="none" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>`;
+  svg += `</svg>`;
+  arena.innerHTML = svg;
+}
+function animateCorrectR4Do() { safeCall(() => { const step=document.getElementById('r4step_1'); if(step){step.style.stroke='#22C55E';step.style.fill='rgba(34,197,94,0.2)';} const clay=document.getElementById('r4Clay'); if(clay){clay.style.fill='#22C55E';clay.style.opacity='0.7';} }, 'R4 correct'); }
+function nudgeR4Do() { safeCall(() => { const clay=document.getElementById('r4Clay'); if(clay) clay.classList.add('pulse-highlight'); const step=document.getElementById('r4step_1'); if(step) step.classList.add('pulse-highlight'); }, 'R4 nudge'); }
+
+function buildR5Arena(round) {
+  const arena = document.getElementById('arena');
+  arena.innerHTML = '';
+  const W = 700, H = 210;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="arena-svg" xmlns="http://www.w3.org/2000/svg">`;
+  svg += svgCommonDefs();
+  svg += `<rect width="${W}" height="${H}" fill="#1A1520" rx="8"/>`;
+  svg += `<text x="105" y="18" text-anchor="middle" fill="#F59E0B" font-size="10" font-weight="700">Evidence Board</text>`;
+  svg += `<rect x="15" y="26" width="180" height="48" rx="6" fill="#2A1F3D" stroke="#4A3570"/>`;
+  svg += `<circle cx="42" cy="50" r="14" fill="#3D2E1A"/><circle cx="42" cy="50" r="9" fill="#2A1F0E" stroke="#654321"/><circle cx="42" cy="50" r="4" fill="#1A0F06"/>`;
+  for(let i=0;i<6;i++){const a=(i/6)*Math.PI*2;svg+=`<line x1="${42+Math.cos(a)*10}" y1="${50+Math.sin(a)*10}" x2="${42+Math.cos(a)*14}" y2="${50+Math.sin(a)*14}" stroke="#654321" stroke-width="0.8" opacity="0.5"/>`;}
+  svg += `<text x="120" y="44" text-anchor="middle" fill="#D1D5DB" font-size="8" font-weight="600">Chicxulub Crater</text><text x="120" y="56" text-anchor="middle" fill="#9CA3AF" font-size="7">Impact site in Mexico</text><text x="120" y="68" text-anchor="middle" fill="#7B6A94" font-size="6">Proves: Impact Event</text>`;
+  svg += `<rect id="r5IridiumCard" x="15" y="82" width="180" height="48" rx="6" fill="#3D2A1F" stroke="#F59E0B" stroke-width="2"/>`;
+  svg += `<rect x="28" y="96" width="36" height="10" rx="2" fill="#B45309" opacity="0.7"/>`;
+  for(let i=0;i<5;i++) svg += `<circle cx="${32+i*7}" cy="101" r="1" fill="#FCD34D" opacity="0.6"/>`;
+  svg += `<text x="125" y="98" text-anchor="middle" fill="#FCD34D" font-size="8.5" font-weight="700">Iridium Clay Layer</text><text x="125" y="110" text-anchor="middle" fill="#D2B48C" font-size="7">Rare asteroid element in rock</text><text x="125" y="122" text-anchor="middle" fill="#F59E0B" font-size="6" font-weight="600">Proves: ???</text>`;
+  svg += `<rect x="15" y="138" width="180" height="48" rx="6" fill="#2A1F3D" stroke="#4A3570"/>`;
+  svg += `<polyline points="32,174 48,172 64,170 76,155 84,150 96,168 112,174 128,176 144,178" fill="none" stroke="#EF4444" stroke-width="1.5"/><line x1="32" y1="178" x2="150" y2="178" stroke="#4A3570" stroke-width="0.5"/>`;
+  svg += `<text x="125" y="152" text-anchor="middle" fill="#D1D5DB" font-size="8" font-weight="600">Species Pop. Crash</text><text x="125" y="163" text-anchor="middle" fill="#9CA3AF" font-size="7">Mass die-off data</text><text x="125" y="188" text-anchor="middle" fill="#7B6A94" font-size="6">Proves: Food Chain Collapse</text>`;
+  svg += `<text x="510" y="18" text-anchor="middle" fill="#A855F7" font-size="10" font-weight="700">Cascade Steps</text>`;
+  const pts=[{label:'Impact Event',y:36,color:'#EF4444'},{label:'Debris Cloud',y:96,color:'#F59E0B'},{label:'Food Chain Collapse',y:156,color:'#EC4899'}];
+  pts.forEach((pt,i) => { svg += `<rect id="r5attach_${i}" x="390" y="${pt.y}" width="250" height="42" rx="6" fill="${pt.color}10" stroke="${pt.color}" stroke-width="1.5"/>`;
+    if(i===0) svg += svgAsteroid(415, pt.y+21, 10);
+    else if(i===1) svg += `<ellipse cx="415" cy="${pt.y+18}" rx="14" ry="8" fill="#9CA3AF" opacity="0.35"/><ellipse cx="410" cy="${pt.y+22}" rx="10" ry="6" fill="#78716C" opacity="0.3"/>`;
+    else svg += `<line x1="406" y1="${pt.y+15}" x2="406" y2="${pt.y+28}" stroke="${pt.color}" stroke-width="1.5"/><line x1="410" y1="${pt.y+13}" x2="410" y2="${pt.y+30}" stroke="${pt.color}" stroke-width="1.5"/><line x1="414" y1="${pt.y+15}" x2="414" y2="${pt.y+28}" stroke="${pt.color}" stroke-width="1.5"/>`;
+    svg += `<text x="520" y="${pt.y+25}" text-anchor="middle" fill="${pt.color}" font-size="10" font-weight="600">${pt.label}</text>`;
+  });
+  svg += `<text x="295" y="108" text-anchor="middle" fill="#7B6A94" font-size="9">Match the iridium</text><text x="295" y="120" text-anchor="middle" fill="#7B6A94" font-size="9">to its cascade step</text>`;
+  svg += `<line x1="195" y1="106" x2="390" y2="117" stroke="#F59E0B" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>`;
+  svg += `</svg>`;
+  arena.innerHTML = svg;
+}
+function animateCorrectR5Do() { safeCall(() => { const card=document.getElementById('r5IridiumCard'); const attach=document.getElementById('r5attach_1'); if(card){card.style.stroke='#22C55E';card.style.strokeWidth='2.5';} if(attach){attach.style.stroke='#22C55E';attach.style.fill='rgba(34,197,94,0.12)';attach.style.strokeWidth='2.5';} }, 'R5 correct'); }
+function nudgeR5Do() { safeCall(() => { const attach=document.getElementById('r5attach_1'); if(attach) attach.classList.add('pulse-highlight'); }, 'R5 nudge'); }
+
+function buildR6Arena(round) {
+  const arena = document.getElementById('arena');
+  arena.innerHTML = '';
+  const W = 700, H = 220;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="arena-svg" xmlns="http://www.w3.org/2000/svg">`;
+  svg += svgCommonDefs();
+  svg += `<rect width="${W}" height="${H}" fill="#0A120A" rx="8"/>`;
+  svg += svgStars(10, W, H);
+  svg += `<text x="${W/2}" y="18" text-anchor="middle" fill="#10B981" font-size="11" font-weight="700" letter-spacing="1">WEDNESDAY'S LAB — NEW SCENARIO</text>`;
+  const sliders=[{label:'Asteroid Size',value:'Small',fill:0.2,color:'#60A5FA',x:15},{label:'Debris Thickness',value:'Thin',fill:0.2,color:'#10B981',x:170},{label:'Duration',value:'Months',fill:0.25,color:'#A855F7',x:325}];
+  sliders.forEach(sl => { svg += `<rect x="${sl.x}" y="28" width="130" height="42" rx="5" fill="#111" stroke="#374151"/><text x="${sl.x+65}" y="40" text-anchor="middle" fill="#9CA3AF" font-size="7">${sl.label}</text><rect x="${sl.x+10}" y="46" width="110" height="10" rx="4" fill="#1F2937"/><rect x="${sl.x+10}" y="46" width="${110*sl.fill}" height="10" rx="4" fill="${sl.color}" opacity="0.5"/><circle cx="${sl.x+10+110*sl.fill}" cy="51" r="5" fill="${sl.color}" stroke="#fff" stroke-width="0.8"/><text x="${sl.x+65}" y="55" text-anchor="middle" fill="#fff" font-size="6.5" font-weight="700">${sl.value}</text>`; });
+  svg += svgSun(560, 50, 20, 0.5);
+  svg += `<rect x="470" y="34" width="190" height="30" rx="6" fill="#6B7280" opacity="0.1"/><text x="565" y="53" text-anchor="middle" fill="#9CA3AF" font-size="7" opacity="0.6">thin debris</text>`;
+  for(let i=0;i<8;i++) svg += `<line id="r6ray${i}" x1="${490+i*24}" y1="64" x2="${493+i*24}" y2="105" stroke="#FFD700" stroke-width="2" opacity="0.35"/>`;
+  svg += `<rect x="0" y="${H-52}" width="${W}" height="52" fill="#0D1A0D"/><rect x="0" y="${H-54}" width="${W}" height="3" fill="#1A3A1A" opacity="0.5"/>`;
+  svg += `<rect id="r6Plants" x="35" y="110" width="165" height="66" rx="8" fill="#84CC1608" stroke="#84CC16"/>`;
+  svg += svgTree(70,160,30,true)+svgTree(100,162,26,true)+svgTree(130,158,32,true)+svgTree(155,162,24,true);
+  svg += `<text x="117" y="124" text-anchor="middle" fill="#84CC16" font-size="10" font-weight="700">PLANTS</text>`;
+  svg += `<rect x="55" y="132" width="100" height="6" rx="3" fill="#1F2937"/><rect id="r6PlantBar" x="55" y="132" width="100" height="6" rx="3" fill="#10B981"/><text id="r6PlantStatus" x="165" y="138" fill="#10B981" font-size="8" font-weight="600">100%</text>`;
+  svg += `<rect id="r6Herb" x="250" y="110" width="170" height="66" rx="8" fill="#EC489908" stroke="#EC4899"/>`;
+  svg += svgDino(305,158,24,'herb',true)+svgDino(365,160,20,'herb',true);
+  svg += `<text x="335" y="124" text-anchor="middle" fill="#EC4899" font-size="10" font-weight="700">HERBIVORES</text>`;
+  svg += `<rect x="270" y="132" width="100" height="6" rx="3" fill="#1F2937"/><rect x="270" y="132" width="100" height="6" rx="3" fill="#10B981"/><text x="380" y="138" fill="#10B981" font-size="8" font-weight="600">100%</text>`;
+  svg += `<rect id="r6Pred" x="475" y="110" width="170" height="66" rx="8" fill="#DC262608" stroke="#DC2626"/>`;
+  svg += svgDino(530,155,24,'pred',true)+svgDino(590,158,20,'pred',true);
+  svg += `<text x="560" y="124" text-anchor="middle" fill="#DC2626" font-size="10" font-weight="700">PREDATORS</text>`;
+  svg += `<rect x="495" y="132" width="100" height="6" rx="3" fill="#1F2937"/><rect x="495" y="132" width="100" height="6" rx="3" fill="#10B981"/><text x="605" y="138" fill="#10B981" font-size="8" font-weight="600">100%</text>`;
+  svg += `<line x1="200" y1="145" x2="250" y2="145" stroke="#7B6A94" stroke-width="1.5" marker-end="url(#arrowHead)"/><line x1="420" y1="145" x2="475" y2="145" stroke="#7B6A94" stroke-width="1.5" marker-end="url(#arrowHead)"/>`;
+  svg += `<rect x="180" y="${H-18}" width="340" height="16" rx="4" fill="rgba(0,212,255,0.08)" stroke="rgba(0,212,255,0.2)"/><text x="350" y="${H-7}" text-anchor="middle" fill="#00D4FF" font-size="8">Predict the outcome with these settings</text>`;
+  svg += `</svg>`;
+  arena.innerHTML = svg;
+}
+function animateCorrectR6Do() { safeCall(() => { for(let i=0;i<8;i++){const ray=document.getElementById('r6ray'+i);if(ray){ray.style.opacity='0.7';ray.style.stroke='#22C55E';}} }, 'R6 correct'); }
+function nudgeR6Do() { safeCall(() => { for(let i=0;i<8;i++){const ray=document.getElementById('r6ray'+i);if(ray) ray.classList.add('pulse-highlight');} }, 'R6 nudge'); }
+
+function buildR7Arena(round) {
+  const arena = document.getElementById('arena');
+  arena.innerHTML = '';
+  const W = 700, H = 220;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="arena-svg hotspot-area" xmlns="http://www.w3.org/2000/svg" id="r7Svg">`;
+  svg += svgCommonDefs();
+  svg += `<rect width="${W}" height="${H}" fill="url(#skyGrad)" rx="8"/>`;
+  svg += svgStars(18, W, H);
+  svg += `<text x="${W/2}" y="18" text-anchor="middle" fill="#FFD700" font-size="11" font-weight="700" letter-spacing="1">BONUS: CROSS-DAY SYNTHESIS</text>`;
+  const steps=[{label:'Impact',x:55,w:58,color:'#EF4444'},{label:'?',x:250,w:70,color:'#FFD700',isTarget:true},{label:'Blocked Sun',x:420,w:70,color:'#6366F1'},{label:'Plant Death',x:540,w:64,color:'#84CC16'},{label:'Collapse',x:630,w:58,color:'#DC2626'}];
+  const cy = 75;
+  for(let i=0;i<steps.length-1;i++) svg += `<line x1="${steps[i].x+steps[i].w}" y1="${cy}" x2="${steps[i+1].x}" y2="${cy}" stroke="#3A2D55" stroke-width="1.5" marker-end="url(#arrowHead)"/>`;
+  steps.forEach((s,i) => { const hl=s.isTarget; svg += `<rect id="r7step_${i}" x="${s.x}" y="${cy-22}" width="${s.w}" height="44" rx="6" fill="${s.color}${hl?'25':'10'}" stroke="${s.color}" stroke-width="${hl?'2':'1'}"/>`; if(hl) svg += `<rect id="r7target" x="${s.x-4}" y="${cy-26}" width="${s.w+8}" height="52" rx="8" fill="none" stroke="#FFD700" stroke-width="2.5" stroke-dasharray="6,3" class="pulse-highlight"/>`; svg += `<text x="${s.x+s.w/2}" y="${cy+5}" text-anchor="middle" fill="${s.color}" font-size="${hl?22:9}" font-weight="700">${s.label}</text>`; });
+  svg += `<rect x="15" y="130" width="175" height="55" rx="6" fill="#3D2A1F" stroke="#F59E0B" stroke-width="1.5"/>`;
+  svg += `<rect x="28" y="148" width="40" height="10" rx="2" fill="#B45309" opacity="0.6"/>`;
+  for(let i=0;i<5;i++) svg += `<circle cx="${33+i*8}" cy="153" r="1" fill="#FCD34D" opacity="0.5"/>`;
+  svg += `<text x="120" y="148" text-anchor="middle" fill="#FCD34D" font-size="9" font-weight="700">Iridium Clay Layer</text><text x="120" y="162" text-anchor="middle" fill="#F59E0B" font-size="8">Tuesday's Evidence</text><text x="120" y="178" text-anchor="middle" fill="#D97706" font-size="7">Proves something EXISTS</text>`;
+  svg += `<path d="M190,155 C220,140 240,110 260,97" fill="none" stroke="#F59E0B" stroke-width="3" stroke-dasharray="7,4" marker-end="url(#amberArr)"/>`;
+  svg += `<defs><marker id="amberArr" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#F59E0B"/></marker></defs>`;
+  svg += `<rect x="460" y="130" width="175" height="55" rx="6" fill="#0F2A1F" stroke="#10B981" stroke-width="1.5"/>`;
+  svg += `<rect x="475" y="148" width="50" height="10" rx="4" fill="#1F2937"/><rect x="475" y="148" width="30" height="10" rx="4" fill="#10B981" opacity="0.5"/><circle cx="505" cy="153" r="4" fill="#10B981"/>`;
+  svg += `<text x="570" y="148" text-anchor="middle" fill="#6EE7B7" font-size="9" font-weight="700">Thickness Slider</text><text x="570" y="162" text-anchor="middle" fill="#10B981" font-size="8">Wednesday's Lab</text><text x="570" y="178" text-anchor="middle" fill="#059669" font-size="7">Tests what it DOES</text>`;
+  svg += `<path d="M460,155 C430,140 380,110 320,97" fill="none" stroke="#10B981" stroke-width="3" stroke-dasharray="7,4" marker-end="url(#greenArr)"/>`;
+  svg += `<defs><marker id="greenArr" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#10B981"/></marker></defs>`;
+  svg += `<text x="${W/2}" y="${H-6}" text-anchor="middle" fill="#B8A0D8" font-size="9">Follow both arrows to where they converge. Tap the "?" step.</text>`;
+  svg += `</svg>`;
+  arena.innerHTML = svg;
+}
+function animateCorrectR7Do() { safeCall(() => { const step=document.getElementById('r7step_1'); if(step){step.style.fill='rgba(34,197,94,0.25)';step.style.stroke='#22C55E';step.style.strokeWidth='2.5';} const target=document.getElementById('r7target'); if(target){target.style.stroke='#22C55E';target.classList.remove('pulse-highlight');} const svg=document.querySelector('#r7Svg'); if(svg) svg.querySelectorAll('text').forEach(t=>{if(t.textContent==='?'){t.textContent='DEBRIS CLOUD';t.setAttribute('font-size','11');t.setAttribute('fill','#22C55E');}}); }, 'R7 correct'); }
+function nudgeR7Do() { safeCall(() => { const target=document.getElementById('r7target'); if(target) target.style.stroke='#FFD700'; }, 'R7 nudge'); }
+
+function buildR8Arena(round) {
+  const arena = document.getElementById('arena');
+  arena.innerHTML = '';
+  const W = 700, H = 220;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="arena-svg" xmlns="http://www.w3.org/2000/svg">`;
+  svg += svgCommonDefs();
+  svg += `<rect width="${W}" height="${H}" fill="url(#skyGrad)" rx="8"/>`;
+  svg += svgStars(20, W, H);
+  svg += `<text x="${W/2}" y="16" text-anchor="middle" fill="#FFD700" font-size="11" font-weight="700" letter-spacing="1">BONUS: BUILD THE FULL CLAIM</text>`;
+  const steps=[{label:'Impact',x:70,w:56,color:'#EF4444'},{label:'Debris',x:150,w:52,color:'#F59E0B'},{label:'No Sun',x:226,w:52,color:'#6366F1'},{label:'Plants',x:302,w:52,color:'#84CC16'},{label:'Herbs',x:378,w:52,color:'#EC4899'},{label:'Preds',x:454,w:52,color:'#DC2626'}];
+  const scY = 38;
+  for(let i=0;i<steps.length;i++){svg+=`<rect id="r8s${i}" x="${steps[i].x}" y="${scY}" width="${steps[i].w}" height="28" rx="4" fill="${steps[i].color}12" stroke="${steps[i].color}"/><text x="${steps[i].x+steps[i].w/2}" y="${scY+18}" text-anchor="middle" fill="${steps[i].color}" font-size="8" font-weight="600">${steps[i].label}</text>`;if(i<steps.length-1)svg+=`<line x1="${steps[i].x+steps[i].w}" y1="${scY+14}" x2="${steps[i+1].x}" y2="${scY+14}" stroke="#4A3570" stroke-width="1.5" marker-end="url(#arrowHead)"/>`;}
+  // Monday
+  svg += `<rect x="10" y="80" width="215" height="68" rx="6" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.25)"/>`;
+  svg += `<text x="117" y="96" text-anchor="middle" fill="#3B82F6" font-size="9" font-weight="700">Monday: Cascade Story</text>`;
+  svg += svgAsteroid(40, 120, 8);
+  svg += `<line x1="52" y1="120" x2="66" y2="120" stroke="#4A3570" stroke-width="1" marker-end="url(#arrowHead)"/><ellipse cx="78" cy="118" rx="8" ry="5" fill="#9CA3AF" opacity="0.3"/><line x1="88" y1="120" x2="100" y2="120" stroke="#4A3570" stroke-width="1" marker-end="url(#arrowHead)"/>`;
+  svg += svgSun(112, 118, 5, 0.2);
+  svg += `<text x="155" y="114" fill="#93C5FD" font-size="7">Alvarez discovery</text><text x="155" y="126" fill="#7B8A9E" font-size="7">Told the full sequence</text><text x="155" y="138" fill="#60A5FA" font-size="6">Story + Diagram</text>`;
+  // Tuesday
+  svg += `<rect x="238" y="80" width="215" height="68" rx="6" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.25)"/>`;
+  svg += `<text x="345" y="96" text-anchor="middle" fill="#F59E0B" font-size="9" font-weight="700">Tuesday: Evidence Board</text>`;
+  svg += `<circle cx="262" cy="115" r="6" fill="#3D2E1A" stroke="#654321" stroke-width="0.8"/><rect x="280" y="110" width="18" height="6" rx="1" fill="#B45309" opacity="0.5"/>`;
+  svg += `<polyline points="310,118 318,116 326,114 330,108 334,112 340,118" fill="none" stroke="#EF4444" stroke-width="1"/>`;
+  svg += `<text x="390" y="114" fill="#FCD34D" font-size="7">Crater, iridium, data</text><text x="390" y="126" fill="#7B8A9E" font-size="7">Proved each step</text><text x="390" y="138" fill="#F59E0B" font-size="6">Evidence + Analysis</text>`;
+  // Wednesday
+  svg += `<rect x="466" y="80" width="225" height="68" rx="6" fill="rgba(16,185,129,0.06)" stroke="rgba(16,185,129,0.25)"/>`;
+  svg += `<text x="578" y="96" text-anchor="middle" fill="#10B981" font-size="9" font-weight="700">Wednesday: Variable Lab</text>`;
+  svg += `<rect x="482" y="108" width="40" height="6" rx="3" fill="#1F2937"/><rect x="482" y="108" width="25" height="6" rx="3" fill="#10B981" opacity="0.4"/><rect x="482" y="120" width="40" height="6" rx="3" fill="#1F2937"/><rect x="482" y="120" width="15" height="6" rx="3" fill="#60A5FA" opacity="0.4"/>`;
+  svg += `<text x="590" y="114" fill="#6EE7B7" font-size="7">Size, thickness, duration</text><text x="590" y="126" fill="#7B8A9E" font-size="7">Tested what causes collapse</text><text x="590" y="138" fill="#10B981" font-size="6">Experiment + Data</text>`;
+  svg += `<rect x="50" y="162" width="600" height="46" rx="7" fill="rgba(255,215,0,0.06)" stroke="rgba(255,215,0,0.35)" stroke-width="2"/>`;
+  svg += `<text x="${W/2}" y="178" text-anchor="middle" fill="#FFD700" font-size="10" font-weight="700">CLAIM: "The impact event caused a chain reaction</text><text x="${W/2}" y="193" text-anchor="middle" fill="#FFD700" font-size="10" font-weight="700">that collapsed the food chain because ___."</text>`;
+  svg += `</svg>`;
+  arena.innerHTML = svg;
+}
+function animateCorrectR8Do() { safeCall(() => { for(let i=0;i<6;i++){const step=document.getElementById('r8s'+i);if(step)setTimeout(()=>{step.style.fill=['#EF444430','#F59E0B30','#6366F130','#84CC1630','#EC489930','#DC262630'][i];step.style.strokeWidth='2';},i*200);} }, 'R8 correct'); }
+function nudgeR8Do() { safeCall(() => { for(let i=2;i<6;i++){const step=document.getElementById('r8s'+i);if(step)step.classList.add('pulse-highlight');} }, 'R8 nudge'); }
+
+// ============================================================
+// MECHANIC ENGINES
+// ============================================================
+
+function renderPickTheDo(round) {
+  const r = ROUNDS[round];
+  const zone = document.getElementById('interactionZone');
+  zone.innerHTML = '';
+  zone.innerHTML += `<div class="focus-prompt">${esc(r.focusPrompt)}</div>`;
+  zone.innerHTML += `<div class="mechanic-prompt">${esc(r.doPrompt)}</div>`;
+  let html = '<div class="options-row" id="doOptionsRow">';
+  r.doOptions.forEach((opt, i) => {
+    html += `<div class="option-card" data-idx="${i}" tabindex="0">${esc(opt)}</div>`;
+  });
+  html += '</div>';
+  html += '<button class="lock-in-btn" id="lockInBtn" disabled>Lock In</button>';
+  zone.innerHTML += html;
+  let selectedIdx = -1;
+  const cards = zone.querySelectorAll('#doOptionsRow .option-card');
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      if (processing || card.classList.contains('dimmed') || card.classList.contains('disabled')) return;
+      cards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedIdx = parseInt(card.dataset.idx);
+      document.getElementById('lockInBtn').disabled = false;
+    });
+  });
+  document.getElementById('lockInBtn').addEventListener('click', () => {
+    if (processing || selectedIdx < 0) return;
+    submitDoAnswer(round, selectedIdx);
+  });
+  roundPhaseStartTime = Date.now();
+}
+
+function renderCoachClickDo(round) {
+  // Same as pick but with coach-click flavor
+  renderPickTheDo(round);
+}
+
+function renderWhatComesNextDo(round) {
+  const r = ROUNDS[round];
+  const zone = document.getElementById('interactionZone');
+  zone.innerHTML = '';
+  zone.innerHTML += `<div class="focus-prompt">${esc(r.focusPrompt)}</div>`;
+  // Show sequence if present
+  if (r.sequenceShown) {
+    let seqHtml = '<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">';
+    r.sequenceShown.forEach(step => {
+      seqHtml += `<span style="padding:6px 10px;background:var(--bg-card);border:1px solid #4A3570;border-radius:6px;font-size:12px;color:var(--text-secondary);">${esc(step)}</span>`;
+      seqHtml += `<span style="color:var(--text-dim);font-size:14px;">&#8594;</span>`;
+    });
+    seqHtml += '<span style="padding:8px 14px;background:rgba(0,212,255,0.1);border:2px dashed var(--electric-blue);border-radius:6px;font-size:13px;color:var(--electric-blue);font-weight:600;">???</span></div>';
+    zone.innerHTML += seqHtml;
+  }
+  zone.innerHTML += `<div class="mechanic-prompt">${esc(r.doPrompt)}</div>`;
+  let html = '<div class="options-row" id="doOptionsRow">';
+  r.doOptions.forEach((opt, i) => {
+    html += `<div class="option-card" data-idx="${i}" tabindex="0">${esc(opt)}</div>`;
+  });
+  html += '</div>';
+  html += '<button class="lock-in-btn" id="lockInBtn" disabled>Lock In</button>';
+  zone.innerHTML += html;
+  let selectedIdx = -1;
+  const cards = zone.querySelectorAll('#doOptionsRow .option-card');
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      if (processing || card.classList.contains('dimmed') || card.classList.contains('disabled')) return;
+      cards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedIdx = parseInt(card.dataset.idx);
+      document.getElementById('lockInBtn').disabled = false;
+    });
+  });
+  document.getElementById('lockInBtn').addEventListener('click', () => {
+    if (processing || selectedIdx < 0) return;
+    submitDoAnswer(round, selectedIdx);
+  });
+  roundPhaseStartTime = Date.now();
+}
+
+function renderHotspotDo(round) {
+  const r = ROUNDS[round];
+  const zone = document.getElementById('interactionZone');
+  zone.innerHTML = '';
+  zone.innerHTML += `<div class="focus-prompt">${esc(r.focusPrompt)}</div>`;
+  zone.innerHTML += `<div class="mechanic-prompt">${esc(r.doPrompt)}</div>`;
+  zone.innerHTML += '<div style="font-size:12px;color:var(--text-dim);text-align:center;">Tap the correct area on the diagram above.</div>';
+  // Attach click handler to arena SVG
+  const svgEl = document.querySelector('#arena svg');
+  if (svgEl) {
+    svgEl.style.cursor = 'crosshair';
+    svgEl.onclick = function(e) {
+      if (processing) return;
+      const rect = svgEl.getBoundingClientRect();
+      const yPct = (e.clientY - rect.top) / rect.height;
+      const xPct = (e.clientX - rect.left) / rect.width;
+      const xPx = e.clientX - rect.left;
+      const yPx = e.clientY - rect.top;
+      // Check if in target zone (supports both Y-only and XY targets)
+      const tgt = r.hotspotTarget;
+      const yHit = yPct >= tgt.yMin && yPct <= tgt.yMax;
+      const xHit = (tgt.xMin === undefined) ? true : (xPct >= tgt.xMin && xPct <= tgt.xMax);
+      if (yHit && xHit) {
+        svgEl.onclick = null;
+        onHotspotCorrect(round, xPx, yPx);
+      } else {
+        let zone2 = 'default';
+        if (tgt.xMin !== undefined) {
+          if (xPct < tgt.xMin) zone2 = 'left';
+          else if (xPct > tgt.xMax) zone2 = 'right';
+          else if (yPct < tgt.yMin) zone2 = 'above';
+          else zone2 = 'below';
+        } else {
+          zone2 = yPct < tgt.yMin ? 'above' : 'below';
+        }
+        onHotspotWrong(round, xPx, yPx, zone2);
+      }
+    };
+  }
+  roundPhaseStartTime = Date.now();
+}
+
+function renderClaimBuilderDo(round) {
+  // Same visual as pick but with claim framing
+  renderPickTheDo(round);
+}
+
+function onHotspotCorrect(round, x, y) {
+  processing = true;
+  const r = ROUNDS[round];
+  // Show green ring
+  const arenaBox = document.getElementById('arenaBox');
+  const ring = document.createElement('div');
+  ring.className = 'hotspot-ring correct-ring';
+  ring.style.position = 'absolute'; ring.style.left = x+'px'; ring.style.top = y+'px';
+  arenaBox.style.position = 'relative';
+  arenaBox.appendChild(ring);
+  playCorrectSound();
+  if (r.onCorrectDo) safeCall(() => r.onCorrectDo(), 'hotspot correct anim');
+  // Score
+  const score = calcScore();
+  roundData[round].score = score;
+  roundData[round].completed = false; // will complete after prove
+  totalScore = calcTotalScore();
+  streak++;
+  if (streak > bestStreak) bestStreak = streak;
+  updateHUD();
+  showPointsFloat(score);
+  lightDefenseGrid(round);
+  // Show affirmation if first try
+  const doZone = document.getElementById('interactionZone');
+  if (wrongCount === 0 && hintLevel === 0) {
+    const aff = document.createElement('div');
+    aff.className = 'celeb-affirmation';
+    aff.style.fontSize = '16px'; aff.style.marginTop = '8px';
+    aff.textContent = getAffirmation();
+    doZone.appendChild(aff);
+  }
+  safeTimeout(() => {
+    processing = false;
+    startProvePhase(round);
+  }, 1200);
+}
+
+let hotspotWrongCountLocal = 0;
+function onHotspotWrong(round, x, y, zone) {
+  const r = ROUNDS[round];
+  wrongCount++;
+  hotspotWrongCountLocal++;
+  roundData[round].attempts++;
+  streak = 0;
+  // Fast-guess check for hotspot
+  const elapsed = Date.now() - roundPhaseStartTime;
+  if (elapsed < 2000) {
+    consecutiveFastWrongs++;
+    if (consecutiveFastWrongs >= 2) {
+      const svgEl = document.querySelector('#arena svg');
+      if (svgEl) svgEl.onclick = null;
+      showAntiGuessingGate(round);
+      return;
+    }
+  }
+  updateHUD();
+  playWrongSound();
+  // Show red ring
+  const arenaBox = document.getElementById('arenaBox');
+  const ring = document.createElement('div');
+  ring.className = 'hotspot-ring wrong-ring';
+  ring.style.position = 'absolute'; ring.style.left = x+'px'; ring.style.top = y+'px';
+  arenaBox.style.position = 'relative';
+  arenaBox.appendChild(ring);
+  setTimeout(() => ring.remove(), 1500);
+  // Anti-guessing gate
+  checkAntiGuess(round, -1);
+  // Show feedback
+  const fb = r.doWrongFeedbackByZone[zone] || r.doWrongFeedbackByZone.default || '';
+  const izone = document.getElementById('interactionZone');
+  // Remove old coaching
+  izone.querySelectorAll('.coaching-bar').forEach(c => c.remove());
+  const bar = document.createElement('div');
+  bar.className = 'coaching-bar wrong-feedback';
+  bar.textContent = fb;
+  izone.appendChild(bar);
+  // Nudge
+  if (r.onWrongDoNudge) safeCall(() => r.onWrongDoNudge(zone), 'hotspot nudge');
+  // Hint ladder
+  if (wrongCount === 1 && hintLevel === 0) {
+    showHint1(round);
+  } else if (wrongCount >= 2 && hintLevel <= 1) {
+    showStepByStep(round);
+  }
+  // Safety valve
+  if (levelResets >= 3 || (hotspotWrongCountLocal >= 5 && hintLevel >= 2)) {
+    // Disable further clicks to prevent race with autoAdvance
+    const svgEl2 = document.querySelector('#arena svg');
+    if (svgEl2) svgEl2.onclick = null;
+    safeTimeout(() => { autoAdvance(round); }, 1000);
+  }
+}
+
+// ============================================================
+// SUBMIT DO ANSWER (for pick/coach/wcn/claim)
+// ============================================================
+function submitDoAnswer(round, selectedIdx) {
+  processing = true;
+  const r = ROUNDS[round];
+  const cards = document.querySelectorAll('#doOptionsRow .option-card');
+  const elapsed = Date.now() - roundPhaseStartTime;
+  roundData[round].attempts++;
+
+  if (selectedIdx === r.doCorrect) {
+    // CORRECT
+    cards[selectedIdx].classList.add('correct');
+    playCorrectSound();
+    if (r.onCorrectDo) safeCall(() => r.onCorrectDo(), 'do correct anim');
+    const score = calcScore();
+    roundData[round].score = score;
+    totalScore = calcTotalScore();
+    streak++;
+    if (streak > bestStreak) bestStreak = streak;
+    updateHUD();
+    showPointsFloat(score);
+    lightDefenseGrid(round);
+    // Affirmation if first try
+    if (wrongCount === 0 && hintLevel === 0) {
+      const zone = document.getElementById('interactionZone');
+      const aff = document.createElement('div');
+      aff.className = 'celeb-affirmation';
+      aff.style.fontSize = '16px'; aff.style.marginTop = '8px';
+      aff.textContent = getAffirmation();
+      zone.appendChild(aff);
+    }
+    safeTimeout(() => {
+      processing = false;
+      startProvePhase(round);
+    }, 1200);
+  } else {
+    // WRONG
+    cards[selectedIdx].classList.add('wrong');
+    playWrongSound();
+    wrongCount++;
+    streak = 0;
+    updateHUD();
+    // Anti-guessing
+    if (elapsed < 2000) {
+      consecutiveFastWrongs++;
+      if (consecutiveFastWrongs >= 2) {
+        showAntiGuessingGate(round);
+        processing = false;
+        return;
+      }
+    }
+    checkAntiGuess(round, selectedIdx);
+    // Disable Lock In until Try Again is clicked
+    document.getElementById('lockInBtn').disabled = true;
+    // Show coaching
+    const fb = r.doWrongFeedback[selectedIdx] || 'Look at the diagram carefully and try again.';
+    const zone = document.getElementById('interactionZone');
+    zone.querySelectorAll('.coaching-bar, .try-again-btn').forEach(c => c.remove());
+    const bar = document.createElement('div');
+    bar.className = 'coaching-bar wrong-feedback';
+    bar.textContent = fb;
+    zone.appendChild(bar);
+    if (r.onWrongDoNudge) safeCall(() => r.onWrongDoNudge(), 'do wrong nudge');
+    // Hint ladder
+    if (wrongCount === 1 && hintLevel === 0) {
+      showHint1(round);
+    } else if (wrongCount >= 2 && hintLevel <= 1) {
+      showStepByStep(round);
+    }
+    // Dim wrong option
+    cards[selectedIdx].classList.remove('wrong');
+    cards[selectedIdx].classList.add('disabled');
+    safeTimeout(() => { cards[selectedIdx].classList.remove('disabled'); cards[selectedIdx].classList.add('dimmed'); }, 500);
+    // Try again button
+    const tryBtn = document.createElement('button');
+    tryBtn.className = 'try-again-btn';
+    tryBtn.textContent = 'Try Again';
+    tryBtn.addEventListener('click', () => {
+      zone.querySelectorAll('.coaching-bar, .try-again-btn').forEach(c => c.remove());
+      cards.forEach(c => c.classList.remove('selected'));
+      document.getElementById('lockInBtn').disabled = true;
+      processing = false;
+    });
+    zone.appendChild(tryBtn);
+    // Safety valve
+    if (levelResets >= 3) {
+      // Disable all interaction to prevent race with autoAdvance
+      zone.querySelectorAll('.option-card').forEach(c => c.classList.add('disabled'));
+      zone.querySelectorAll('.lock-in-btn, .try-again-btn').forEach(b => { b.disabled = true; b.style.display = 'none'; });
+      safeTimeout(() => { autoAdvance(round); }, 1500);
+      processing = false;
+      return;
+    }
+    processing = false;
+  }
+}
+
+// ============================================================
+// PROVE PHASE
+// ============================================================
+function startProvePhase(round) {
+  phase = 'prove';
+  wrongCount = 0;
+  const r = ROUNDS[round];
+  const zone = document.getElementById('interactionZone');
+  zone.innerHTML = '';
+  zone.innerHTML += `<div class="mechanic-prompt">${esc(r.proveQuestion)}</div>`;
+  let html = '<div class="options-row" id="proveOptionsRow">';
+  r.proveOptions.forEach((opt, i) => {
+    html += `<div class="option-card" data-idx="${i}" tabindex="0">${esc(opt)}</div>`;
+  });
+  html += '</div>';
+  html += '<button class="lock-in-btn" id="proveBtn" disabled>Lock In</button>';
+  zone.innerHTML += html;
+  let selectedIdx = -1;
+  const cards = zone.querySelectorAll('#proveOptionsRow .option-card');
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      if (processing || card.classList.contains('dimmed') || card.classList.contains('disabled')) return;
+      cards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedIdx = parseInt(card.dataset.idx);
+      document.getElementById('proveBtn').disabled = false;
+    });
+  });
+  document.getElementById('proveBtn').addEventListener('click', () => {
+    if (processing || selectedIdx < 0) return;
+    submitProveAnswer(round, selectedIdx);
+  });
+  roundPhaseStartTime = Date.now();
+}
+
+function submitProveAnswer(round, selectedIdx) {
+  processing = true;
+  const r = ROUNDS[round];
+  const cards = document.querySelectorAll('#proveOptionsRow .option-card');
+
+  if (selectedIdx === r.proveCorrect) {
+    cards[selectedIdx].classList.add('correct');
+    playCorrectSound();
+    roundData[round].completed = true;
+    roundData[round].timeSeconds = Math.round((Date.now() - roundStartTime) / 1000);
+    safeTimeout(() => {
+      processing = false;
+      onRoundComplete(round);
+    }, 800);
+  } else {
+    cards[selectedIdx].classList.add('wrong');
+    playWrongSound();
+    wrongCount++;
+    streak = 0;
+    updateHUD();
+    const fb = r.proveWrongFeedback[selectedIdx] || 'Look at the diagram and try again.';
+    const zone = document.getElementById('interactionZone');
+    zone.querySelectorAll('.coaching-bar, .try-again-btn').forEach(c => c.remove());
+    const bar = document.createElement('div');
+    bar.className = 'coaching-bar wrong-feedback';
+    bar.textContent = fb;
+    zone.appendChild(bar);
+    // Disable prove button until Try Again is clicked
+    document.getElementById('proveBtn').disabled = true;
+    cards[selectedIdx].classList.remove('wrong');
+    cards[selectedIdx].classList.add('disabled');
+    safeTimeout(() => { cards[selectedIdx].classList.remove('disabled'); cards[selectedIdx].classList.add('dimmed'); }, 500);
+    const tryBtn = document.createElement('button');
+    tryBtn.className = 'try-again-btn';
+    tryBtn.textContent = 'Try Again';
+    tryBtn.addEventListener('click', () => {
+      zone.querySelectorAll('.coaching-bar, .try-again-btn').forEach(c => c.remove());
+      cards.forEach(c => c.classList.remove('selected'));
+      document.getElementById('proveBtn').disabled = true;
+      processing = false;
+    });
+    zone.appendChild(tryBtn);
+    // Safety valve for prove
+    if (wrongCount >= 3) {
+      safeTimeout(() => {
+        roundData[round].completed = true;
+        roundData[round].score = Math.min(roundData[round].score, 50);
+        roundData[round].timeSeconds = Math.round((Date.now() - roundStartTime) / 1000);
+        processing = false;
+        onRoundComplete(round);
+      }, 1500);
+    }
+    processing = false;
+  }
+}
+
+// ============================================================
+// SCORING
+// ============================================================
+function calcScore() {
+  // Gauntlet compressed: 100 / 85 / 60 / 50
+  if (hintLevel === 0 && levelResets === 0) return 100;
+  if (hintLevel === 1 && levelResets === 0) return 85;
+  if (hintLevel >= 2 && levelResets === 0) return 60;
+  return 50;
+}
+function calcTotalScore() {
+  let sum = 0, count = 0;
+  roundData.forEach(rd => {
+    if (rd.completed && rd.required) { sum += rd.score; count++; }
+  });
+  return count > 0 ? Math.round(sum / count) : 0;
+}
+function calcBonusPoints() {
+  let bp = 0;
+  roundData.forEach(rd => { if (!rd.required && rd.completed) bp += 5; });
+  return bp;
+}
+
+// ============================================================
+// HUD UPDATES
+// ============================================================
+function updateHUD() {
+  document.getElementById('roundCounter').textContent = `Round ${currentRound + 1} of 8`;
+  // Show cumulative points during gameplay (receipt shows percentage)
+  const cumulativePoints = roundData.reduce((sum, rd) => sum + (rd.completed ? rd.score : 0), 0);
+  document.getElementById('scoreDisplay').textContent = `Score: ${cumulativePoints}`;
+  // Recalc totalScore for receipt
+  totalScore = calcTotalScore();
+  // Streak
+  const sd = document.getElementById('streakDisplay');
+  if (streak >= 8) { sd.textContent = `x${streak}`; sd.className = 'streak-display gold'; }
+  else if (streak >= 5) { sd.textContent = `x${streak}`; sd.className = 'streak-display silver'; }
+  else if (streak >= 3) { sd.textContent = `x${streak}`; sd.className = 'streak-display bronze'; }
+  else if (streak > 0) { sd.textContent = `x${streak}`; sd.className = 'streak-display'; }
+  else { sd.textContent = ''; sd.className = 'streak-display'; }
+  // Source badge
+  const r = ROUNDS[currentRound];
+  const sb = document.getElementById('sourceBadge');
+  if (r) {
+    const dayMap = { 'Monday': ['From Monday', 'mon'], 'Tuesday': ['From Tuesday', 'tue'], 'Wednesday': ['From Wednesday', 'wed'],
+      'Tue + Wed': ['From Tue + Wed', 'all'], 'All 3 Days': ['From All Days', 'all'] };
+    const info = dayMap[r.sourceDay] || ['', ''];
+    sb.textContent = info[0]; sb.className = 'source-badge ' + info[1];
+  }
+}
+
+function showPointsFloat(pts) {
+  const container = document.getElementById('scoreDisplay');
+  const fl = document.createElement('span');
+  fl.className = 'points-float';
+  fl.textContent = '+' + pts;
+  container.appendChild(fl);
+  setTimeout(() => fl.remove(), 1300);
+}
+
+function initDefenseGrid() {
+  const grid = document.getElementById('defenseGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'grid-seg';
+    seg.id = 'gridSeg' + i;
+    grid.appendChild(seg);
+  }
+}
+
+function lightDefenseGrid(round) {
+  const r = ROUNDS[round];
+  const seg = document.getElementById('gridSeg' + round);
+  if (seg) { seg.classList.add('lit', r.gridColor); }
+}
+
+// ============================================================
+// HINT SYSTEM
+// ============================================================
+function showHint1(round) {
+  hintLevel = 1;
+  roundData[round].hintsUsed = 1;
+  const r = ROUNDS[round];
+  const zone = document.getElementById('interactionZone');
+  zone.querySelectorAll('.coaching-bar.hint1').forEach(c => c.remove());
+  const bar = document.createElement('div');
+  bar.className = 'coaching-bar hint1';
+  bar.textContent = r.hintLadder.hint1;
+  zone.appendChild(bar);
+}
+
+function showStepByStep(round) {
+  hintLevel = 2;
+  roundData[round].hintsUsed = 2;
+  const r = ROUNDS[round];
+  closeAllOverlays();
+  const overlay = document.getElementById('sbsOverlay');
+  const card = document.getElementById('sbsCard') || overlay.querySelector('.sbs-card');
+  let panelIdx = 0;
+  function showPanel(idx) {
+    card.innerHTML = '';
+    card.innerHTML = `<h3>Step-by-Step (${idx+1}/${r.hintLadder.sbs.length})</h3>
+      <p>${esc(r.hintLadder.sbs[idx])}</p>
+      <button class="sbs-next-btn">${idx < r.hintLadder.sbs.length - 1 ? 'Next' : 'Got It'}</button>`;
+    card.querySelector('.sbs-next-btn').addEventListener('click', () => {
+      if (idx < r.hintLadder.sbs.length - 1) { showPanel(idx + 1); }
+      else { overlay.classList.remove('visible'); }
+    });
+  }
+  showPanel(0);
+  overlay.classList.add('visible');
+}
+
+// ============================================================
+// ANTI-GUESSING
+// ============================================================
+function checkAntiGuess(round, selectedIdx) {
+  if (selectedIdx >= 0) {
+    const key = `${round}_${selectedIdx}`;
+    sameWrongCount[key] = (sameWrongCount[key] || 0) + 1;
+  }
+}
+
+let gateInterval = null;
+function showAntiGuessingGate(round) {
+  closeAllOverlays();
+  const overlay = document.getElementById('coachingGateOverlay');
+  overlay.innerHTML = `<div class="gate-card">
+    <p>Slow down and think about what you see in the diagram.</p>
+    <p class="gate-timer">Resuming in <span id="gateCountdown">5</span> seconds...</p>
+  </div>`;
+  overlay.classList.add('visible');
+  let sec = 5;
+  if (gateInterval) clearInterval(gateInterval);
+  gateInterval = trackInterval(setInterval(() => {
+    sec--;
+    const el = document.getElementById('gateCountdown');
+    if (el) el.textContent = sec;
+    if (sec <= 0) {
+      clearInterval(gateInterval); gateInterval = null;
+      overlay.classList.remove('visible');
+      consecutiveFastWrongs = 0;
+      // Reset level
+      resetCurrentLevel();
+    }
+  }, 1000));
+}
+
+function autoAdvance(round) {
+  roundData[round].score = 50;
+  roundData[round].completed = true;
+  roundData[round].timeSeconds = Math.round((Date.now() - roundStartTime) / 1000);
+  totalScore = calcTotalScore();
+  updateHUD();
+  lightDefenseGrid(round);
+  const zone = document.getElementById('interactionZone');
+  zone.innerHTML = '<div class="coaching-bar hint1" style="text-align:center;">Let\'s move on — you\'ll see this idea again.</div>';
+  safeTimeout(() => { onRoundComplete(round); }, 1500);
+}
+
+// ============================================================
+// ROUND FLOW
+// ============================================================
+function loadRound(round) {
+  if (round >= ROUNDS.length) { showReceipt(); return; }
+  arenaGen++;
+  closeAllOverlays();
+  if (gateInterval) { clearInterval(gateInterval); gateInterval = null; }
+  processing = false;
+  currentRound = round;
+  phase = 'do';
+  wrongCount = 0;
+  hintLevel = 0;
+  levelResets = 0;
+  consecutiveFastWrongs = 0;
+  hotspotWrongCountLocal = 0;
+  sameWrongCount = {};
+  roundStartTime = Date.now();
+  if (!roundData[round].attempts) roundData[round].attempts = 0;
+
+  const r = ROUNDS[round];
+  updateHUD();
+
+  // Reset level btn
+  document.getElementById('resetLevelBtn').disabled = false;
+  document.getElementById('hintBtn').style.display = '';
+
+  // Build context
+  const badge = document.getElementById('contextBadge');
+  badge.innerHTML = `<span class="context-badge ${r.contextBadge}">${esc(r.sourceDay)}</span>`;
+  document.getElementById('contextCaption').textContent = r.contextCaption;
+
+  // Build arena
+  const arena = document.getElementById('arena');
+  while (arena.firstChild) arena.removeChild(arena.firstChild);
+  // Cancel CSS animations by removing animated elements
+  // Remove hotspot rings
+  document.querySelectorAll('.hotspot-ring').forEach(r => r.remove());
+
+  safeCall(() => r.buildArena(round), 'buildArena');
+
+  // Build interaction
+  const mechMap = {
+    'pick': renderPickTheDo, 'coach': renderCoachClickDo,
+    'wcn': renderWhatComesNextDo, 'hotspot': renderHotspotDo,
+    'claim': renderClaimBuilderDo
+  };
+  const renderer = mechMap[r.mechanic];
+  if (renderer) renderer(round);
+}
+
+function onRoundComplete(round) {
+  const completedCount = roundData.filter(rd => rd.completed).length;
+  const requiredCount = roundData.filter(rd => rd.required && rd.completed).length;
+  const allRequired = requiredCount === ROUNDS.filter(r => r.required).length;
+  const allDone = completedCount === ROUNDS.length;
+
+  // Check milestones
+  if (allDone && !bonusCompleteShown) {
+    bonusCompleteShown = true;
+    showBossDefeated();
+    return;
+  }
+  if (allRequired && !requiredCompleteShown) {
+    requiredCompleteShown = true;
+    showRequiredComplete();
+    return;
+  }
+  // Every 2 rounds: mini celebration
+  if (completedCount > 0 && completedCount % 2 === 0) {
+    showMiniCeleb(() => { loadRound(round + 1); });
+    return;
+  }
+  // Fast advance
+  safeTimeout(() => { loadRound(round + 1); }, 500);
+}
+
+function showMiniCeleb(callback) {
+  closeAllOverlays();
+  const overlay = document.getElementById('celebrationOverlay');
+  overlay.innerHTML = `<div class="celeb-text" style="color:var(--neon-green);">Nice!</div>
+    <div class="celeb-affirmation">${esc(getAffirmation())}</div>`;
+  overlay.classList.add('visible');
+  burstParticles(8, 'var(--neon-green)');
+  safeTimeout(() => {
+    overlay.classList.remove('visible');
+    if (callback) callback();
+  }, 1200);
+}
+
+function showRequiredComplete() {
+  closeAllOverlays();
+  const overlay = document.getElementById('milestoneOverlay');
+  overlay.innerHTML = `
+    <div class="celeb-text" style="color:var(--gold);font-size:32px;">You did it!</div>
+    <div class="celeb-affirmation" style="animation:none;opacity:1;">${esc(getAffirmation())}</div>
+    <p style="color:var(--text-secondary);margin:16px 0;font-size:15px;">2 Bonus Rounds — dare to try?</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <button class="lock-in-btn" id="keepGoingBtn" style="min-width:140px;">Keep Going</button>
+      <button class="try-again-btn" id="seeScoreBtn" style="min-width:140px;">See Score</button>
+    </div>`;
+  overlay.classList.add('visible');
+  burstParticles(12, '#FFD700');
+  document.getElementById('keepGoingBtn').addEventListener('click', () => {
+    overlay.classList.remove('visible');
+    loadRound(currentRound + 1);
+  });
+  document.getElementById('seeScoreBtn').addEventListener('click', () => {
+    overlay.classList.remove('visible');
+    showReceipt();
+  });
+}
+
+function showBossDefeated() {
+  closeAllOverlays();
+  const overlay = document.getElementById('celebrationOverlay');
+  overlay.innerHTML = `<div class="celeb-text" style="color:var(--gold);font-size:36px;">BOSS DEFEATED!</div>
+    <div class="celeb-affirmation" style="animation:none;opacity:1;">${esc(getAffirmation())}</div>`;
+  overlay.classList.add('visible');
+  burstParticles(15, '#FFD700');
+  safeTimeout(() => {
+    overlay.classList.remove('visible');
+    showReceipt();
+  }, 3000);
+}
+
+// ============================================================
+// RESET LEVEL
+// ============================================================
+function resetCurrentLevel() {
+  levelResets++;
+  roundData[currentRound].resets++;
+  arenaGen++;
+  processing = false;
+  phase = 'do';
+  closeAllOverlays();
+  if (gateInterval) { clearInterval(gateInterval); gateInterval = null; }
+  wrongCount = 0;
+  hotspotWrongCountLocal = 0;
+  consecutiveFastWrongs = 0;
+  sameWrongCount = {};
+  const r = ROUNDS[currentRound];
+  const arena = document.getElementById('arena');
+  while (arena.firstChild) arena.removeChild(arena.firstChild);
+  document.querySelectorAll('.hotspot-ring').forEach(r => r.remove());
+  safeCall(() => r.buildArena(currentRound), 'rebuild arena on reset');
+  const mechMap = {
+    'pick': renderPickTheDo, 'coach': renderCoachClickDo,
+    'wcn': renderWhatComesNextDo, 'hotspot': renderHotspotDo,
+    'claim': renderClaimBuilderDo
+  };
+  const renderer = mechMap[r.mechanic];
+  if (renderer) renderer(currentRound);
+  // Pre-show hint if they already used it
+  if (hintLevel >= 1) { showHint1(currentRound); }
+}
+
+// ============================================================
+// RECEIPT SCREEN
+// ============================================================
+function showReceipt() {
+  if (receiptRendered) return;
+  receiptRendered = true;
+  clearAllIntervals();
+  closeAllOverlays();
+  document.getElementById('gameContainer').style.display = 'none';
+  document.getElementById('resetLevelBtn').disabled = true;
+
+  const base = calcTotalScore();
+  const bonus = calcBonusPoints();
+  const overall = Math.min(100, base + bonus);
+  const hasBonus = bonus > 0;
+
+  let colorClass = 'red', label = 'Needs More Practice';
+  if (overall >= 85) { colorClass = 'green'; label = 'Mastery'; }
+  else if (overall >= 70) { colorClass = 'yellow'; label = 'Approaching Mastery'; }
+
+  const totalTime = roundData.reduce((s, r) => s + r.timeSeconds, 0);
+  const allReqDone = roundData.filter(r => r.required).every(r => r.completed);
+  const allDone = roundData.every(r => r.completed);
+
+  let status = 'In Progress';
+  if (allDone) status = 'All Complete (Bonus!)';
+  else if (allReqDone) status = 'Required Complete';
+
+  const screen = document.getElementById('receiptScreen');
+  let html = `<div class="receipt-inner">
+    <h2>Mr. Jawad's Simulations</h2>
+    <h3>Mass Extinction Cascade — Thursday Score Report</h3>
+    <div class="receipt-name-row">
+      <input type="text" id="receiptName" value="${esc(studentName)}" placeholder="Your name...">
+      <button class="receipt-lock-btn" id="receiptLockBtn">Lock</button>
+    </div>
+    <div class="receipt-grade ${colorClass}">
+      <div class="pct">${overall}%${hasBonus ? '+' : ''}</div>
+      <div class="label">${esc(label)}</div>
+    </div>
+    <table class="receipt-table">
+      <tr><th>#</th><th>Round</th><th>Source</th><th>Score</th><th>Attempts</th><th>Time</th></tr>`;
+  roundData.forEach(rd => {
+    if (!rd.completed) return;
+    const sc = rd.score;
+    const sClass = sc >= 85 ? 'score-green' : sc >= 70 ? 'score-yellow' : 'score-red';
+    const mins = Math.floor(rd.timeSeconds / 60);
+    const secs = rd.timeSeconds % 60;
+    const bonusMarker = rd.required ? '' : ' (Bonus)';
+    html += `<tr class="${rd.required ? '' : 'bonus-row'}">
+      <td>${rd.required ? rd.roundNum : '&#11088; ' + rd.roundNum}</td>
+      <td>${esc(rd.name)}${bonusMarker}</td>
+      <td>${esc(rd.sourceDay)}</td>
+      <td class="${sClass}">${sc}%</td>
+      <td>${rd.attempts}</td>
+      <td>${mins}:${String(secs).padStart(2,'0')}</td></tr>`;
+  });
+  html += `</table>
+    <div style="font-size:13px;color:var(--text-secondary);text-align:center;margin-bottom:8px;">
+      Best Streak: ${bestStreak} | Total Time: ${Math.floor(totalTime/60)}:${String(totalTime%60).padStart(2,'0')} | Status: ${status}
+    </div>
+    <div class="receipt-footer">
+      Take a screenshot and upload to Google Classroom
+      <br>
+      <button class="receipt-btn receipt-print-btn" id="printBtn">Print</button>
+      <button class="receipt-btn receipt-start-over-btn" id="startOverBtn">Start Over</button>
+    </div>
+  </div>`;
+  screen.innerHTML = html;
+  screen.classList.add('visible');
+
+  document.getElementById('receiptLockBtn').addEventListener('click', () => {
+    document.getElementById('receiptName').disabled = true;
+    document.getElementById('receiptLockBtn').disabled = true;
+    document.getElementById('receiptLockBtn').textContent = 'Locked';
+  });
+  document.getElementById('printBtn').addEventListener('click', () => { try { window.print(); } catch(e){} });
+  document.getElementById('startOverBtn').addEventListener('click', () => { showConfirmRestart(); });
+}
+
+function showConfirmRestart() {
+  closeAllOverlays();
+  const overlay = document.getElementById('confirmOverlay');
+  overlay.innerHTML = `<div class="confirm-card">
+    <p>Start over? This will erase all your scores.</p>
+    <button class="confirm-yes" id="confirmYes">Yes, Start Over</button>
+    <button class="confirm-no" id="confirmNo">Cancel</button>
+  </div>`;
+  overlay.classList.add('visible');
+  document.getElementById('confirmYes').addEventListener('click', () => {
+    overlay.classList.remove('visible');
+    fullReset();
+  });
+  document.getElementById('confirmNo').addEventListener('click', () => {
+    overlay.classList.remove('visible');
+  });
+}
+
+function fullReset() {
+  receiptRendered = false;
+  requiredCompleteShown = false;
+  bonusCompleteShown = false;
+  totalScore = 0; streak = 0; bestStreak = 0;
+  currentRound = 0;
+  clearAllIntervals();
+  initRoundData();
+  initDefenseGrid();
+  document.getElementById('receiptScreen').classList.remove('visible');
+  document.getElementById('receiptScreen').innerHTML = '';
+  document.getElementById('gameContainer').style.display = 'flex';
+  loadRound(0);
+}
+
+// ============================================================
+// HINT BUTTON
+// ============================================================
+document.getElementById('hintBtn').addEventListener('click', () => {
+  if (phase === 'do' || phase === 'prove') {
+    if (hintLevel === 0) { showHint1(currentRound); }
+    else if (hintLevel === 1) { showStepByStep(currentRound); }
+  }
+});
+
+// ============================================================
+// VOCAB BUTTON
+// ============================================================
+document.getElementById('vocabBtn').addEventListener('click', () => {
+  document.getElementById('vocabOverlay').classList.add('visible');
+});
+document.getElementById('vocabCloseBtn').addEventListener('click', () => {
+  document.getElementById('vocabOverlay').classList.remove('visible');
+});
+
+// ============================================================
+// RESET LEVEL BUTTON
+// ============================================================
+document.getElementById('resetLevelBtn').addEventListener('click', () => {
+  if (roundData[currentRound] && roundData[currentRound].completed) return;
+  resetCurrentLevel();
+});
+
+// ============================================================
+// WELCOME → START
+// ============================================================
+const studentInput = document.getElementById('studentNameInput');
+const startBtn = document.getElementById('startBtn');
+studentInput.addEventListener('input', () => {
+  startBtn.disabled = studentInput.value.trim().length === 0;
+});
+startBtn.addEventListener('click', () => {
+  studentName = studentInput.value.trim();
+  const tInput = document.getElementById('teacherNameInput').value.trim();
+  teacherName = tInput || 'Mr. Jawad';
+  buildAffirmations();
+  document.getElementById('welcomeScreen').style.display = 'none';
+  document.getElementById('gameContainer').style.display = 'flex';
+  initParticles();
+  initDefenseGrid();
+  initRoundData();
+  loadRound(0);
+});
+
+// Visibility change handler
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearAllIntervals();
+  } else {
+    // On tab return: if anti-guessing gate is stuck (interval was cleared), dismiss it
+    const gateOverlay = document.getElementById('coachingGateOverlay');
+    if (gateOverlay && gateOverlay.classList.contains('visible')) {
+      gateOverlay.classList.remove('visible');
+      gateOverlay.innerHTML = '';
+      if (gateInterval) { clearInterval(gateInterval); gateInterval = null; }
+      consecutiveFastWrongs = 0;
+      resetCurrentLevel();
+    }
+  }
+});
+</script>
+</body>
+</html>
