@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — The Damage and Repair Cycle</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#0a0a1a 0%,#111133 50%,#0a1628 100%);color:#fff;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+#app{max-width:1440px;margin:0 auto;padding:8px 10px;}
+.title-bar{text-align:center;padding:10px 16px;background:linear-gradient(90deg,#c0392b,#e74c3c,#c0392b);border-radius:14px;margin-bottom:8px;box-shadow:0 4px 20px rgba(231,76,60,.35),inset 0 1px 0 rgba(255,255,255,.15);position:relative;overflow:hidden;}
+.title-bar::before{content:'';position:absolute;top:0;left:-100%;width:200%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);animation:titleShimmer 4s infinite;}
+@keyframes titleShimmer{0%{left:-100%;}100%{left:100%;}}
+.title-bar h1{font-size:21px;font-weight:800;text-shadow:0 2px 6px rgba(0,0,0,.4);letter-spacing:.5px;}
+.title-bar .sub{font-size:12px;opacity:.85;margin-top:2px;font-weight:500;}
+.main-layout{display:grid;grid-template-columns:270px 1fr 250px;gap:8px;min-height:580px;}
+
+/* ===== LEFT PANEL ===== */
+.panel{background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border-radius:16px;padding:14px;backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);box-shadow:0 4px 20px rgba(0,0,0,.3);}
+.round-badge{text-align:center;font-size:32px;font-weight:900;background:linear-gradient(135deg,#f39c12,#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;filter:drop-shadow(0 0 8px rgba(243,156,18,.4));}
+.round-label{text-align:center;font-size:11px;opacity:.6;margin-bottom:12px;text-transform:uppercase;letter-spacing:1.5px;}
+.mission-box{background:linear-gradient(135deg,rgba(243,156,18,.12),rgba(230,126,34,.08));border:1px solid rgba(243,156,18,.25);border-radius:12px;padding:10px;text-align:center;font-size:12px;margin-bottom:14px;line-height:1.4;font-weight:600;color:#f5d89a;}
+.ctrl-section{margin-bottom:14px;}
+.ctrl-label{font-size:12px;font-weight:800;margin-bottom:8px;color:#f5d89a;text-transform:uppercase;letter-spacing:1px;}
+.btn-group{display:flex;gap:6px;}
+.ctrl-btn{flex:1;padding:11px 4px;border:2px solid rgba(255,255,255,.12);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));color:#ccc;font-size:13px;font-weight:700;cursor:pointer;transition:all .25s;text-align:center;position:relative;overflow:hidden;}
+.ctrl-btn::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,.05),transparent);border-radius:10px;pointer-events:none;}
+.ctrl-btn:hover:not(.locked){background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:#fff;transform:translateY(-1px);}
+.ctrl-btn.selected{border-color:#f39c12;background:linear-gradient(180deg,rgba(243,156,18,.3),rgba(243,156,18,.15));color:#fff;box-shadow:0 0 18px rgba(243,156,18,.25),inset 0 1px 0 rgba(255,255,255,.1);}
+.ctrl-btn.locked{opacity:.3;cursor:not-allowed;pointer-events:none;}
+.ctrl-btn.locked::after{content:' 🔒';font-size:9px;}
+.start-btn{width:100%;padding:14px;border:none;border-radius:14px;font-size:17px;font-weight:900;cursor:pointer;transition:all .3s;text-transform:uppercase;letter-spacing:2px;position:relative;overflow:hidden;}
+.start-btn.go{background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;box-shadow:0 4px 20px rgba(46,204,113,.35);}
+.start-btn.go::before{content:'';position:absolute;top:0;left:-100%;width:200%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);animation:btnShimmer 2.5s infinite;}
+@keyframes btnShimmer{0%{left:-100%;}100%{left:100%;}}
+.start-btn.go:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(46,204,113,.45);}
+.start-btn:disabled{background:linear-gradient(135deg,#444,#555);color:#888;cursor:not-allowed;box-shadow:none;transform:none;}
+.start-btn:disabled::before{display:none;}
+.action-btns{display:flex;gap:8px;margin-top:10px;}
+.action-btn{flex:1;padding:9px;border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;transition:all .25s;text-transform:uppercase;letter-spacing:.5px;}
+.reset-btn{background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;}
+.new-btn{background:linear-gradient(135deg,#2980b9,#3498db);color:#fff;}
+.action-btn:hover{transform:translateY(-1px);filter:brightness(1.15);}
+.lock-note{font-size:10px;color:#f5d89a;text-align:center;margin-top:6px;font-style:italic;opacity:.8;}
+
+/* ===== HUD ===== */
+.hud{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px;}
+.hud-item{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(0,0,0,.15));border-radius:12px;padding:8px 6px;text-align:center;border:1px solid rgba(255,255,255,.06);position:relative;overflow:hidden;}
+.hud-item::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);}
+.hud-label{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;opacity:.5;margin-bottom:3px;font-weight:700;}
+.hud-val{font-size:22px;font-weight:900;text-shadow:0 0 12px currentColor;}
+.hud-bar{height:6px;background:rgba(255,255,255,.08);border-radius:3px;margin-top:5px;overflow:hidden;}
+.hud-bar-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1);}
+
+/* ===== ARENA ===== */
+.arena-container{position:relative;display:flex;flex-direction:column;padding:0 !important;overflow:hidden;border-radius:16px !important;}
+.arena{flex:1;position:relative;overflow:hidden;min-height:500px;background:#000;}
+.arena canvas{width:100%;height:100%;display:block;}
+.arena-label{position:absolute;font-size:13px;font-weight:800;padding:5px 12px;border-radius:8px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.15);pointer-events:none;z-index:3;opacity:0;transition:opacity .6s;backdrop-filter:blur(4px);letter-spacing:.5px;text-transform:uppercase;}
+.arena-label.visible{opacity:1;}
+.overuse-label{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:38px;font-weight:900;color:#ff4444;z-index:4;display:none;text-shadow:0 0 30px rgba(255,68,68,.8),0 0 60px rgba(255,68,68,.4);animation:overusePulse .5s infinite;letter-spacing:2px;}
+@keyframes overusePulse{0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1);}50%{opacity:.5;transform:translate(-50%,-50%) scale(1.15);}}
+.event-banner{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:6;padding:10px 28px;border-radius:14px;font-size:15px;font-weight:800;display:none;letter-spacing:1px;text-transform:uppercase;}
+.event-banner.show{display:block;animation:bannerIn .4s cubic-bezier(.175,.885,.32,1.275);}
+@keyframes bannerIn{0%{transform:translateX(-50%) scale(.3) translateY(-20px);opacity:0;}100%{transform:translateX(-50%) scale(1) translateY(0);opacity:1;}}
+.powerup-banner{background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;box-shadow:0 0 30px rgba(243,156,18,.5);}
+.random-banner{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;box-shadow:0 0 30px rgba(231,76,60,.5);}
+.notif{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;font-weight:900;pointer-events:none;z-index:5;opacity:0;text-shadow:0 0 30px currentColor;}
+.notif.show{animation:notifAnim 1.5s forwards;}
+@keyframes notifAnim{0%{opacity:0;transform:translate(-50%,-50%) scale(.5);}20%{opacity:1;transform:translate(-50%,-60%) scale(1.2);}60%{opacity:1;transform:translate(-50%,-80%) scale(1);}100%{opacity:0;transform:translate(-50%,-120%) scale(.8);}}
+/* Day-night overlay */
+.day-night{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:2;opacity:0;transition:opacity 1s;}
+.day-night.night{background:radial-gradient(ellipse at center,rgba(10,10,40,.4),rgba(5,5,20,.7));opacity:1;}
+.day-night.day{background:radial-gradient(ellipse at center,rgba(255,200,100,.08),rgba(255,180,80,.02));opacity:1;}
+
+/* ===== OVERLAYS ===== */
+.overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.75);z-index:10;border-radius:16px;backdrop-filter:blur(6px);}
+.overlay.active{display:flex;}
+.overlay-content{text-align:center;padding:36px;max-width:420px;}
+.overlay-content h2{font-size:32px;margin-bottom:12px;text-shadow:0 0 20px rgba(255,255,255,.2);}
+.overlay-content p{font-size:15px;opacity:.8;margin-bottom:24px;line-height:1.5;}
+.overlay-btn{padding:14px 44px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;transition:all .3s;box-shadow:0 4px 20px rgba(243,156,18,.35);letter-spacing:1px;}
+.overlay-btn:hover{transform:scale(1.05);box-shadow:0 6px 30px rgba(243,156,18,.5);}
+
+/* ===== RIGHT PANEL ===== */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
+.stat-box{background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.15));border-radius:10px;padding:8px;text-align:center;border:1px solid rgba(255,255,255,.04);}
+.stat-box .val{font-size:24px;font-weight:900;text-shadow:0 0 10px currentColor;}
+.stat-box .lbl{font-size:9px;opacity:.5;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:2px;}
+.progress-section{margin-bottom:10px;}
+.progress-bar{height:10px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden;margin-top:6px;border:1px solid rgba(255,255,255,.05);}
+.progress-fill{height:100%;background:linear-gradient(90deg,#f39c12,#e74c3c);border-radius:5px;transition:width .6s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px rgba(243,156,18,.3);}
+.progress-text{font-size:10px;text-align:center;margin-top:5px;opacity:.6;font-weight:600;}
+.badge-area{text-align:center;margin:8px 0;min-height:36px;}
+.badge{display:inline-block;padding:6px 18px;border-radius:20px;font-size:13px;font-weight:800;animation:badgePulse 2s infinite;letter-spacing:.5px;}
+@keyframes badgePulse{0%,100%{box-shadow:0 0 10px rgba(243,156,18,.3),0 0 20px rgba(243,156,18,.1);}50%{box-shadow:0 0 20px rgba(243,156,18,.5),0 0 40px rgba(243,156,18,.2);}}
+.data-section h3{font-size:12px;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;opacity:.7;}
+.copy-btn{width:100%;padding:7px;border:none;border-radius:8px;background:linear-gradient(135deg,#8e44ad,#9b59b6);color:#fff;font-size:11px;font-weight:700;cursor:pointer;margin-bottom:6px;transition:all .3s;letter-spacing:.5px;}
+.copy-btn:hover{filter:brightness(1.15);transform:translateY(-1px);}
+.data-scroll{max-height:200px;overflow-y:auto;border-radius:8px;}
+.data-scroll::-webkit-scrollbar{width:4px;}
+.data-scroll::-webkit-scrollbar-track{background:rgba(255,255,255,.03);}
+.data-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px;}
+.data-table{width:100%;border-collapse:collapse;font-size:10px;}
+.data-table th{background:rgba(243,156,18,.2);padding:5px 3px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;}
+.data-table td{padding:4px 3px;text-align:center;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px;font-weight:600;}
+.data-table tr.positive td{color:#2ecc71;text-shadow:0 0 6px rgba(46,204,113,.3);}
+.data-table tr.negative td{color:#e74c3c;text-shadow:0 0 6px rgba(231,76,60,.3);}
+.event-flag{font-size:9px;}
+/* Phase indicator */
+.phase-strip{display:flex;gap:4px;margin-bottom:8px;}
+.phase-dot{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.1);transition:all .5s;}
+.phase-dot.active{background:#f39c12;box-shadow:0 0 8px rgba(243,156,18,.5);}
+.phase-dot.done{background:#2ecc71;}
+
+@media(max-width:1000px){.main-layout{grid-template-columns:1fr;}.arena{min-height:320px;}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="title-bar">
+    <h1>Mr. Jawad's Simulations — The Damage and Repair Cycle</h1>
+    <div class="sub">Muscular System</div>
+  </div>
+
+  <div class="hud">
+    <div class="hud-item">
+      <div class="hud-label">Strength</div>
+      <div class="hud-val" id="hud-strength" style="color:#2ecc71;">0</div>
+      <div class="hud-bar"><div class="hud-bar-fill" id="hud-strength-bar" style="width:50%;background:linear-gradient(90deg,#e74c3c,#f39c12,#2ecc71);"></div></div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-label">Damage</div>
+      <div class="hud-val" id="hud-damage" style="color:#e74c3c;">—</div>
+      <div class="hud-bar"><div class="hud-bar-fill" id="hud-damage-bar" style="width:0%;background:linear-gradient(90deg,#2ecc71,#f39c12,#e74c3c);"></div></div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-label">Repair</div>
+      <div class="hud-val" id="hud-repair" style="color:#3498db;">—</div>
+      <div class="hud-bar"><div class="hud-bar-fill" id="hud-repair-bar" style="width:0%;background:linear-gradient(90deg,#3498db,#2ecc71);"></div></div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-label">Intensity</div>
+      <div class="hud-val" id="hud-intensity" style="color:#f39c12;">—</div>
+      <div class="hud-bar"><div class="hud-bar-fill" id="hud-intensity-bar" style="width:0%;background:linear-gradient(90deg,#2ecc71,#f39c12,#e74c3c);"></div></div>
+    </div>
+  </div>
+
+  <div class="main-layout">
+    <!-- LEFT -->
+    <div class="panel" id="left-panel">
+      <div class="round-badge" id="round-display">1 / 8</div>
+      <div class="round-label" id="round-label">Round 1</div>
+      <div class="phase-strip" id="phase-strip">
+        <div class="phase-dot" id="ph-choose"></div>
+        <div class="phase-dot" id="ph-workout"></div>
+        <div class="phase-dot" id="ph-tear"></div>
+        <div class="phase-dot" id="ph-rest"></div>
+        <div class="phase-dot" id="ph-repair"></div>
+        <div class="phase-dot" id="ph-result"></div>
+      </div>
+      <div class="mission-box">Find the sweet spot</div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-label">Intensity</div>
+        <div class="btn-group" id="intensity-group">
+          <button class="ctrl-btn" data-val="light" onclick="selectIntensity(this)">Light</button>
+          <button class="ctrl-btn" data-val="moderate" onclick="selectIntensity(this)">Moderate</button>
+          <button class="ctrl-btn" data-val="hard" onclick="selectIntensity(this)">Hard</button>
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-label">Rest Days</div>
+        <div class="btn-group" id="rest-group">
+          <button class="ctrl-btn" data-val="0" onclick="selectRest(this)">0</button>
+          <button class="ctrl-btn" data-val="1" onclick="selectRest(this)">1</button>
+          <button class="ctrl-btn" data-val="3" onclick="selectRest(this)">3</button>
+        </div>
+        <div class="lock-note" id="rest-lock-note" style="display:none;">🔒 Locked at 1 (Rounds 1-2)</div>
+      </div>
+
+      <button class="start-btn go" id="start-btn" disabled onclick="startRound()">▶ START</button>
+
+      <div class="action-btns">
+        <button class="action-btn reset-btn" onclick="resetSim()">Reset</button>
+        <button class="action-btn new-btn" onclick="newRun()">New Run</button>
+      </div>
+    </div>
+
+    <!-- CENTER -->
+    <div class="arena-container panel">
+      <div class="arena" id="arena">
+        <canvas id="arena-canvas"></canvas>
+        <div class="day-night" id="day-night"></div>
+        <div class="arena-label" id="label-fibers" style="bottom:12px;left:12px;color:#e8a0b0;">Muscle Fibers</div>
+        <div class="arena-label" id="label-tears" style="top:12px;right:12px;color:#ff6b6b;">Microtears</div>
+        <div class="arena-label" id="label-repair" style="bottom:12px;right:12px;color:#6bffb0;">Repair</div>
+        <div class="arena-label" id="label-growth" style="top:12px;left:12px;color:#6bff6b;">Growth</div>
+        <div class="overuse-label" id="overuse-label">Overuse!</div>
+        <div class="event-banner powerup-banner" id="powerup-banner">⚡ Recovery Boost!</div>
+        <div class="event-banner random-banner" id="random-banner">⚡ Sleep Disruption!</div>
+        <div class="notif" id="notif"></div>
+        <div class="overlay active" id="intro-overlay">
+          <div class="overlay-content">
+            <h2>💪 Muscle Lab</h2>
+            <p>Push muscles hard enough to grow — but rest enough to repair.</p>
+            <button class="overlay-btn" onclick="dismissIntro()">START</button>
+          </div>
+        </div>
+        <div class="overlay" id="complete-overlay">
+          <div class="overlay-content">
+            <h2 id="complete-title">✅ Required Complete!</h2>
+            <p id="complete-msg">Continue for Extra Credit?</p>
+            <button class="overlay-btn" onclick="dismissComplete()">Continue</button>
+          </div>
+        </div>
+        <div class="overlay" id="final-overlay">
+          <div class="overlay-content">
+            <h2>🏆 All 8 Done!</h2>
+            <p id="final-msg">Extra Credit Complete!</p>
+            <button class="overlay-btn" onclick="dismissFinal()">View Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="panel">
+      <h2 style="font-size:13px;margin-bottom:8px;text-transform:uppercase;letter-spacing:1.5px;opacity:.6;">Progress</h2>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val" id="stat-score" style="color:#f39c12;">0</div><div class="lbl">Score</div></div>
+        <div class="stat-box"><div class="val" id="stat-streak" style="color:#e67e22;">0</div><div class="lbl">Streak</div></div>
+        <div class="stat-box"><div class="val" id="stat-done" style="color:#3498db;">0/5</div><div class="lbl">Done</div></div>
+        <div class="stat-box"><div class="val" id="stat-best" style="color:#2ecc71;">—</div><div class="lbl">Best</div></div>
+      </div>
+      <div class="progress-section">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
+        <div class="progress-text" id="progress-text">5 rounds left</div>
+      </div>
+      <div class="badge-area" id="badge-area"></div>
+
+      <div class="data-section">
+        <h3>Data Table</h3>
+        <button class="copy-btn" id="copy-btn" onclick="copyTable()">📋 Copy Table</button>
+        <div class="data-scroll">
+        <table class="data-table">
+          <thead><tr><th>Rnd</th><th>Intensity</th><th>Rest</th><th>Dmg</th><th>Str</th><th></th></tr></thead>
+          <tbody id="data-body"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+var state={round:1,intensity:null,restDays:null,totalStrength:0,streak:0,score:0,bestChange:null,data:[],phase:'choose-intensity',genId:0,fiberBaseWidth:14,powerUpUsed:false,gameOver:false};
+var REQUIRED=5,TOTAL=8;
+var canvas=document.getElementById('arena-canvas');
+var ctx=canvas.getContext('2d');
+var W=0,H=0;
+var fibers=[];
+var particles=[];
+var glowParticles=[];
+var bgStars=[];
+var ambientTime=0;
+var currentPhase='idle';
+var animFrameId=0;
+
+// ===== CANVAS SETUP =====
+function resizeCanvas(){
+  var rect=canvas.parentElement.getBoundingClientRect();
+  var dpr=Math.min(window.devicePixelRatio||1,2);
+  W=rect.width;H=rect.height;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  initBgStars();
+}
+
+// ===== BACKGROUND STARS (cellular environment) =====
+function initBgStars(){
+  bgStars=[];
+  for(var i=0;i<80;i++){
+    bgStars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+0.3,speed:Math.random()*0.15+0.02,phase:Math.random()*Math.PI*2,alpha:Math.random()*0.3+0.05});
+  }
+}
+
+// ===== FIBER INIT =====
+function initFibers(){
+  fibers=[];
+  var count=10;
+  var spacing=H/(count+1);
+  for(var i=0;i<count;i++){
+    var sarcomeres=[];
+    var numSarc=Math.floor(W/18);
+    for(var s=0;s<numSarc;s++){
+      sarcomeres.push({offset:s*18+40,width:16,phase:Math.random()*0.3});
+    }
+    fibers.push({
+      y:spacing*(i+1),baseWidth:state.fiberBaseWidth,width:state.fiberBaseWidth,
+      hue:350+Math.random()*15,saturation:55+Math.random()*15,lightness:45+Math.random()*10,
+      phase:Math.random()*Math.PI*2,sarcomeres:sarcomeres,
+      tearPoints:[],glowIntensity:0,glowColor:'#2ecc71',
+      contractOffset:0,damageOverlay:0,repairGlow:0,thickenAnim:0
+    });
+  }
+}
+
+// ===== MAIN DRAW LOOP =====
+function draw(){
+  animFrameId=requestAnimationFrame(draw);
+  ctx.clearRect(0,0,W,H);
+  ambientTime+=0.015;
+
+  // Deep tissue background
+  var bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*0.7);
+  bg.addColorStop(0,'#2a1035');
+  bg.addColorStop(0.4,'#1c0a28');
+  bg.addColorStop(0.7,'#120620');
+  bg.addColorStop(1,'#080310');
+  ctx.fillStyle=bg;
+  ctx.fillRect(0,0,W,H);
+
+  // Floating cellular particles (background depth)
+  bgStars.forEach(function(s){
+    s.phase+=s.speed*0.02;
+    var px=s.x+Math.sin(ambientTime*0.5+s.phase)*8;
+    var py=s.y+Math.cos(ambientTime*0.3+s.phase)*5;
+    var a=s.alpha*(0.6+0.4*Math.sin(ambientTime+s.phase));
+    ctx.beginPath();
+    ctx.arc(px,py,s.r,0,Math.PI*2);
+    ctx.fillStyle='rgba(200,160,220,'+a+')';
+    ctx.fill();
+  });
+
+  // Connective tissue lines (subtle)
+  ctx.strokeStyle='rgba(120,60,100,0.06)';
+  ctx.lineWidth=1;
+  for(var ly=0;ly<H;ly+=35){
+    ctx.beginPath();
+    ctx.moveTo(0,ly);
+    for(var lx=0;lx<W;lx+=10){
+      ctx.lineTo(lx,ly+Math.sin(lx*0.01+ambientTime*0.3)*3);
+    }
+    ctx.stroke();
+  }
+
+  // Draw each fiber
+  fibers.forEach(function(f,fi){
+    ctx.save();
+    var twitch=Math.sin(ambientTime*1.2+f.phase)*1.2;
+    var cy=f.y+twitch+f.contractOffset;
+    var hw=f.width+f.thickenAnim;
+    var x1=30,x2=W-30;
+
+    // Outer membrane glow
+    if(f.glowIntensity>0){
+      ctx.shadowBlur=25*f.glowIntensity;
+      ctx.shadowColor=f.glowColor;
+    }
+
+    // Main fiber body with realistic muscle color
+    var baseH=f.hue,baseS=f.saturation,baseL=f.lightness;
+    // Damage tint (shifts red/dark)
+    baseL=baseL-f.damageOverlay*15;
+    baseS=baseS+f.damageOverlay*10;
+    // Repair glow (shifts green/bright)
+    if(f.repairGlow>0){baseH=baseH-f.repairGlow*40;baseL=baseL+f.repairGlow*10;}
+
+    var fg=ctx.createLinearGradient(0,cy-hw,0,cy+hw);
+    fg.addColorStop(0,'hsla('+baseH+','+baseS+'%,'+(baseL-15)+'%,0.5)');
+    fg.addColorStop(0.2,'hsla('+baseH+','+baseS+'%,'+(baseL-5)+'%,0.85)');
+    fg.addColorStop(0.35,'hsla('+baseH+','+baseS+'%,'+baseL+'%,1)');
+    fg.addColorStop(0.5,'hsla('+baseH+','+(baseS+5)+'%,'+(baseL+8)+'%,1)');
+    fg.addColorStop(0.65,'hsla('+baseH+','+baseS+'%,'+baseL+'%,1)');
+    fg.addColorStop(0.8,'hsla('+baseH+','+baseS+'%,'+(baseL-5)+'%,0.85)');
+    fg.addColorStop(1,'hsla('+baseH+','+baseS+'%,'+(baseL-15)+'%,0.5)');
+
+    ctx.fillStyle=fg;
+    ctx.beginPath();
+    ctx.moveTo(x1,cy-hw);
+    for(var x=x1;x<=x2;x+=4){
+      var wave=Math.sin(x*0.015+ambientTime*0.8+f.phase)*1.5;
+      ctx.lineTo(x,cy-hw+wave);
+    }
+    for(var x=x2;x>=x1;x-=4){
+      var wave=Math.sin(x*0.015+ambientTime*0.8+f.phase)*1.5;
+      ctx.lineTo(x,cy+hw+wave);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur=0;
+
+    // Sarcomere bands (Z-lines) — the signature look of striated muscle
+    var bandAlpha=0.12+0.03*Math.sin(ambientTime+fi);
+    f.sarcomeres.forEach(function(sarc){
+      var sx=sarc.offset;
+      if(sx<x1||sx>x2) return;
+      ctx.strokeStyle='rgba(255,220,240,'+bandAlpha+')';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(sx,cy-hw+2);
+      ctx.lineTo(sx,cy+hw-2);
+      ctx.stroke();
+      // A-band (darker region between Z-lines)
+      if(sx+sarc.width<x2){
+        ctx.fillStyle='rgba(80,20,40,'+(bandAlpha*0.4)+')';
+        ctx.fillRect(sx+4,cy-hw+2,sarc.width-8,hw*2-4);
+      }
+    });
+
+    // Myosin line (center dark line through fiber)
+    ctx.strokeStyle='rgba(100,30,50,0.15)';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(x1+5,cy);
+    for(var x=x1+5;x<x2-5;x+=6){
+      ctx.lineTo(x,cy+Math.sin(x*0.03+ambientTime)*0.8);
+    }
+    ctx.stroke();
+
+    // Endomysium (outer sheath highlight)
+    ctx.strokeStyle='rgba(255,200,220,0.12)';
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(x1,cy-hw);
+    for(var x=x1;x<=x2;x+=4){
+      ctx.lineTo(x,cy-hw+Math.sin(x*0.015+ambientTime*0.8+f.phase)*1.5);
+    }
+    ctx.stroke();
+
+    // Draw tears
+    f.tearPoints.forEach(function(tp){
+      if(!tp.visible) return;
+      var tx=tp.x;
+      // Jagged tear crack
+      ctx.save();
+      ctx.strokeStyle='rgba(255,50,50,'+tp.opacity+')';
+      ctx.lineWidth=2.5;
+      ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(tx-2,cy-hw-4);
+      ctx.lineTo(tx+5,cy-hw*0.4);
+      ctx.lineTo(tx-4,cy);
+      ctx.lineTo(tx+6,cy+hw*0.4);
+      ctx.lineTo(tx-2,cy+hw+4);
+      ctx.stroke();
+
+      // Secondary crack lines
+      ctx.strokeStyle='rgba(255,80,80,'+tp.opacity*0.5+')';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(tx+5,cy-hw*0.4);ctx.lineTo(tx+14,cy-hw*0.6);ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(tx-4,cy);ctx.lineTo(tx-15,cy+3);ctx.stroke();
+
+      // Inflammation radial glow
+      if(tp.inflame>0){
+        var ig=ctx.createRadialGradient(tx,cy,0,tx,cy,hw*3);
+        ig.addColorStop(0,'rgba(255,100,0,'+tp.inflame*0.35+')');
+        ig.addColorStop(0.5,'rgba(255,60,0,'+tp.inflame*0.12+')');
+        ig.addColorStop(1,'rgba(255,30,0,0)');
+        ctx.fillStyle=ig;
+        ctx.fillRect(tx-hw*3,cy-hw*3,hw*6,hw*6);
+      }
+
+      // Inflammation pulsing ring
+      if(tp.inflame>0.2){
+        var ringR=hw*1.5+Math.sin(ambientTime*3)*hw*0.3;
+        ctx.strokeStyle='rgba(255,120,40,'+tp.inflame*0.25+')';
+        ctx.lineWidth=2;
+        ctx.beginPath();
+        ctx.arc(tx,cy,ringR,0,Math.PI*2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
+    ctx.restore();
+  });
+
+  // Draw particles
+  particles=particles.filter(function(p){return p.life>0;});
+  particles.forEach(function(p){
+    ctx.save();
+    ctx.globalAlpha=Math.min(p.life,1);
+    // Soft glow
+    ctx.shadowBlur=p.glow||6;
+    ctx.shadowColor=p.color;
+    ctx.fillStyle=p.color;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+    ctx.fill();
+    // Inner bright core
+    if(p.size>2){
+      ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.size*0.3,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+    p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;p.size*=0.995;
+    // Gravity/drift
+    if(p.gravity) p.vy+=p.gravity;
+  });
+
+  // Glow particles (persistent ambient)
+  glowParticles=glowParticles.filter(function(g){return g.life>0;});
+  glowParticles.forEach(function(g){
+    ctx.save();
+    ctx.globalAlpha=g.life*0.4;
+    var gr=ctx.createRadialGradient(g.x,g.y,0,g.x,g.y,g.size);
+    gr.addColorStop(0,g.color);
+    gr.addColorStop(1,'transparent');
+    ctx.fillStyle=gr;
+    ctx.fillRect(g.x-g.size,g.y-g.size,g.size*2,g.size*2);
+    ctx.restore();
+    g.x+=g.vx;g.y+=g.vy;g.life-=g.decay;
+  });
+}
+
+// ===== PARTICLE SPAWNERS =====
+function spawnBurst(x,y,color,count,speed,size,glow){
+  for(var i=0;i<count;i++){
+    var angle=Math.random()*Math.PI*2;
+    var spd=Math.random()*speed+speed*0.2;
+    particles.push({x:x,y:y,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,color:color,size:Math.random()*size+1,life:1,decay:0.008+Math.random()*0.015,glow:glow||8,gravity:0});
+  }
+}
+
+function spawnInflammation(x,y){
+  for(var i=0;i<20;i++){
+    var angle=Math.random()*Math.PI*2;
+    var dist=Math.random()*25;
+    particles.push({x:x+Math.cos(angle)*dist,y:y+Math.sin(angle)*dist,vx:Math.cos(angle)*0.3,vy:Math.sin(angle)*0.3,color:Math.random()>0.5?'#ff6b35':'#ff4444',size:2+Math.random()*3,life:1,decay:0.006+Math.random()*0.01,glow:12,gravity:0});
+  }
+  // Big glow
+  glowParticles.push({x:x,y:y,vx:0,vy:0,color:'rgba(255,100,0,0.5)',size:40,life:1,decay:0.015});
+}
+
+function spawnHealStream(fiberIdx){
+  var f=fibers[fiberIdx];
+  for(var i=0;i<12;i++){
+    var px=50+Math.random()*(W-100);
+    var offsetY=(Math.random()-0.5)*f.width*1.5;
+    particles.push({x:px,y:f.y+offsetY,vx:(Math.random()-0.5)*0.4,vy:(Math.random()-0.5)*0.4,color:Math.random()>0.3?'#2ecc71':'#27ae60',size:2+Math.random()*3,life:1,decay:0.005+Math.random()*0.008,glow:10,gravity:0});
+  }
+}
+
+function spawnGrowthBurst(fiberIdx){
+  var f=fibers[fiberIdx];
+  for(var i=0;i<25;i++){
+    var px=80+Math.random()*(W-160);
+    var angle=Math.random()*Math.PI*2;
+    particles.push({x:px,y:f.y,vx:Math.cos(angle)*2,vy:Math.sin(angle)*2,color:Math.random()>0.5?'#2ecc71':'#f1c40f',size:3+Math.random()*4,life:1.2,decay:0.01,glow:15,gravity:-0.02});
+  }
+  glowParticles.push({x:W/2,y:f.y,vx:0,vy:0,color:'rgba(46,204,113,0.4)',size:60,life:1,decay:0.02});
+}
+
+function spawnStrainParticles(fiberIdx){
+  var f=fibers[fiberIdx];
+  for(var i=0;i<5;i++){
+    var px=80+Math.random()*(W-160);
+    particles.push({x:px,y:f.y+(Math.random()-0.5)*f.width,vx:(Math.random()-0.5)*1.5,vy:-Math.random()*1.5,color:'rgba(255,100,50,0.9)',size:1.5+Math.random()*2,life:0.8,decay:0.02,glow:6,gravity:0.03});
+  }
+}
+
+// ===== PHASE INDICATORS =====
+function setPhase(idx){
+  var dots=document.querySelectorAll('.phase-dot');
+  dots.forEach(function(d,i){
+    d.className='phase-dot'+(i<idx?' done':'')+(i===idx?' active':'');
+  });
+}
+
+// ===== GAME LOGIC =====
+function getDamageLevel(intensity){
+  if(intensity==='light') return {level:'Low',value:1,pct:25};
+  if(intensity==='moderate') return {level:'Medium',value:2,pct:55};
+  return {level:'High',value:3,pct:90};
+}
+function getRepairAmount(restDays,dmgVal,hasPowerUp,hasSleep){
+  var base;
+  if(restDays===0) base=0;
+  else if(restDays===1) base=dmgVal<=2?dmgVal:dmgVal-1;
+  else base=dmgVal+1;
+  if(hasPowerUp) base=Math.min(base*2,dmgVal+2);
+  if(hasSleep) base=Math.floor(base/2);
+  return base;
+}
+function getStrengthChange(dmg,repair){
+  if(repair>=dmg&&dmg>=1) return dmg===1?1:(dmg===2?3:2);
+  if(repair<dmg) return -(dmg-repair);
+  return 0;
+}
+function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+// ===== CONTROLS =====
+function selectIntensity(btn){
+  if(state.phase!=='choose-intensity'||state.gameOver)return;
+  document.querySelectorAll('#intensity-group .ctrl-btn').forEach(function(b){b.classList.remove('selected');});
+  btn.classList.add('selected');
+  state.intensity=btn.dataset.val;
+  if(state.round<=2){
+    state.restDays=1;autoSelectRest(1);state.phase='ready';
+  }else{
+    state.phase='choose-rest';
+    document.querySelectorAll('#intensity-group .ctrl-btn').forEach(function(b){if(!b.classList.contains('selected'))b.classList.add('locked');});
+  }
+  updateStartBtn();
+}
+function selectRest(btn){
+  if(state.phase!=='choose-rest'||state.gameOver)return;
+  if(btn.classList.contains('locked'))return;
+  document.querySelectorAll('#rest-group .ctrl-btn').forEach(function(b){b.classList.remove('selected');});
+  btn.classList.add('selected');
+  state.restDays=parseInt(btn.dataset.val);
+  state.phase='ready';
+  updateStartBtn();
+}
+function autoSelectRest(val){
+  document.querySelectorAll('#rest-group .ctrl-btn').forEach(function(b){
+    b.classList.remove('selected');
+    if(parseInt(b.dataset.val)===val) b.classList.add('selected');
+  });
+}
+function updateStartBtn(){document.getElementById('start-btn').disabled=state.phase!=='ready';}
+function lockRestForEarlyRounds(){
+  if(state.round<=2){
+    document.querySelectorAll('#rest-group .ctrl-btn').forEach(function(b){
+      if(parseInt(b.dataset.val)!==1) b.classList.add('locked');
+      else{b.classList.add('selected');b.classList.remove('locked');}
+    });
+    document.getElementById('rest-lock-note').style.display='block';
+    state.restDays=1;
+  }else{
+    document.querySelectorAll('#rest-group .ctrl-btn').forEach(function(b){b.classList.remove('locked','selected');});
+    document.getElementById('rest-lock-note').style.display='none';
+  }
+}
+function unlockAllControls(){
+  document.querySelectorAll('.ctrl-btn').forEach(function(b){b.classList.remove('locked','selected');});
+  lockRestForEarlyRounds();
+}
+
+// ===== ANIMATION SEQUENCES =====
+function wait(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+function animateWorkout(intensity,gen){
+  return new Promise(function(resolve){
+    setPhase(1);
+    var speed=intensity==='light'?50:intensity==='moderate'?35:18;
+    var cycles=intensity==='light'?4:intensity==='moderate'?6:9;
+    var frame=0,total=cycles*speed;
+    var iv=setInterval(function(){
+      if(gen!==state.genId){clearInterval(iv);resolve();return;}
+      frame++;
+      var ph=Math.sin(frame*Math.PI*2/speed);
+      var amt=intensity==='light'?2:intensity==='moderate'?4:7;
+      fibers.forEach(function(f,fi){
+        f.contractOffset=ph*2*(intensity==='hard'?1.5:1);
+        f.width=f.baseWidth+ph*amt;
+        f.damageOverlay=Math.max(0,ph*0.3)*(intensity==='hard'?1.5:1);
+        // Strain particles
+        if(intensity!=='light'&&frame%8===0&&ph>0.5){
+          spawnStrainParticles(fi);
+        }
+      });
+      if(frame>=total){
+        clearInterval(iv);
+        fibers.forEach(function(f){f.contractOffset=0;f.width=f.baseWidth;f.damageOverlay=0;});
+        resolve();
+      }
+    },16);
+    setTimeout(function(){clearInterval(iv);fibers.forEach(function(f){f.contractOffset=0;f.width=f.baseWidth;f.damageOverlay=0;});resolve();},8000);
+  });
+}
+
+function animateTears(dmgValue,gen){
+  return new Promise(function(resolve){
+    setPhase(2);
+    var tearCount=dmgValue*3;
+    var placed=0;
+    var iv=setInterval(function(){
+      if(gen!==state.genId){clearInterval(iv);resolve();return;}
+      if(placed>=tearCount){clearInterval(iv);setTimeout(resolve,600);return;}
+      var fi=Math.floor(Math.random()*fibers.length);
+      var tx=80+Math.random()*(W-160);
+      fibers[fi].tearPoints.push({x:tx,visible:true,opacity:1,inflame:1});
+      spawnInflammation(tx,fibers[fi].y);
+      fibers[fi].damageOverlay=Math.min(1,fibers[fi].damageOverlay+0.15);
+      placed++;
+    },200);
+    setTimeout(function(){clearInterval(iv);resolve();},6000);
+  });
+}
+
+function animateRest(restDays,gen){
+  return new Promise(function(resolve){
+    setPhase(3);
+    var dn=document.getElementById('day-night');
+    if(restDays===0){dn.className='day-night';resolve();return;}
+    // Day-night cycle
+    var cycles=restDays;
+    var frame=0,total=cycles*60;
+    var iv=setInterval(function(){
+      if(gen!==state.genId){clearInterval(iv);dn.className='day-night';resolve();return;}
+      frame++;
+      var cyclePos=(frame%60)/60;
+      if(cyclePos<0.5) dn.className='day-night night';
+      else dn.className='day-night day';
+      if(frame>=total){clearInterval(iv);dn.className='day-night';resolve();}
+    },30);
+    setTimeout(function(){clearInterval(iv);dn.className='day-night';resolve();},5000);
+  });
+}
+
+function animateRepair(repairAmt,dmgValue,gen){
+  return new Promise(function(resolve){
+    setPhase(4);
+    if(repairAmt===0){setTimeout(resolve,600);return;}
+    var frame=0,total=repairAmt*50;
+    var iv=setInterval(function(){
+      if(gen!==state.genId){clearInterval(iv);resolve();return;}
+      frame++;
+      var progress=frame/total;
+      // Healing particles
+      if(frame%4===0){
+        var fi=Math.floor(Math.random()*fibers.length);
+        spawnHealStream(fi);
+      }
+      // Fade tears & damage overlay
+      fibers.forEach(function(f){
+        f.tearPoints.forEach(function(tp){
+          tp.opacity=Math.max(0,1-progress*1.2);
+          tp.inflame=Math.max(0,1-progress*1.5);
+        });
+        f.damageOverlay=Math.max(0,f.damageOverlay*(1-progress*0.03));
+        f.repairGlow=Math.min(1,progress*1.5);
+      });
+      if(frame>=total){
+        clearInterval(iv);
+        fibers.forEach(function(f){
+          f.repairGlow=0;f.damageOverlay=0;
+          f.tearPoints=[];
+        });
+        if(repairAmt>=dmgValue){
+          fibers.forEach(function(f,fi){spawnGrowthBurst(fi);});
+        }
+        setTimeout(resolve,500);
+      }
+    },16);
+    setTimeout(function(){clearInterval(iv);fibers.forEach(function(f){f.repairGlow=0;f.damageOverlay=0;f.tearPoints=[];});resolve();},7000);
+  });
+}
+
+function animateStrengthChange(strChange,gen){
+  return new Promise(function(resolve){
+    setPhase(5);
+    var frame=0,total=40;
+    var targetWidth=state.fiberBaseWidth;
+    var startWidths=fibers.map(function(f){return f.width;});
+    var iv=setInterval(function(){
+      if(gen!==state.genId){clearInterval(iv);resolve();return;}
+      frame++;
+      var t=frame/total;
+      var ease=t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+      fibers.forEach(function(f,i){
+        f.width=startWidths[i]+(targetWidth-startWidths[i])*ease;
+        f.thickenAnim=strChange>0?Math.sin(t*Math.PI)*3:0;
+        if(strChange>0){f.glowIntensity=Math.sin(t*Math.PI);f.glowColor='#2ecc71';}
+        else if(strChange<0){f.glowIntensity=Math.sin(t*Math.PI)*0.6;f.glowColor='#e74c3c';}
+      });
+      if(frame>=total){
+        clearInterval(iv);
+        fibers.forEach(function(f){f.thickenAnim=0;f.glowIntensity=0;f.width=targetWidth;});
+        resolve();
+      }
+    },16);
+    setTimeout(function(){clearInterval(iv);fibers.forEach(function(f){f.thickenAnim=0;f.glowIntensity=0;f.width=targetWidth;});resolve();},3000);
+  });
+}
+
+// ===== MAIN ROUND =====
+async function startRound(){
+  if(state.phase!=='ready'||state.gameOver)return;
+  state.phase='animating';
+  var myGen=++state.genId;
+  document.getElementById('start-btn').disabled=true;
+  setPhase(0);
+
+  var intensity=state.intensity;
+  var restDays=state.restDays;
+  var dmg=getDamageLevel(intensity);
+
+  var hasPowerUp=false;
+  if(state.round>=6&&state.streak>=3&&!state.powerUpUsed){
+    hasPowerUp=true;state.powerUpUsed=true;showBanner('powerup');
+  }
+  var hasSleep=false;
+  if(state.round>=6&&!hasPowerUp&&Math.random()<0.4){
+    hasSleep=true;showBanner('random');
+  }
+
+  document.getElementById('hud-intensity').textContent=capitalize(intensity);
+  document.getElementById('hud-intensity-bar').style.width=dmg.pct+'%';
+
+  // 1. Workout
+  showLabel('label-fibers');
+  await animateWorkout(intensity,myGen);
+  if(myGen!==state.genId)return;
+
+  // 2. Microtears
+  showLabel('label-tears');
+  await animateTears(dmg.value,myGen);
+  if(myGen!==state.genId)return;
+  document.getElementById('hud-damage').textContent=dmg.level;
+  document.getElementById('hud-damage-bar').style.width=dmg.pct+'%';
+
+  if(intensity==='hard'&&restDays===0){showOveruse();pulseRestButtons();}
+
+  // 3. Rest (day-night)
+  await animateRest(restDays,myGen);
+  if(myGen!==state.genId)return;
+
+  // 4. Repair
+  var repairAmt=getRepairAmount(restDays,dmg.value,hasPowerUp,hasSleep);
+  showLabel('label-repair');
+  await animateRepair(repairAmt,dmg.value,myGen);
+  if(myGen!==state.genId)return;
+  document.getElementById('hud-repair').textContent=repairAmt>=dmg.value?'Full':'Partial';
+  document.getElementById('hud-repair-bar').style.width=Math.min(repairAmt/3*100,100)+'%';
+  hideOveruse();
+
+  // 5. Strength change
+  var strChange=getStrengthChange(dmg.value,repairAmt);
+  state.totalStrength+=strChange;
+  var widthDelta=strChange>0?1.2*strChange:-0.8*Math.abs(strChange);
+  state.fiberBaseWidth=Math.max(7,Math.min(28,state.fiberBaseWidth+widthDelta));
+  if(strChange>0) showLabel('label-growth');
+
+  await animateStrengthChange(strChange,myGen);
+  if(myGen!==state.genId)return;
+
+  showNotif(strChange>0?'+'+strChange+' 💪':strChange+' 📉',strChange>0?'#2ecc71':'#e74c3c');
+
+  document.getElementById('hud-strength').textContent=(state.totalStrength>0?'+':'')+state.totalStrength;
+  document.getElementById('hud-strength').style.color=state.totalStrength>=0?'#2ecc71':'#e74c3c';
+  document.getElementById('hud-strength-bar').style.width=Math.min(Math.max((state.totalStrength+10)/20*100,5),100)+'%';
+
+  if(strChange>0){state.streak++;}else{state.streak=0;state.powerUpUsed=false;}
+  state.score+=Math.max(0,strChange*10);
+  if(state.bestChange===null||strChange>state.bestChange) state.bestChange=strChange;
+
+  var eventFlag=hasPowerUp?'⚡ Boost':hasSleep?'⚡ Sleep':'';
+  state.data.push({round:state.round,intensity:capitalize(intensity),rest:restDays,damage:dmg.level,strength:(strChange>0?'+':'')+strChange,event:eventFlag});
+  updateDataTable();updateStats();
+
+  if(state.round===REQUIRED){
+    if(state.totalStrength>=10){
+      document.getElementById('badge-area').innerHTML='<div class="badge" style="background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;">🏅 Strong Fiber!</div>';
+    }
+    setTimeout(function(){document.getElementById('complete-overlay').classList.add('active');},1200);
+  }else if(state.round===TOTAL){
+    setTimeout(function(){
+      document.getElementById('final-msg').textContent=state.totalStrength>=10?'Extra Credit Complete! Strong Fiber Badge!':'Extra Credit Complete! Total: '+(state.totalStrength>0?'+':'')+state.totalStrength;
+      document.getElementById('final-overlay').classList.add('active');
+    },1200);
+    state.gameOver=true;
+  }
+
+  state.round++;
+  if(state.round<=TOTAL&&!state.gameOver){
+    state.phase='choose-intensity';state.intensity=null;state.restDays=null;
+    unlockAllControls();updateRoundDisplay();
+  }
+  setPhase(-1);
+  updateStartBtn();
+}
+
+// ===== UI HELPERS =====
+function showLabel(id){document.getElementById(id).classList.add('visible');}
+function hideAllLabels(){document.querySelectorAll('.arena-label').forEach(function(l){l.classList.remove('visible');});}
+function showNotif(text,color){
+  var n=document.getElementById('notif');
+  n.textContent=text;n.style.color=color;n.className='notif show';
+  setTimeout(function(){n.className='notif';},1500);
+}
+function showOveruse(){document.getElementById('overuse-label').style.display='block';}
+function hideOveruse(){document.getElementById('overuse-label').style.display='none';}
+function pulseRestButtons(){
+  document.querySelectorAll('#rest-group .ctrl-btn').forEach(function(b){
+    if(parseInt(b.dataset.val)>0) b.style.boxShadow='0 0 18px rgba(46,204,113,.7)';
+  });
+  setTimeout(function(){document.querySelectorAll('#rest-group .ctrl-btn').forEach(function(b){b.style.boxShadow='';});},2500);
+}
+function showBanner(type){
+  var el=type==='powerup'?document.getElementById('powerup-banner'):document.getElementById('random-banner');
+  el.classList.add('show');el.style.display='block';
+  setTimeout(function(){el.style.display='none';el.classList.remove('show');},2500);
+}
+function updateRoundDisplay(){
+  document.getElementById('round-display').textContent=state.round+' / '+TOTAL;
+  document.getElementById('round-label').textContent=state.round>REQUIRED?'Extra Credit Round '+state.round:'Round '+state.round;
+}
+function updateStats(){
+  document.getElementById('stat-score').textContent=state.score;
+  document.getElementById('stat-streak').textContent=state.streak;
+  var done=Math.min(state.round-1,TOTAL);
+  document.getElementById('stat-done').textContent=done+'/'+REQUIRED;
+  document.getElementById('stat-best').textContent=state.bestChange!==null?(state.bestChange>0?'+':'')+state.bestChange:'—';
+  document.getElementById('progress-fill').style.width=Math.min(done/REQUIRED*100,100)+'%';
+  document.getElementById('progress-text').textContent=done>=REQUIRED?'Required Complete!':REQUIRED-done+' rounds left';
+}
+function updateDataTable(){
+  var body=document.getElementById('data-body');body.innerHTML='';
+  state.data.forEach(function(d){
+    var cls=d.strength.indexOf('+')===0?'positive':d.strength.indexOf('-')===0?'negative':'';
+    body.innerHTML+='<tr class="'+cls+'"><td>'+d.round+'</td><td>'+d.intensity+'</td><td>'+d.rest+'</td><td>'+d.damage+'</td><td>'+d.strength+'</td><td class="event-flag">'+d.event+'</td></tr>';
+  });
+}
+function copyTable(){
+  try{
+    var text='Round\tWorkout Intensity\tRest Days\tDamage Level\tStrength Change\n';
+    state.data.forEach(function(d){text+=d.round+'\t'+d.intensity+'\t'+d.rest+'\t'+d.damage+'\t'+d.strength+(d.event?' '+d.event:'')+'\n';});
+    navigator.clipboard.writeText(text).then(function(){
+      var btn=document.getElementById('copy-btn');btn.textContent='✅ Copied!';
+      setTimeout(function(){btn.textContent='📋 Copy Table';},2000);
+    });
+  }catch(e){
+    var btn=document.getElementById('copy-btn');btn.textContent='⚠ Copy failed';
+    setTimeout(function(){btn.textContent='📋 Copy Table';},2000);
+  }
+}
+
+// ===== OVERLAYS =====
+function dismissIntro(){
+  document.getElementById('intro-overlay').classList.remove('active');
+  initFibers();lockRestForEarlyRounds();updateRoundDisplay();showLabel('label-fibers');
+}
+function dismissComplete(){document.getElementById('complete-overlay').classList.remove('active');}
+function dismissFinal(){document.getElementById('final-overlay').classList.remove('active');}
+
+// ===== RESET =====
+function resetSim(){
+  state.genId++;
+  state.round=1;state.intensity=null;state.restDays=null;state.totalStrength=0;state.streak=0;state.score=0;state.bestChange=null;state.data=[];state.phase='choose-intensity';state.fiberBaseWidth=14;state.powerUpUsed=false;state.gameOver=false;
+  initFibers();unlockAllControls();updateRoundDisplay();updateStats();updateDataTable();
+  hideAllLabels();showLabel('label-fibers');hideOveruse();setPhase(-1);
+  document.getElementById('badge-area').innerHTML='';
+  document.getElementById('hud-strength').textContent='0';document.getElementById('hud-strength').style.color='#2ecc71';
+  document.getElementById('hud-damage').textContent='—';document.getElementById('hud-repair').textContent='—';document.getElementById('hud-intensity').textContent='—';
+  document.getElementById('hud-strength-bar').style.width='50%';
+  document.getElementById('hud-damage-bar').style.width='0%';
+  document.getElementById('hud-repair-bar').style.width='0%';
+  document.getElementById('hud-intensity-bar').style.width='0%';
+  document.getElementById('day-night').className='day-night';
+  ['complete-overlay','final-overlay'].forEach(function(id){document.getElementById(id).classList.remove('active');});
+  updateStartBtn();
+}
+function newRun(){resetSim();}
+
+// ===== INIT =====
+window.addEventListener('resize',function(){resizeCanvas();initFibers();});
+resizeCanvas();
+initFibers();
+draw();
+</script>
+</body>
+</html>

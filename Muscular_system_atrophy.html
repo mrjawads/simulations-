@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Muscle Atrophy and Hypertrophy</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a1a;color:#e0e0e0;min-height:100vh;overflow:hidden;}
+#app{display:flex;flex-direction:column;height:100vh;}
+
+/* HEADER */
+.header{background:linear-gradient(90deg,#e91e63,#9c27b0,#673ab7);padding:8px 20px;text-align:center;box-shadow:0 4px 30px rgba(233,30,99,0.3);position:relative;z-index:5;}
+.header h1{font-size:20px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,0.4);letter-spacing:1.5px;font-weight:800;}
+.header .sub{font-size:12px;color:rgba(255,255,255,0.8);margin-top:1px;font-weight:500;}
+
+/* MAIN */
+.main{display:flex;flex:1;overflow:hidden;}
+
+/* LEFT PANEL */
+.left-panel{width:240px;min-width:240px;background:linear-gradient(180deg,rgba(15,15,35,0.98),rgba(10,10,25,0.99));padding:10px;display:flex;flex-direction:column;gap:6px;border-right:1px solid rgba(255,255,255,0.06);overflow-y:auto;}
+.panel-section{background:rgba(255,255,255,0.04);border-radius:14px;padding:10px;border:1px solid rgba(255,255,255,0.06);}
+.panel-section h3{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);margin-bottom:8px;font-weight:700;}
+
+.activity-btn{width:100%;padding:9px 10px;margin-bottom:5px;border:2px solid rgba(255,255,255,0.08);border-radius:10px;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.35s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;gap:8px;position:relative;overflow:hidden;}
+.activity-btn::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,0.03));opacity:0;transition:opacity 0.3s;}
+.activity-btn:hover:not(.locked):not(.selected)::before{opacity:1;}
+.activity-btn:hover:not(.locked):not(.selected){border-color:rgba(255,255,255,0.2);transform:translateX(3px);color:#fff;}
+.activity-btn.selected{background:linear-gradient(135deg,#2e7d32,#1b5e20);border-color:#4caf50;color:#fff;box-shadow:0 0 20px rgba(76,175,80,0.25),inset 0 0 20px rgba(76,175,80,0.1);}
+.activity-btn.locked{opacity:0.25;cursor:not-allowed;filter:grayscale(0.8);}
+.activity-btn .icon{font-size:18px;width:24px;text-align:center;}
+
+.week-btns{display:flex;gap:5px;}
+.week-btn{flex:1;padding:10px 0;border:2px solid rgba(255,255,255,0.08);border-radius:10px;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.6);font-size:15px;font-weight:800;cursor:pointer;transition:all 0.35s cubic-bezier(.4,0,.2,1);text-align:center;}
+.week-btn:hover:not(.locked):not(.selected){border-color:rgba(33,150,243,0.4);color:#fff;}
+.week-btn.selected{background:linear-gradient(135deg,#1565c0,#0d47a1);border-color:#42a5f5;color:#fff;box-shadow:0 0 20px rgba(33,150,243,0.25);}
+.week-btn.locked{opacity:0.25;cursor:not-allowed;}
+.lock-msg{font-size:10px;color:#ff9800;margin-top:4px;text-align:center;font-style:italic;opacity:0.8;}
+
+.run-btn{width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#ff6f00,#e65100,#bf360c);color:#fff;font-size:17px;font-weight:900;cursor:pointer;transition:all 0.4s cubic-bezier(.4,0,.2,1);text-transform:uppercase;letter-spacing:3px;box-shadow:0 4px 25px rgba(230,81,0,0.3);position:relative;overflow:hidden;}
+.run-btn::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(255,255,255,0.1),transparent 60%);opacity:0;transition:opacity 0.3s;}
+.run-btn:hover:not(:disabled)::after{opacity:1;}
+.run-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 35px rgba(230,81,0,0.5);}
+.run-btn:disabled{opacity:0.3;cursor:not-allowed;transform:none;box-shadow:none;}
+.run-btn:active:not(:disabled){transform:translateY(1px);}
+
+.bottom-btns{display:flex;gap:5px;margin-top:auto;padding-top:6px;}
+.ctrl-btn{flex:1;padding:8px;border:2px solid transparent;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.25s;text-transform:uppercase;letter-spacing:1px;}
+.ctrl-btn.reset{background:rgba(198,40,40,0.2);color:#ef5350;border-color:rgba(198,40,40,0.3);}
+.ctrl-btn.reset:hover{background:rgba(198,40,40,0.4);}
+.ctrl-btn.newrun{background:rgba(21,101,192,0.2);color:#42a5f5;border-color:rgba(21,101,192,0.3);}
+.ctrl-btn.newrun:hover{background:rgba(21,101,192,0.4);}
+
+.powerup-badge{display:none;background:linear-gradient(135deg,rgba(0,188,212,0.15),rgba(0,96,100,0.2));border-radius:10px;padding:7px;text-align:center;font-size:11px;font-weight:700;border:1px solid rgba(0,188,212,0.3);color:#26c6da;}
+.powerup-badge.active{display:block;animation:glowPulse 2.5s infinite;}
+
+/* CENTER - ARENA */
+.center-panel{flex:1;display:flex;flex-direction:column;position:relative;background:radial-gradient(ellipse at 40% 45%,rgba(25,15,45,1),rgba(8,8,20,1));}
+#arenaCanvas{width:100%;height:100%;display:block;}
+
+/* Overlays */
+.life-event{display:none;position:absolute;top:15px;right:15px;background:rgba(5,5,15,0.92);border:2px solid rgba(255,152,0,0.6);border-radius:14px;padding:14px 18px;z-index:10;text-align:center;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,0.5);}
+.life-event.show{display:block;animation:slideInRight 0.4s cubic-bezier(.34,1.56,.64,1);}
+.life-event .ev-icon{font-size:36px;}
+.life-event .ev-text{font-size:11px;color:#ff9800;margin-top:4px;font-weight:700;letter-spacing:1px;}
+
+.var-reminder{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(5,5,15,0.95);border:2px solid #ff9800;border-radius:16px;padding:18px 28px;z-index:20;text-align:center;font-size:16px;font-weight:800;color:#ff9800;box-shadow:0 0 40px rgba(255,152,0,0.2);backdrop-filter:blur(10px);}
+.var-reminder.show{display:block;animation:popIn 0.3s ease;}
+
+.overuse-warn{display:none;position:absolute;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(255,152,0,0.12);border:2px solid rgba(255,152,0,0.5);border-radius:12px;padding:8px 20px;color:#ff9800;font-size:13px;font-weight:700;letter-spacing:1px;backdrop-filter:blur(5px);}
+.overuse-warn.show{display:block;animation:glowPulse 1.5s infinite;}
+
+/* RIGHT PANEL */
+.right-panel{width:220px;min-width:220px;background:linear-gradient(180deg,rgba(15,15,35,0.98),rgba(10,10,25,0.99));padding:10px;display:flex;flex-direction:column;gap:6px;border-left:1px solid rgba(255,255,255,0.06);overflow-y:auto;}
+
+.round-counter{background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(106,27,154,0.25));border:1px solid rgba(156,39,176,0.3);border-radius:12px;padding:10px;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,0.7);}
+.round-counter span{font-size:26px;font-weight:900;color:#ce93d8;display:block;margin-top:2px;}
+
+.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.hud-stat{background:rgba(255,255,255,0.03);border-radius:10px;padding:8px 6px;text-align:center;border:1px solid rgba(255,255,255,0.05);}
+.hud-stat .label{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);font-weight:700;}
+.hud-stat .value{font-size:20px;font-weight:900;margin-top:2px;line-height:1;}
+.hud-stat .value.green{color:#66bb6a;}
+.hud-stat .value.blue{color:#42a5f5;}
+.hud-stat .value.orange{color:#ffa726;}
+.hud-stat .value.pink{color:#ec407a;}
+
+/* Mass display */
+.mass-card{background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;text-align:center;border:1px solid rgba(255,255,255,0.06);position:relative;overflow:hidden;}
+.mass-card::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at center,rgba(233,30,99,0.05),transparent);pointer-events:none;}
+.mass-card h3{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);font-weight:700;margin-bottom:2px;}
+.mass-val{font-size:38px;font-weight:900;transition:color 0.5s;}
+.mass-val.gain{color:#66bb6a;text-shadow:0 0 20px rgba(102,187,106,0.3);}
+.mass-val.loss{color:#ef5350;text-shadow:0 0 20px rgba(239,83,80,0.3);}
+.mass-val.neutral{color:#42a5f5;}
+
+/* Strength */
+.strength-card{background:rgba(255,255,255,0.03);border-radius:14px;padding:12px;border:1px solid rgba(255,255,255,0.06);}
+.strength-card h3{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);font-weight:700;margin-bottom:8px;text-align:center;}
+.str-bar-wrap{height:14px;background:rgba(255,255,255,0.06);border-radius:7px;position:relative;overflow:hidden;}
+.str-bar-fill{position:absolute;left:0;top:0;height:100%;border-radius:7px;transition:width 1.5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px rgba(76,175,80,0.3);}
+.strength-val{text-align:center;font-size:26px;font-weight:900;margin-top:6px;}
+
+/* Message */
+.msg-area{background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;text-align:center;font-size:12px;min-height:38px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.06);font-weight:600;line-height:1.3;}
+.msg-area.success{border-color:rgba(76,175,80,0.4);color:#66bb6a;background:rgba(76,175,80,0.06);}
+.msg-area.warn{border-color:rgba(255,152,0,0.4);color:#ffa726;background:rgba(255,152,0,0.06);}
+.msg-area.extra{border-color:rgba(233,30,99,0.4);color:#ec407a;background:rgba(233,30,99,0.06);}
+
+/* RESULTS */
+.results-section{background:rgba(255,255,255,0.03);border-radius:10px;padding:8px;border:1px solid rgba(255,255,255,0.05);flex:1;overflow-y:auto;min-height:0;}
+.results-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.results-header h3{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);font-weight:700;}
+.copy-btn{padding:4px 12px;border:1px solid rgba(33,150,243,0.3);border-radius:6px;background:rgba(33,150,243,0.1);color:#42a5f5;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.copy-btn:hover{background:rgba(33,150,243,0.25);}
+.copy-btn.copied{background:rgba(76,175,80,0.2);border-color:rgba(76,175,80,0.4);color:#66bb6a;}
+.results-table{width:100%;border-collapse:collapse;font-size:11px;}
+.results-table th{padding:4px 2px;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:rgba(255,255,255,0.35);border-bottom:1px solid rgba(255,255,255,0.08);font-weight:700;}
+.results-table td{padding:4px 2px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.04);color:rgba(255,255,255,0.7);font-weight:500;}
+.results-table tr.new-row{animation:rowFlash 1.2s ease;}
+
+/* Completion */
+.completion-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.88);z-index:100;justify-content:center;align-items:center;backdrop-filter:blur(8px);}
+.completion-overlay.show{display:flex;}
+.completion-card{background:linear-gradient(135deg,rgba(20,15,40,0.98),rgba(10,10,30,0.98));border:2px solid rgba(233,30,99,0.4);border-radius:24px;padding:40px 50px;text-align:center;max-width:420px;box-shadow:0 0 80px rgba(233,30,99,0.15);}
+.completion-card .badge{font-size:72px;margin-bottom:10px;}
+.completion-card h2{font-size:26px;color:#ec407a;font-weight:900;margin-bottom:6px;}
+.completion-card p{font-size:14px;color:rgba(255,255,255,0.6);margin:6px 0;}
+.completion-card button{margin-top:16px;padding:10px 30px;border:2px solid rgba(233,30,99,0.4);border-radius:10px;background:rgba(233,30,99,0.15);color:#ec407a;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.25s;}
+.completion-card button:hover{background:rgba(233,30,99,0.3);}
+
+@keyframes glowPulse{0%,100%{opacity:1;}50%{opacity:0.6;}}
+@keyframes popIn{from{transform:translate(-50%,-50%) scale(0.7);opacity:0;}to{transform:translate(-50%,-50%) scale(1);opacity:1;}}
+@keyframes slideInRight{from{transform:translateX(80px) scale(0.8);opacity:0;}to{transform:translateX(0) scale(1);opacity:1;}}
+@keyframes rowFlash{0%{background:rgba(76,175,80,0.2);}100%{background:transparent;}}
+@keyframes bounceNum{0%{transform:scale(1);}40%{transform:scale(1.25);}100%{transform:scale(1);}}
+.bounce{animation:bounceNum 0.5s cubic-bezier(.34,1.56,.64,1);}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="header">
+<h1>Mr. Jawad's Simulations</h1>
+<div class="sub">Muscle Atrophy & Hypertrophy — Use It or Lose It</div>
+</div>
+<div class="main">
+<!-- LEFT -->
+<div class="left-panel">
+<div class="panel-section">
+<h3>Activity Level</h3>
+<button class="activity-btn" data-level="0" onclick="selectActivity(0)"><span class="icon">🛏️</span> Bedrest</button>
+<button class="activity-btn" data-level="1" onclick="selectActivity(1)"><span class="icon">🚶</span> Light Move</button>
+<button class="activity-btn" data-level="2" onclick="selectActivity(2)"><span class="icon">🏃</span> Moderate</button>
+<button class="activity-btn" data-level="3" onclick="selectActivity(3)"><span class="icon">🏋️</span> Intense</button>
+</div>
+<div class="panel-section">
+<h3>Weeks</h3>
+<div class="week-btns">
+<button class="week-btn" data-w="2" onclick="selectWeeks(2)">2</button>
+<button class="week-btn selected" data-w="4" onclick="selectWeeks(4)">4</button>
+<button class="week-btn" data-w="6" onclick="selectWeeks(6)">6</button>
+</div>
+<div class="lock-msg" id="weekLock">Locked at 4 for Rounds 1–2</div>
+</div>
+<button class="run-btn" id="runBtn" onclick="runSimulation()" disabled>▶ RUN</button>
+<div id="powerupBadge" class="powerup-badge">🔬 X-Ray View</div>
+<div class="bottom-btns">
+<button class="ctrl-btn reset" onclick="fullReset()">Reset</button>
+<button class="ctrl-btn newrun" onclick="fullReset()">New Run</button>
+</div>
+</div>
+
+<!-- CENTER -->
+<div class="center-panel">
+<canvas id="arenaCanvas"></canvas>
+<div class="life-event" id="lifeEvent"><div class="ev-icon" id="evIcon"></div><div class="ev-text" id="evText"></div></div>
+<div class="var-reminder" id="varReminder">Change 1 Only!</div>
+<div class="overuse-warn" id="overuseWarn">⚠️ OVERUSE</div>
+</div>
+
+<!-- RIGHT -->
+<div class="right-panel">
+<div class="round-counter">Round<span id="roundNum">1</span>of 8</div>
+<div class="hud-grid">
+<div class="hud-stat"><div class="label">Score</div><div class="value green" id="scoreVal">0</div></div>
+<div class="hud-stat"><div class="label">Streak</div><div class="value orange" id="streakVal">0</div></div>
+<div class="hud-stat"><div class="label">Done</div><div class="value blue" id="doneVal">0/5</div></div>
+<div class="hud-stat"><div class="label">Best</div><div class="value pink" id="bestVal">100%</div></div>
+</div>
+<div class="mass-card">
+<h3>Muscle Mass</h3>
+<div class="mass-val neutral" id="massDisplay">100%</div>
+</div>
+<div class="strength-card">
+<h3>Strength</h3>
+<div class="str-bar-wrap"><div class="str-bar-fill" id="strengthFill" style="width:70%;background:linear-gradient(90deg,#66bb6a,#43a047);"></div></div>
+<div class="strength-val" id="strengthDisplay">7/10</div>
+</div>
+<div class="msg-area" id="msgArea">Pick activity & press RUN</div>
+<div class="results-section">
+<div class="results-header">
+<h3>Results</h3>
+<button class="copy-btn" id="copyBtn" onclick="copyTable()">📋 Copy</button>
+</div>
+<table class="results-table">
+<thead><tr><th>#</th><th>Activity</th><th>Wk</th><th>Mass</th><th>Str</th></tr></thead>
+<tbody id="resultsBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Completion -->
+<div class="completion-overlay" id="completionOverlay">
+<div class="completion-card">
+<div class="badge" id="compBadge">🏆</div>
+<h2 id="compTitle">Complete!</h2>
+<p id="compMsg"></p>
+<button onclick="closeCompletion()">Continue</button>
+</div>
+</div>
+
+<script>
+// ============ STATE ============
+let gen=0,round=1,score=0,streak=0,bestMass=100,selectedActivity=-1,selectedWeeks=4;
+let prevActivity=-1,prevWeeks=4,currentMass=100,currentStrength=7;
+let roundData=[],isAnimating=false,xrayUnlocked=false,showXray=false,completedRounds=0;
+let activeInterval=null,safetyTimeout=null;
+
+const ACT_NAMES=['Bedrest','Light Movement','Moderate Exercise','Intense Training'];
+const ACT_SHORT=['Bedrest','Light','Moderate','Intense'];
+
+// Outcomes: [mass%, strength/10]
+const OUT={
+'0-2':[88,5],'0-4':[72,3],'0-6':[58,1],
+'1-2':[96,6],'1-4':[93,6],'1-6':[90,5],
+'2-2':[105,7],'2-4':[112,8],'2-6':[114,9],
+'3-2':[108,8],'3-4':[116,9],'3-6':[118,6]
+};
+
+const EVENTS=[{icon:'🤒',text:'Flu Week!'},{icon:'❄️',text:'Snow Day!'},{icon:'⚽',text:'Sports Tryouts!'}];
+
+// ============ CANVAS ============
+const canvas=document.getElementById('arenaCanvas');
+const ctx=canvas.getContext('2d');
+let W,H,dpr;
+
+// Fiber system
+let fibers=[];
+let particles=[];
+let bloodVessels=[];
+let satCells=[];
+let ambientT=0;
+let ghostMass=100,dispMass=100,targMass=100;
+let dispStr=7,targStr=7;
+let animWeekProg=0,animTotalWeeks=4,isWeekAnim=false;
+let shockwaveR=0,shockwaveActive=false;
+let overuseGlow=0;
+
+function resize(){
+    dpr=window.devicePixelRatio||1;
+    const r=canvas.parentElement.getBoundingClientRect();
+    W=r.width;H=r.height;
+    canvas.width=W*dpr;canvas.height=H*dpr;
+    canvas.style.width=W+'px';canvas.style.height=H+'px';
+    buildFibers();
+    buildVessels();
+}
+
+function buildFibers(){
+    fibers=[];
+    const cx=W*0.42,cy=H*0.46;
+    const R=Math.min(W,H)*0.3;
+    // Multiple rings of fibers for anatomical look
+    const rings=[
+        {count:6,dist:0.18,rMin:14,rMax:20},
+        {count:10,dist:0.42,rMin:12,rMax:17},
+        {count:14,dist:0.68,rMin:10,rMax:15},
+        {count:18,dist:0.9,rMin:8,rMax:13}
+    ];
+    rings.forEach(ring=>{
+        for(let i=0;i<ring.count;i++){
+            const a=(i/ring.count)*Math.PI*2+(Math.random()-0.5)*0.3;
+            const d=ring.dist*R+(Math.random()-0.5)*R*0.08;
+            const br=ring.rMin+Math.random()*(ring.rMax-ring.rMin);
+            fibers.push({
+                ox:Math.cos(a)*d, oy:Math.sin(a)*d,
+                baseR:br, r:br, targR:br,
+                hue:340+Math.random()*20, sat:70+Math.random()*20, lit:55+Math.random()*10,
+                targHue:340, targSat:75, targLit:58,
+                pulse:Math.random()*Math.PI*2,
+                myoCount:3+Math.floor(Math.random()*3)
+            });
+        }
+    });
+}
+
+function buildVessels(){
+    bloodVessels=[];
+    const cx=W*0.42,cy=H*0.46,R=Math.min(W,H)*0.3;
+    for(let i=0;i<5;i++){
+        const pts=[];
+        const startA=Math.random()*Math.PI*2;
+        const len=4+Math.floor(Math.random()*4);
+        for(let j=0;j<len;j++){
+            const a=startA+j*0.3+(Math.random()-0.5)*0.4;
+            const d=0.3+j*0.12+Math.random()*0.1;
+            pts.push({x:Math.cos(a)*d*R,y:Math.sin(a)*d*R});
+        }
+        bloodVessels.push({pts,flowT:Math.random()*100,width:1.5+Math.random()*1.5});
+    }
+}
+
+// ============ DRAWING ============
+function draw(){
+    const myGen=gen;
+    const c=ctx;
+    c.save();
+    c.scale(dpr,dpr);
+    c.clearRect(0,0,W,H);
+    ambientT+=0.016;
+
+    const cx=W*0.42,cy=H*0.46;
+    const R=Math.min(W,H)*0.3;
+    const massScale=dispMass/100;
+    const outerR=R*Math.sqrt(massScale);
+
+    // === BACKGROUND ===
+    const bgG=c.createRadialGradient(cx,cy,0,cx,cy,W*0.7);
+    bgG.addColorStop(0,'rgba(25,12,50,1)');
+    bgG.addColorStop(0.5,'rgba(12,8,28,1)');
+    bgG.addColorStop(1,'rgba(6,4,16,1)');
+    c.fillStyle=bgG;
+    c.fillRect(0,0,W,H);
+
+    // Subtle grid
+    c.strokeStyle='rgba(255,255,255,0.015)';
+    c.lineWidth=0.5;
+    for(let x=0;x<W;x+=40){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();}
+    for(let y=0;y<H;y+=40){c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();}
+
+    // === GHOST OUTLINE ===
+    if(Math.abs(ghostMass-dispMass)>1){
+        const gR=R*Math.sqrt(ghostMass/100);
+        c.beginPath();c.arc(cx,cy,gR,0,Math.PI*2);
+        c.setLineDash([8,6]);
+        c.strokeStyle='rgba(150,150,170,0.2)';c.lineWidth=1.5;c.stroke();
+        c.setLineDash([]);
+        // Size difference label
+        const diff=dispMass-ghostMass;
+        c.font='bold 13px Segoe UI';c.textAlign='center';
+        c.fillStyle=diff>0?'rgba(102,187,106,0.6)':'rgba(239,83,80,0.6)';
+        c.fillText((diff>0?'+':'')+diff.toFixed(0)+'%',cx,cy-outerR-18);
+    }
+
+    // === OUTER GLOW ===
+    const glowC=dispMass>100?[76,175,80]:dispMass<100?[239,83,80]:[66,165,245];
+    const glow=c.createRadialGradient(cx,cy,outerR*0.7,cx,cy,outerR*1.6);
+    glow.addColorStop(0,'transparent');
+    glow.addColorStop(0.7,`rgba(${glowC},0.04)`);
+    glow.addColorStop(1,'transparent');
+    c.fillStyle=glow;
+    c.fillRect(0,0,W,H);
+
+    // === FASCIA (outer membrane) ===
+    // Multiple layered circles for depth
+    for(let layer=3;layer>=0;layer--){
+        const lr=outerR+layer*3;
+        c.beginPath();c.arc(cx,cy,lr,0,Math.PI*2);
+        c.strokeStyle=`rgba(200,100,140,${0.08-layer*0.015})`;
+        c.lineWidth=2-layer*0.3;c.stroke();
+    }
+    // Main membrane
+    c.beginPath();c.arc(cx,cy,outerR,0,Math.PI*2);
+    const memG=c.createRadialGradient(cx-outerR*0.3,cy-outerR*0.3,0,cx,cy,outerR);
+    memG.addColorStop(0,'rgba(180,70,120,0.12)');
+    memG.addColorStop(0.6,'rgba(120,40,80,0.08)');
+    memG.addColorStop(1,'rgba(200,90,140,0.2)');
+    c.fillStyle=memG;c.fill();
+    const memBorder=dispMass>=100?'rgba(233,30,99,0.5)':'rgba(120,144,156,0.4)';
+    c.strokeStyle=memBorder;c.lineWidth=2.5;c.stroke();
+
+    // Connective tissue lines between outer fibers
+    c.strokeStyle='rgba(200,120,160,0.06)';c.lineWidth=0.8;
+    for(let i=0;i<fibers.length;i++){
+        for(let j=i+1;j<fibers.length;j++){
+            if(j-i>3)continue;
+            const fi=fibers[i],fj=fibers[j];
+            const dx=(fi.ox-fj.ox)*massScale,dy=(fi.oy-fj.oy)*massScale;
+            const d=Math.sqrt(dx*dx+dy*dy);
+            if(d<outerR*0.5){
+                c.beginPath();
+                c.moveTo(cx+fi.ox*massScale,cy+fi.oy*massScale);
+                c.lineTo(cx+fj.ox*massScale,cy+fj.oy*massScale);
+                c.stroke();
+            }
+        }
+    }
+
+    // === BLOOD VESSELS ===
+    bloodVessels.forEach(v=>{
+        v.flowT+=0.02;
+        c.beginPath();
+        const pts=v.pts;
+        if(pts.length<2)return;
+        c.moveTo(cx+pts[0].x*massScale,cy+pts[0].y*massScale);
+        for(let i=1;i<pts.length;i++){
+            const p0=pts[Math.max(0,i-1)],p1=pts[i];
+            const mx=cx+(p0.x+p1.x)*0.5*massScale,my=cy+(p0.y+p1.y)*0.5*massScale;
+            c.quadraticCurveTo(cx+p0.x*massScale,cy+p0.y*massScale,mx,my);
+        }
+        c.strokeStyle='rgba(180,40,60,0.15)';
+        c.lineWidth=v.width*massScale;c.stroke();
+        // Flow dots
+        const flowI=Math.floor(v.flowT%pts.length);
+        if(flowI<pts.length){
+            const fp=pts[flowI];
+            c.beginPath();
+            c.arc(cx+fp.x*massScale,cy+fp.y*massScale,2,0,Math.PI*2);
+            c.fillStyle='rgba(220,60,80,0.4)';c.fill();
+        }
+    });
+
+    // === MUSCLE FIBERS ===
+    fibers.forEach((f,i)=>{
+        f.r+=(f.targR-f.r)*0.04;
+        f.hue+=(f.targHue-f.hue)*0.02;
+        f.sat+=(f.targSat-f.sat)*0.02;
+        f.lit+=(f.targLit-f.lit)*0.02;
+
+        const sr=f.r*massScale;
+        const px=cx+f.ox*massScale;
+        const py=cy+f.oy*massScale;
+        const pulse=Math.sin(ambientT*1.5+f.pulse)*1.2;
+
+        // Outer glow per fiber
+        const fGlowR=sr+4+pulse;
+        const fGlow=c.createRadialGradient(px,py,sr*0.5,px,py,fGlowR);
+        fGlow.addColorStop(0,`hsla(${f.hue},${f.sat}%,${f.lit}%,0.08)`);
+        fGlow.addColorStop(1,'transparent');
+        c.fillStyle=fGlow;
+        c.beginPath();c.arc(px,py,fGlowR,0,Math.PI*2);c.fill();
+
+        // Main fiber body
+        c.beginPath();c.arc(px,py,sr+pulse*0.5,0,Math.PI*2);
+        const fg=c.createRadialGradient(px-sr*0.25,py-sr*0.25,0,px,py,sr+pulse);
+        fg.addColorStop(0,`hsla(${f.hue},${f.sat}%,${f.lit+15}%,0.9)`);
+        fg.addColorStop(0.5,`hsla(${f.hue},${f.sat}%,${f.lit}%,0.85)`);
+        fg.addColorStop(1,`hsla(${f.hue},${f.sat-10}%,${f.lit-20}%,0.8)`);
+        c.fillStyle=fg;c.fill();
+
+        // Specular highlight
+        c.beginPath();c.arc(px-sr*0.2,py-sr*0.2,sr*0.35,0,Math.PI*2);
+        c.fillStyle='rgba(255,255,255,0.08)';c.fill();
+
+        // Myofibril lines (internal structure)
+        if(sr>6){
+            c.strokeStyle=`hsla(${f.hue},${f.sat}%,${f.lit-15}%,0.25)`;
+            c.lineWidth=0.6;
+            for(let m=0;m<f.myoCount;m++){
+                const ma=(m/f.myoCount)*Math.PI*2+ambientT*0.3;
+                c.beginPath();
+                c.moveTo(px,py);
+                c.lineTo(px+Math.cos(ma)*sr*0.7,py+Math.sin(ma)*sr*0.7);
+                c.stroke();
+            }
+        }
+
+        // X-Ray mode: Z-lines (striations)
+        if(showXray&&sr>5){
+            c.strokeStyle='rgba(0,230,255,0.12)';c.lineWidth=0.4;
+            for(let z=-3;z<=3;z++){
+                const zy=py+z*sr*0.22;
+                c.beginPath();
+                c.moveTo(px-sr*0.6,zy);c.lineTo(px+sr*0.6,zy);
+                c.stroke();
+            }
+        }
+    });
+
+    // === SATELLITE CELLS (x-ray mode, during growth) ===
+    if(showXray){
+        satCells=satCells.filter(s=>s.life>0);
+        satCells.forEach(s=>{
+            s.progress+=s.speed;
+            s.life-=0.005;
+            const px=s.sx+(s.tx-s.sx)*Math.min(s.progress,1);
+            const py=s.sy+(s.ty-s.sy)*Math.min(s.progress,1);
+            c.beginPath();c.arc(px,py,3.5*s.life,0,Math.PI*2);
+            c.fillStyle=`rgba(0,230,255,${0.5*s.life})`;c.fill();
+            c.beginPath();c.arc(px,py,7*s.life,0,Math.PI*2);
+            c.strokeStyle=`rgba(0,230,255,${0.15*s.life})`;c.lineWidth=1;c.stroke();
+        });
+    }
+
+    // === PARTICLES ===
+    particles=particles.filter(p=>p.life>0);
+    particles.forEach(p=>{
+        p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
+        if(p.type==='shrink'){p.vy+=0.03;p.vx*=0.99;}
+        if(p.type==='grow')p.vy-=0.02;
+        const sz=p.size*p.life;
+        // Glow
+        const pg=c.createRadialGradient(p.x,p.y,0,p.x,p.y,sz*2);
+        pg.addColorStop(0,p.color.replace(')',`,${p.life*0.4})`).replace('rgb','rgba'));
+        pg.addColorStop(1,'transparent');
+        c.fillStyle=pg;
+        c.beginPath();c.arc(p.x,p.y,sz*2,0,Math.PI*2);c.fill();
+        // Core
+        c.beginPath();c.arc(p.x,p.y,sz,0,Math.PI*2);
+        c.fillStyle=p.color.replace(')',`,${p.life})`).replace('rgb','rgba');
+        c.fill();
+    });
+
+    // === SHOCKWAVE ===
+    if(shockwaveActive){
+        shockwaveR+=4;
+        const alpha=Math.max(0,1-shockwaveR/(R*1.5));
+        c.beginPath();c.arc(cx,cy,shockwaveR,0,Math.PI*2);
+        c.strokeStyle=`rgba(233,30,99,${alpha*0.3})`;c.lineWidth=3;c.stroke();
+        if(alpha<=0)shockwaveActive=false;
+    }
+
+    // === OVERUSE GLOW ===
+    if(overuseGlow>0){
+        overuseGlow-=0.003;
+        const oG=c.createRadialGradient(cx,cy,outerR*0.5,cx,cy,outerR*1.2);
+        oG.addColorStop(0,`rgba(255,152,0,${overuseGlow*0.15})`);
+        oG.addColorStop(1,'transparent');
+        c.fillStyle=oG;
+        c.beginPath();c.arc(cx,cy,outerR*1.2,0,Math.PI*2);c.fill();
+    }
+
+    // === LABELS ===
+    c.textAlign='center';
+    c.font='bold 11px Segoe UI';
+    c.fillStyle='rgba(255,255,255,0.25)';
+    c.fillText('CROSS-SECTION',cx,cy-outerR-30);
+    c.fillText('MUSCLE FIBERS',cx,cy+outerR+20);
+
+    // Size comparison label
+    if(dispMass>100){
+        c.font='bold 10px Segoe UI';c.fillStyle='rgba(102,187,106,0.4)';
+        c.fillText('HYPERTROPHY',cx,cy+outerR+34);
+    }else if(dispMass<95){
+        c.font='bold 10px Segoe UI';c.fillStyle='rgba(239,83,80,0.4)';
+        c.fillText('ATROPHY',cx,cy+outerR+34);
+    }
+
+    // === FIGURE (right area) ===
+    drawFigure(c,W*0.82,H*0.45,selectedActivity>=0?selectedActivity:0);
+
+    // === STRENGTH METER BAR (far right) ===
+    const smX=W*0.94,smTop=H*0.12,smH=H*0.72,smW=10;
+    // Track
+    c.fillStyle='rgba(255,255,255,0.04)';
+    roundRect(c,smX-smW/2,smTop,smW,smH,5);c.fill();
+    // Fill
+    const stFrac=dispStr/10;
+    const stH=smH*stFrac;
+    const stG=c.createLinearGradient(0,smTop+smH,0,smTop);
+    stG.addColorStop(0,'#c62828');stG.addColorStop(0.35,'#ff9800');stG.addColorStop(0.7,'#66bb6a');stG.addColorStop(1,'#2e7d32');
+    c.fillStyle=stG;
+    roundRect(c,smX-smW/2,smTop+smH-stH,smW,stH,5);c.fill();
+    // Label
+    c.font='bold 9px Segoe UI';c.fillStyle='rgba(255,255,255,0.3)';c.textAlign='center';
+    c.fillText('STR',smX,smTop-6);
+
+    // === TIMELINE ===
+    const tlY=H*0.92,tlX=W*0.08,tlW=W*0.7;
+    c.fillStyle='rgba(255,255,255,0.06)';
+    roundRect(c,tlX,tlY-2,tlW,4,2);c.fill();
+    c.font='9px Segoe UI';c.fillStyle='rgba(255,255,255,0.2)';c.textAlign='center';
+    for(let i=0;i<=animTotalWeeks;i++){
+        const tx=tlX+(i/animTotalWeeks)*tlW;
+        c.fillRect(tx-0.5,tlY-5,1,10);
+        c.fillText('W'+i,tx,tlY+16);
+    }
+    if(isWeekAnim){
+        const prog=animWeekProg/animTotalWeeks;
+        const barColor=targMass>=100?'rgba(102,187,106,0.5)':'rgba(239,83,80,0.5)';
+        c.fillStyle=barColor;
+        roundRect(c,tlX,tlY-2,tlW*prog,4,2);c.fill();
+        // Glow dot
+        const dotX=tlX+tlW*prog;
+        c.beginPath();c.arc(dotX,tlY,5,0,Math.PI*2);
+        c.fillStyle=targMass>=100?'#66bb6a':'#ef5350';c.fill();
+        c.beginPath();c.arc(dotX,tlY,9,0,Math.PI*2);
+        c.fillStyle=targMass>=100?'rgba(102,187,106,0.15)':'rgba(239,83,80,0.15)';c.fill();
+    }
+
+    c.restore();
+    if(myGen===gen)requestAnimationFrame(draw);
+}
+
+function roundRect(c,x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);
+    c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);
+    c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();
+}
+
+function drawFigure(c,x,y,act){
+    const s=Math.min(W,H)*0.0012;
+    c.save();c.translate(x,y);c.scale(s*20,s*20);
+    c.lineCap='round';c.lineJoin='round';
+
+    // Shadow
+    c.strokeStyle='rgba(255,255,255,0.04)';c.lineWidth=6;
+    drawStickPose(c,act);
+    // Main
+    c.strokeStyle='rgba(255,255,255,0.45)';c.lineWidth=2.8;
+    drawStickPose(c,act);
+    // Highlight
+    c.strokeStyle='rgba(255,255,255,0.08)';c.lineWidth=5;
+    c.setLineDash([2,8]);
+    drawStickPose(c,act);
+    c.setLineDash([]);
+
+    c.restore();
+
+    // Activity label
+    c.font='bold 11px Segoe UI';c.textAlign='center';
+    c.fillStyle='rgba(255,255,255,0.25)';
+    const labels=['BEDREST','WALKING','JOGGING','LIFTING'];
+    c.fillText(labels[Math.max(0,act)],x,y+s*20*6.5);
+}
+
+function drawStickPose(c,act){
+    // Head
+    c.beginPath();c.arc(0,-3.8,1.3,0,Math.PI*2);c.stroke();
+    if(act<=0){// Lying
+        c.beginPath();c.moveTo(0,-2.2);c.lineTo(0,3);c.stroke();
+        c.beginPath();c.moveTo(0,0.2);c.lineTo(-2.5,1.8);c.moveTo(0,0.2);c.lineTo(1.5,2);c.stroke();
+        c.beginPath();c.moveTo(0,3);c.lineTo(-1.8,5.2);c.moveTo(0,3);c.lineTo(1.2,5.2);c.stroke();
+    }else if(act===1){// Walk
+        c.beginPath();c.moveTo(0,-2.2);c.lineTo(0,2);c.stroke();
+        c.beginPath();c.moveTo(0,0);c.lineTo(-1.8,0.8);c.moveTo(0,0);c.lineTo(2,0);c.stroke();
+        c.beginPath();c.moveTo(0,2);c.lineTo(-1.5,5);c.moveTo(0,2);c.lineTo(1.5,4.5);c.stroke();
+    }else if(act===2){// Jog
+        c.beginPath();c.moveTo(0,-2.2);c.lineTo(0.3,2);c.stroke();
+        c.beginPath();c.moveTo(0.3,0);c.lineTo(-2.2,-0.8);c.moveTo(0.3,0);c.lineTo(2.8,-0.5);c.stroke();
+        c.beginPath();c.moveTo(0.3,2);c.lineTo(-2,4);c.moveTo(0.3,2);c.lineTo(2.5,3.5);c.stroke();
+    }else{// Lift
+        c.beginPath();c.moveTo(0,-2.2);c.lineTo(0,2);c.stroke();
+        c.beginPath();c.moveTo(0,-0.5);c.lineTo(-2,-3.2);c.moveTo(0,-0.5);c.lineTo(2,-3.2);c.stroke();
+        // Barbell
+        c.save();c.strokeStyle='rgba(255,200,100,0.55)';c.lineWidth=3.5;
+        c.beginPath();c.moveTo(-3.2,-3.2);c.lineTo(3.2,-3.2);c.stroke();
+        c.fillStyle='rgba(255,200,100,0.35)';
+        c.fillRect(-3.8,-4.2,1.2,2);c.fillRect(2.6,-4.2,1.2,2);
+        c.restore();
+        c.beginPath();c.moveTo(0,2);c.lineTo(-1.2,5.2);c.moveTo(0,2);c.lineTo(1.2,5.2);c.stroke();
+    }
+}
+
+// ============ PARTICLES ============
+function emitParticles(type,count){
+    const cx=W*0.42,cy=H*0.46,R=Math.min(W,H)*0.3*(dispMass/100);
+    for(let i=0;i<count;i++){
+        const a=Math.random()*Math.PI*2;
+        const d=Math.random()*R*0.8;
+        const col=type==='grow'?'rgb(233,30,99)':type==='shrink'?'rgb(120,144,156)':'rgb(255,152,0)';
+        particles.push({
+            x:cx+Math.cos(a)*d,y:cy+Math.sin(a)*d,
+            vx:(Math.random()-0.5)*2.5+(type==='grow'?0:0),
+            vy:(Math.random()-0.5)*2.5-(type==='grow'?1.5:0),
+            life:1,decay:0.006+Math.random()*0.01,
+            size:2+Math.random()*4,color:col,type
+        });
+    }
+}
+
+function emitSatCells(){
+    const cx=W*0.42,cy=H*0.46,R=Math.min(W,H)*0.3*(dispMass/100);
+    for(let i=0;i<12;i++){
+        const a=Math.random()*Math.PI*2;
+        const d=R*0.9+Math.random()*30;
+        satCells.push({
+            sx:cx+Math.cos(a)*d, sy:cy+Math.sin(a)*d,
+            tx:cx+Math.cos(a)*R*0.3, ty:cy+Math.sin(a)*R*0.3,
+            progress:0, speed:0.004+Math.random()*0.008, life:1
+        });
+    }
+}
+
+// ============ CONTROLS ============
+function selectActivity(lv){
+    if(isAnimating)return;
+    const btns=document.querySelectorAll('.activity-btn');
+    if(btns[lv].classList.contains('locked'))return;
+    btns.forEach(b=>b.classList.remove('selected'));
+    btns[lv].classList.add('selected');
+    selectedActivity=lv;
+    updateRunBtn();
+}
+
+function selectWeeks(w){
+    if(isAnimating||round<=2)return;
+    const btns=document.querySelectorAll('.week-btn');
+    const btn=document.querySelector(`.week-btn[data-w="${w}"]`);
+    if(btn.classList.contains('locked'))return;
+    btns.forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedWeeks=w;
+    updateRunBtn();
+}
+
+function updateRunBtn(){document.getElementById('runBtn').disabled=(selectedActivity<0||isAnimating);}
+
+function enforceOneVar(){
+    if(round<=1||prevActivity<0)return true;
+    if(selectedActivity!==prevActivity&&selectedWeeks!==prevWeeks){
+        const el=document.getElementById('varReminder');
+        el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);
+        return false;
+    }
+    return true;
+}
+
+function lockControls(lock){
+    document.querySelectorAll('.activity-btn').forEach(b=>{
+        if(lock)b.classList.add('locked');else b.classList.remove('locked');
+    });
+    if(round<=2||lock){
+        document.querySelectorAll('.week-btn').forEach(b=>{
+            if(lock||round<=2)b.classList.add('locked');
+        });
+        if(round<=2)document.querySelector('.week-btn[data-w="4"]').classList.remove('locked');
+    }
+}
+
+// ============ RUN ============
+function runSimulation(){
+    if(isAnimating||selectedActivity<0||round>8)return;
+    if(!enforceOneVar())return;
+    isAnimating=true;
+    document.getElementById('runBtn').disabled=true;
+    lockControls(true);
+
+    const key=selectedActivity+'-'+selectedWeeks;
+    const out=OUT[key]||[100,7];
+    const mass=out[0],str=out[1];
+    const isOveruse=selectedActivity===3&&selectedWeeks===6;
+
+    ghostMass=currentMass;
+    targMass=mass;targStr=str;
+    animTotalWeeks=selectedWeeks;
+    animWeekProg=0;isWeekAnim=true;
+
+    // Set fiber targets
+    fibers.forEach(f=>{
+        const fScale=mass/100;
+        f.targR=f.baseR*fScale;
+        if(mass<90){f.targHue=200;f.targSat=10;f.targLit=50;} // gray
+        else if(isOveruse){f.targHue=5;f.targSat=70;f.targLit=45;} // red
+        else{f.targHue=340;f.targSat=70+Math.min(mass-100,20);f.targLit=55+Math.min(mass-100,10);}
+    });
+
+    if(showXray&&mass>100)emitSatCells();
+
+    // Life event
+    let lifeEv=null;
+    if(round>3&&Math.random()<0.3){
+        lifeEv=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+        const el=document.getElementById('lifeEvent');
+        document.getElementById('evIcon').textContent=lifeEv.icon;
+        document.getElementById('evText').textContent=lifeEv.text;
+        el.classList.add('show');
+        setTimeout(()=>el.classList.remove('show'),2800);
+    }
+
+    // Overuse warning
+    if(isOveruse){
+        overuseGlow=1;
+        document.getElementById('overuseWarn').classList.add('show');
+    }else{
+        document.getElementById('overuseWarn').classList.remove('show');
+    }
+
+    // Week animation
+    activeInterval=setInterval(()=>{
+        try{
+            animWeekProg++;
+            const prog=animWeekProg/animTotalWeeks;
+            dispMass=ghostMass+(targMass-ghostMass)*prog;
+            dispStr=currentStrength+(targStr-currentStrength)*prog;
+
+            if(targMass>ghostMass)emitParticles('grow',6);
+            else if(targMass<ghostMass)emitParticles('shrink',6);
+            if(isOveruse)emitParticles('overwork',3);
+
+            updateHUDValues();
+
+            if(animWeekProg>=animTotalWeeks){
+                clearInterval(activeInterval);activeInterval=null;
+                if(safetyTimeout){clearTimeout(safetyTimeout);safetyTimeout=null;}
+                isWeekAnim=false;
+                finishRound(mass,str,isOveruse);
+            }
+        }catch(e){
+            clearInterval(activeInterval);activeInterval=null;
+            if(safetyTimeout){clearTimeout(safetyTimeout);safetyTimeout=null;}
+            isWeekAnim=false;
+            isAnimating=false;
+            lockControls(false);
+            updateRunBtn();
+        }
+    },380);
+    // Safety timeout: auto-complete if animation hangs
+    safetyTimeout=setTimeout(()=>{
+        if(isAnimating&&activeInterval){
+            clearInterval(activeInterval);activeInterval=null;
+            isWeekAnim=false;
+            finishRound(mass,str,isOveruse);
+        }
+        safetyTimeout=null;
+    },8000);
+}
+
+function updateHUDValues(){
+    const massEl=document.getElementById('massDisplay');
+    massEl.textContent=Math.round(dispMass)+'%';
+    massEl.className='mass-val '+(dispMass>100?'gain':dispMass<100?'loss':'neutral');
+
+    document.getElementById('strengthDisplay').textContent=Math.round(dispStr)+'/10';
+    const strFrac=dispStr/10;
+    const sFill=document.getElementById('strengthFill');
+    sFill.style.width=(strFrac*100)+'%';
+    const sColors=strFrac>0.7?'#66bb6a,#43a047':strFrac>0.4?'#ffa726,#f57c00':'#ef5350,#c62828';
+    sFill.style.background=`linear-gradient(90deg,${sColors})`;
+}
+
+function finishRound(mass,str,isOveruse){
+    currentMass=mass;currentStrength=str;
+    dispMass=mass;dispStr=str;
+
+    // Big burst
+    if(mass>100)emitParticles('grow',35);
+    else if(mass<100)emitParticles('shrink',35);
+    if(isOveruse)emitParticles('overwork',20);
+    shockwaveR=0;shockwaveActive=true;
+
+    updateHUDValues();
+    const massEl=document.getElementById('massDisplay');
+    massEl.classList.add('bounce');
+    setTimeout(()=>massEl.classList.remove('bounce'),600);
+
+    let roundScore=10;
+    if(mass>100)roundScore+=Math.floor((mass-100)/2);
+    if(str>=8)roundScore+=5;
+    score+=roundScore;streak++;
+    if(streak>=3)score+=5;
+    completedRounds++;
+    if(mass>bestMass)bestMass=mass;
+
+    document.getElementById('scoreVal').textContent=score;
+    document.getElementById('streakVal').textContent=streak;
+    document.getElementById('doneVal').textContent=completedRounds+'/5';
+    document.getElementById('bestVal').textContent=bestMass+'%';
+
+    // Table
+    const tr=document.createElement('tr');tr.className='new-row';
+    tr.innerHTML=`<td>${round}</td><td>${ACT_SHORT[selectedActivity]}</td><td>${selectedWeeks}</td><td>${mass}%</td><td>${str}/10</td>`;
+    document.getElementById('resultsBody').appendChild(tr);
+    roundData.push({round,activity:ACT_NAMES[selectedActivity],weeks:selectedWeeks,mass,strength:str});
+
+    prevActivity=selectedActivity;prevWeeks=selectedWeeks;
+
+    const msg=document.getElementById('msgArea');
+    if(isOveruse){msg.textContent='⚠️ Overuse — high mass, low strength';msg.className='msg-area warn';}
+    else if(mass>110){msg.textContent='💪 Major growth!';msg.className='msg-area success';}
+    else if(mass<80){msg.textContent='📉 Significant atrophy';msg.className='msg-area warn';}
+    else{msg.textContent='✓ Recorded';msg.className='msg-area';}
+
+    if(round===3&&!xrayUnlocked){
+        xrayUnlocked=true;showXray=true;
+        document.getElementById('powerupBadge').classList.add('active');
+        emitSatCells();
+    }
+
+    if(round===5)setTimeout(()=>showMilestone('req'),900);
+    else if(round===8)setTimeout(()=>showMilestone('extra'),900);
+
+    round++;
+    if(round<=8)document.getElementById('roundNum').textContent=round;
+    if(round>2){
+        document.getElementById('weekLock').style.display='none';
+        document.querySelectorAll('.week-btn').forEach(b=>b.classList.remove('locked'));
+    }
+
+    selectedActivity=-1;
+    document.querySelectorAll('.activity-btn').forEach(b=>b.classList.remove('selected'));
+    isAnimating=false;lockControls(false);updateRunBtn();
+
+    if(round>8){
+        document.getElementById('runBtn').disabled=true;
+        msg.textContent='🏆 All 8 rounds complete!';msg.className='msg-area extra';
+    }
+}
+
+function showMilestone(type){
+    const o=document.getElementById('completionOverlay');
+    document.getElementById('compBadge').textContent=type==='req'?'🔬':'🏆';
+    document.getElementById('compTitle').textContent=type==='req'?'Muscle Scientist!':'Master Researcher!';
+    document.getElementById('compMsg').textContent=type==='req'?'5 rounds done! Keep going for extra credit.':'All 8 rounds complete!';
+    o.classList.add('show');
+}
+function closeCompletion(){document.getElementById('completionOverlay').classList.remove('show');}
+
+// ============ COPY ============
+function copyTable(){
+    if(!roundData.length)return;
+    let t='Round\tActivity Level\tWeeks\tMuscle Mass (%)\tStrength Score\n';
+    roundData.forEach(d=>{t+=`${d.round}\t${d.activity}\t${d.weeks}\t${d.mass}%\t${d.strength}/10\n`;});
+    try{
+        navigator.clipboard.writeText(t).then(()=>showCopied()).catch(()=>fallbackCopy(t));
+    }catch(e){fallbackCopy(t);}
+}
+function fallbackCopy(t){
+    const ta=document.createElement('textarea');ta.value=t;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);showCopied();
+}
+function showCopied(){
+    const b=document.getElementById('copyBtn');
+    b.textContent='✓ Copied!';b.classList.add('copied');
+    setTimeout(()=>{b.textContent='📋 Copy';b.classList.remove('copied');},2000);
+}
+
+// ============ RESET ============
+function fullReset(){
+    if(activeInterval){clearInterval(activeInterval);activeInterval=null;}
+    if(safetyTimeout){clearTimeout(safetyTimeout);safetyTimeout=null;}
+    gen++;round=1;score=0;streak=0;bestMass=100;
+    selectedActivity=-1;selectedWeeks=4;prevActivity=-1;prevWeeks=4;
+    currentMass=100;currentStrength=7;dispMass=100;dispStr=7;targMass=100;targStr=7;ghostMass=100;
+    roundData=[];completedRounds=0;isAnimating=false;xrayUnlocked=false;showXray=false;
+    particles=[];satCells=[];isWeekAnim=false;shockwaveActive=false;overuseGlow=0;
+
+    document.getElementById('resultsBody').innerHTML='';
+    document.getElementById('roundNum').textContent='1';
+    document.getElementById('scoreVal').textContent='0';
+    document.getElementById('streakVal').textContent='0';
+    document.getElementById('doneVal').textContent='0/5';
+    document.getElementById('bestVal').textContent='100%';
+    document.getElementById('massDisplay').textContent='100%';
+    document.getElementById('massDisplay').className='mass-val neutral';
+    document.getElementById('strengthDisplay').textContent='7/10';
+    const sf=document.getElementById('strengthFill');
+    sf.style.width='70%';sf.style.background='linear-gradient(90deg,#66bb6a,#43a047)';
+    document.getElementById('msgArea').textContent='Pick activity & press RUN';
+    document.getElementById('msgArea').className='msg-area';
+    document.getElementById('weekLock').style.display='block';
+    document.getElementById('powerupBadge').classList.remove('active');
+    document.getElementById('completionOverlay').classList.remove('show');
+    document.getElementById('overuseWarn').classList.remove('show');
+
+    document.querySelectorAll('.activity-btn').forEach(b=>b.classList.remove('selected','locked'));
+    document.querySelectorAll('.week-btn').forEach(b=>b.classList.remove('selected','locked'));
+    document.querySelector('.week-btn[data-w="4"]').classList.add('selected');
+    document.querySelectorAll('.week-btn').forEach(b=>b.classList.add('locked'));
+    document.querySelector('.week-btn[data-w="4"]').classList.remove('locked');
+
+    buildFibers();buildVessels();updateRunBtn();
+}
+
+// ============ INIT ============
+window.addEventListener('resize',resize);
+resize();
+document.querySelectorAll('.week-btn').forEach(b=>b.classList.add('locked'));
+document.querySelector('.week-btn[data-w="4"]').classList.remove('locked');
+draw();
+</script>
+</body>
+</html>
