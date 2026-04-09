@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Bone Fractures</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#1a1a2e;color:#e0e0e0;overflow:hidden;height:100vh;width:100vw;}
+#app{display:flex;height:100vh;width:100vw;}
+
+/* LEFT SIDEBAR */
+#left{width:280px;min-width:280px;background:linear-gradient(180deg,#1e1e3a,#16162e);border-right:2px solid #2a2a4a;display:flex;flex-direction:column;overflow-y:auto;padding:10px;}
+#left h3{color:#ffd54f;font-size:14px;margin:8px 0 6px;text-align:center;text-transform:uppercase;letter-spacing:1px;}
+.scenario-card{background:linear-gradient(135deg,#2a2a4a,#1e1e3a);border:2px solid #3a3a5a;border-radius:10px;padding:8px 10px;margin:3px 0;cursor:pointer;transition:all .3s;display:flex;align-items:center;gap:8px;}
+.scenario-card:hover{border-color:#ffd54f;transform:translateX(3px);}
+.scenario-card.selected{border-color:#ffd54f;background:linear-gradient(135deg,#3a3a5a,#2a2a4a);box-shadow:0 0 12px rgba(255,213,79,.3);}
+.scenario-card.completed{border-color:#4caf50;position:relative;}
+.scenario-card.completed::after{content:'✓';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:#4caf50;font-weight:bold;font-size:16px;}
+.scenario-card .sc-emoji{font-size:24px;flex-shrink:0;}
+.scenario-card .sc-name{font-size:12px;color:#ccc;line-height:1.2;}
+.scenario-card.selected .sc-name{color:#fff;}
+
+/* Reading Level */
+#reading-level{display:flex;gap:4px;margin:6px 0;}
+.rl-btn{flex:1;padding:6px;border:2px solid #3a3a5a;border-radius:8px;background:transparent;color:#aaa;cursor:pointer;font-size:11px;font-weight:bold;text-align:center;transition:all .3s;}
+.rl-btn.active{border-color:#42a5f5;color:#42a5f5;background:rgba(66,165,245,.15);}
+.rl-btn:hover{border-color:#64b5f6;}
+
+/* Key Words */
+#keywords{margin-top:6px;}
+.kw-item{padding:4px 8px;margin:2px 0;border-radius:6px;font-size:12px;color:#888;transition:all .3s;}
+.kw-item.active{color:#ffd54f;background:rgba(255,213,79,.1);font-weight:bold;}
+
+/* Bottom buttons */
+#left-bottom{margin-top:auto;padding:8px 0;display:flex;gap:6px;}
+#left-bottom button{flex:1;padding:8px;border:none;border-radius:8px;font-weight:bold;font-size:12px;cursor:pointer;transition:all .3s;}
+#btn-reset{background:#ef5350;color:#fff;}
+#btn-reset:hover{background:#f44336;}
+#btn-newrun{background:#42a5f5;color:#fff;}
+#btn-newrun:hover{background:#2196f3;}
+
+/* CENTER PANEL */
+#center{flex:1;display:flex;flex-direction:column;padding:10px 16px;overflow:hidden;}
+
+/* Step indicator */
+#step-tabs{display:flex;gap:6px;margin-bottom:10px;}
+.step-tab{flex:1;padding:8px 4px;border-radius:10px;text-align:center;font-size:13px;font-weight:bold;color:#555;background:#1e1e3a;border:2px solid #2a2a4a;transition:all .4s;}
+.step-tab.active{color:#fff;border-color:#ffd54f;background:linear-gradient(135deg,#3a3a5a,#2a2a4a);box-shadow:0 0 16px rgba(255,213,79,.4);animation:glow 2s infinite alternate;}
+.step-tab.done{color:#4caf50;border-color:#4caf50;}
+@keyframes glow{0%{box-shadow:0 0 8px rgba(255,213,79,.3);}100%{box-shadow:0 0 20px rgba(255,213,79,.6);}}
+
+/* Center content area */
+#center-content{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#center-main{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+
+/* Panels inside center */
+.panel{display:none;width:100%;max-height:100%;overflow:hidden;}
+.panel.visible{display:flex;flex-direction:column;align-items:center;justify-content:center;}
+
+/* PREDICT panel */
+#predict-panel{text-align:center;}
+#predict-panel h2{color:#ffd54f;font-size:22px;margin-bottom:12px;}
+#predict-question{font-size:16px;color:#ddd;line-height:1.5;margin-bottom:16px;max-width:600px;}
+#predict-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.predict-option{padding:12px 20px;border:2px solid #42a5f5;border-radius:12px;background:rgba(66,165,245,.1);color:#42a5f5;cursor:pointer;font-size:14px;font-weight:bold;transition:all .3s;min-width:120px;}
+.predict-option:hover{background:rgba(66,165,245,.25);transform:scale(1.05);}
+.predict-option.chosen{background:#42a5f5;color:#fff;box-shadow:0 0 12px rgba(66,165,245,.5);}
+
+/* READ panel */
+#read-panel{padding:10px;overflow:hidden;}
+#read-card{background:linear-gradient(135deg,#2a2a4a,#1e1e3a);border:2px solid #3a3a5a;border-radius:16px;padding:20px;max-height:calc(100vh - 260px);overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,.3);}
+#read-card::-webkit-scrollbar{width:6px;}
+#read-card::-webkit-scrollbar-track{background:#1a1a2e;}
+#read-card::-webkit-scrollbar-thumb{background:#3a3a5a;border-radius:3px;}
+#passage-title{color:#ffd54f;font-size:18px;margin-bottom:12px;text-align:center;}
+#passage-text{font-size:16px;line-height:1.7;color:#ddd;}
+#passage-text .kw-highlight{color:#ffd54f;font-weight:bold;}
+#passage-text .sentence-highlight{background:rgba(255,213,79,.2);border-radius:4px;padding:1px 2px;}
+
+/* WATCH panel */
+#watch-panel{position:relative;width:100%;height:100%;}
+#watch-canvas-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+canvas#watchCanvas{border-radius:16px;background:#0d0d1a;max-width:100%;max-height:100%;}
+
+/* RECORD panel */
+#record-panel{text-align:center;}
+#record-panel h2{color:#4caf50;font-size:24px;margin-bottom:8px;}
+#record-msg{font-size:16px;color:#aaa;margin-bottom:12px;}
+
+/* Action button area */
+#action-area{padding:10px 0;display:flex;gap:10px;justify-content:center;align-items:center;flex-shrink:0;}
+#action-btn{padding:12px 32px;border:none;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;transition:all .3s;background:linear-gradient(135deg,#ffd54f,#ffb300);color:#1a1a2e;box-shadow:0 4px 12px rgba(255,213,79,.3);}
+#action-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(255,213,79,.5);}
+#action-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+#read-aloud-btn{padding:10px 20px;border:2px solid #42a5f5;border-radius:12px;background:rgba(66,165,245,.1);color:#42a5f5;cursor:pointer;font-size:14px;font-weight:bold;transition:all .3s;display:none;}
+#read-aloud-btn:hover{background:rgba(66,165,245,.25);}
+#read-aloud-btn.speaking{border-color:#ef5350;color:#ef5350;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+/* Welcome */
+#welcome-panel{text-align:center;padding:20px;}
+#welcome-panel h1{color:#ffd54f;font-size:28px;margin-bottom:12px;}
+#welcome-panel p{color:#aaa;font-size:15px;line-height:1.6;max-width:500px;margin:0 auto 16px;}
+.mission-badge{display:inline-block;background:linear-gradient(135deg,#ffd54f,#ffb300);color:#1a1a2e;padding:10px 24px;border-radius:12px;font-weight:bold;font-size:14px;box-shadow:0 4px 12px rgba(255,213,79,.3);}
+
+/* RIGHT SIDEBAR */
+#right{width:280px;min-width:280px;background:linear-gradient(180deg,#1e1e3a,#16162e);border-left:2px solid #2a2a4a;display:flex;flex-direction:column;padding:10px;overflow-y:auto;}
+#right h3{color:#ffd54f;font-size:14px;margin:8px 0 6px;text-align:center;text-transform:uppercase;letter-spacing:1px;}
+
+/* HUD stats */
+#hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.hud-stat{background:linear-gradient(135deg,#2a2a4a,#1e1e3a);border:2px solid #3a3a5a;border-radius:10px;padding:8px;text-align:center;}
+.hud-stat .hud-val{font-size:20px;font-weight:bold;color:#ffd54f;}
+.hud-stat .hud-label{font-size:10px;color:#888;text-transform:uppercase;margin-top:2px;}
+
+/* Progress bar */
+#progress-wrap{margin:8px 0;background:#1a1a2e;border-radius:8px;height:20px;border:2px solid #3a3a5a;overflow:hidden;position:relative;}
+#progress-fill{height:100%;background:linear-gradient(90deg,#4caf50,#66bb6a);border-radius:6px;transition:width .5s;width:0%;}
+#progress-text{position:absolute;top:0;left:0;right:0;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);}
+#status-msg{text-align:center;font-size:12px;color:#aaa;margin:6px 0;}
+
+/* Data table */
+#data-table-wrap{flex:1;overflow-y:auto;margin-top:6px;}
+#copy-btn{display:block;margin:0 auto 6px;padding:6px 16px;border:2px solid #42a5f5;border-radius:8px;background:rgba(66,165,245,.1);color:#42a5f5;cursor:pointer;font-size:12px;font-weight:bold;transition:all .3s;}
+#copy-btn:hover{background:rgba(66,165,245,.25);}
+#copy-btn.copied{border-color:#4caf50;color:#4caf50;}
+table#data-table{width:100%;border-collapse:collapse;font-size:10px;}
+table#data-table th{background:#3a3a5a;color:#ffd54f;padding:4px 3px;font-size:9px;text-transform:uppercase;border:1px solid #4a4a6a;}
+table#data-table td{padding:4px 3px;border:1px solid #2a2a4a;color:#ccc;font-size:9px;vertical-align:top;background:#1e1e3a;}
+
+/* Completion overlay */
+#completion-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:1000;align-items:center;justify-content:center;}
+#completion-overlay.visible{display:flex;}
+#completion-box{background:linear-gradient(135deg,#2a2a4a,#1e1e3a);border:3px solid #ffd54f;border-radius:20px;padding:30px;text-align:center;max-width:400px;box-shadow:0 0 40px rgba(255,213,79,.3);}
+#completion-box h2{color:#ffd54f;font-size:24px;margin-bottom:10px;}
+#completion-box p{color:#aaa;font-size:14px;margin-bottom:16px;}
+#completion-box button{padding:10px 24px;border:none;border-radius:10px;background:#ffd54f;color:#1a1a2e;font-weight:bold;cursor:pointer;font-size:14px;margin:4px;}
+</style>
+</head>
+<body>
+<div id="app">
+<!-- LEFT SIDEBAR -->
+<div id="left">
+<div style="text-align:center;padding:6px 0;border-bottom:2px solid #2a2a4a;margin-bottom:6px;">
+<div style="color:#ffd54f;font-size:16px;font-weight:bold;">Mr. Jawad's Simulations</div>
+<div style="color:#aaa;font-size:11px;">Bone Fractures</div>
+</div>
+<h3>Pick Any 5 You Like</h3>
+<div id="scenario-list"></div>
+<div style="border-top:1px solid #2a2a4a;margin-top:8px;padding-top:6px;">
+<h3>Reading Level</h3>
+<div id="reading-level">
+<div class="rl-btn active" data-level="low" onclick="setLevel('low')">Low</div>
+<div class="rl-btn" data-level="med" onclick="setLevel('med')">Med</div>
+<div class="rl-btn" data-level="high" onclick="setLevel('high')">High</div>
+</div>
+</div>
+<div style="border-top:1px solid #2a2a4a;margin-top:8px;padding-top:6px;">
+<h3>Key Words</h3>
+<div id="keywords"></div>
+</div>
+<div id="left-bottom">
+<button id="btn-reset" onclick="resetSim()">Reset</button>
+<button id="btn-newrun" onclick="newRun()">New Run</button>
+</div>
+</div>
+
+<!-- CENTER PANEL -->
+<div id="center">
+<div id="step-tabs">
+<div class="step-tab" id="tab-predict">1. PREDICT</div>
+<div class="step-tab" id="tab-read">2. READ</div>
+<div class="step-tab" id="tab-watch">3. WATCH</div>
+<div class="step-tab" id="tab-record">4. RECORD</div>
+</div>
+<div id="center-content">
+<div id="center-main">
+<div class="panel visible" id="welcome-panel">
+<h1>🦴 Fracture Investigator</h1>
+<p>Almost half of all kids break a bone before they turn 18 — and most breaks happen between ages 11 and 15.</p>
+<p>Crack open 8 real cases, predict the outcome, and build your case file.</p>
+<div class="mission-badge">← Pick a story to begin</div>
+</div>
+<div class="panel" id="predict-panel">
+<h2>🔮 Make Your Prediction</h2>
+<p id="predict-question"></p>
+<div id="predict-btns">
+<div class="predict-option" onclick="choosePrediction(this,'Heals fast')">Heals Fast</div>
+<div class="predict-option" onclick="choosePrediction(this,'Heals slow')">Heals Slow</div>
+<div class="predict-option" onclick="choosePrediction(this,'Major problems')">Major Problems</div>
+</div>
+</div>
+<div class="panel" id="read-panel">
+<div id="read-card">
+<div id="passage-title"></div>
+<div id="passage-text"></div>
+</div>
+</div>
+<div class="panel" id="watch-panel">
+<div id="watch-canvas-wrap">
+<canvas id="watchCanvas" width="840" height="500"></canvas>
+</div>
+</div>
+<div class="panel" id="record-panel">
+<h2>✅ Data Recorded!</h2>
+<p id="record-msg">Great work, investigator. Pick your next case.</p>
+</div>
+</div>
+<div id="action-area">
+<button id="action-btn" style="display:none;" onclick="doAction()">Next</button>
+<button id="read-aloud-btn" onclick="toggleReadAloud()">🔊 Read Aloud</button>
+</div>
+</div>
+</div>
+
+<!-- RIGHT SIDEBAR -->
+<div id="right">
+<h3>Progress</h3>
+<div id="hud-grid">
+<div class="hud-stat"><div class="hud-val" id="hud-score">0</div><div class="hud-label">Score</div></div>
+<div class="hud-stat"><div class="hud-val" id="hud-streak">0</div><div class="hud-label">Streak</div></div>
+<div class="hud-stat"><div class="hud-val" id="hud-completed">0/8</div><div class="hud-label">Completed</div></div>
+<div class="hud-stat"><div class="hud-val" id="hud-accuracy">—</div><div class="hud-label">Accuracy</div></div>
+</div>
+<div id="progress-wrap">
+<div id="progress-fill"></div>
+<div id="progress-text">0 / 5 required</div>
+</div>
+<div id="status-msg">Pick 5 stories you like!</div>
+<h3>Data Table</h3>
+<button id="copy-btn" onclick="copyTable()">📋 Copy Table</button>
+<div id="data-table-wrap">
+<table id="data-table">
+<thead><tr><th>Scenario</th><th>What Happened?</th><th>Response</th><th>Healing?</th></tr></thead>
+<tbody id="data-body"></tbody>
+</table>
+</div>
+</div>
+</div>
+
+<!-- COMPLETION OVERLAY -->
+<div id="completion-overlay">
+<div id="completion-box">
+<h2 id="comp-title">🏆 Required Complete!</h2>
+<p id="comp-msg">You finished 5 cases. Continue for extra credit?</p>
+<button onclick="closeCompletion();continueEC()">Keep Going!</button>
+<button onclick="closeCompletion()" style="background:#aaa;">I'm Done</button>
+</div>
+</div>
+
+<script>
+// ========== SCENARIO DATA ==========
+const SCENARIOS = [
+{id:1,name:"The Gymnast's Landing",emoji:"🤸",premise:"French gymnast snaps his tibia on a vault landing at the 2016 Olympics.",
+low:{text:'Samir is a gymnast at the 2016 Olympics in Rio. He launches off the vault and lands wrong. His tibia snaps on live TV — a clean <span class="kw-highlight">fracture</span>. Doctors insert a metal rod inside the bone to hold it together while it <span class="kw-highlight">heals</span>.',watchDesc:"tibia-snap-rod"},
+med:{text:'Samir Ait Said is a French gymnast competing at the 2016 Olympics in Rio. He sprints toward the vault, launches into the air, and lands with all his weight on one leg. His tibia — the big bone in his lower leg — snaps on live television. The <span class="kw-highlight">fracture</span> is so bad that doctors insert a metal rod through the center of the bone. The rod holds the broken pieces in place while his body slowly rebuilds. Months of rehab later, Samir returns to competition with his bone <span class="kw-highlight">healed</span> around the rod.',watchDesc:"tibia-snap-rod"},
+high:{text:'Samir Ait Said is a French gymnast competing at the 2016 Olympics in Rio de Janeiro. He sprints down the runway, launches off the vault, and lands with all his body weight crashing onto one leg. The force is too much — his tibia, the main weight-bearing bone in the lower leg, snaps instantly. Millions of people watch the <span class="kw-highlight">fracture</span> happen on live television. Doctors rush him into surgery and insert a metal rod through the center of the bone to hold the broken ends in place. Without the rod, the pieces could shift apart and the bone would <span class="kw-highlight">heal</span> crooked or not at all. Over the next several months, his body rebuilds the bone around the rod — new tissue fills the gap. He returns to international competition, proving that even a catastrophic <span class="kw-highlight">fracture</span> can <span class="kw-highlight">heal</span> if the bone is stabilized.',watchDesc:"tibia-snap-rod"},
+whatHappened:"Tibia snapped on vault landing",response:"Metal rod inserted; bone rebuilt around it",connection:"Stabilizing the bone helped it heal straight",animType:"rod",severity:"complete",healSpeed:"normal"},
+{id:2,name:"17 Surgeries",emoji:"🏈",premise:"NFL QB Alex Smith suffers a compound fracture and a bone infection nearly costs him his leg.",
+low:{text:'NFL quarterback Alex Smith gets hit during a 2018 game. Both bones in his lower leg snap — a <span class="kw-highlight">compound fracture</span> where bone breaks through skin. The open wound gets infected, and doctors perform 17 surgeries to save his leg. Two years later, Smith returns to football and wins Comeback Player of the Year.',watchDesc:"compound-infection"},
+med:{text:'NFL quarterback Alex Smith takes a tackle during a 2018 game and both bones in his lower leg snap at once. The broken tibia pushes through his skin — a <span class="kw-highlight">compound fracture</span>, the most dangerous type. The open wound lets bacteria inside, and the bone gets badly infected. Doctors perform 17 surgeries over two years just to save his leg from amputation. Each surgery cleans out infection and rebuilds damaged <span class="kw-highlight">cartilage</span> and bone tissue around the break. Smith eventually returns to professional football and wins Comeback Player of the Year in 2020.',watchDesc:"compound-infection"},
+high:{text:'NFL quarterback Alex Smith takes a hit during a 2018 game that snaps both bones in his lower leg at the same time. The broken tibia pushes through his skin — this is called a <span class="kw-highlight">compound fracture</span>, and it is the most dangerous type of break. <span class="kw-highlight">Compound fractures</span> expose the inside of the bone to bacteria from the outside world. Smith\'s wound gets badly infected, and the infection attacks the new <span class="kw-highlight">cartilage</span> and bone tissue his body tries to build at the break site. Doctors perform 17 surgeries over two years — each one cleaning out infection and attempting to rebuild the damaged area. At one point, doctors consider amputating his leg because the <span class="kw-highlight">healing</span> keeps failing. Smith refuses to give up, and after months of rehab, he returns to professional football in 2020. He wins Comeback Player of the Year — one of the greatest recovery stories in sports history.',watchDesc:"compound-infection"},
+whatHappened:"Both leg bones snapped; bone broke through skin",response:"17 surgeries over 2 years to fight infection",connection:"Compound fracture exposed bone to bacteria, slowing healing",animType:"compound",severity:"compound",healSpeed:"very-slow"},
+{id:3,name:"The Playground Fall",emoji:"🛝",premise:"A 12-year-old snaps her wrist — but her young bones crack differently than an adult's.",
+low:{text:'A 12-year-old trips on a playground and catches herself with her hands. Her wrist snaps — a <span class="kw-highlight">fracture</span> called a greenstick break. Kids\' bones are flexible, so the bone bends and cracks but does not break all the way through. She wears a cast for six weeks, and the bone <span class="kw-highlight">heals</span> almost perfectly.',watchDesc:"greenstick"},
+med:{text:'A 12-year-old trips on a playground and catches herself with both hands. The impact travels through her arm, and her wrist bone cracks — a <span class="kw-highlight">fracture</span>. The X-ray shows something called a greenstick break. Kids\' bones still have a lot of <span class="kw-highlight">cartilage</span>, which makes them more flexible than adult bones. Instead of snapping in two, her bone bends and cracks on one side only — like snapping a green twig. She wears a cast for six weeks, and the bone <span class="kw-highlight">heals</span> so well that the X-ray looks almost normal.',watchDesc:"greenstick"},
+high:{text:'A 12-year-old trips on a playground and throws her hands out to catch herself. All of her falling body weight slams into her wrists, and the right one cracks — a <span class="kw-highlight">fracture</span>. When doctors look at the X-ray, they see a greenstick break — the bone bent and cracked on one side but stayed connected on the other. This type of <span class="kw-highlight">fracture</span> is common in kids because young bones still contain a lot of <span class="kw-highlight">cartilage</span>, which makes them flexible instead of brittle. An adult bone hit with the same force would likely snap all the way through. Because her bones are still growing, her body repairs the damage fast — new bone fills the crack in just weeks. She wears a cast for six weeks, and within three months, the X-ray looks almost normal. Her young body remodeled the bone so completely that the crack is barely visible.',watchDesc:"greenstick"},
+whatHappened:"Wrist bone bent and cracked on one side (greenstick)",response:"Cast for 6 weeks; bone healed almost perfectly",connection:"Young flexible cartilage let bone bend instead of snap",animType:"greenstick",severity:"partial",healSpeed:"fast"},
+{id:4,name:"Running on Cracks",emoji:"🏃",premise:"A track runner trains through shin pain until X-rays reveal a stress fracture.",
+low:{text:'A high school track runner feels pain in her shin that gets worse every practice. She keeps running through it. An X-ray shows a stress <span class="kw-highlight">fracture</span> — a tiny crack from repeated pounding. Doctors say her <span class="kw-highlight">bone density</span> is too low for the stress of daily training.',watchDesc:"stress"},
+med:{text:'A high school track runner notices a dull ache in her shin that gets worse every practice. She keeps training through it because she does not want to miss a meet. An X-ray reveals a stress <span class="kw-highlight">fracture</span> — a hairline crack caused by repeated pounding, not one big hit. Doctors check her <span class="kw-highlight">bone density</span> and find it is lower than normal for her age. Her bones are not dense enough to handle the stress of running every day, so the bone cracked from the inside out. She has to stop running for weeks while the tiny <span class="kw-highlight">fracture</span> <span class="kw-highlight">heals</span>.',watchDesc:"stress"},
+high:{text:'A high school track runner notices a dull ache in her shin that gets worse after every practice. She pushes through the pain because she does not want to miss a single meet. After two weeks, the ache turns into sharp pain every time her foot hits the ground. An X-ray reveals a stress <span class="kw-highlight">fracture</span> — a hairline crack in the bone caused by repeated impact, not one big hit. Doctors test her <span class="kw-highlight">bone density</span> and find it is lower than expected for someone her age. Lower <span class="kw-highlight">bone density</span> means the bone has fewer minerals packed inside, so it cannot absorb the same repeated force that a denser bone could handle. Her shin bone cracked from the inside out because it was too weak for the daily stress of training. She has to rest for weeks while the tiny <span class="kw-highlight">fracture</span> slowly <span class="kw-highlight">heals</span> — and doctors tell her that building stronger <span class="kw-highlight">bone density</span> through nutrition is just as important as training.',watchDesc:"stress"},
+whatHappened:"Stress fracture from repeated training impacts",response:"Rest for weeks; told to build bone density through nutrition",connection:"Low bone density made bone too weak for daily stress",animType:"stress",severity:"stress",healSpeed:"slow"},
+{id:5,name:"The Growth Plate Problem",emoji:"☝️",premise:"A 13-year-old jams his finger and the fracture runs through his growth plate.",
+low:{text:'A 13-year-old basketball player jams his finger going for a rebound. The X-ray shows a <span class="kw-highlight">fracture</span> right through his <span class="kw-highlight">growth plate</span>. The <span class="kw-highlight">growth plate</span> is a strip of <span class="kw-highlight">cartilage</span> where new bone grows. If it does not <span class="kw-highlight">heal</span> correctly, that finger could stop growing or grow crooked.',watchDesc:"growth-plate"},
+med:{text:'A 13-year-old basketball player jams his finger hard going for a rebound. It swells up and he figures it is just a sprain — no big deal. But the X-ray shows a <span class="kw-highlight">fracture</span> running right through his <span class="kw-highlight">growth plate</span>. The <span class="kw-highlight">growth plate</span> is a strip of soft <span class="kw-highlight">cartilage</span> near the end of the bone where new bone grows to make the finger longer. Doctors warn that if this <span class="kw-highlight">fracture</span> does not <span class="kw-highlight">heal</span> correctly, the finger could stop growing or grow crooked. They monitor the <span class="kw-highlight">growth plate</span> for two full years to make sure it recovers.',watchDesc:"growth-plate"},
+high:{text:'A 13-year-old basketball player jams his finger going for a rebound during a game. The finger swells up fast, but he assumes it is just a bad sprain and keeps playing. When the swelling does not go down, his parents take him for an X-ray. The image shows a <span class="kw-highlight">fracture</span> running directly through his <span class="kw-highlight">growth plate</span> — the strip of soft <span class="kw-highlight">cartilage</span> near the end of the bone. The <span class="kw-highlight">growth plate</span> is where the body adds new bone to make the finger longer as he grows. Doctors explain that <span class="kw-highlight">growth plate</span> injuries are serious because damaged <span class="kw-highlight">cartilage</span> can stop producing new bone on that side. If the <span class="kw-highlight">fracture</span> does not <span class="kw-highlight">heal</span> cleanly, the finger could stop growing or grow at an angle. They put the finger in a splint and monitor the <span class="kw-highlight">growth plate</span> with X-rays for two full years to make sure it recovers.',watchDesc:"growth-plate"},
+whatHappened:"Fracture through the growth plate in his finger",response:"Splint + 2 years monitoring; risk of crooked growth",connection:"Growth plate damage can stop or bend bone growth",animType:"growthplate",severity:"growth-plate",healSpeed:"risky"},
+{id:6,name:"The Strongest Bone",emoji:"🚴",premise:"A 13-year-old fractures his femur — the longest, strongest bone in the body.",
+low:{text:'A 13-year-old gets hit by a car while riding his bike. The crash <span class="kw-highlight">fractures</span> his femur — the thighbone. The femur is the longest, strongest bone in the body because of its high <span class="kw-highlight">bone density</span>. Breaking it takes massive force, and <span class="kw-highlight">healing</span> takes much longer than a wrist break.',watchDesc:"femur"},
+med:{text:'A 13-year-old gets hit by a car while riding his bike and <span class="kw-highlight">fractures</span> his femur. The femur is the longest and strongest bone in the entire human body. It has extremely high <span class="kw-highlight">bone density</span> — the minerals inside are packed tight, making it very hard to break. Cracking a femur takes massive force, which is why doctors treat it as a sign of serious trauma. Surgeons insert a metal rod through the center of the bone to hold it together during <span class="kw-highlight">healing</span>. Recovery takes much longer than a wrist or collarbone break because the femur carries your entire body weight.',watchDesc:"femur"},
+high:{text:'A 13-year-old is riding his bike when a car hits him from the side. The impact <span class="kw-highlight">fractures</span> his femur — the thighbone, which is the longest and strongest bone in the human body. The femur has some of the highest <span class="kw-highlight">bone density</span> of any bone because it has to support your entire body weight every time you stand, walk, or run. Breaking a femur requires enormous force, so doctors treat every femur <span class="kw-highlight">fracture</span> as a sign of serious trauma. Surgeons rush him into the operating room and insert a metal rod through the center of the bone to hold the two broken ends in alignment. Without this rod, the powerful muscles around the thigh would pull the broken pieces apart and the bone could never <span class="kw-highlight">heal</span> straight. Recovery from a femur <span class="kw-highlight">fracture</span> takes far longer than a wrist or collarbone break — often four to six months before the bone is strong enough to bear full weight again. The boy faces months of rehab before he can walk without crutches.',watchDesc:"femur"},
+whatHappened:"Femur fractured by car impact",response:"Surgical rod inserted; months of rehab",connection:"High bone density bone needs massive force but heals slowly due to weight-bearing",animType:"femur",severity:"complete",healSpeed:"slow"},
+{id:7,name:"The Skatepark Snap",emoji:"🛹",premise:"A 14-year-old fractures his collarbone — one of the most common breaks in active kids.",
+low:{text:'A 14-year-old lands a trick wrong at a skatepark. His collarbone <span class="kw-highlight">fractures</span> from the impact on his shoulder. The collarbone has a thick <span class="kw-highlight">periosteum</span> — a tissue wrapping that helps it <span class="kw-highlight">heal</span> fast. He is back on his board in about eight weeks with a visible bump where extra bone formed.',watchDesc:"periosteum"},
+med:{text:'A 14-year-old lands a trick wrong at a skatepark and slams his shoulder into the concrete. He hears a crack — his collarbone <span class="kw-highlight">fractures</span> from the impact. The collarbone is one of the most commonly broken bones in active kids. Luckily, it has a thick <span class="kw-highlight">periosteum</span> — a layer of tissue wrapping the bone that delivers blood and <span class="kw-highlight">healing</span> cells directly to the break. Because of this strong <span class="kw-highlight">periosteum</span>, the collarbone usually <span class="kw-highlight">heals</span> without surgery. He is back on his board in eight weeks, but the <span class="kw-highlight">healed</span> bone has a visible bump where extra bone formed during repair.',watchDesc:"periosteum"},
+high:{text:'A 14-year-old tries a new trick at the skatepark and lands wrong, slamming his shoulder into the concrete. He hears a crack and feels a sharp pain across his chest — his collarbone has <span class="kw-highlight">fractured</span> from the impact. The collarbone, also called the clavicle, is one of the most commonly broken bones in active teenagers. What makes collarbone breaks different is the thick <span class="kw-highlight">periosteum</span> — a layer of tissue that wraps around the outside of the bone like a sleeve. The <span class="kw-highlight">periosteum</span> is packed with blood vessels that deliver oxygen and <span class="kw-highlight">healing</span> cells directly to the break site. This rich blood supply is why collarbone <span class="kw-highlight">fractures</span> usually <span class="kw-highlight">heal</span> without surgery — the body can get its repair crew to the scene fast. He is back skating in about eight weeks. The only evidence of the break is a visible bump on his collarbone where extra bone formed during the repair — a permanent reminder of the day the trick went wrong.',watchDesc:"periosteum"},
+whatHappened:"Collarbone fractured from skatepark fall",response:"Healed in 8 weeks without surgery; bump formed",connection:"Thick periosteum delivered blood and healing cells fast",animType:"periosteum",severity:"clean",healSpeed:"fast"},
+{id:8,name:"The Bone That Broke Through",emoji:"🏀",premise:"NBA star Paul George fractures both leg bones — and bone pushes through skin.",
+low:{text:'NBA star Paul George goes up to block a shot in a 2014 Team USA practice game. He lands with his leg against the hoop\'s base, and both bones in his lower leg snap. The broken tibia pushes through his skin — a <span class="kw-highlight">compound fracture</span>. Doctors close the wound fast to prevent infection, and George returns to All-Star basketball within a year.',watchDesc:"compound-fast"},
+med:{text:'NBA star Paul George goes up to block a shot during a 2014 Team USA scrimmage. He lands awkwardly with his leg slamming against the base of the basketball hoop. Both bones in his lower leg snap at once — and the broken tibia pushes through his skin. This is a <span class="kw-highlight">compound fracture</span>, the most dangerous type because the open wound exposes bone to infection. Doctors rush George into surgery to close the wound and set the bones before bacteria can attack. He returns to All-Star-level basketball less than a year later — but the speed of his <span class="kw-highlight">healing</span> depended on stopping infection fast.',watchDesc:"compound-fast"},
+high:{text:'NBA star Paul George goes up to block a shot during a 2014 Team USA practice scrimmage. He lands off-balance with his right leg slamming into the metal base of the basketball hoop. The force snaps both bones in his lower leg — the tibia and fibula — and the broken tibia pushes through his skin. This is called a <span class="kw-highlight">compound fracture</span>, and it is the most dangerous type of break a person can suffer. The reason <span class="kw-highlight">compound fractures</span> are so serious is that the open wound exposes the inside of the bone directly to bacteria. This is the same complication that nearly cost Alex Smith his leg — infection can destroy new <span class="kw-highlight">cartilage</span> and bone tissue before it has a chance to form. George\'s doctors close the wound within hours and set the bones with surgical hardware to prevent that outcome. He returns to All-Star basketball in less than a year — proof that fast treatment of a <span class="kw-highlight">compound fracture</span> can mean the difference between full recovery and years of failed <span class="kw-highlight">healing</span>.',watchDesc:"compound-fast"},
+whatHappened:"Both leg bones snapped; bone broke through skin",response:"Fast surgery to close wound and set bones",connection:"Fast treatment of compound fracture prevented infection",animType:"compound-fast",severity:"compound",healSpeed:"normal"}
+];
+
+const KEY_WORDS = ["fracture","bone density","growth plate","cartilage","compound fracture","periosteum","healing"];
+
+// ========== STATE ==========
+let state = {
+  currentScenario: null,
+  step: null, // null, 'predict', 'read', 'watch', 'record'
+  readingLevel: 'low',
+  completed: new Set(),
+  prediction: null,
+  score: 0,
+  streak: 0,
+  totalPredictions: 0,
+  correctPredictions: 0,
+  dataRows: [],
+  generation: 0,
+  speechActive: false,
+  speechInited: false,
+  resumeInterval: null
+};
+
+// ========== INIT ==========
+function init() {
+  buildScenarioList();
+  buildKeywords();
+  updateHUD();
+}
+
+function buildScenarioList() {
+  const list = document.getElementById('scenario-list');
+  list.innerHTML = '';
+  SCENARIOS.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'scenario-card' + (state.completed.has(s.id) ? ' completed' : '') + (state.currentScenario && state.currentScenario.id === s.id ? ' selected' : '');
+    card.innerHTML = `<span class="sc-emoji">${s.emoji}</span><span class="sc-name">${s.name}</span>`;
+    card.onclick = () => selectScenario(s);
+    list.appendChild(card);
+  });
+}
+
+function buildKeywords() {
+  const kw = document.getElementById('keywords');
+  kw.innerHTML = '';
+  KEY_WORDS.forEach(w => {
+    const d = document.createElement('div');
+    d.className = 'kw-item';
+    d.textContent = w;
+    d.id = 'kw-' + w.replace(/\s/g, '-');
+    kw.appendChild(d);
+  });
+}
+
+function highlightActiveKeywords() {
+  // Reset all
+  KEY_WORDS.forEach(w => {
+    const el = document.getElementById('kw-' + w.replace(/\s/g, '-'));
+    if (el) el.className = 'kw-item';
+  });
+  if (!state.currentScenario) return;
+  const sc = state.currentScenario;
+  const lvl = state.readingLevel === 'med' ? 'med' : state.readingLevel === 'high' ? 'high' : 'low';
+  const text = sc[lvl].text.toLowerCase();
+  KEY_WORDS.forEach(w => {
+    if (text.includes(w.toLowerCase())) {
+      const el = document.getElementById('kw-' + w.replace(/\s/g, '-'));
+      if (el) el.className = 'kw-item active';
+    }
+  });
+}
+
+// ========== READING LEVEL ==========
+function setLevel(lvl) {
+  state.readingLevel = lvl;
+  document.querySelectorAll('.rl-btn').forEach(b => b.classList.toggle('active', b.dataset.level === lvl));
+  if (state.step === 'read' && state.currentScenario) {
+    showReadPanel();
+  }
+  highlightActiveKeywords();
+}
+
+// ========== SCENARIO SELECTION ==========
+function selectScenario(s) {
+  if (state.step === 'watch') return; // Don't interrupt animation
+  if (state.completed.has(s.id)) return; // Already completed — pick a different one
+  stopSpeech();
+  state.currentScenario = s;
+  state.prediction = null;
+  state.step = 'predict';
+  state.generation++;
+  buildScenarioList();
+  highlightActiveKeywords();
+  showStep('predict');
+  showPanel('predict-panel');
+  document.getElementById('predict-question').textContent = `What do you think will happen to the person in "${s.name}"?`;
+  document.querySelectorAll('.predict-option').forEach(o => o.classList.remove('chosen'));
+  document.getElementById('action-btn').style.display = 'none';
+  document.getElementById('read-aloud-btn').style.display = 'none';
+}
+
+// ========== PREDICTION ==========
+function choosePrediction(el, val) {
+  document.querySelectorAll('.predict-option').forEach(o => o.classList.remove('chosen'));
+  el.classList.add('chosen');
+  state.prediction = val;
+  document.getElementById('action-btn').style.display = '';
+  document.getElementById('action-btn').textContent = 'Continue to Read →';
+}
+
+// ========== ACTION BUTTON ==========
+function doAction() {
+  try {
+    if (state.step === 'predict') {
+      state.step = 'read';
+      showStep('read');
+      showPanel('read-panel');
+      showReadPanel();
+      document.getElementById('action-btn').textContent = 'Continue to Watch →';
+      document.getElementById('read-aloud-btn').style.display = '';
+    } else if (state.step === 'read') {
+      stopSpeech();
+      state.step = 'watch';
+      showStep('watch');
+      showPanel('watch-panel');
+      document.getElementById('action-btn').style.display = 'none';
+      document.getElementById('read-aloud-btn').style.display = 'none';
+      runWatchAnimation();
+    } else if (state.step === 'record-done') {
+      showPanel('welcome-panel');
+      state.step = null;
+      state.currentScenario = null;
+      showStep(null);
+      document.getElementById('action-btn').style.display = 'none';
+      buildScenarioList();
+    }
+  } catch(e) {
+    console.error('Action error:', e);
+    // Safety: always leave a clickable button
+    document.getElementById('action-btn').style.display = '';
+    document.getElementById('action-btn').textContent = 'Continue →';
+  }
+}
+
+// ========== SHOW PANELS ==========
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
+  document.getElementById(id).classList.add('visible');
+}
+
+function showStep(s) {
+  const tabs = ['predict','read','watch','record'];
+  tabs.forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    el.className = 'step-tab';
+    if (t === s) el.className = 'step-tab active';
+    else if (tabs.indexOf(t) < tabs.indexOf(s)) el.className = 'step-tab done';
+  });
+}
+
+// ========== READ PANEL ==========
+function showReadPanel() {
+  const sc = state.currentScenario;
+  const lvl = state.readingLevel === 'med' ? 'med' : state.readingLevel === 'high' ? 'high' : 'low';
+  document.getElementById('passage-title').textContent = sc.emoji + ' ' + sc.name;
+  document.getElementById('passage-text').innerHTML = sc[lvl].text;
+}
+
+// ========== SPEECH ==========
+let speechResumeInterval = null;
+
+function toggleReadAloud() {
+  try {
+    if (state.speechActive) {
+      stopSpeech();
+      return;
+    }
+    if (!('speechSynthesis' in window)) {
+      document.getElementById('read-aloud-btn').textContent = '📖 Text Only';
+      return;
+    }
+    if (!state.speechInited) {
+      state.speechInited = true;
+    }
+    const text = document.getElementById('passage-text').textContent;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.onend = () => { stopSpeech(); };
+    utterance.onerror = () => { stopSpeech(); };
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utterance);
+    state.speechActive = true;
+    document.getElementById('read-aloud-btn').className = 'speaking';
+    document.getElementById('read-aloud-btn').textContent = '⏹ Stop Reading';
+    // Chrome 15-second bug workaround
+    speechResumeInterval = setInterval(() => {
+      try { if (speechSynthesis.speaking) speechSynthesis.resume(); } catch(e){}
+    }, 10000);
+  } catch(e) {
+    console.error('Speech error:', e);
+    document.getElementById('read-aloud-btn').textContent = '📖 Text Only';
+  }
+}
+
+function stopSpeech() {
+  try {
+    if (speechResumeInterval) { clearInterval(speechResumeInterval); speechResumeInterval = null; }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  } catch(e){}
+  state.speechActive = false;
+  const btn = document.getElementById('read-aloud-btn');
+  btn.className = '';
+  btn.textContent = '🔊 Read Aloud';
+}
+
+// ========== WATCH ANIMATION ==========
+// Particle system
+class Particle {
+  constructor(x, y, vx, vy, life, color, size) {
+    this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+    this.life = life; this.maxLife = life; this.color = color; this.size = size;
+  }
+  update() { this.x += this.vx; this.y += this.vy; this.life--; }
+  get alpha() { return Math.max(0, this.life / this.maxLife); }
+  get alive() { return this.life > 0; }
+}
+
+let particles = [];
+function spawnParticles(x, y, count, color, spread, life, size) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * spread;
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, life + Math.random()*20, color, size || 3));
+  }
+}
+function updateAndDrawParticles(ctx) {
+  particles = particles.filter(p => p.alive);
+  particles.forEach(p => {
+    p.update();
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.alpha, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+function runWatchAnimation() {
+  const sc = state.currentScenario;
+  const canvas = document.getElementById('watchCanvas');
+  const ctx = canvas.getContext('2d');
+  const gen = state.generation;
+  let frame = 0;
+  const totalFrames = 300; // ~5 seconds at 60fps
+  particles = [];
+
+  function animate() {
+    if (gen !== state.generation) return;
+    if (frame > totalFrames) { finishWatch(); return; }
+    try {
+      ctx.clearRect(0, 0, 840, 500);
+      renderWatchFrame(ctx, sc, frame, totalFrames);
+    } catch(e) { console.error('Anim frame error:', e); }
+    frame++;
+    requestAnimationFrame(animate);
+  }
+
+  const safetyTimeout = setTimeout(() => {
+    if (gen === state.generation && state.step === 'watch') finishWatch();
+  }, 8000);
+
+  animate();
+
+  function finishWatch() {
+    clearTimeout(safetyTimeout);
+    if (gen !== state.generation) return;
+    recordData();
+  }
+}
+
+// ---- Master Renderer ----
+function renderWatchFrame(ctx, sc, frame, total) {
+  const p = Math.min(frame / total, 1);
+  const W = 840, H = 500;
+
+  // Background gradient
+  const bg = ctx.createRadialGradient(W/2, H/2, 50, W/2, H/2, 450);
+  bg.addColorStop(0, '#0f1a2e');
+  bg.addColorStop(1, '#060d18');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (let gx = 0; gx < W; gx += 40) { ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
+  for (let gy = 0; gy < H; gy += 40) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
+
+  // Title
+  ctx.save();
+  ctx.shadowColor = '#ffd54f';
+  ctx.shadowBlur = p < 0.1 ? 20 : 8;
+  ctx.fillStyle = '#ffd54f';
+  ctx.font = 'bold 22px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(sc.emoji + '  ' + sc.name, W/2, 32);
+  ctx.restore();
+
+  // Phase indicator text
+  const phase = p < 0.15 ? 'HEALTHY BONE' : p < 0.4 ? 'FRACTURE!' : p < 0.7 ? 'TREATMENT' : 'HEALING';
+  const phaseColor = p < 0.15 ? '#4caf50' : p < 0.4 ? '#ff5252' : p < 0.7 ? '#42a5f5' : '#66bb6a';
+  ctx.fillStyle = phaseColor;
+  ctx.font = 'bold 14px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText('— ' + phase + ' —', W/2, 54);
+
+  // Main bone diagram area (centered)
+  drawBoneAnatomy(ctx, sc, p, frame);
+
+  // Left: Severity meter
+  drawSeverityGauge(ctx, 25, 80, sc, p);
+
+  // Right: Healing timeline
+  drawHealTimeline(ctx, W - 55, 80, sc, p);
+
+  // Bottom: scenario-specific caption
+  drawCaption(ctx, sc, p, W);
+
+  // Particles
+  updateAndDrawParticles(ctx);
+
+  // Spawn scenario-specific particles
+  if (frame % 3 === 0) spawnScenarioParticles(sc, p, frame);
+}
+
+// ---- Bone Anatomy Drawing ----
+function drawBoneAnatomy(ctx, sc, p, frame) {
+  const cx = 420, cy = 240;
+  // Draw a long bone cross-section (longitudinal view)
+  const boneL = 320, boneW = 120; // half-lengths
+  const bx = cx - boneL/2, by = cy - boneW/2;
+
+  ctx.save();
+
+  // === PERIOSTEUM (outer layer) ===
+  const periThick = sc.animType === 'periosteum' ? 10 : 5;
+  const periAlpha = sc.animType === 'periosteum' ? 0.6 + 0.4 * Math.sin(frame * 0.05) : 0.25;
+  ctx.strokeStyle = sc.animType === 'periosteum'
+    ? `rgba(76, 175, 80, ${periAlpha})`
+    : `rgba(180, 140, 100, ${0.3})`;
+  ctx.lineWidth = periThick;
+  rrect(ctx, bx - 6, by - 6, boneL + 12, boneW + 12, 30);
+  ctx.stroke();
+  if (sc.animType === 'periosteum' && p > 0.15) {
+    // Glow
+    ctx.save();
+    ctx.shadowColor = '#4caf50';
+    ctx.shadowBlur = 15 + 8 * Math.sin(frame * 0.08);
+    ctx.strokeStyle = `rgba(76, 175, 80, ${periAlpha * 0.5})`;
+    ctx.lineWidth = periThick + 4;
+    rrect(ctx, bx - 6, by - 6, boneL + 12, boneW + 12, 30);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // === COMPACT BONE (outer shell) ===
+  const compactGrad = ctx.createLinearGradient(bx, by, bx, by + boneW);
+  if (p < 0.15) {
+    compactGrad.addColorStop(0, '#f5e6cc');
+    compactGrad.addColorStop(0.3, '#e8d5b7');
+    compactGrad.addColorStop(0.7, '#d4bc96');
+    compactGrad.addColorStop(1, '#c4a87a');
+  } else {
+    // Tint based on severity
+    const tint = sc.severity === 'compound' ? 0.3 : sc.severity === 'stress' ? 0.15 : 0.05;
+    const r = Math.min(255, 232 + tint * 80);
+    const g = Math.max(160, 213 - tint * 120);
+    const b = Math.max(130, 183 - tint * 100);
+    compactGrad.addColorStop(0, `rgb(${r+10},${g+10},${b+20})`);
+    compactGrad.addColorStop(0.5, `rgb(${r},${g},${b})`);
+    compactGrad.addColorStop(1, `rgb(${r-20},${g-15},${b-10})`);
+  }
+  ctx.fillStyle = compactGrad;
+  rrect(ctx, bx, by, boneL, boneW, 24);
+  ctx.fill();
+
+  // Compact bone texture lines
+  ctx.strokeStyle = 'rgba(160,130,90,0.15)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 12; i++) {
+    const lx = bx + 20 + i * 25;
+    ctx.beginPath();
+    ctx.moveTo(lx, by + 8);
+    ctx.lineTo(lx + 3, by + boneW - 8);
+    ctx.stroke();
+  }
+
+  // === SPONGY BONE (inner porous layer) ===
+  const spongyInset = 18;
+  const spongyGrad = ctx.createLinearGradient(bx, by + spongyInset, bx, by + boneW - spongyInset);
+  spongyGrad.addColorStop(0, '#ffe8cc');
+  spongyGrad.addColorStop(1, '#ffd6a0');
+  ctx.fillStyle = spongyGrad;
+  rrect(ctx, bx + spongyInset, by + spongyInset, boneL - spongyInset*2, boneW - spongyInset*2, 12);
+  ctx.fill();
+
+  // Spongy bone pores
+  ctx.fillStyle = 'rgba(200,160,100,0.2)';
+  for (let i = 0; i < 20; i++) {
+    const px = bx + spongyInset + 10 + (i % 10) * 28;
+    const py = by + spongyInset + 10 + Math.floor(i / 10) * 35 + Math.sin(i * 1.7) * 8;
+    const r = 4 + Math.sin(i * 2.3) * 2;
+    ctx.beginPath();
+    ctx.arc(px, py, Math.max(r, 1), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // === MARROW (center) ===
+  const marrowInset = 34;
+  const marrowGrad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 60);
+  marrowGrad.addColorStop(0, '#ffecb3');
+  marrowGrad.addColorStop(1, '#ffe0a0');
+  ctx.fillStyle = marrowGrad;
+  rrect(ctx, bx + marrowInset, by + marrowInset, boneL - marrowInset*2, boneW - marrowInset*2, 8);
+  ctx.fill();
+
+  // === BONE DENSITY VISUALIZATION (for scenarios 4, 6) ===
+  if (sc.animType === 'stress' || sc.animType === 'femur') {
+    const densityLevel = sc.animType === 'femur' ? 0.9 : 0.35;
+    // Show mineral dots inside compact bone
+    const dotCount = Math.floor(densityLevel * 60);
+    ctx.fillStyle = sc.animType === 'femur' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)';
+    for (let i = 0; i < dotCount; i++) {
+      const dx = bx + 10 + (i * 37 + i * i * 3) % (boneL - 20);
+      const dy = by + 5 + (i * 23 + i * 7) % (boneW - 10);
+      // Only in compact bone zone
+      if (dy < by + spongyInset || dy > by + boneW - spongyInset) {
+        ctx.beginPath();
+        ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // === GROWTH PLATE (for scenario 5) ===
+  if (sc.animType === 'growthplate') {
+    const gpY = cy;
+    const gpGrad = ctx.createLinearGradient(bx + 10, gpY - 6, bx + 10, gpY + 6);
+    gpGrad.addColorStop(0, 'rgba(66,165,245,0.5)');
+    gpGrad.addColorStop(0.5, 'rgba(100,181,246,0.7)');
+    gpGrad.addColorStop(1, 'rgba(66,165,245,0.5)');
+    ctx.fillStyle = gpGrad;
+    ctx.fillRect(bx + 10, gpY - 5, boneL - 20, 10);
+    // Glow
+    ctx.save();
+    ctx.shadowColor = '#42a5f5';
+    ctx.shadowBlur = 12 + 4 * Math.sin(frame * 0.06);
+    ctx.fillStyle = 'rgba(66,165,245,0.3)';
+    ctx.fillRect(bx + 10, gpY - 5, boneL - 20, 10);
+    ctx.restore();
+  }
+
+  // === CARTILAGE CAPS (for scenario 3) ===
+  if (sc.animType === 'greenstick') {
+    // Blue caps on ends
+    const capGrad = ctx.createLinearGradient(bx, by, bx + 30, by);
+    capGrad.addColorStop(0, 'rgba(66,165,245,0.5)');
+    capGrad.addColorStop(1, 'rgba(66,165,245,0.1)');
+    ctx.fillStyle = capGrad;
+    rrect(ctx, bx - 2, by + 5, 25, boneW - 10, 12);
+    ctx.fill();
+    const capGrad2 = ctx.createLinearGradient(bx + boneL - 30, by, bx + boneL, by);
+    capGrad2.addColorStop(0, 'rgba(66,165,245,0.1)');
+    capGrad2.addColorStop(1, 'rgba(66,165,245,0.5)');
+    ctx.fillStyle = capGrad2;
+    rrect(ctx, bx + boneL - 23, by + 5, 25, boneW - 10, 12);
+    ctx.fill();
+  }
+
+  // ========================================
+  // FRACTURE EFFECTS (after p > 0.15)
+  // ========================================
+  if (p > 0.12) {
+    const fracP = easeOutQuad(Math.min((p - 0.12) / 0.18, 1));
+    drawFractureEffect(ctx, sc, fracP, p, bx, by, boneL, boneW, cx, cy, frame);
+  }
+
+  // ========================================
+  // TREATMENT PHASE (after p > 0.4)
+  // ========================================
+  if (p > 0.4) {
+    const treatP = easeInOutQuad(Math.min((p - 0.4) / 0.25, 1));
+    drawTreatmentEffect(ctx, sc, treatP, p, bx, by, boneL, boneW, cx, cy, frame);
+  }
+
+  // ========================================
+  // HEALING PHASE (after p > 0.65)
+  // ========================================
+  if (p > 0.65) {
+    const healP = easeInOutQuad(Math.min((p - 0.65) / 0.3, 1));
+    drawHealingEffect(ctx, sc, healP, p, bx, by, boneL, boneW, cx, cy, frame);
+  }
+
+  // === LABELS ===
+  drawAnatomyLabels(ctx, sc, p, bx, by, boneL, boneW, cx, cy, frame);
+
+  ctx.restore();
+}
+
+// ---- Fracture Effects ----
+function drawFractureEffect(ctx, sc, fracP, p, bx, by, boneL, boneW, cx, cy, frame) {
+  ctx.save();
+
+  if (sc.severity === 'stress') {
+    // Multiple hairline cracks spreading slowly
+    ctx.strokeStyle = `rgba(255,152,0,${0.4 + fracP * 0.6})`;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    for (let i = 0; i < 7; i++) {
+      const sx = bx + 30 + i * 40;
+      const crackLen = fracP * (boneW * 0.25 + Math.sin(i * 1.5) * 10);
+      ctx.beginPath();
+      ctx.moveTo(sx, by + 3);
+      ctx.lineTo(sx + Math.sin(i) * 4, by + 3 + crackLen);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // Flash effect at each crack
+    if (fracP > 0.5 && fracP < 0.9) {
+      ctx.fillStyle = `rgba(255,152,0,${(0.9 - fracP) * 0.5})`;
+      for (let i = 0; i < 7; i++) {
+        const sx = bx + 30 + i * 40;
+        ctx.beginPath();
+        ctx.arc(sx, by + 6, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (sc.animType === 'greenstick') {
+    // Bone bends, cracks on one side only
+    ctx.strokeStyle = `rgba(255,82,82,${fracP})`;
+    ctx.lineWidth = 2.5;
+    // Only top side cracks
+    ctx.beginPath();
+    ctx.moveTo(cx - 2, by + 2);
+    ctx.quadraticCurveTo(cx + 8, by + boneW * 0.3 * fracP, cx - 4, by + boneW * 0.45 * fracP);
+    ctx.stroke();
+    // Bending indicator arrows
+    if (fracP > 0.3) {
+      ctx.strokeStyle = `rgba(66,165,245,${fracP * 0.5})`;
+      ctx.lineWidth = 2;
+      // Show flex
+      const bendAmt = fracP * 6;
+      ctx.beginPath();
+      ctx.moveTo(cx - 40, cy + boneW/2 + 10);
+      ctx.quadraticCurveTo(cx, cy + boneW/2 + 10 + bendAmt, cx + 40, cy + boneW/2 + 10);
+      ctx.stroke();
+    }
+  } else if (sc.animType === 'growthplate') {
+    // Crack runs through growth plate
+    ctx.strokeStyle = `rgba(255,82,82,${fracP})`;
+    ctx.lineWidth = 3;
+    const crackLen = fracP * boneW;
+    ctx.beginPath();
+    ctx.moveTo(cx + 5, cy - crackLen/2);
+    ctx.lineTo(cx - 3, cy);
+    ctx.lineTo(cx + 7, cy + crackLen/2);
+    ctx.stroke();
+    // Warning pulse on growth plate
+    if (fracP > 0.5) {
+      ctx.save();
+      ctx.shadowColor = '#ff5252';
+      ctx.shadowBlur = 12 + 6 * Math.sin(frame * 0.1);
+      ctx.strokeStyle = `rgba(255,82,82,${0.4 + 0.3 * Math.sin(frame * 0.1)})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx + 10, cy - 8, boneL - 20, 16);
+      ctx.restore();
+    }
+  } else if (sc.severity === 'compound') {
+    // Dramatic break + bone pierces skin
+    ctx.strokeStyle = `rgba(255,23,68,${fracP})`;
+    ctx.lineWidth = 4;
+    // Jagged break line
+    ctx.beginPath();
+    ctx.moveTo(cx - 8, by - 3);
+    ctx.lineTo(cx + 6, by + boneW * 0.25);
+    ctx.lineTo(cx - 10, by + boneW * 0.5);
+    ctx.lineTo(cx + 4, by + boneW * 0.75);
+    ctx.lineTo(cx - 5, by + boneW + 3);
+    ctx.stroke();
+    // Wound opening (bone through skin)
+    if (fracP > 0.4) {
+      const woundP = (fracP - 0.4) / 0.6;
+      // For compound-fast, fade wound during treatment (p > 0.4)
+      const woundFade = (sc.animType === 'compound-fast' && p > 0.4) ? Math.max(0, 1 - (p - 0.4) / 0.25) : 1;
+      const wAlpha = woundP * woundFade;
+      if (wAlpha > 0.01) {
+        // Skin layer above bone
+        ctx.fillStyle = `rgba(255,23,68,${wAlpha * 0.6})`;
+        ctx.beginPath();
+        ctx.ellipse(cx + 3, by - 15, 18 * wAlpha, 10 * wAlpha, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Bone shard poking out
+        ctx.fillStyle = `rgba(232,212,183,${wAlpha})`;
+        ctx.beginPath();
+        ctx.moveTo(cx - 4, by);
+        ctx.lineTo(cx + 2, by - 20 * wAlpha);
+        ctx.lineTo(cx + 8, by);
+        ctx.closePath();
+        ctx.fill();
+        // Glow around wound
+        ctx.save();
+        ctx.shadowColor = '#ff1744';
+        ctx.shadowBlur = 20 * wAlpha;
+        ctx.strokeStyle = `rgba(255,23,68,${wAlpha * 0.5})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(cx + 3, by - 15, 22 * wAlpha, 14 * wAlpha, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  } else {
+    // Clean complete break
+    ctx.strokeStyle = `rgba(255,82,82,${fracP})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx - 5, by - 2);
+    ctx.lineTo(cx + 8, cy);
+    ctx.lineTo(cx - 6, by + boneW + 2);
+    ctx.stroke();
+    // Impact flash
+    if (fracP < 0.5) {
+      ctx.save();
+      ctx.shadowColor = '#ff5252';
+      ctx.shadowBlur = 30 * (1 - fracP * 2);
+      ctx.fillStyle = `rgba(255,82,82,${(1 - fracP * 2) * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // Slight separation
+    if (fracP > 0.6) {
+      const sep = (fracP - 0.6) / 0.4 * 4;
+      ctx.fillStyle = 'rgba(6,13,24,0.8)';
+      ctx.fillRect(cx - 2, by + 3, sep + 2, boneW - 6);
+    }
+  }
+
+  // Impact shockwave ring (universal, early)
+  if (fracP < 0.6) {
+    const ringR = 30 + fracP * 120;
+    const ringA = (1 - fracP / 0.6) * 0.4;
+    ctx.strokeStyle = `rgba(255,255,255,${ringA})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ---- Treatment Effects ----
+function drawTreatmentEffect(ctx, sc, treatP, p, bx, by, boneL, boneW, cx, cy, frame) {
+  ctx.save();
+
+  if (sc.animType === 'rod' || sc.animType === 'femur') {
+    // Metal rod insertion animation
+    const rodLen = (boneW - 20) * treatP;
+    const rodGrad = ctx.createLinearGradient(cx - 3, by + 10, cx + 3, by + 10);
+    rodGrad.addColorStop(0, '#b0bec5');
+    rodGrad.addColorStop(0.5, '#eceff1');
+    rodGrad.addColorStop(1, '#90a4ae');
+    ctx.fillStyle = rodGrad;
+    ctx.fillRect(cx - 3, by + 10, 6, rodLen);
+    // Rod glow
+    ctx.save();
+    ctx.shadowColor = '#90a4ae';
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - 3, by + 10, 6, rodLen);
+    ctx.restore();
+    // Screw indicators
+    if (treatP > 0.5) {
+      const sa = (treatP - 0.5) * 2;
+      ctx.fillStyle = `rgba(176,190,197,${sa})`;
+      [0.2, 0.5, 0.8].forEach(f => {
+        const sy = by + 10 + rodLen * f;
+        ctx.beginPath();
+        ctx.ellipse(cx, sy, 8, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+  } else if (sc.animType === 'compound') {
+    // 17 surgeries — infection fight
+    // Bacteria swarm
+    if (treatP < 0.7) {
+      const bactCount = Math.floor(8 * (1 - treatP / 0.7));
+      ctx.fillStyle = `rgba(255,235,59,${0.6 * (1 - treatP / 0.7)})`;
+      for (let i = 0; i < bactCount; i++) {
+        const bpx = cx - 30 + Math.sin(frame * 0.04 + i * 1.3) * 50;
+        const bpy = by - 20 + Math.cos(frame * 0.03 + i * 1.8) * 25;
+        ctx.beginPath();
+        ctx.arc(bpx, bpy, 3 + Math.sin(frame * 0.1 + i) * 1, 0, Math.PI * 2);
+        ctx.fill();
+        // Bacterial "tails"
+        ctx.strokeStyle = `rgba(255,235,59,${0.3 * (1 - treatP / 0.7)})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bpx, bpy);
+        ctx.quadraticCurveTo(bpx + 8, bpy + 4 * Math.sin(frame * 0.1 + i), bpx + 12, bpy);
+        ctx.stroke();
+      }
+    }
+    // Surgery pulses
+    const surgeryCycle = (frame % 40) / 40;
+    if (treatP > 0.2) {
+      ctx.save();
+      ctx.shadowColor = '#42a5f5';
+      ctx.shadowBlur = 15 * surgeryCycle;
+      ctx.strokeStyle = `rgba(66,165,245,${surgeryCycle * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, by - 10, 25 + surgeryCycle * 10, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Shield forming
+    if (treatP > 0.6) {
+      const shieldP = (treatP - 0.6) / 0.4;
+      ctx.strokeStyle = `rgba(76,175,80,${shieldP * 0.6})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, by - 10, 20, Math.PI * 0.8, Math.PI * 2.2);
+      ctx.stroke();
+    }
+  } else if (sc.animType === 'compound-fast') {
+    // Fast surgery — wound closure
+    // Wound closing animation
+    const closeP = treatP;
+    const woundSize = 18 * (1 - closeP);
+    ctx.fillStyle = `rgba(255,23,68,${0.4 * (1 - closeP)})`;
+    ctx.beginPath();
+    ctx.ellipse(cx + 3, by - 15, woundSize, woundSize * 0.55, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Green shield
+    if (closeP > 0.3) {
+      ctx.save();
+      ctx.shadowColor = '#4caf50';
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = `rgba(76,175,80,${(closeP - 0.3) / 0.7})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, by - 10, 22, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Hardware
+    if (closeP > 0.5) {
+      const hwP = (closeP - 0.5) * 2;
+      ctx.fillStyle = `rgba(176,190,197,${hwP})`;
+      ctx.fillRect(cx - 3, by + 8, 6, (boneW - 16) * hwP);
+    }
+  } else if (sc.animType === 'greenstick') {
+    // Cast wrapping
+    ctx.fillStyle = `rgba(255,255,255,${treatP * 0.35})`;
+    rrect(ctx, bx - 10, by - 10, boneL + 20, boneW + 20, 28);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(200,200,200,${treatP * 0.5})`;
+    ctx.lineWidth = 2;
+    // Cross-hatch cast texture
+    for (let i = 0; i < 8; i++) {
+      const lx = bx - 5 + i * 42;
+      ctx.beginPath();
+      ctx.moveTo(lx, by - 8);
+      ctx.lineTo(lx + 15, by + boneW + 8);
+      ctx.stroke();
+    }
+  } else if (sc.animType === 'growthplate') {
+    // Splint
+    ctx.fillStyle = `rgba(120,120,140,${treatP * 0.4})`;
+    ctx.fillRect(bx - 15, by - 5, 8, boneW + 10);
+    ctx.fillRect(bx + boneL + 7, by - 5, 8, boneW + 10);
+    // Wrap
+    if (treatP > 0.4) {
+      ctx.strokeStyle = `rgba(200,200,200,${(treatP - 0.4) * 0.8})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) {
+        const wy = by + 10 + i * 28;
+        ctx.beginPath();
+        ctx.moveTo(bx - 15, wy);
+        ctx.lineTo(bx + boneL + 15, wy);
+        ctx.stroke();
+      }
+    }
+  } else if (sc.animType === 'periosteum') {
+    // Blood vessel rush animation
+    const vessels = 12;
+    for (let i = 0; i < vessels; i++) {
+      const angle = (frame * 0.015 + i * (Math.PI * 2 / vessels));
+      const dist = 70 + 15 * Math.sin(i * 2.1);
+      const vx = cx + Math.cos(angle) * dist * treatP;
+      const vy = cy + Math.sin(angle) * dist * 0.6 * treatP;
+      // Blood cell
+      ctx.fillStyle = `rgba(244,67,54,${0.5 + 0.3 * Math.sin(frame * 0.08 + i)})`;
+      ctx.beginPath();
+      ctx.arc(vx, vy, 3, 0, Math.PI * 2);
+      ctx.fill();
+      // Trail
+      const tvx = cx + Math.cos(angle - 0.3) * dist * treatP;
+      const tvy = cy + Math.sin(angle - 0.3) * dist * 0.6 * treatP;
+      ctx.strokeStyle = `rgba(244,67,54,${0.2})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(vx, vy);
+      ctx.lineTo(tvx, tvy);
+      ctx.stroke();
+    }
+  } else if (sc.animType === 'stress') {
+    // Rest indicator + nutrition
+    ctx.fillStyle = `rgba(76,175,80,${treatP * 0.15})`;
+    rrect(ctx, bx - 5, by - 5, boneL + 10, boneW + 10, 28);
+    ctx.fill();
+    // Mineral particles flowing in
+    if (treatP > 0.3) {
+      const minP = (treatP - 0.3) / 0.7;
+      ctx.fillStyle = `rgba(255,255,255,${minP * 0.4})`;
+      for (let i = 0; i < Math.floor(minP * 15); i++) {
+        const mx = bx + 15 + (i * 43 + i * i * 7) % (boneL - 30);
+        const my = by + 5 + (i * 19) % (boneW - 10);
+        if (my < by + 18 || my > by + boneW - 18) {
+          ctx.beginPath();
+          ctx.arc(mx, my, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
+// ---- Healing Effects ----
+function drawHealingEffect(ctx, sc, healP, p, bx, by, boneL, boneW, cx, cy, frame) {
+  ctx.save();
+
+  if (sc.healSpeed === 'very-slow') {
+    // Minimal healing — still fighting infection
+    const healAmt = healP * 0.3;
+    ctx.fillStyle = `rgba(129,199,132,${healAmt * 0.4})`;
+    for (let i = 0; i < 4; i++) {
+      const hx = cx - 8 + Math.sin(i * 2) * 6;
+      const hy = cy - 10 + i * 8;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 3 * healAmt, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Warning flash
+    if (frame % 60 < 30) {
+      ctx.fillStyle = 'rgba(255,82,82,0.1)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 50, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // Normal to fast healing
+    const speed = sc.healSpeed === 'fast' ? 1.0 : sc.healSpeed === 'normal' ? 0.7 : sc.healSpeed === 'risky' ? 0.5 : 0.4;
+    const actualHealP = healP * speed;
+
+    // New bone formation particles at fracture site
+    const boneParticleCount = Math.floor(actualHealP * 20);
+    for (let i = 0; i < boneParticleCount; i++) {
+      const angle = (i / boneParticleCount) * Math.PI * 2 + frame * 0.01;
+      const dist = 5 + i * 1.2;
+      const hx = cx + Math.cos(angle) * dist * (1 - actualHealP * 0.5);
+      const hy = cy + Math.sin(angle) * dist * 0.8 * (1 - actualHealP * 0.5);
+      const a = actualHealP * (0.3 + 0.4 * Math.sin(i * 0.5));
+      ctx.fillStyle = `rgba(129,199,132,${a})`;
+      ctx.beginPath();
+      ctx.arc(hx, hy, 2 + actualHealP * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Callus formation (bone bridge)
+    if (actualHealP > 0.3) {
+      const callusP = (actualHealP - 0.3) / 0.7;
+      ctx.fillStyle = `rgba(200,230,200,${callusP * 0.5})`;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 12 + callusP * 10, 20 + callusP * 15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Callus glow
+      ctx.save();
+      ctx.shadowColor = '#81c784';
+      ctx.shadowBlur = 10 * callusP;
+      ctx.strokeStyle = `rgba(129,199,132,${callusP * 0.3})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 12 + callusP * 10, 20 + callusP * 15, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Periosteum scenario: extra bone bump
+    if (sc.animType === 'periosteum' && actualHealP > 0.4) {
+      const bumpP = (actualHealP - 0.4) / 0.6;
+      ctx.fillStyle = `rgba(232,212,183,${bumpP * 0.8})`;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 18 * bumpP, 25 * bumpP, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(200,180,150,${bumpP * 0.5})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Growth plate risk paths (scenario 5)
+    if (sc.animType === 'growthplate' && actualHealP > 0.2) {
+      const pathP = (actualHealP - 0.2) / 0.8;
+      // Two possible outcomes forking
+      ctx.strokeStyle = `rgba(76,175,80,${pathP * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(cx + 80, cy);
+      ctx.lineTo(cx + 120, cy - 15 * pathP);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,82,82,${pathP * 0.3})`;
+      ctx.beginPath();
+      ctx.moveTo(cx + 80, cy);
+      ctx.lineTo(cx + 120, cy + 20 * pathP);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Labels
+      if (pathP > 0.5) {
+        ctx.font = '10px Segoe UI';
+        ctx.fillStyle = `rgba(76,175,80,${pathP})`;
+        ctx.textAlign = 'left';
+        ctx.fillText('Straight', cx + 125, cy - 15 * pathP + 4);
+        ctx.fillStyle = `rgba(255,82,82,${pathP * 0.6})`;
+        ctx.fillText('Crooked?', cx + 125, cy + 20 * pathP + 4);
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
+// ---- Anatomy Labels ----
+function drawAnatomyLabels(ctx, sc, p, bx, by, boneL, boneW, cx, cy, frame) {
+  ctx.save();
+  ctx.font = 'bold 11px Segoe UI';
+
+  const labelAlpha = Math.min(p / 0.1, 1);
+  const inset = 18;
+
+  // Periosteum label (always, but brighter for scenario 7)
+  if (sc.animType === 'periosteum') {
+    ctx.fillStyle = `rgba(76,175,80,${labelAlpha})`;
+    ctx.textAlign = 'right';
+    ctx.fillText('Periosteum', bx - 14, by - 2);
+    drawLabelLine(ctx, bx - 12, by + 2, bx - 6, by + boneW/2, `rgba(76,175,80,${labelAlpha * 0.4})`);
+  }
+
+  // Compact bone
+  ctx.fillStyle = `rgba(200,180,140,${labelAlpha * 0.7})`;
+  ctx.textAlign = 'right';
+  ctx.fillText('Compact Bone', bx - 14, by + 30);
+
+  // Spongy bone
+  ctx.fillStyle = `rgba(255,220,170,${labelAlpha * 0.6})`;
+  ctx.textAlign = 'right';
+  ctx.fillText('Spongy Bone', bx - 14, by + 55);
+
+  // Marrow
+  ctx.fillStyle = `rgba(255,236,179,${labelAlpha * 0.5})`;
+  ctx.textAlign = 'right';
+  ctx.fillText('Marrow', bx - 14, by + 80);
+
+  // Scenario-specific labels
+  if (sc.animType === 'growthplate' && p > 0.1) {
+    ctx.fillStyle = '#42a5f5';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 12px Segoe UI';
+    ctx.fillText('Growth Plate', bx + boneL + 14, cy + 4);
+    drawLabelLine(ctx, bx + boneL + 12, cy, bx + boneL + 2, cy, 'rgba(66,165,245,0.4)');
+  }
+
+  if (sc.animType === 'greenstick') {
+    ctx.fillStyle = '#42a5f5';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 11px Segoe UI';
+    ctx.fillText('Cartilage', bx + boneL + 14, by + 20);
+  }
+
+  if ((sc.animType === 'stress' || sc.animType === 'femur') && p > 0.1) {
+    const densLabel = sc.animType === 'femur' ? 'High Density' : 'Low Density';
+    const densColor = sc.animType === 'femur' ? '#4caf50' : '#ff9800';
+    ctx.fillStyle = densColor;
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 11px Segoe UI';
+    ctx.fillText('Bone Density: ' + densLabel, bx + boneL + 14, by + 30);
+    // Mini density bar
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(bx + boneL + 14, by + 36, 80, 8);
+    const densLevel = sc.animType === 'femur' ? 0.9 : 0.35;
+    ctx.fillStyle = densColor;
+    ctx.fillRect(bx + boneL + 14, by + 36, 80 * densLevel, 8);
+  }
+
+  // Phase-specific action labels
+  if (p > 0.12 && p < 0.4) {
+    ctx.font = 'bold 14px Segoe UI';
+    ctx.fillStyle = '#ff5252';
+    ctx.textAlign = 'center';
+    const fracLabel = {
+      'rod': '💥 Tibia Snaps!',
+      'compound': '💥 Compound Break!',
+      'compound-fast': '💥 Compound Break!',
+      'greenstick': '💥 Bone Bends & Cracks!',
+      'stress': '⚠️ Micro-Cracks Spread',
+      'growthplate': '💥 Growth Plate Cracked!',
+      'femur': '💥 Femur Breaks!',
+      'periosteum': '💥 Collarbone Snaps!'
+    };
+    ctx.fillText(fracLabel[sc.animType] || '💥 Fracture!', cx, by + boneW + 35);
+  }
+
+  if (p > 0.4 && p < 0.65) {
+    ctx.font = 'bold 14px Segoe UI';
+    ctx.fillStyle = '#42a5f5';
+    ctx.textAlign = 'center';
+    const treatLabel = {
+      'rod': '🔧 Metal Rod Inserted',
+      'compound': '🏥 Fighting Infection (17 Surgeries)',
+      'compound-fast': '⚡ Fast Surgery Seals Wound',
+      'greenstick': '🩹 Cast Applied',
+      'stress': '💊 Rest + Building Density',
+      'growthplate': '🩹 Splint + Monitoring',
+      'femur': '🔧 Surgical Rod + Rehab',
+      'periosteum': '❤️ Blood Vessels Rush In'
+    };
+    ctx.fillText(treatLabel[sc.animType] || '🏥 Treatment', cx, by + boneW + 35);
+  }
+
+  if (p > 0.65) {
+    ctx.font = 'bold 14px Segoe UI';
+    ctx.textAlign = 'center';
+    const healLabel = {
+      'fast': '✅ Healing Well!',
+      'normal': '🔄 Bone Rebuilding...',
+      'slow': '⏳ Slow Recovery',
+      'very-slow': '🚨 Healing Delayed by Infection',
+      'risky': '⚠️ Monitoring Growth...'
+    };
+    ctx.fillStyle = sc.healSpeed === 'fast' ? '#4caf50' : sc.healSpeed === 'very-slow' ? '#ff5252' : '#ffd54f';
+    ctx.fillText(healLabel[sc.healSpeed] || '🔄 Healing...', cx, by + boneW + 35);
+  }
+
+  ctx.restore();
+}
+
+function drawLabelLine(ctx, x1, y1, x2, y2, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+// ---- Severity Gauge (Left) ----
+function drawSeverityGauge(ctx, x, y, sc, p) {
+  const gH = 340, gW = 24;
+  ctx.save();
+
+  // Background
+  ctx.fillStyle = '#0a0e1a';
+  ctx.strokeStyle = '#2a2a4a';
+  ctx.lineWidth = 2;
+  rrect(ctx, x, y, gW, gH, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  // Zone colors
+  const zones = [
+    { label: 'Compound', y: 0, h: 0.18, color: '#b71c1c' },
+    { label: 'Complete', y: 0.18, h: 0.18, color: '#e53935' },
+    { label: 'Partial', y: 0.36, h: 0.18, color: '#ff9800' },
+    { label: 'Stress', y: 0.54, h: 0.18, color: '#ffc107' },
+    { label: 'OK', y: 0.72, h: 0.28, color: '#4caf50' }
+  ];
+
+  zones.forEach(z => {
+    ctx.fillStyle = z.color + '22';
+    ctx.fillRect(x + 2, y + gH * z.y + 2, gW - 4, gH * z.h - 2);
+  });
+
+  // Labels
+  ctx.fillStyle = '#555';
+  ctx.font = '8px Segoe UI';
+  ctx.textAlign = 'right';
+  zones.forEach(z => {
+    ctx.fillText(z.label, x - 3, y + gH * z.y + gH * z.h / 2 + 3);
+  });
+
+  // Indicator position
+  let targetPct;
+  if (p < 0.15) targetPct = 0.85;
+  else {
+    switch(sc.severity) {
+      case 'compound': targetPct = 0.08; break;
+      case 'complete': targetPct = 0.27; break;
+      case 'clean': targetPct = 0.32; break;
+      case 'partial': targetPct = 0.45; break;
+      case 'stress': targetPct = 0.63; break;
+      case 'growth-plate': targetPct = 0.4; break;
+      default: targetPct = 0.5;
+    }
+  }
+  const curPct = 0.85 + (targetPct - 0.85) * easeOutQuad(Math.min(p / 0.35, 1));
+  const indY = y + gH * curPct;
+
+  // Glowing indicator
+  const iColor = curPct < 0.35 ? '#ff1744' : curPct < 0.55 ? '#ff9800' : '#4caf50';
+  ctx.save();
+  ctx.shadowColor = iColor;
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = iColor;
+  ctx.beginPath();
+  ctx.arc(x + gW / 2, indY, 7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // Inner dot
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(x + gW / 2, indY, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Title
+  ctx.fillStyle = '#777';
+  ctx.font = 'bold 9px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText('SEVERITY', x + gW / 2, y - 6);
+
+  ctx.restore();
+}
+
+// ---- Healing Timeline (Right) ----
+function drawHealTimeline(ctx, x, y, sc, p) {
+  const gH = 340, gW = 24;
+  ctx.save();
+
+  ctx.fillStyle = '#0a0e1a';
+  ctx.strokeStyle = '#2a2a4a';
+  ctx.lineWidth = 2;
+  rrect(ctx, x, y, gW, gH, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = '#555';
+  ctx.font = '8px Segoe UI';
+  ctx.textAlign = 'left';
+  ctx.fillText('Healed', x + gW + 4, y + 15);
+  ctx.fillText('Healing', x + gW + 4, y + gH * 0.5);
+  ctx.fillText('Broke', x + gW + 4, y + gH - 5);
+
+  // Fill amount
+  let healFill = 0;
+  if (p > 0.4) {
+    const hp = (p - 0.4) / 0.6;
+    switch(sc.healSpeed) {
+      case 'fast': healFill = hp * 0.95; break;
+      case 'normal': healFill = hp * 0.7; break;
+      case 'slow': healFill = hp * 0.4; break;
+      case 'very-slow': healFill = hp * 0.2; break;
+      case 'risky': healFill = hp * 0.45; break;
+      default: healFill = hp * 0.5;
+    }
+  }
+
+  const fillH = (gH - 4) * healFill;
+  if (fillH > 0) {
+    const grad = ctx.createLinearGradient(x, y + gH - fillH, x, y + gH);
+    grad.addColorStop(0, '#66bb6a');
+    grad.addColorStop(1, '#1b5e20');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x + 2, y + gH - 2 - fillH, gW - 4, fillH);
+  }
+
+  ctx.fillStyle = '#777';
+  ctx.font = 'bold 9px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText('HEALING', x + gW / 2, y - 6);
+
+  ctx.restore();
+}
+
+// ---- Caption ----
+function drawCaption(ctx, sc, p, W) {
+  ctx.save();
+  ctx.font = '12px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(170,170,170,0.7)';
+  const caption = sc.animType === 'rod' ? 'Tibia fracture stabilized with intramedullary rod'
+    : sc.animType === 'compound' ? 'Compound fracture: bone exposed to bacteria through open wound'
+    : sc.animType === 'compound-fast' ? 'Compound fracture: fast surgery prevents infection'
+    : sc.animType === 'greenstick' ? 'Greenstick fracture: young flexible bone bends before breaking'
+    : sc.animType === 'stress' ? 'Stress fracture: repeated impact on low-density bone'
+    : sc.animType === 'growthplate' ? 'Growth plate fracture: damage to cartilage growth zone'
+    : sc.animType === 'femur' ? 'Femur fracture: strongest bone requires surgical stabilization'
+    : sc.animType === 'periosteum' ? 'Collarbone fracture: thick periosteum delivers rapid healing'
+    : '';
+  ctx.fillText(caption, W/2, 485);
+  ctx.restore();
+}
+
+// ---- Scenario Particles ----
+function spawnScenarioParticles(sc, p, frame) {
+  const cx = 420, cy = 240;
+  if (p > 0.12 && p < 0.35 && frame % 6 === 0) {
+    // Impact sparks
+    spawnParticles(cx, cy, 3, '#ff8a65', 2.5, 30, 2);
+  }
+  if (sc.severity === 'compound' && p > 0.2 && p < 0.5 && frame % 8 === 0) {
+    // Bacteria
+    spawnParticles(cx, cy - 40, 2, '#ffee58', 1.5, 40, 2.5);
+  }
+  if (sc.animType === 'periosteum' && p > 0.4 && p < 0.8 && frame % 4 === 0) {
+    // Blood cells rushing in
+    spawnParticles(cx + (Math.random()-0.5)*100, cy + (Math.random()-0.5)*60, 1, '#ef5350', 0.8, 35, 2);
+  }
+  if (p > 0.65 && frame % 5 === 0) {
+    // Healing sparkles
+    const speed = sc.healSpeed === 'fast' ? 3 : sc.healSpeed === 'very-slow' ? 0 : 1;
+    if (speed > 0) spawnParticles(cx + (Math.random()-0.5)*30, cy + (Math.random()-0.5)*30, speed, '#a5d6a7', 1, 25, 2);
+  }
+}
+
+// ---- Utilities ----
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function easeOutQuad(t) { return t * (2 - t); }
+function easeInOutQuad(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+// ========== RECORD DATA ==========
+function recordData() {
+  try {
+    const sc = state.currentScenario;
+    if (!sc || state.completed.has(sc.id)) {
+      moveToRecordDone();
+      return;
+    }
+    state.completed.add(sc.id);
+
+    // Score
+    state.score += 100;
+    state.streak++;
+    state.totalPredictions++;
+
+    // Accuracy check (simple: heals fast matches fast/normal, major problems matches very-slow/compound, etc.)
+    let correct = false;
+    if (state.prediction === 'Heals fast' && (sc.healSpeed === 'fast' || sc.healSpeed === 'normal')) correct = true;
+    if (state.prediction === 'Heals slow' && (sc.healSpeed === 'slow' || sc.healSpeed === 'risky')) correct = true;
+    if (state.prediction === 'Major problems' && (sc.healSpeed === 'very-slow')) correct = true;
+    if (correct) {
+      state.correctPredictions++;
+      state.score += 50;
+    } else {
+      state.streak = 0;
+    }
+
+    // Add data row
+    state.dataRows.push({
+      scenario: sc.name,
+      whatHappened: sc.whatHappened,
+      response: sc.response,
+      connection: sc.connection
+    });
+
+    updateHUD();
+    updateDataTable();
+    buildScenarioList();
+
+    // Check completion
+    if (state.completed.size === 5) {
+      setTimeout(() => {
+        document.getElementById('comp-title').textContent = '🏆 Required Complete!';
+        document.getElementById('comp-msg').textContent = 'You finished 5 cases. Continue for extra credit?';
+        document.getElementById('completion-overlay').classList.add('visible');
+      }, 500);
+    } else if (state.completed.size === 8) {
+      setTimeout(() => {
+        document.getElementById('comp-title').textContent = '🌟 Extra Credit Complete!';
+        document.getElementById('comp-msg').textContent = 'All 8 cases investigated. Amazing work!';
+        document.getElementById('completion-overlay').innerHTML = `<div id="completion-box"><h2>🌟 Extra Credit Complete!</h2><p>All 8 cases investigated. Amazing work!</p><button onclick="closeCompletion()">Done!</button></div>`;
+        document.getElementById('completion-overlay').classList.add('visible');
+      }, 500);
+    }
+
+    moveToRecordDone();
+  } catch(e) {
+    console.error('Record error:', e);
+    moveToRecordDone();
+  }
+}
+
+function moveToRecordDone() {
+  state.step = 'record-done';
+  showStep('record');
+  showPanel('record-panel');
+  const count = state.completed.size;
+  const remain = Math.max(5 - count, 0);
+  document.getElementById('record-msg').textContent = remain > 0
+    ? `${count} done! Pick ${remain} more.`
+    : count < 8
+    ? `${count}/8 done. Keep going for extra credit!`
+    : 'All 8 complete!';
+  document.getElementById('action-btn').style.display = '';
+  document.getElementById('action-btn').textContent = 'Pick Next Story →';
+}
+
+// ========== HUD ==========
+function updateHUD() {
+  document.getElementById('hud-score').textContent = state.score;
+  document.getElementById('hud-streak').textContent = state.streak;
+  document.getElementById('hud-completed').textContent = state.completed.size + '/8';
+  const acc = state.totalPredictions > 0 ? Math.round(state.correctPredictions / state.totalPredictions * 100) + '%' : '—';
+  document.getElementById('hud-accuracy').textContent = acc;
+  const pct = Math.min(state.completed.size / 5 * 100, 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = Math.min(state.completed.size, 5) + ' / 5 required';
+  const remain = Math.max(5 - state.completed.size, 0);
+  document.getElementById('status-msg').textContent = remain > 0
+    ? `Pick ${remain} more you like!`
+    : state.completed.size < 8
+    ? 'Required done! Extra credit available.'
+    : '🌟 All complete!';
+}
+
+function updateDataTable() {
+  const tbody = document.getElementById('data-body');
+  tbody.innerHTML = '';
+  state.dataRows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.scenario}</td><td>${r.whatHappened}</td><td>${r.response}</td><td>${r.connection}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ========== COPY TABLE ==========
+function copyTable() {
+  try {
+    let text = 'Scenario\tWhat Happened?\tPerson/Situation Response\tConnection to Healing?\n';
+    state.dataRows.forEach(r => {
+      text += `${r.scenario}\t${r.whatHappened}\t${r.response}\t${r.connection}\n`;
+    });
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => showCopied()).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  } catch(e) {
+    console.error('Copy error:', e);
+  }
+}
+
+function fallbackCopy(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showCopied();
+  } catch(e) { console.error('Fallback copy failed:', e); }
+}
+
+function showCopied() {
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = '✅ Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.textContent = '📋 Copy Table';
+    btn.classList.remove('copied');
+  }, 2000);
+}
+
+// ========== COMPLETION ==========
+function closeCompletion() {
+  document.getElementById('completion-overlay').classList.remove('visible');
+}
+function continueEC() {
+  // Just close and let them pick more
+}
+
+// ========== RESET / NEW RUN ==========
+function resetSim() {
+  stopSpeech();
+  state.generation++;
+  state.currentScenario = null;
+  state.step = null;
+  state.prediction = null;
+  state.completed = new Set();
+  state.score = 0;
+  state.streak = 0;
+  state.totalPredictions = 0;
+  state.correctPredictions = 0;
+  state.dataRows = [];
+  particles = [];
+  buildScenarioList();
+  updateHUD();
+  updateDataTable();
+  showPanel('welcome-panel');
+  showStep(null);
+  document.getElementById('action-btn').style.display = 'none';
+  document.getElementById('read-aloud-btn').style.display = 'none';
+  highlightActiveKeywords();
+  // Restore completion overlay in case 8-complete replaced its innerHTML
+  document.getElementById('completion-overlay').innerHTML = '<div id="completion-box"><h2 id="comp-title"></h2><p id="comp-msg"></p><button onclick="closeCompletion();continueEC()">Keep Going!</button><button onclick="closeCompletion()" style="background:#aaa;">I\'m Done</button></div>';
+  document.getElementById('completion-overlay').classList.remove('visible');
+}
+
+function newRun() {
+  resetSim();
+}
+
+// ========== LAUNCH ==========
+init();
+</script>
+</body>
+</html>

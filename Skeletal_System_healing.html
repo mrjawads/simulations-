@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Bone Healing After a Fracture</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#e0e0e0;min-height:100vh;overflow-x:hidden;}
+#app{max-width:1440px;margin:0 auto;padding:8px 12px;}
+.top-bar{text-align:center;padding:8px 0 4px;position:relative;}
+.top-bar h1{font-size:1.35em;font-weight:900;background:linear-gradient(90deg,#ff6b6b,#ffa56b,#ffd93d,#6bffb8,#6bc5ff,#c06bff);background-size:300% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 6s linear infinite;}
+@keyframes shimmer{0%{background-position:0% 50%;}100%{background-position:300% 50%;}}
+.top-bar .sub{font-size:.78em;color:#8b949e;margin-top:2px;}
+.main-grid{display:grid;grid-template-columns:255px 1fr 255px;gap:10px;margin-top:6px;}
+/* PANELS */
+.panel{background:linear-gradient(135deg,rgba(22,27,34,.95),rgba(13,17,23,.98));border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:11px;backdrop-filter:blur(8px);}
+.panel-title{font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#ffd93d;margin-bottom:7px;display:flex;align-items:center;gap:5px;}
+.panel-title::before{content:'';display:inline-block;width:3px;height:12px;border-radius:2px;background:#ffd93d;}
+/* ROUND */
+.round-box{text-align:center;padding:10px;border-radius:12px;background:linear-gradient(135deg,#da3633,#f85149);margin-bottom:8px;position:relative;overflow:hidden;}
+.round-box::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(255,255,255,.08) 0%,transparent 60%);animation:pulse-bg 3s ease-in-out infinite;}
+@keyframes pulse-bg{0%,100%{transform:scale(1);opacity:.5;}50%{transform:scale(1.1);opacity:1;}}
+.round-num{font-size:1.6em;font-weight:900;color:#fff;position:relative;z-index:1;}
+.round-label{font-size:.72em;color:rgba(255,255,255,.8);position:relative;z-index:1;margin-top:2px;}
+.mission{font-size:.72em;color:#8b949e;text-align:center;margin:6px 0;line-height:1.3;font-style:italic;}
+/* VARIABLE CONTROLS */
+.var-group{margin-bottom:9px;}
+.var-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.var-name{font-size:.75em;font-weight:700;color:#79c0ff;}
+.var-lock{font-size:.62em;color:#f85149;background:rgba(248,81,73,.12);padding:1px 6px;border-radius:4px;display:none;}
+.var-opts{display:flex;gap:4px;}
+.var-btn{flex:1;padding:7px 2px;font-size:.68em;font-weight:700;border:2px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(255,255,255,.03);color:#8b949e;cursor:pointer;text-align:center;transition:all .25s;position:relative;overflow:hidden;}
+.var-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.05),transparent);opacity:0;transition:opacity .2s;}
+.var-btn:hover:not(.locked){border-color:rgba(121,192,255,.3);color:#c9d1d9;}
+.var-btn:hover:not(.locked)::before{opacity:1;}
+.var-btn.selected{background:linear-gradient(135deg,#1f6feb,#1158c7);border-color:#58a6ff;color:#fff;box-shadow:0 0 16px rgba(31,111,235,.3);}
+.var-btn.locked{opacity:.28;cursor:not-allowed;pointer-events:none;}
+.action-btn{width:100%;padding:13px;font-size:1.05em;font-weight:900;border:none;border-radius:11px;cursor:pointer;color:#fff;letter-spacing:.5px;transition:all .25s;position:relative;overflow:hidden;text-transform:uppercase;}
+.action-btn::after{content:'';position:absolute;top:0;left:-100%;width:50%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transition:left .5s;}
+.action-btn:hover:not(:disabled)::after{left:100%;}
+.action-btn:hover:not(:disabled){transform:translateY(-2px);}
+.action-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-heal{background:linear-gradient(135deg,#2ea043,#238636);box-shadow:0 4px 18px rgba(46,160,67,.35);}
+.btn-next{background:linear-gradient(135deg,#1f6feb,#1158c7);box-shadow:0 4px 18px rgba(31,111,235,.35);display:none;margin-top:6px;}
+/* ARENA */
+.arena-wrap{position:relative;border-radius:16px;border:1px solid rgba(255,255,255,.06);overflow:hidden;background:#0d1117;display:flex;flex-direction:column;}
+.arena-top{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.04);}
+.arena-lbl{font-size:.7em;font-weight:700;color:#ffd93d;text-transform:uppercase;letter-spacing:1px;}
+.stages{display:flex;gap:8px;align-items:center;}
+.stg{display:flex;align-items:center;gap:4px;font-size:.62em;color:#484f58;}
+.stg-dot{width:10px;height:10px;border-radius:50%;border:2px solid currentColor;background:transparent;transition:all .4s;}
+.stg.active .stg-dot{background:currentColor;box-shadow:0 0 10px currentColor;}
+.stg.active{color:currentColor;font-weight:700;}
+.stg-1{color:#f85149;}.stg-2{color:#58a6ff;}.stg-3{color:#ffd93d;}
+canvas{display:block;width:100%;flex:1;cursor:default;}
+.event-overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);padding:14px 28px;border-radius:14px;font-weight:900;font-size:1.15em;z-index:10;pointer-events:none;transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .35s;opacity:0;}
+.event-overlay.show{transform:translate(-50%,-50%) scale(1);opacity:1;}
+.event-overlay.help{background:rgba(46,160,67,.92);color:#fff;box-shadow:0 0 40px rgba(46,160,67,.5);}
+.event-overlay.hurt{background:rgba(248,81,73,.92);color:#fff;box-shadow:0 0 40px rgba(248,81,73,.5);}
+/* RIGHT PANEL */
+.hud-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.hud-cell{text-align:center;padding:7px 4px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.04);}
+.hud-val{font-size:1.35em;font-weight:900;line-height:1.1;}
+.hud-lbl{font-size:.58em;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.meter-section{margin-bottom:6px;}
+.meter-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.meter-hdr span{font-size:.68em;font-weight:700;color:#8b949e;}
+.meter-hdr .meter-val{color:#c9d1d9;font-weight:800;}
+.meter-track{height:14px;background:rgba(255,255,255,.05);border-radius:7px;overflow:hidden;position:relative;}
+.meter-fill{height:100%;border-radius:7px;transition:width .9s cubic-bezier(.4,0,.2,1),background .6s;position:relative;}
+.meter-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.2) 0%,transparent 60%);border-radius:7px;}
+.quality-row{display:flex;align-items:center;gap:8px;margin-top:3px;}
+.q-badge{padding:4px 12px;border-radius:7px;font-size:.72em;font-weight:800;text-transform:uppercase;transition:all .3s;}
+.callus-section{margin-top:6px;}
+.callus-lbl{font-size:.65em;color:#58a6ff;margin-bottom:2px;}
+.callus-track{height:8px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden;}
+.callus-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#58a6ff,#bc8cff);transition:width .5s;}
+.streak-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
+.streak-txt{font-size:.72em;font-weight:700;color:#ffd93d;}
+.powerup{font-size:.65em;padding:3px 8px;border-radius:6px;background:linear-gradient(90deg,#ffd93d,#f0883e);color:#0d1117;font-weight:900;display:none;animation:pop .4s cubic-bezier(.34,1.56,.64,1);}
+.powerup.show{display:inline-block;}
+@keyframes pop{0%{transform:scale(0);}100%{transform:scale(1);}}
+.progress-section{margin-top:6px;}
+.progress-track{height:10px;background:rgba(255,255,255,.04);border-radius:5px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#2ea043,#3fb950);transition:width .5s;}
+.progress-txt{font-size:.6em;color:#8b949e;text-align:center;margin-top:2px;}
+/* DATA */
+.data-section{margin-top:8px;flex:1;display:flex;flex-direction:column;min-height:0;}
+.data-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.copy-btn{padding:3px 10px;font-size:.67em;font-weight:700;border:1px solid rgba(88,166,255,.3);border-radius:7px;background:rgba(88,166,255,.08);color:#58a6ff;cursor:pointer;transition:all .2s;}
+.copy-btn:hover{background:rgba(88,166,255,.18);border-color:#58a6ff;}
+.data-scroll{overflow-y:auto;max-height:220px;border-radius:8px;border:1px solid rgba(255,255,255,.04);}
+table.dtbl{width:100%;border-collapse:collapse;font-size:.62em;}
+table.dtbl th{background:rgba(255,255,255,.06);padding:5px 4px;color:#79c0ff;font-weight:700;position:sticky;top:0;z-index:1;}
+table.dtbl td{padding:5px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,.03);color:#c9d1d9;}
+table.dtbl tr:hover td{background:rgba(255,255,255,.03);}
+.msg-banner{text-align:center;padding:8px 10px;border-radius:9px;font-weight:800;font-size:.82em;margin-top:8px;display:none;animation:pop .5s;}
+.msg-banner.complete{display:block;background:linear-gradient(135deg,#2ea043,#238636);color:#fff;}
+.msg-banner.extra{display:block;background:linear-gradient(135deg,#ffd93d,#f0883e);color:#0d1117;}
+/* BOTTOM */
+.bottom-bar{display:flex;justify-content:center;gap:12px;margin-top:8px;padding-bottom:8px;}
+.ctrl-btn{padding:8px 22px;font-size:.82em;font-weight:700;border:none;border-radius:9px;cursor:pointer;transition:all .2s;}
+.ctrl-btn:hover{transform:translateY(-1px);filter:brightness(1.15);}
+.ctrl-btn.reset{background:#da3633;color:#fff;}
+.ctrl-btn.newrun{background:#1f6feb;color:#fff;}
+@media(max-width:1050px){.main-grid{grid-template-columns:220px 1fr 220px;gap:8px;}}
+@media(max-width:850px){.main-grid{grid-template-columns:1fr;}.arena-wrap{min-height:420px;}}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="top-bar">
+<h1>Mr. Jawad's Simulations — Bone Healing After a Fracture</h1>
+<div class="sub">Control the conditions. Watch the bone rebuild.</div>
+</div>
+<div class="main-grid">
+<!-- LEFT -->
+<div style="display:flex;flex-direction:column;gap:8px;">
+<div class="panel">
+<div class="round-box"><div class="round-num" id="roundBadge">Round 1 / 8</div><div class="round-label" id="roundSub">Testing: Blood Supply</div></div>
+<p class="mission">Find the fastest, strongest rebuild.</p>
+</div>
+<div class="panel" style="flex:1;">
+<div class="panel-title">Variables</div>
+<div class="var-group" id="grpBlood">
+<div class="var-header"><span class="var-name">Blood Supply</span><span class="var-lock" id="lockBlood">LOCKED</span></div>
+<div class="var-opts">
+<button class="var-btn" data-var="blood" data-val="restricted" onclick="pickVar('blood','restricted',this)">Restricted</button>
+<button class="var-btn selected" data-var="blood" data-val="normal" onclick="pickVar('blood','normal',this)">Normal</button>
+<button class="var-btn" data-var="blood" data-val="enhanced" onclick="pickVar('blood','enhanced',this)">Enhanced</button>
+</div>
+</div>
+<div class="var-group" id="grpMove">
+<div class="var-header"><span class="var-name">Movement</span><span class="var-lock" id="lockMove">LOCKED</span></div>
+<div class="var-opts">
+<button class="var-btn selected" data-var="move" data-val="immobilized" onclick="pickVar('move','immobilized',this)">Immobilized</button>
+<button class="var-btn" data-var="move" data-val="slight" onclick="pickVar('move','slight',this)">Slight</button>
+<button class="var-btn" data-var="move" data-val="toomuch" onclick="pickVar('move','toomuch',this)">Too Much</button>
+</div>
+</div>
+<div class="var-group" id="grpNut">
+<div class="var-header"><span class="var-name">Nutrition</span><span class="var-lock" id="lockNut">LOCKED</span></div>
+<div class="var-opts">
+<button class="var-btn" data-var="nut" data-val="low" onclick="pickVar('nut','low',this)">Low Ca</button>
+<button class="var-btn selected" data-var="nut" data-val="adequate" onclick="pickVar('nut','adequate',this)">Adequate</button>
+<button class="var-btn" data-var="nut" data-val="high" onclick="pickVar('nut','high',this)">High Ca</button>
+</div>
+</div>
+<button class="action-btn btn-heal" id="healBtn" onclick="startHeal()">🦴 HEAL</button>
+<button class="action-btn btn-next" id="nextBtn" onclick="nextRound()">Next Round →</button>
+</div>
+</div>
+<!-- CENTER -->
+<div class="arena-wrap" id="arenaWrap">
+<div class="arena-top">
+<span class="arena-lbl">Bone Arena</span>
+<div class="stages">
+<div class="stg stg-1" id="stg1"><div class="stg-dot"></div>Clot</div>
+<div class="stg stg-2" id="stg2"><div class="stg-dot"></div>Callus</div>
+<div class="stg stg-3" id="stg3"><div class="stg-dot"></div>Harden</div>
+</div>
+</div>
+<canvas id="arena"></canvas>
+<div class="event-overlay" id="eventOverlay"></div>
+</div>
+<!-- RIGHT -->
+<div style="display:flex;flex-direction:column;gap:8px;">
+<div class="panel">
+<div class="panel-title">HUD</div>
+<div class="hud-grid">
+<div class="hud-cell"><div class="hud-val" style="color:#3fb950;" id="hudScore">0</div><div class="hud-lbl">Score</div></div>
+<div class="hud-cell"><div class="hud-val" style="color:#ffd93d;" id="hudStreak">0</div><div class="hud-lbl">Streak</div></div>
+<div class="hud-cell"><div class="hud-val" style="color:#58a6ff;" id="hudDone">0/8</div><div class="hud-lbl">Done</div></div>
+<div class="hud-cell"><div class="hud-val" style="color:#bc8cff;" id="hudBest">—</div><div class="hud-lbl">Best</div></div>
+</div>
+<div class="meter-section">
+<div class="meter-hdr"><span>Healing Speed</span><span class="meter-val" id="speedLbl">—</span></div>
+<div class="meter-track"><div class="meter-fill" id="speedFill" style="width:0%;background:#484f58;"></div></div>
+</div>
+<div class="meter-section">
+<div class="meter-hdr"><span>Healing Quality</span></div>
+<div class="quality-row"><div class="q-badge" id="qualBadge" style="background:#30363d;color:#8b949e;">Waiting</div></div>
+</div>
+<div class="callus-section">
+<div class="callus-lbl">Callus Progress</div>
+<div class="callus-track"><div class="callus-fill" id="callusFill" style="width:0%;"></div></div>
+</div>
+<div class="streak-row">
+<span class="streak-txt" id="streakTxt">🔥 Streak: 0</span>
+<span class="powerup" id="powerup">⚡ Osteoblast Boost</span>
+</div>
+<div class="progress-section">
+<div class="progress-track"><div class="progress-fill" id="progFill" style="width:0%;"></div></div>
+<div class="progress-txt" id="progTxt">0 / 5 required</div>
+</div>
+</div>
+<div class="panel data-section">
+<div class="data-hdr">
+<div class="panel-title" style="margin-bottom:0;">Data Table</div>
+<button class="copy-btn" id="copyBtn" onclick="copyTable()">📋 Copy</button>
+</div>
+<div class="data-scroll">
+<table class="dtbl"><thead><tr><th>Rnd</th><th>Variable</th><th>Speed</th><th>Quality</th></tr></thead><tbody id="tbody"></tbody></table>
+</div>
+</div>
+<div class="msg-banner" id="msgBanner"></div>
+</div>
+</div>
+<div class="bottom-bar">
+<button class="ctrl-btn reset" onclick="resetAll()">Reset</button>
+<button class="ctrl-btn newrun" onclick="resetAll()">New Run</button>
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+// ===== STATE =====
+let gen=0,round=1,score=0,streak=0,bestQ='—',hasPow=false,healing=false;
+let vars={blood:'normal',move:'immobilized',nut:'adequate'};
+let rows=[];
+let canvas,ctx,W,H,dpr;
+let animId,time=0;
+
+// Arena visual state
+let stage=0; // 0=fracture,1=clot,2=callus,3=harden
+let callusAmt=0,fractGap=20;
+let glowColor={r:0,g:0,b:0,a:0};
+let shake=0;
+let resultObj=null;
+
+// Particle systems
+let bloodCells=[],callusP=[],calciumP=[],wbcP=[],ambientP=[];
+// Blood vessel flow
+let vesselFlow=[];
+// Osteoblast workers
+let osteoWorkers=[];
+
+function init(){
+  canvas=document.getElementById('arena');
+  ctx=canvas.getContext('2d');
+  dpr=window.devicePixelRatio||1;
+  resize();
+  window.addEventListener('resize',resize);
+  initAmbient();
+  initVessels();
+  updateControls();
+  loop();
+}
+
+function resize(){
+  const wr=document.getElementById('arenaWrap');
+  const hdr=wr.querySelector('.arena-top');
+  const cw=wr.clientWidth, ch=wr.clientHeight-hdr.offsetHeight;
+  canvas.width=cw*dpr; canvas.height=ch*dpr;
+  canvas.style.width=cw+'px'; canvas.style.height=ch+'px';
+  W=cw*dpr; H=ch*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  W=cw; H=ch;
+  initAmbient();
+  initVessels();
+}
+
+// ===== AMBIENT =====
+function initAmbient(){
+  ambientP=[];
+  for(let i=0;i<35;i++){
+    ambientP.push({x:Math.random()*W,y:Math.random()*H,vx:.15+Math.random()*.35,vy:(Math.random()-.5)*.15,r:1+Math.random()*1.8,a:.06+Math.random()*.08});
+  }
+}
+
+// ===== BLOOD VESSELS =====
+function initVessels(){
+  vesselFlow=[];
+  // Two main vessels along the bone
+  for(let i=0;i<40;i++){
+    vesselFlow.push({
+      t:Math.random(), // 0-1 along path
+      speed:.003+Math.random()*.004,
+      side:Math.random()>.5?1:-1,
+      r:1.5+Math.random()*2,
+      alpha:.2+Math.random()*.2
+    });
+  }
+}
+
+// ===== CONTROLS =====
+function pickVar(v,val,btn){
+  if(btn.classList.contains('locked')||healing) return;
+  vars[v]=val;
+  btn.parentElement.querySelectorAll('.var-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function updateControls(){
+  const r=round, free=r>=6;
+  lockGroup('grpBlood','lockBlood', (r>=4&&r<=5)&&!free, 'normal','blood');
+  lockGroup('grpMove','lockMove', r<=3&&!free, 'immobilized','move');
+  lockGroup('grpNut','lockNut', r<=5&&!free, 'adequate','nut');
+  document.getElementById('roundBadge').textContent=`Round ${r} / 8`;
+  const sub=r<=3?'Blood Supply':r<=5?'Movement':'Free Explore';
+  document.getElementById('roundSub').textContent='Testing: '+sub;
+}
+
+function lockGroup(gid,lid,locked,def,varKey){
+  const g=document.getElementById(gid),l=document.getElementById(lid);
+  l.style.display=locked?'inline':'none';
+  g.querySelectorAll('.var-btn').forEach(b=>{
+    if(locked){b.classList.add('locked');if(b.dataset.val===def){b.classList.add('selected');vars[varKey]=def;}else b.classList.remove('selected');}
+    else b.classList.remove('locked');
+  });
+}
+
+// ===== HEALING CALC =====
+function calc(){
+  let sp=50,qu=50;
+  if(vars.blood==='restricted'){sp-=35;qu-=30;}else if(vars.blood==='normal'){sp+=10;qu+=15;}else{sp+=30;qu+=25;}
+  if(vars.move==='immobilized'){sp+=10;qu+=20;}else if(vars.move==='slight'){qu-=5;}else{sp-=20;qu-=35;}
+  if(vars.nut==='low'){sp-=15;qu-=20;}else if(vars.nut==='adequate'){sp+=5;qu+=5;}else{sp+=15;qu+=15;}
+  if(hasPow){sp+=10;qu+=10;}
+  sp=Math.max(5,Math.min(100,sp)); qu=Math.max(5,Math.min(100,qu));
+  const sl=sp>=70?'Fast':sp>=40?'Medium':'Slow';
+  const ql=qu>=70?'Strong bone':qu>=40?'Weak bone':'Failed';
+  return{sp,qu,sl,ql};
+}
+
+function changedLabel(){
+  if(round<=3) return 'Blood supply: '+vars.blood;
+  if(round<=5) return 'Movement: '+vars.move;
+  let c=[];
+  if(vars.blood!=='normal') c.push('Blood: '+vars.blood);
+  if(vars.move!=='immobilized') c.push('Move: '+vars.move);
+  if(vars.nut!=='adequate') c.push('Nutr: '+vars.nut);
+  return c.length?c.join(', '):'All defaults';
+}
+
+// ===== HEAL SEQUENCE =====
+function startHeal(){
+  if(healing||round>8) return;
+  healing=true;
+  const myGen=++gen;
+  document.getElementById('healBtn').disabled=true;
+  document.getElementById('nextBtn').style.display='none';
+
+  // Reset visuals
+  stage=0;callusAmt=0;fractGap=20;shake=0;
+  glowColor={r:200,g:50,b:50,a:.4};
+  bloodCells=[];callusP=[];calciumP=[];osteoWorkers=[];wbcP=[];
+  document.getElementById('callusFill').style.width='0%';
+  ['stg1','stg2','stg3'].forEach(s=>document.getElementById(s).classList.remove('active'));
+
+  resultObj=calc();
+  const dur=resultObj.sp>=70?2200:resultObj.sp>=40?3200:4200;
+
+  // STAGE 1: Blood clot
+  setTimeout(()=>{if(gen!==myGen)return;stage=1;document.getElementById('stg1').classList.add('active');spawnBlood(resultObj);},350);
+
+  // STAGE 2: Callus
+  setTimeout(()=>{if(gen!==myGen)return;stage=2;document.getElementById('stg2').classList.add('active');growCallus(myGen,resultObj);spawnOsteo(resultObj);},dur*.42);
+
+  // STAGE 3: Harden
+  setTimeout(()=>{if(gen!==myGen)return;stage=3;document.getElementById('stg3').classList.add('active');spawnCalcium(resultObj);setGlow(resultObj);},dur*.78);
+
+  // Random event
+  if(Math.random()<.3){
+    const help=Math.random()<.5;
+    setTimeout(()=>{if(gen!==myGen)return;showEvent(help);},dur*.55);
+  }
+
+  // Complete
+  setTimeout(()=>{if(gen!==myGen)return;finishHeal(resultObj);},dur+900);
+  // Safety
+  setTimeout(()=>{if(gen!==myGen)return;if(healing)finishHeal(resultObj);},8000);
+}
+
+function spawnBlood(r){
+  const n=r.sp>=70?55:r.sp>=40?35:15;
+  for(let i=0;i<n;i++){
+    const side=Math.random()>.5?-1:1;
+    bloodCells.push({
+      x:side<0?-10:W+10,
+      y:H*.25+Math.random()*H*.5,
+      vx:side*(1.5+Math.random()*2.5),
+      vy:(Math.random()-.5)*1.2,
+      r:3+Math.random()*4,
+      life:1,decay:.004+Math.random()*.006,
+      wobble:Math.random()*Math.PI*2,
+      wobbleSpd:.05+Math.random()*.08
+    });
+  }
+}
+
+function growCallus(myGen,r){
+  const target=r.qu>=70?100:r.qu>=40?65:30;
+  const step=()=>{
+    if(gen!==myGen)return;
+    callusAmt=Math.min(callusAmt+1.5,target);
+    fractGap=20-(callusAmt/100)*16;
+    document.getElementById('callusFill').style.width=callusAmt+'%';
+    if(callusAmt<target)requestAnimationFrame(step);
+  };
+  step();
+  // Callus particles
+  for(let i=0;i<25;i++){
+    callusP.push({x:W*.48+Math.random()*W*.04,y:H*.2+Math.random()*H*.6,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:2+Math.random()*2.5,life:1,decay:.004+Math.random()*.005});
+  }
+}
+
+function spawnOsteo(r){
+  const n=r.qu>=70?8:r.qu>=40?5:2;
+  for(let i=0;i<n;i++){
+    osteoWorkers.push({
+      x:W*.35+Math.random()*W*.3,
+      y:H*.35+Math.random()*H*.3,
+      targetX:W*.47+Math.random()*W*.06,
+      targetY:H*.42+Math.random()*H*.16,
+      progress:0,speed:.008+Math.random()*.008,
+      size:5+Math.random()*3,
+      life:1
+    });
+  }
+}
+
+function spawnCalcium(r){
+  const n=r.qu>=70?40:r.qu>=40?20:6;
+  for(let i=0;i<n;i++){
+    calciumP.push({
+      x:W*.42+Math.random()*W*.16,
+      y:H*.3+Math.random()*H*.4,
+      vx:(Math.random()-.5)*.2,
+      vy:(Math.random()-.5)*.2,
+      r:1.5+Math.random()*2.5,
+      life:1,decay:.003+Math.random()*.004,
+      sparkle:Math.random()*Math.PI*2,
+      sparkSpd:.1+Math.random()*.15
+    });
+  }
+}
+
+function setGlow(r){
+  if(r.qu>=70)glowColor={r:46,g:160,b:67,a:.45};
+  else if(r.qu>=40)glowColor={r:255,g:217,b:61,a:.35};
+  else{glowColor={r:248,g:81,b:73,a:.5};shake=8;}
+}
+
+function showEvent(help){
+  const ol=document.getElementById('eventOverlay');
+  ol.className='event-overlay '+(help?'help':'hurt');
+  ol.textContent=help?'🛡️ Immune Boost!':'⚠️ Bacteria Attack!';
+  ol.classList.add('show');
+  for(let i=0;i<18;i++){
+    wbcP.push({x:W*.5+(Math.random()-.5)*W*.35,y:H*.5+(Math.random()-.5)*H*.35,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2,r:3.5+Math.random()*3,life:1,decay:.008+Math.random()*.008,help});
+  }
+  setTimeout(()=>{ol.classList.remove('show');},2200);
+}
+
+function finishHeal(r){
+  if(!healing)return;
+  healing=false;resultObj=r;
+
+  // Speed meter
+  const sf=document.getElementById('speedFill');
+  sf.style.width=r.sp+'%';
+  sf.style.background=r.sp>=70?'linear-gradient(90deg,#2ea043,#3fb950)':r.sp>=40?'linear-gradient(90deg,#d29922,#e3b341)':'linear-gradient(90deg,#da3633,#f85149)';
+  document.getElementById('speedLbl').textContent=r.sl;
+
+  // Quality badge
+  const qb=document.getElementById('qualBadge');
+  if(r.qu>=70){qb.textContent='Strong';qb.style.background='#238636';qb.style.color='#fff';}
+  else if(r.qu>=40){qb.textContent='Weak';qb.style.background='#9e6a03';qb.style.color='#fff';}
+  else{qb.textContent='Failed';qb.style.background='#da3633';qb.style.color='#fff';}
+
+  // Score
+  score+=r.qu>=70?100:r.qu>=40?50:10;
+  document.getElementById('hudScore').textContent=score;
+
+  // Streak
+  if(r.qu>=70){streak++;if(streak>=3&&!hasPow){hasPow=true;document.getElementById('powerup').classList.add('show');}}
+  else{streak=0;hasPow=false;document.getElementById('powerup').classList.remove('show');}
+  document.getElementById('hudStreak').textContent=streak;
+  document.getElementById('streakTxt').textContent='🔥 Streak: '+streak;
+
+  const qRank={'Failed':0,'Weak bone':1,'Strong bone':2};
+  if(bestQ==='—'||(qRank[r.ql]||0)>(qRank[bestQ]||0)) bestQ=r.ql;
+  document.getElementById('hudBest').textContent=bestQ==='Strong bone'?'Strong':bestQ==='Weak bone'?'Weak':'Failed';
+
+  // Data
+  const row={round,variable:changedLabel(),speed:r.sl,quality:r.ql};
+  rows.push(row);
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>${row.round}</td><td style="font-size:.58em">${row.variable}</td><td>${row.speed}</td><td>${row.quality}</td>`;
+  document.getElementById('tbody').appendChild(tr);
+
+  // Progress
+  document.getElementById('hudDone').textContent=round+'/8';
+  document.getElementById('progFill').style.width=Math.min(round,5)/5*100+'%';
+  document.getElementById('progTxt').textContent=round>=5?round+'/8 complete':round+'/5 required';
+
+  // Message
+  const mb=document.getElementById('msgBanner');
+  if(round===5){mb.className='msg-banner complete';mb.textContent='✅ Required Complete! Continue for Extra Credit?';}
+  else if(round===8){mb.className='msg-banner extra';mb.textContent='🏆 Extra Credit Complete!';}
+  else{mb.className='msg-banner';mb.style.display='none';}
+
+  if(round<8) document.getElementById('nextBtn').style.display='block';
+  document.getElementById('healBtn').disabled=true;
+}
+
+function nextRound(){
+  if(round>=8)return;
+  round++;healing=false;stage=0;callusAmt=0;fractGap=20;shake=0;
+  glowColor={r:0,g:0,b:0,a:0};
+  bloodCells=[];callusP=[];calciumP=[];osteoWorkers=[];wbcP=[];resultObj=null;
+  document.getElementById('callusFill').style.width='0%';
+  document.getElementById('speedFill').style.width='0%';
+  document.getElementById('speedLbl').textContent='—';
+  const qb=document.getElementById('qualBadge');qb.textContent='Waiting';qb.style.background='#30363d';qb.style.color='#8b949e';
+  ['stg1','stg2','stg3'].forEach(s=>document.getElementById(s).classList.remove('active'));
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('healBtn').disabled=false;
+  updateControls();
+}
+
+function copyTable(){
+  try{
+    let t='Round\tVariable Changed\tHealing Speed\tHealing Quality\n';
+    rows.forEach(r=>{t+=r.round+'\t'+r.variable+'\t'+r.speed+'\t'+r.quality+'\n';});
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(copied).catch(()=>fbCopy(t));
+    else fbCopy(t);
+  }catch(e){fbCopy('');}
+}
+function fbCopy(t){try{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);copied();}catch(e){}}
+function copied(){const b=document.getElementById('copyBtn');b.textContent='✅ Copied!';setTimeout(()=>{b.textContent='📋 Copy';},2000);}
+
+function resetAll(){
+  gen++;round=1;score=0;streak=0;bestQ='—';hasPow=false;healing=false;
+  vars={blood:'normal',move:'immobilized',nut:'adequate'};
+  rows=[];stage=0;callusAmt=0;fractGap=20;shake=0;
+  glowColor={r:0,g:0,b:0,a:0};resultObj=null;
+  bloodCells=[];callusP=[];calciumP=[];osteoWorkers=[];wbcP=[];
+  document.getElementById('eventOverlay').className='event-overlay';
+  document.getElementById('tbody').innerHTML='';
+  document.getElementById('hudScore').textContent='0';
+  document.getElementById('hudStreak').textContent='0';
+  document.getElementById('hudDone').textContent='0/8';
+  document.getElementById('hudBest').textContent='—';
+  document.getElementById('speedFill').style.width='0%';
+  document.getElementById('speedLbl').textContent='—';
+  const qb=document.getElementById('qualBadge');qb.textContent='Waiting';qb.style.background='#30363d';qb.style.color='#8b949e';
+  document.getElementById('callusFill').style.width='0%';
+  document.getElementById('streakTxt').textContent='🔥 Streak: 0';
+  document.getElementById('powerup').classList.remove('show');
+  document.getElementById('progFill').style.width='0%';
+  document.getElementById('progTxt').textContent='0 / 5 required';
+  document.getElementById('msgBanner').className='msg-banner';
+  document.getElementById('msgBanner').style.display='none';
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('healBtn').disabled=false;
+  ['stg1','stg2','stg3'].forEach(s=>document.getElementById(s).classList.remove('active'));
+  document.querySelectorAll('.var-btn').forEach(b=>{
+    b.classList.remove('selected','locked');
+    if((b.dataset.var==='blood'&&b.dataset.val==='normal')||(b.dataset.var==='move'&&b.dataset.val==='immobilized')||(b.dataset.var==='nut'&&b.dataset.val==='adequate')) b.classList.add('selected');
+  });
+  initAmbient();initVessels();updateControls();
+}
+
+// ===== RENDER =====
+function loop(ts){
+  time=ts||0;
+  try{render();}catch(e){}
+  requestAnimationFrame(loop);
+}
+
+function render(){
+  if(!W||!H)return;
+  ctx.clearRect(0,0,W,H);
+
+  // BG gradient
+  const bg=ctx.createRadialGradient(W*.5,H*.5,0,W*.5,H*.5,W*.6);
+  bg.addColorStop(0,'#161b22');bg.addColorStop(1,'#0d1117');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  if(shake>0){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.9;if(shake<.2)shake=0;}
+
+  const draws=[drawBone,drawVesselFlow,drawBloodCells,drawCallusParticles,drawOsteoWorkers,drawCalciumParticles,drawWBC,drawAmbient,drawLabels];
+  for(const fn of draws){try{fn();ctx.globalAlpha=1;}catch(e){ctx.globalAlpha=1;}}
+
+  ctx.restore();
+}
+
+function drawBone(){
+  const cx=W*.5, bT=H*.06, bB=H*.94;
+  const bW=Math.min(W*.3,220), bL=cx-bW/2, bR=cx+bW/2;
+  const fY=H*.5;
+
+  // === PERIOSTEUM (outer membrane) ===
+  ctx.save();
+  const pGrad=ctx.createLinearGradient(bL-12,0,bR+12,0);
+  pGrad.addColorStop(0,'#4e342e');pGrad.addColorStop(.3,'#6d4c41');pGrad.addColorStop(.7,'#6d4c41');pGrad.addColorStop(1,'#4e342e');
+  ctx.fillStyle=pGrad;
+  rr(ctx,bL-12,bT-4,bW+24,bB-bT+8,22);ctx.fill();
+  // Periosteum sheen
+  ctx.fillStyle='rgba(255,255,255,.04)';
+  rr(ctx,bL-10,bT,14,bB-bT,18);ctx.fill();
+
+  // === COMPACT BONE ===
+  const cGrad=ctx.createLinearGradient(bL,0,bR,0);
+  cGrad.addColorStop(0,'#d7c4a0');cGrad.addColorStop(.15,'#efe0c6');cGrad.addColorStop(.5,'#f7eed6');cGrad.addColorStop(.85,'#efe0c6');cGrad.addColorStop(1,'#d7c4a0');
+  ctx.fillStyle=cGrad;
+  rr(ctx,bL,bT,bW,bB-bT,18);ctx.fill();
+  // Subtle osteon circles
+  ctx.strokeStyle='rgba(180,160,130,.15)';ctx.lineWidth=1;
+  for(let i=0;i<18;i++){
+    const ox=bL+12+(i%3)*(bW-24)/3+10;
+    const oy=bT+25+Math.floor(i/3)*(bB-bT-50)/6;
+    if(Math.abs(oy-fY)<fractGap+12)continue;
+    ctx.beginPath();ctx.arc(ox,oy,6+Math.sin(i*2.7)*2,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(ox,oy,1.5,0,Math.PI*2);ctx.fillStyle='rgba(160,140,110,.2)';ctx.fill();
+  }
+
+  // === SPONGY BONE ===
+  const sW=bW*.45,sL=cx-sW/2;
+  const sGrad=ctx.createLinearGradient(sL,0,sL+sW,0);
+  sGrad.addColorStop(0,'rgba(255,205,180,.35)');sGrad.addColorStop(.5,'rgba(255,220,200,.5)');sGrad.addColorStop(1,'rgba(255,205,180,.35)');
+  ctx.fillStyle=sGrad;
+  rr(ctx,sL,bT+18,sW,bB-bT-36,12);ctx.fill();
+
+  // Trabeculae (spongy struts)
+  ctx.strokeStyle='rgba(200,170,140,.3)';ctx.lineWidth=1.5;
+  for(let i=0;i<25;i++){
+    const tx=sL+5+Math.abs(Math.sin(i*3.7))*(sW-10);
+    const ty=bT+28+(i*((bB-bT-56)/25));
+    if(Math.abs(ty-fY)<fractGap+8)continue;
+    const ang=Math.sin(i*1.3)*0.4;
+    ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(tx+Math.cos(ang)*12,ty+Math.sin(ang)*8);ctx.stroke();
+  }
+
+  // === MARROW CAVITY ===
+  const mW=bW*.15,mL=cx-mW/2;
+  const mGrad=ctx.createLinearGradient(mL,bT,mL,bB);
+  mGrad.addColorStop(0,'rgba(183,28,28,.12)');mGrad.addColorStop(.5,'rgba(198,40,40,.2)');mGrad.addColorStop(1,'rgba(183,28,28,.12)');
+  ctx.fillStyle=mGrad;
+  // Upper marrow
+  rr(ctx,mL,bT+25,mW,fY-fractGap-bT-30,6);ctx.fill();
+  // Lower marrow
+  rr(ctx,mL,fY+fractGap+5,mW,bB-30-fY-fractGap-5,6);ctx.fill();
+
+  // === FRACTURE ZONE ===
+  if(stage===0){
+    // Jagged fracture
+    ctx.fillStyle='rgba(183,28,28,.55)';
+    ctx.beginPath();
+    ctx.moveTo(bL-6,fY-fractGap);
+    for(let x=bL;x<=bR;x+=6){ctx.lineTo(x,fY-fractGap+Math.sin(x*.17)*5+Math.cos(x*.23)*3);}
+    ctx.lineTo(bR+6,fY+fractGap);
+    for(let x=bR;x>=bL;x-=6){ctx.lineTo(x,fY+fractGap-Math.sin(x*.13)*4-Math.cos(x*.19)*2);}
+    ctx.closePath();ctx.fill();
+
+    // Pulsing red glow
+    const pulse=.3+Math.sin(time*.004)*.12;
+    const rGlow=ctx.createRadialGradient(cx,fY,5,cx,fY,bW*.65);
+    rGlow.addColorStop(0,`rgba(244,67,54,${pulse})`);
+    rGlow.addColorStop(1,'rgba(244,67,54,0)');
+    ctx.fillStyle=rGlow;ctx.fillRect(bL-40,fY-60,bW+80,120);
+
+    // Fracture edge highlight
+    ctx.strokeStyle='rgba(255,100,80,.4)';ctx.lineWidth=1.5;
+    ctx.beginPath();
+    for(let x=bL;x<=bR;x+=6){ctx.lineTo(x,fY-fractGap+Math.sin(x*.17)*5+Math.cos(x*.23)*3);}
+    ctx.stroke();
+  }
+  else if(stage===1){
+    // Dark blood clot forming
+    const cPulse=.5+Math.sin(time*.003)*.1;
+    const clotGrad=ctx.createRadialGradient(cx,fY,3,cx,fY,bW*.38);
+    clotGrad.addColorStop(0,`rgba(120,0,0,${cPulse})`);
+    clotGrad.addColorStop(.5,`rgba(160,20,20,${cPulse*.7})`);
+    clotGrad.addColorStop(1,'rgba(140,10,10,0)');
+    ctx.fillStyle=clotGrad;
+    ctx.beginPath();ctx.ellipse(cx,fY,bW*.34,fractGap*.9,0,0,Math.PI*2);ctx.fill();
+    // Clot texture dots
+    ctx.fillStyle='rgba(80,0,0,.3)';
+    for(let i=0;i<12;i++){
+      const dx=cx+(Math.sin(i*2.3))*bW*.2;
+      const dy=fY+(Math.cos(i*1.7))*fractGap*.5;
+      ctx.beginPath();ctx.arc(dx,dy,2+Math.sin(i+time*.002),0,Math.PI*2);ctx.fill();
+    }
+  }
+  else if(stage===2){
+    // Soft callus - cartilage bridge
+    const cW=bW*.38*(callusAmt/100);
+    const cH=Math.max(fractGap*.8*(callusAmt/100),3);
+    // Cartilage gradient
+    const cartGrad=ctx.createRadialGradient(cx,fY,2,cx,fY,Math.max(cW,5)+8);
+    cartGrad.addColorStop(0,'rgba(187,222,251,.85)');
+    cartGrad.addColorStop(.5,'rgba(144,202,249,.6)');
+    cartGrad.addColorStop(1,'rgba(100,181,246,.15)');
+    ctx.fillStyle=cartGrad;
+    ctx.beginPath();ctx.ellipse(cx,fY,Math.max(cW,3),Math.max(cH,2),0,0,Math.PI*2);ctx.fill();
+    // Pulsing callus border
+    const bPulse=.25+Math.sin(time*.005)*.12;
+    ctx.strokeStyle=`rgba(66,165,245,${bPulse})`;ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(cx,fY,cW+6,cH+4,0,0,Math.PI*2);ctx.stroke();
+    // Inner cartilage texture
+    ctx.fillStyle='rgba(200,230,255,.2)';
+    for(let i=0;i<8;i++){
+      const dx=cx+Math.sin(i*1.9)*cW*.5;
+      const dy=fY+Math.cos(i*2.3)*cH*.4;
+      ctx.beginPath();ctx.arc(dx,dy,1.5+Math.sin(time*.003+i),0,Math.PI*2);ctx.fill();
+    }
+  }
+  else if(stage===3){
+    // Hardened bone
+    const hW=bW*.32,hH=fractGap*.65;
+    // Mineralized bone fill
+    const hGrad=ctx.createRadialGradient(cx,fY,2,cx,fY,hW+5);
+    hGrad.addColorStop(0,'rgba(255,249,196,.9)');hGrad.addColorStop(.4,'rgba(255,243,176,.7)');hGrad.addColorStop(.8,'rgba(240,230,200,.4)');hGrad.addColorStop(1,'rgba(230,220,190,.1)');
+    ctx.fillStyle=hGrad;
+    ctx.beginPath();ctx.ellipse(cx,fY,hW,hH,0,0,Math.PI*2);ctx.fill();
+
+    // Quality glow
+    if(glowColor.a>0){
+      const gPulse=glowColor.a*(.6+Math.sin(time*.003)*.25);
+      const gGrad=ctx.createRadialGradient(cx,fY,8,cx,fY,bW*.75);
+      gGrad.addColorStop(0,`rgba(${glowColor.r},${glowColor.g},${glowColor.b},${gPulse})`);
+      gGrad.addColorStop(1,`rgba(${glowColor.r},${glowColor.g},${glowColor.b},0)`);
+      ctx.fillStyle=gGrad;ctx.fillRect(bL-50,fY-70,bW+100,140);
+    }
+
+    // Crack lines for failed
+    if(glowColor.r>200&&glowColor.g<100){
+      ctx.strokeStyle='rgba(248,81,73,.6)';ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.moveTo(cx-18,fY-10);ctx.lineTo(cx+12,fY+14);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(cx+10,fY-12);ctx.lineTo(cx-14,fY+10);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(cx-5,fY-15);ctx.lineTo(cx+5,fY+15);ctx.stroke();
+    }
+    // Smooth surface shine for strong
+    if(glowColor.g>100){
+      ctx.fillStyle='rgba(255,255,255,.08)';
+      ctx.beginPath();ctx.ellipse(cx-hW*.2,fY-hH*.3,hW*.5,hH*.3,-.2,0,Math.PI*2);ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawVesselFlow(){
+  const cx=W*.5,bW=Math.min(W*.3,220),bL=cx-bW/2,bR=cx+bW/2;
+  const bT=H*.06,bB=H*.94,fY=H*.5;
+
+  vesselFlow.forEach(v=>{
+    v.t+=v.speed;
+    if(v.t>1)v.t-=1;
+    // Vessel path along the bone edge
+    const x=v.side<0?bL+5:bR-5;
+    const y=bT+20+v.t*(bB-bT-40);
+    if(Math.abs(y-fY)<fractGap+10)return;
+    ctx.globalAlpha=v.alpha;
+    ctx.fillStyle='#c62828';
+    ctx.beginPath();ctx.arc(x+Math.sin(y*.03+time*.002)*3,y,v.r,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+}
+
+function drawBloodCells(){
+  for(let i=bloodCells.length-1;i>=0;i--){
+    const p=bloodCells[i];
+    p.wobble+=p.wobbleSpd;
+    p.x+=p.vx;p.y+=p.vy+Math.sin(p.wobble)*0.5;
+    p.life-=p.decay;
+    if(p.life<=0){bloodCells.splice(i,1);continue;}
+    // RBC shape - disc
+    ctx.save();
+    ctx.globalAlpha=p.life;
+    // Outer disc
+    const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);
+    g.addColorStop(0,'rgba(180,30,30,.3)');g.addColorStop(.4,'rgba(220,50,50,.9)');g.addColorStop(.7,'rgba(200,40,40,.8)');g.addColorStop(1,'rgba(160,20,20,.2)');
+    ctx.fillStyle=g;
+    ctx.beginPath();ctx.ellipse(p.x,p.y,p.r,p.r*.65,Math.sin(p.wobble)*.3,0,Math.PI*2);ctx.fill();
+    // Highlight
+    ctx.fillStyle='rgba(255,120,120,.3)';
+    ctx.beginPath();ctx.ellipse(p.x-p.r*.2,p.y-p.r*.15,p.r*.3,p.r*.2,0,0,Math.PI*2);ctx.fill();
+    // Trail
+    ctx.globalAlpha=p.life*.2;
+    ctx.fillStyle='rgba(200,40,40,.5)';
+    ctx.beginPath();ctx.arc(p.x-p.vx*3,p.y-p.vy*3,p.r*.5,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawCallusParticles(){
+  for(let i=callusP.length-1;i>=0;i--){
+    const p=callusP[i];
+    p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
+    if(p.life<=0){callusP.splice(i,1);continue;}
+    ctx.globalAlpha=p.life*.6;
+    ctx.fillStyle='rgba(144,202,249,.7)';
+    ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.5,p.r*p.life),0,Math.PI*2);ctx.fill();
+    // Glow
+    ctx.fillStyle='rgba(100,181,246,.15)';
+    ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.5,p.r*p.life*2.5),0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawOsteoWorkers(){
+  for(let i=osteoWorkers.length-1;i>=0;i--){
+    const o=osteoWorkers[i];
+    o.progress=Math.min(o.progress+o.speed,1);
+    const x=o.x+(o.targetX-o.x)*o.progress;
+    const y=o.y+(o.targetY-o.y)*o.progress;
+    if(o.progress>=1){o.life-=.01;}
+    if(o.life<=0){osteoWorkers.splice(i,1);continue;}
+    // Draw worker cell
+    ctx.save();
+    ctx.globalAlpha=Math.min(o.life,1);
+    // Cell body
+    const cg=ctx.createRadialGradient(x,y,0,x,y,o.size);
+    cg.addColorStop(0,'rgba(255,183,77,.9)');cg.addColorStop(.6,'rgba(255,152,0,.7)');cg.addColorStop(1,'rgba(230,126,34,.2)');
+    ctx.fillStyle=cg;
+    ctx.beginPath();ctx.arc(x,y,o.size,0,Math.PI*2);ctx.fill();
+    // Nucleus
+    ctx.fillStyle='rgba(180,90,0,.5)';
+    ctx.beginPath();ctx.arc(x+1,y+1,o.size*.35,0,Math.PI*2);ctx.fill();
+    // Working sparkle at target
+    if(o.progress>=.8){
+      ctx.fillStyle=`rgba(255,245,157,${.3+Math.sin(time*.01+i)*0.2})`;
+      ctx.beginPath();ctx.arc(x,y,o.size*1.8,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function drawCalciumParticles(){
+  for(let i=calciumP.length-1;i>=0;i--){
+    const p=calciumP[i];
+    p.x+=p.vx;p.y+=p.vy;p.sparkle+=p.sparkSpd;p.life-=p.decay;
+    if(p.life<=0){calciumP.splice(i,1);continue;}
+    ctx.save();ctx.globalAlpha=p.life;
+    // Crystal shape
+    ctx.fillStyle='rgba(255,249,196,.8)';
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.sparkle);
+    ctx.fillRect(-p.r,-1,p.r*2,2);ctx.fillRect(-1,-p.r,2,p.r*2);
+    ctx.restore();
+    // Sparkle glow
+    const sparkA=.2+Math.sin(p.sparkle*2)*.15;
+    ctx.fillStyle=`rgba(255,245,157,${sparkA})`;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r*3,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawWBC(){
+  for(let i=wbcP.length-1;i>=0;i--){
+    const p=wbcP[i];
+    p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
+    if(p.life<=0){wbcP.splice(i,1);continue;}
+    ctx.globalAlpha=p.life;
+    const col=p.help?'rgba(129,199,132,.7)':'rgba(239,83,80,.5)';
+    ctx.fillStyle=col;
+    // Irregular WBC shape
+    ctx.beginPath();
+    let first=true;
+    for(let a=0;a<Math.PI*2;a+=.5){
+      const dr=p.r*(1+Math.sin(a*3+time*.005+i)*.2);
+      const px=p.x+Math.cos(a)*dr,py=p.y+Math.sin(a)*dr;
+      if(first){ctx.moveTo(px,py);first=false;}else ctx.lineTo(px,py);
+    }
+    ctx.closePath();ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawAmbient(){
+  ambientP.forEach(p=>{
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.x>W+10)p.x=-10;
+    if(p.y<-10)p.y=H+10;
+    if(p.y>H+10)p.y=-10;
+    ctx.globalAlpha=p.a+Math.sin(time*.002+p.x*.01)*.03;
+    ctx.fillStyle='#ef9a9a';
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+}
+
+function drawLabels(){
+  const cx=W*.5,bW=Math.min(W*.3,220),bL=cx-bW/2,bR=cx+bW/2;
+  const fY=H*.5;
+
+  ctx.font='bold 10px Segoe UI, Arial';ctx.textAlign='center';
+
+  // Label with line connectors
+  const labels=[
+    {text:'Periosteum',x:bL-45,y:H*.25,tx:bL-12,ty:H*.25,color:'rgba(141,110,99,.8)'},
+    {text:'Compact Bone',x:bR+48,y:H*.25,tx:bR+4,ty:H*.25,color:'rgba(215,196,160,.8)'},
+    {text:'Spongy Bone',x:bR+48,y:H*.38,tx:cx+bW*.15,ty:H*.38,color:'rgba(255,205,180,.8)'},
+    {text:'Marrow',x:bR+42,y:H*.7,tx:cx,ty:H*.7,color:'rgba(198,40,40,.6)'},
+  ];
+
+  labels.forEach(l=>{
+    // Connector line
+    ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(l.tx,l.ty);ctx.lineTo(l.x,l.y);ctx.stroke();
+    // Background pill
+    const tw=ctx.measureText(l.text).width;
+    ctx.fillStyle='rgba(13,17,23,.7)';
+    rr(ctx,l.x-tw/2-5,l.y-8,tw+10,16,4);ctx.fill();
+    // Text
+    ctx.fillStyle=l.color;
+    ctx.fillText(l.text,l.x,l.y+3.5);
+  });
+
+  // Fracture zone label
+  if(stage===0){
+    ctx.font='bold 13px Segoe UI, Arial';
+    ctx.fillStyle='rgba(13,17,23,.7)';
+    const tw2=ctx.measureText('FRACTURE').width;
+    rr(ctx,cx-tw2/2-8,fY+28,tw2+16,20,6);ctx.fill();
+    ctx.fillStyle='#f85149';ctx.fillText('FRACTURE',cx,fY+42);
+  } else if(stage===1){
+    ctx.font='bold 12px Segoe UI, Arial';ctx.fillStyle='#b71c1c';ctx.fillText('Blood Clot',cx,fY+38);
+  } else if(stage===2){
+    ctx.font='bold 12px Segoe UI, Arial';ctx.fillStyle='#42a5f5';ctx.fillText('Soft Callus',cx,fY+38);
+  } else if(stage===3){
+    const c=glowColor.g>100?'#3fb950':glowColor.g>50?'#e3b341':'#f85149';
+    const t=glowColor.g>100?'Strong Bone':glowColor.g>50?'Weak Bone':'Failed';
+    ctx.font='bold 14px Segoe UI, Arial';
+    ctx.fillStyle='rgba(13,17,23,.6)';
+    const tw3=ctx.measureText(t).width;
+    rr(ctx,cx-tw3/2-8,fY+26,tw3+16,22,6);ctx.fill();
+    ctx.fillStyle=c;ctx.fillText(t,cx,fY+41);
+  }
+}
+
+function rr(ctx,x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+
+window.addEventListener('DOMContentLoaded',init);
+})();
+</script>
+</body>
+</html>
