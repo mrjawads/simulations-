@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mr. Jawad Unit Review: Skeletal System — v2</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:#1a1a2e;color:#fff;min-height:100vh;overflow-x:hidden;font-size:18px}
+.hidden{display:none!important}
+button{cursor:pointer;border:none;font-family:inherit}
+#fxCanvas{position:fixed;inset:0;z-index:9999;pointer-events:none}
+#atmBg{position:fixed;inset:0;z-index:0;opacity:.35;transition:background 1.5s ease}
+#game{position:relative;z-index:1;max-width:1366px;margin:0 auto;padding:12px;min-height:100vh;display:flex;flex-direction:column}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:rgba(0,0,0,.55);border-radius:10px;border:2px solid var(--rc,#888);box-shadow:0 0 15px var(--rc,#888);margin-bottom:10px;flex-wrap:wrap;gap:10px;backdrop-filter:blur(6px)}
+#roomName{font-size:20px;font-weight:bold;color:var(--rc,#fff);user-select:none}
+#roomProg{font-size:16px;opacity:.8}
+#streak{font-size:22px;display:none;background:rgba(255,150,0,.15);padding:2px 10px;border-radius:12px}
+#streak.on{display:inline}
+#cleared{margin-left:auto;font-size:18px;font-weight:bold;padding:6px 14px;background:rgba(255,255,255,.1);border-radius:20px;transition:transform .3s}
+#cleared.pulse{transform:scale(1.15)}
+#mission{text-align:center;font-size:18px;font-style:italic;opacity:.85;margin-bottom:10px;color:var(--rc,#fff)}
+#vault{position:fixed;top:12px;right:12px;background:rgba(0,0,0,.75);border:2px solid #888;border-radius:8px;padding:8px;font-size:11px;z-index:50;max-width:160px;backdrop-filter:blur(6px)}
+#vault div{margin:2px 0}
+.vslot{display:inline-block;width:18px;height:22px;background:#222;border:1px solid #555;text-align:center;line-height:22px;margin:0 2px;border-radius:3px;font-weight:bold;font-size:14px;transition:all .4s}
+.vslot.filled{background:#0a0;border-color:#0f0;color:#fff;animation:unlock .5s}
+@keyframes unlock{0%{transform:scale(0) rotate(-20deg)}50%{transform:scale(1.4) rotate(10deg)}100%{transform:scale(1) rotate(0)}}
+#main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;min-height:60vh}
+#bottom{display:flex;justify-content:space-between;align-items:center;padding:10px;margin-top:10px}
+#scanBtn{background:linear-gradient(135deg,#444,#222);color:#fff;padding:14px 22px;border-radius:50px;font-size:16px;font-weight:bold;border:2px solid var(--rc,#888);box-shadow:0 0 15px var(--rc,#888);animation:scanPulse 2s infinite;min-height:48px;min-width:48px;transition:all .3s}
+#scanBtn:active{transform:scale(.95)}
+@keyframes scanPulse{0%,100%{box-shadow:0 0 10px var(--rc,#888)}50%{box-shadow:0 0 25px var(--rc,#fff)}}
+.dots{display:flex;gap:10px}
+.dot{width:16px;height:16px;border-radius:50%;background:#333;border:2px solid #666;transition:all .4s}
+.dot.filled{background:var(--rc,#fff);box-shadow:0 0 10px var(--rc,#fff)}
+/* Cards */
+.card{background:rgba(255,255,255,.08);border:2px solid #555;border-radius:10px;padding:18px 22px;margin:8px;font-size:20px;min-height:60px;min-width:140px;display:inline-flex;align-items:center;justify-content:center;text-align:center;transition:all .3s;color:#fff;position:relative}
+.card:hover{border-color:var(--rc,#fff);transform:translateY(-2px)}
+.card.selected{border-color:var(--rc,#fff);background:rgba(255,255,255,.2);transform:scale(1.05);box-shadow:0 0 20px var(--rc,#fff)}
+.card.selected::after{content:"\25B6 SELECTED";position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--rc);padding:2px 8px;font-size:11px;border-radius:10px;color:#000;font-weight:bold}
+.card.correct{border-color:#0f0;background:rgba(0,255,0,.2);color:#0f0}
+.card.correct::before{content:"\2714 "}
+.card.wrong{border-color:#f55;background:rgba(255,80,80,.2);animation:shake .4s}
+.card.wrong::before{content:"\2716 "}
+.card.dimmed{opacity:.4;pointer-events:none}
+.card.locked{border-color:#0f0;background:rgba(0,255,0,.15);pointer-events:none}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.instr{font-size:18px;text-align:center;margin-bottom:14px;opacity:.9}
+.qtext{font-size:24px;font-weight:bold;text-align:center;margin:14px 0;color:var(--rc,#fff)}
+.cardrow{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px}
+.miniprog{text-align:center;font-size:14px;opacity:.7;margin:6px 0}
+/* Overlay */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+#overlay.hidden{display:none}
+.obox{background:#1a1a2e;border:3px solid var(--rc,#fff);border-radius:14px;padding:30px;max-width:600px;text-align:center;box-shadow:0 0 40px var(--rc,#fff);position:relative;overflow:hidden}
+.obox h2{margin-bottom:14px;color:var(--rc,#fff)}
+.obox p{margin:14px 0;font-size:18px;line-height:1.5}
+.obox button{background:var(--rc,#888);color:#000;padding:14px 28px;border-radius:8px;font-size:18px;font-weight:bold;margin:8px;min-height:48px;transition:transform .2s}
+.obox button:active{transform:scale(.95)}
+/* Scanner sweep overlay */
+.scan-sweep{position:absolute;inset:0;background:linear-gradient(180deg,transparent 0%,rgba(0,255,200,.12) 48%,rgba(0,255,200,.3) 50%,rgba(0,255,200,.12) 52%,transparent 100%);animation:sweepDown 1.5s ease-in-out;pointer-events:none;border-radius:14px}
+@keyframes sweepDown{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+/* Door */
+#door{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;pointer-events:none}
+#door.hidden{display:none}
+.doorbox{width:100%;height:100%;background:#0a0a1a;border:8px solid var(--rc);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:80px}
+.door-lock{font-size:80px;animation:lockPulse 0.6s ease-in-out 2}
+@keyframes lockPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25);filter:drop-shadow(0 0 20px var(--rc))}}
+@keyframes doorOpen{0%{opacity:0;transform:translateX(0)}20%{opacity:1}55%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(-110%)}}
+/* Digit reveal */
+#digitReveal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:900;background:rgba(0,0,0,.85)}
+#digitReveal.hidden{display:none}
+.bigdigit{font-size:200px;font-weight:bold;color:var(--rc,#fff);text-shadow:0 0 60px var(--rc,#fff);animation:digitPop 1s}
+@keyframes digitPop{0%{transform:scale(0) rotate(-15deg);opacity:0}50%{transform:scale(1.3) rotate(5deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+/* Code input */
+input.code{font-size:48px;width:160px;text-align:center;background:#222;color:#fff;border:3px solid var(--rc);border-radius:10px;padding:10px;letter-spacing:8px}
+/* True/False buttons */
+.tf{font-size:32px;padding:24px 50px;margin:10px;border-radius:12px;font-weight:bold;min-width:160px;min-height:80px;border:3px solid #fff;transition:transform .2s}
+.tf:active{transform:scale(.95)}
+.tf.t{background:#1b5e20;color:#fff}
+.tf.f{background:#b71c1c;color:#fff}
+/* Scanner gauges */
+.gauge-panel{display:flex;justify-content:center;gap:20px;margin:16px 0}
+.gauge{display:flex;flex-direction:column;align-items:center;width:100px}
+.gauge-label{font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;color:var(--rc)}
+.gauge-track{height:100px;width:24px;background:#111;border:2px solid #444;border-radius:4px;position:relative;overflow:hidden}
+.gauge-fill{position:absolute;bottom:0;left:0;right:0;border-radius:2px;transition:height 1.2s cubic-bezier(.4,0,.2,1)}
+.gauge-val{font-size:13px;margin-top:4px;opacity:.7}
+/* Diag slots & chips */
+.slot{display:inline-block;width:220px;height:70px;border:3px dashed #888;border-radius:10px;margin:10px;line-height:64px;text-align:center;font-size:16px;background:rgba(0,0,0,.3);transition:all .4s}
+.slot.active{border-color:var(--rc);box-shadow:0 0 15px var(--rc);animation:slotGlow 1.5s infinite}
+@keyframes slotGlow{0%,100%{box-shadow:0 0 10px var(--rc)}50%{box-shadow:0 0 25px var(--rc)}}
+.slot.locked{border-style:solid;border-color:#0f0;background:rgba(0,255,0,.15)}
+.slot.dimmed{opacity:.4}
+.chip{display:inline-block;background:rgba(255,255,255,.1);border:2px solid #666;padding:10px 16px;margin:6px;border-radius:20px;font-size:16px;cursor:pointer;transition:all .3s}
+.chip:hover{border-color:var(--rc);transform:translateY(-2px)}
+.chip.used{opacity:.3;pointer-events:none}
+.chip.wrong{border-color:#f55;background:rgba(255,80,80,.3);animation:shake .4s}
+/* Mystery chain visual */
+.chain{display:flex;align-items:center;justify-content:center;gap:0;margin:16px 0;flex-wrap:wrap}
+.chain-box{background:rgba(255,255,255,.08);border:2px solid var(--rc);border-radius:8px;padding:12px 16px;font-size:16px;text-align:center;min-width:100px;position:relative}
+.chain-box.mystery{border-style:dashed;border-color:#ffd700;color:#ffd700;font-weight:bold;animation:mysteryPulse 1.5s infinite}
+@keyframes mysteryPulse{0%,100%{box-shadow:0 0 5px rgba(255,215,0,.3)}50%{box-shadow:0 0 20px rgba(255,215,0,.5)}}
+.chain-arrow{font-size:24px;color:var(--rc);margin:0 4px;flex-shrink:0}
+/* Room preview */
+.room-preview{text-align:center;padding:40px 20px;animation:fadeInUp .8s ease-out}
+.room-preview .room-icon{font-size:80px;margin-bottom:10px;animation:roomIconFloat 2s ease-in-out infinite}
+@keyframes roomIconFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.room-preview h2{font-size:28px;color:var(--rc);margin-bottom:8px}
+.room-preview p{opacity:.7;font-size:16px}
+@keyframes fadeInUp{0%{opacity:0;transform:translateY(30px)}100%{opacity:1;transform:translateY(0)}}
+/* Override cascade */
+.cascade-row{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0;opacity:0;transform:translateY(10px);transition:all .4s ease-out}
+.cascade-row.show{opacity:1;transform:translateY(0)}
+.cascade-arrow{font-size:22px;color:#0f0}
+.cascade-slot{display:inline-block;padding:10px 18px;border:2px solid #0f0;border-radius:10px;background:rgba(0,255,0,.15);color:#0f0;font-size:16px;animation:cascadePop .4s ease-out}
+.cascade-seqcard{display:inline-block;padding:12px 18px;border:2px solid #0f0;border-radius:10px;background:rgba(0,255,0,.15);color:#0f0;font-size:18px;animation:cascadePop .4s ease-out}
+@keyframes cascadePop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+/* Star animation */
+.star-row{display:flex;justify-content:center;gap:8px;margin:10px 0}
+.star{font-size:40px;opacity:0;transform:scale(0);display:inline-block}
+.star.fill{animation:starFill .6s forwards}
+@keyframes starFill{0%{opacity:0;transform:scale(0) rotate(-30deg)}60%{opacity:1;transform:scale(1.3) rotate(10deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+.star.empty{opacity:.25;transform:scale(1)}
+/* Badge tags */
+.badge-tag{display:inline-block;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);padding:4px 12px;border-radius:12px;font-size:14px;margin:3px}
+/* Responsive */
+@media(max-width:768px){.card{font-size:16px;padding:12px 16px;min-width:100px}.qtext{font-size:18px}#vault{font-size:9px;max-width:130px}.chain{flex-direction:column;gap:0}.chain-arrow{transform:rotate(90deg)}.gauge-track{height:70px}.slot{width:180px;height:60px;line-height:54px;font-size:14px}}
+</style></head><body>
+<div id="atmBg"></div>
+<canvas id="fxCanvas"></canvas>
+<div id="game">
+<div id="topbar"><div id="roomName">Tutorial</div><div id="roomProg">Practice</div><div id="streak"></div><div id="cleared">Puzzles Cleared: 0/6</div></div>
+<div id="mission">Tap to learn the controls.</div>
+<div id="main"></div>
+<div id="bottom"><button id="scanBtn">&#128269; SCANNER</button><div class="dots"><div class="dot" id="d1"></div><div class="dot" id="d2"></div></div></div>
+</div>
+<div id="vault"><div><b>CODE VAULT</b></div><div>R1 &#129460; <span class="vslot" id="v0">?</span><span class="vslot" id="v1">?</span></div><div>R2 &#9881;&#65039; <span class="vslot" id="v2">?</span><span class="vslot" id="v3">?</span></div><div>R3 &#128300; <span class="vslot" id="v4">?</span><span class="vslot" id="v5">?</span></div></div>
+<div id="overlay" class="hidden"><div class="obox" id="obox"></div></div>
+<div id="door" class="hidden"><div class="doorbox" id="doorbox"><div class="door-lock">&#128274;</div></div></div>
+<div id="digitReveal" class="hidden"><div class="bigdigit" id="bigdigit">?</div></div>
+
+<script>
+"use strict";
+
+/* ========================================================
+   PARTICLE / CONFETTI SYSTEM
+   - Canvas-based, self-cleaning (particles age out)
+   - particles[] is cleared at init for soft-reset safety
+   ======================================================== */
+const fxCvs=document.getElementById("fxCanvas"),fxCtx=fxCvs.getContext("2d");
+let particles=[];
+function resizeFx(){fxCvs.width=window.innerWidth;fxCvs.height=window.innerHeight}
+window.addEventListener("resize",resizeFx);resizeFx();
+
+function spawnParticles(x,y,color,count,spread){
+  for(let i=0;i<count;i++){
+    const angle=Math.random()*Math.PI*2,speed=2+Math.random()*spread,size=3+Math.random()*5;
+    particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-2,size,color,alpha:1,life:60+Math.random()*30,age:0,type:"burst"});
+  }
+}
+function spawnConfetti(colors,count){
+  for(let i=0;i<count;i++){
+    const x=Math.random()*fxCvs.width,color=colors[Math.floor(Math.random()*colors.length)];
+    const w=4+Math.random()*6,h=8+Math.random()*10;
+    particles.push({x,y:-20-Math.random()*200,vx:(Math.random()-.5)*2,vy:1.5+Math.random()*3,w,h,color,alpha:1,rot:Math.random()*Math.PI*2,rotV:(Math.random()-.5)*.15,life:200+Math.random()*100,age:0,type:"confetti"});
+  }
+}
+function tickFx(){
+  fxCtx.clearRect(0,0,fxCvs.width,fxCvs.height);
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i]; p.age++;
+    if(p.age>p.life){particles.splice(i,1);continue}
+    p.alpha=1-(p.age/p.life);
+    if(p.type==="burst"){
+      p.x+=p.vx;p.y+=p.vy;p.vy+=.08;p.size*=.98;
+      fxCtx.save();fxCtx.globalAlpha=p.alpha;fxCtx.fillStyle=p.color;
+      fxCtx.beginPath();fxCtx.arc(p.x,p.y,p.size,0,Math.PI*2);fxCtx.fill();fxCtx.restore();
+    }else if(p.type==="confetti"){
+      p.x+=p.vx;p.y+=p.vy;p.rot+=p.rotV;p.vx*=.999;
+      fxCtx.save();fxCtx.globalAlpha=p.alpha;fxCtx.translate(p.x,p.y);fxCtx.rotate(p.rot);
+      fxCtx.fillStyle=p.color;fxCtx.fillRect(-p.w/2,-p.h/2,p.w,p.h);fxCtx.restore();
+    }
+  }
+  requestAnimationFrame(tickFx);
+}
+tickFx();
+
+function burstAtElement(el,color){
+  if(!el)return;
+  const r=el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  spawnParticles(cx,cy,color||"#0f0",25,5);spawnParticles(cx,cy,"#fff",10,3);
+}
+function burstCenter(color){
+  spawnParticles(fxCvs.width/2,fxCvs.height/2,color||"#ffd700",35,6);
+  spawnParticles(fxCvs.width/2,fxCvs.height/2,"#fff",15,4);
+}
+function escapeConfetti(){
+  spawnConfetti(["#e63946","#ff6b6b","#2a9d8f","#4ecdc4","#6a4c93","#9b72cf","#ffd700","#fff"],120);
+  setTimeout(()=>spawnConfetti(["#e63946","#2a9d8f","#6a4c93","#ffd700"],80),600);
+  setTimeout(()=>spawnConfetti(["#e63946","#2a9d8f","#6a4c93"],60),1200);
+}
+
+/* ========================================================
+   ATMOSPHERE GRADIENTS (per-room animated backgrounds)
+   ======================================================== */
+const atmBg=document.getElementById("atmBg");
+const ATM_GRADIENTS={
+  tutorial:"radial-gradient(ellipse at 50% 80%, #1a3a5c 0%, #1a1a2e 70%)",
+  0:"radial-gradient(ellipse at 30% 70%, #3a1520 0%, #1a1a2e 60%), radial-gradient(ellipse at 80% 20%, #2a0a10 0%, transparent 50%)",
+  1:"radial-gradient(ellipse at 70% 60%, #0a2a25 0%, #1a1a2e 60%), radial-gradient(ellipse at 20% 30%, #0a3a30 0%, transparent 50%)",
+  2:"radial-gradient(ellipse at 50% 40%, #1a0a2a 0%, #1a1a2e 60%), radial-gradient(ellipse at 80% 80%, #2a1a3a 0%, transparent 50%)",
+  final:"radial-gradient(ellipse at 50% 50%, #2a2a10 0%, #1a1a2e 60%)"
+};
+function setAtmosphere(key){
+  atmBg.style.background=ATM_GRADIENTS[key]||ATM_GRADIENTS.tutorial;
+  atmBg.style.animation="none";void atmBg.offsetWidth;
+  atmBg.style.animation="atmBreathe 8s ease-in-out infinite";
+}
+const atmStyle=document.createElement("style");
+atmStyle.textContent="@keyframes atmBreathe{0%,100%{opacity:.3}50%{opacity:.45}}";
+document.head.appendChild(atmStyle);
+
+/* ========================================================
+   GAME DATA
+   ======================================================== */
+const ROOMS=[
+  {name:"The Fracture Files",emoji:"\uD83E\uDDB4",color:"#e63946",mission:"Crack the case files.",code:"47",
+   preview:{icon:"\uD83E\uDDB4",title:"The Fracture Files",desc:"Broken bones, compound damage, growth plates\u2026",sub:"Identify fracture types and their effects."}},
+  {name:"The Stress Lab",emoji:"\u2699\uFE0F",color:"#2a9d8f",mission:"Run the bone trials.",code:"92",
+   preview:{icon:"\u2699\uFE0F",title:"The Stress Lab",desc:"Density scans, force tests, blood flow trials\u2026",sub:"Diagnose what helps bones heal or break."}},
+  {name:"The Repair Bay",emoji:"\uD83D\uDD2C",color:"#6a4c93",mission:"Rebuild the bone.",code:"51",
+   preview:{icon:"\uD83D\uDD2C",title:"The Repair Bay",desc:"Clots, callus bridges, remodeling\u2026",sub:"Rebuild a broken bone step by step."}}
+];
+
+const PUZZLES=[
+/* Room 1 */
+[{type:"match",digit:"4",
+  scan:"Remember Alex Smith\u2019s leg \u2014 what kind of fracture pushed bone through skin?",
+  gauges:[{label:"SEVERITY",pct:90,color:"#e63946"},{label:"EXPOSED",pct:100,color:"#ff6b6b"},{label:"RECOVERY",pct:30,color:"#aaa"}],
+  pairs:[
+    {t:"Compound Fracture",a:"\uD83E\uDDB4\u27A1\uFE0F\uD83E\uDE79 Bone through skin",d:["\uD83C\uDFC3 Tiny cracks"]},
+    {t:"Stress Fracture",a:"\uD83C\uDFC3 Tiny cracks from running",d:["\uD83E\uDDD2 Soft zone"]},
+    {t:"Growth Plate",a:"\uD83E\uDDD2 Soft zone in young bones",d:["\uD83E\uDDB4\u27A1\uFE0F\uD83E\uDE79 Bone through skin"]}
+  ]},
+ {type:"mystery",digit:"7",
+  scan:"Weeks of shin pain revealed what kind of damage?",
+  chain:{cause:"Runner trains through shin pain",mystery:"???",effect:"Must rest 6\u20138 weeks"},
+  q:"Runner trains through shin pain \u2192 ??? \u2192 must rest",
+  opts:[{t:"Tiny cracks form on shin bone",c:1},{t:"Shin muscle tears",c:0},{t:"Growth plate inflames",c:0}]}],
+/* Room 2 */
+[{type:"scanner",digit:"9",
+  scan:"When density dropped low and force kept hitting \u2014 which way did the bar climb?",
+  gauges:[{label:"DENSITY",pct:25,color:"#f44"},{label:"FORCE",pct:85,color:"#ff0"},{label:"BONE TYPE",pct:60,color:"#2a9d8f"}],
+  q:"What happens when force keeps hitting?",
+  opts:[{t:"Held Firm",c:0},{t:"Cracked",c:1},{t:"Fractured",c:0}]},
+ {type:"diag",digit:"2",
+  scan:"Which blood flow setting pushed both bars up?",
+  gauges:[{label:"BLOOD FLOW",pct:95,color:"#4ecdc4"},{label:"MOVEMENT",pct:20,color:"#ff6b6b"},{label:"HEALING",pct:80,color:"#0f0"}],
+  slots:["BLOOD FLOW","MOVEMENT"],
+  ans:["Enhanced Blood Flow","Immobilized"],
+  bank:["Enhanced Blood Flow","Restricted Blood Flow","Immobilized","Too Much Movement","Light Stretching"]}],
+/* Room 3 */
+[{type:"seq",digit:"5",
+  scan:"What did blood do right after the snap?",
+  gauges:[{label:"CLOTTING",pct:70,color:"#e63946"},{label:"CALLUS",pct:50,color:"#ffd700"},{label:"REMODEL",pct:90,color:"#6a4c93"}],
+  cards:["\uD83E\uDE78 Clot Forms","\uD83C\uDF09 Callus Bridge","\uD83D\uDD28 Hard Bone & Remodel"],order:[0,1,2]},
+ {type:"qf",digit:"1",
+  scan:"Which cell BUILDS new bone and which one REMOVES old bone?",
+  gauges:[{label:"BUILD",pct:85,color:"#0f0"},{label:"REMOVE",pct:60,color:"#f44"},{label:"SPEED",pct:45,color:"#6a4c93"}],
+  qs:[{q:"\uD83E\uDDF1 Osteoblasts build new bone",a:1},{q:"\uD83D\uDD28 Osteoclasts build new bone",a:0},{q:"Good blood supply speeds healing",a:1},{q:"The callus forms before hard bone",a:1}]}]
+];
+
+const FINAL={pairs:[
+  {t:"\uD83E\uDDB4 Compound Fracture",a:"\uD83E\uDE79 Bone Through Skin",c:"#e63946"},
+  {t:"\u2699\uFE0F Enhanced Blood Flow",a:"\uD83D\uDCAA Strong Heal",c:"#2a9d8f"},
+  {t:"\uD83D\uDD2C \uD83E\uDDF1 Osteoblasts",a:"Build New Bone",c:"#6a4c93"}
+]};
+
+/* ========================================================
+   STATE
+   - wrongs     : resets per sub-step (scanner/override threshold)
+   - puzzleWrongs: accumulates across full puzzle (first-try check)
+   ======================================================== */
+const S={room:0,puzzle:0,cleared:0,firstTry:0,puzzleWrongs:0,wrongs:0,solving:false,override:false,scannerUsed:false,start:0,badges:new Set(),streak:0,screen:"tutorial",roomScannerUsed:false,roomCleanFirstTry:0};
+const $=id=>document.getElementById(id);
+const main=$("main"),overlay=$("overlay"),obox=$("obox");
+
+/* ========================================================
+   ROOM SETUP & UI HELPERS
+   ======================================================== */
+function setRoom(i){
+  S.room=i;const r=ROOMS[i];
+  document.documentElement.style.setProperty("--rc",r.color);
+  $("roomName").textContent=r.emoji+" Room "+(i+1)+": "+r.name;
+  $("roomProg").textContent="Room "+(i+1)+" of 3";
+  $("mission").textContent=r.mission;
+  $("d1").className="dot";$("d2").className="dot";
+  setAtmosphere(i);
+}
+function updDots(){
+  if(S.screen!=="puzzle")return;
+  $("d1").className="dot"+(S.puzzle>=1?" filled":"");
+  $("d2").className="dot"+(S.puzzle>=2?" filled":"");
+}
+function updCleared(){
+  const c=$("cleared");c.textContent="Puzzles Cleared: "+S.cleared+"/6";
+  c.classList.add("pulse");setTimeout(()=>c.classList.remove("pulse"),300);
+}
+function updStreak(){
+  const el=$("streak");
+  if(S.streak>=2){el.textContent="\uD83D\uDD25 "+S.streak;el.classList.add("on")}
+  else el.classList.remove("on");
+}
+function vaultSet(idx,d){const v=$("v"+idx);v.textContent=d;v.classList.add("filled")}
+
+/* ========================================================
+   OVERLAY HELPERS
+   ======================================================== */
+function closeAll(){overlay.classList.add("hidden");obox.innerHTML="";$("digitReveal").classList.add("hidden");$("door").classList.add("hidden")}
+function showOverlay(html,withSweep){
+  closeAll();obox.innerHTML=(withSweep?'<div class="scan-sweep"></div>':"")+html;
+  overlay.classList.remove("hidden");
+}
+
+/* ========================================================
+   GAUGE RENDERER (for Scanner overlays & scanner puzzle)
+   ======================================================== */
+function renderGauges(gauges){
+  if(!gauges||!gauges.length)return"";
+  return '<div class="gauge-panel">'+gauges.map(g=>
+    '<div class="gauge"><div class="gauge-label">'+g.label+'</div>'+
+    '<div class="gauge-track"><div class="gauge-fill" style="height:0%;background:'+g.color+'" data-target="'+g.pct+'"></div></div>'+
+    '<div class="gauge-val">'+g.pct+'%</div></div>'
+  ).join("")+'</div>';
+}
+function animateGauges(){
+  setTimeout(()=>{document.querySelectorAll(".gauge-fill[data-target]").forEach(el=>{el.style.height=el.dataset.target+"%"})},100);
+}
+
+/* ========================================================
+   CHAIN VISUAL (Mystery puzzle cause-effect boxes)
+   ======================================================== */
+function renderChain(chain){
+  if(!chain)return"";
+  return '<div class="chain">'+
+    '<div class="chain-box">'+chain.cause+'</div>'+
+    '<div class="chain-arrow">\u27A1</div>'+
+    '<div class="chain-box mystery">'+chain.mystery+'</div>'+
+    '<div class="chain-arrow">\u27A1</div>'+
+    '<div class="chain-box">'+chain.effect+'</div></div>';
+}
+
+/* ========================================================
+   TUTORIAL
+   ======================================================== */
+function startTutorial(){
+  S.screen="tutorial";setAtmosphere("tutorial");
+  document.documentElement.style.setProperty("--rc","#4fc3f7");
+  $("roomName").textContent="\uD83C\uDF93 Tutorial Lock";$("roomProg").textContent="Practice";
+  $("mission").textContent="Tap a word, then tap its match.";
+  main.innerHTML='<div class="instr">\uD83D\uDC46 Tap LEFT word, then tap its match on the RIGHT.</div>'+
+    '<div class="cardrow"><div class="card" data-t="Sun">Sun</div></div>'+
+    '<div class="cardrow" id="trgts"><div class="card" data-correct="true">Hot</div><div class="card">Wet</div></div>'+
+    '<div style="text-align:center;margin-top:20px"><button class="tf" style="background:#4fc3f7;color:#000;font-size:18px;padding:14px 24px" onclick="skipTut()">Skip Tutorial</button></div>';
+  let sel=null;
+  document.querySelectorAll(".card").forEach(c=>c.onclick=()=>{
+    if(c.dataset.t){document.querySelectorAll(".card").forEach(x=>x.classList.remove("selected"));c.classList.add("selected");sel=c}
+    else if(sel){
+      if(c.dataset.correct){c.classList.add("correct");burstAtElement(c,"#4fc3f7");setTimeout(skipTut,1000)}
+      else c.classList.add("wrong");
+    }
+  });
+}
+
+/* ========================================================
+   ROOM PREVIEW (visual intro per room)
+   ======================================================== */
+function showRoomPreview(i,cb){
+  const pv=ROOMS[i].preview; setRoom(i);
+  main.innerHTML='<div class="room-preview">'+
+    '<div class="room-icon">'+pv.icon+'</div><h2>'+pv.title+'</h2>'+
+    '<p>'+pv.desc+'</p><p style="font-size:14px;opacity:.5;margin-top:4px">'+pv.sub+'</p></div>';
+  setTimeout(cb,2200);
+}
+window.skipTut=function(){closeAll();showRoomPreview(0,()=>loadPuzzle())};
+
+function startRoom(i){
+  S.puzzle=0;S.roomScannerUsed=false;S.roomCleanFirstTry=0;
+  showRoomPreview(i,()=>loadPuzzle());
+}
+
+/* ========================================================
+   LOAD PUZZLE
+   ======================================================== */
+function loadPuzzle(){
+  S.solving=false;S.override=false;S.wrongs=0;S.puzzleWrongs=0;S.scannerUsed=false;S.screen="puzzle";updDots();
+  const p=PUZZLES[S.room][S.puzzle];
+  main.innerHTML='<div class="qtext" style="animation:fadeInUp .6s">SCANNING ROOM\u2026</div>';
+  let done=false;
+  const go=()=>{if(done)return;done=true;render(p)};
+  setTimeout(go,1500);setTimeout(go,5000);
+}
+function render(p){
+  if(p.type==="match")renderMatch(p);
+  else if(p.type==="mystery")renderMystery(p);
+  else if(p.type==="scanner")renderScanner(p);
+  else if(p.type==="diag")renderDiag(p);
+  else if(p.type==="seq")renderSeq(p);
+  else if(p.type==="qf")renderQF(p);
+}
+
+/* ========================================================
+   MATCH LOCK PUZZLE
+   ======================================================== */
+let mState;
+function renderMatch(p){mState={idx:0,sel:null};drawMatch(p)}
+function drawMatch(p){
+  if(mState.idx>=p.pairs.length){puzzleSolved();return}
+  const pr=p.pairs[mState.idx];
+  const opts=[{t:pr.a,c:1},...pr.d.map(d=>({t:d,c:0}))].sort(()=>Math.random()-.5);
+  main.innerHTML='<div class="miniprog">Pair '+(mState.idx+1)+' of 3</div>'+
+    '<div class="instr">\uD83D\uDC46 Tap the word, then tap its match.</div>'+
+    '<div class="cardrow"><div class="card term" data-t="1">'+pr.t+'</div></div>'+
+    '<div class="cardrow" id="tgt">'+opts.map(o=>'<div class="card" data-correct="'+o.c+'">'+o.t+'</div>').join("")+'</div>';
+  document.querySelector(".term").onclick=function(){
+    document.querySelectorAll(".card").forEach(x=>x.classList.remove("selected"));
+    this.classList.add("selected");mState.sel=this;
+  };
+  document.querySelectorAll("#tgt .card").forEach(c=>c.onclick=function(){
+    if(!mState.sel||this.classList.contains("dimmed"))return;
+    if(this.dataset.correct==="1"){
+      this.classList.add("correct");burstAtElement(this,"#0f0");
+      mState.idx++;S.wrongs=0;S.scannerUsed=false;
+      setTimeout(()=>drawMatch(p),700);
+    }else{handleWrong(this);this.classList.add("dimmed");if(mState.sel){mState.sel.classList.remove("selected");mState.sel=null}}
+  });
+}
+
+/* ========================================================
+   MYSTERY PUZZLE (with chain visual)
+   ======================================================== */
+function renderMystery(p){
+  main.innerHTML=renderChain(p.chain)+
+    '<div class="qtext">'+p.q+'</div>'+
+    '<div class="cardrow">'+p.opts.map(o=>'<div class="card" data-correct="'+o.c+'">'+o.t+'</div>').join("")+'</div>';
+  document.querySelectorAll(".card").forEach(c=>c.onclick=function(){
+    if(this.dataset.correct==="1"){
+      this.classList.add("correct");burstAtElement(this,"#ffd700");
+      const mb=document.querySelector(".chain-box.mystery");
+      if(mb){mb.textContent=p.opts.find(o=>o.c===1).t;mb.classList.remove("mystery");mb.style.borderColor="#0f0";mb.style.color="#0f0"}
+      setTimeout(puzzleSolved,900);
+    }else handleWrong(this);
+  });
+}
+
+/* ========================================================
+   SCANNER PUZZLE (with real gauge bars)
+   ======================================================== */
+function renderScanner(p){
+  main.innerHTML=renderGauges(p.gauges)+
+    '<div class="qtext">'+p.q+'</div>'+
+    '<div class="cardrow">'+p.opts.map(o=>'<div class="card" data-correct="'+o.c+'">'+o.t+'</div>').join("")+'</div>';
+  animateGauges();
+  document.querySelectorAll(".card").forEach(c=>c.onclick=function(){
+    if(this.dataset.correct==="1"){this.classList.add("correct");burstAtElement(this,"#2a9d8f");setTimeout(puzzleSolved,700)}
+    else handleWrong(this);
+  });
+}
+
+/* ========================================================
+   DIAGNOSTIC PANEL PUZZLE
+   ======================================================== */
+let dState;
+function renderDiag(p){dState={slot:0,used:[]};drawDiag(p)}
+function drawDiag(p){
+  if(dState.slot>=2){puzzleSolved();return}
+  main.innerHTML='<div class="miniprog">Slot '+(dState.slot+1)+' of 2</div>'+
+    '<div class="qtext">Build a STRONG heal</div>'+
+    p.slots.map((s,i)=>'<div class="slot '+(i===dState.slot?"active":i<dState.slot?"locked":"dimmed")+'">'+(i<dState.slot?"\u2714 "+p.ans[i]:"["+s+"]")+'</div>').join("")+
+    '<div style="margin-top:20px">'+p.bank.map(b=>'<div class="chip '+(dState.used.includes(b)?"used":"")+'" data-correct="'+(b===p.ans[dState.slot]?"1":"0")+'" data-b="'+b+'">'+b+'</div>').join("")+'</div>';
+  document.querySelectorAll(".chip").forEach(c=>c.onclick=function(){
+    if(this.classList.contains("used"))return;
+    if(this.dataset.correct==="1"){
+      dState.used.push(this.dataset.b);dState.slot++;S.wrongs=0;S.scannerUsed=false;
+      burstAtElement(this,"#0f0");setTimeout(()=>drawDiag(p),700);
+    }else handleWrong(this);
+  });
+}
+
+/* ========================================================
+   SEQUENCE LOCK PUZZLE
+   ======================================================== */
+let sqState;
+function renderSeq(p){sqState={step:0,placed:[]};drawSeq(p)}
+function drawSeq(p){
+  if(sqState.step>=3){puzzleSolved();return}
+  const remain=p.cards.map((_,i)=>i).filter(i=>!sqState.placed.includes(i));
+  if(sqState.step===2){
+    S.solving=true;sqState.placed.push(remain[0]);
+    main.innerHTML='<div class="miniprog">Complete!</div><div class="qtext">Sequence locked!</div>';
+    burstCenter(ROOMS[S.room].color);
+    setTimeout(()=>{S.solving=false;sqState.step++;drawSeq(p)},700);return;
+  }
+  const prompt=sqState.step===0?"What happens FIRST?":"What happens NEXT?";
+  main.innerHTML='<div class="miniprog">Step '+(sqState.step+1)+' of 3</div>'+
+    '<div class="qtext">'+prompt+'</div>'+
+    '<div class="cardrow">'+remain.map(i=>'<div class="card" data-correct="'+(i===p.order[sqState.step]?"1":"0")+'" data-i="'+i+'">'+p.cards[i]+'</div>').join("")+'</div>'+
+    '<div style="text-align:center;margin-top:20px;opacity:.6">'+sqState.placed.map(i=>p.cards[i]).join(" \u2192 ")+'</div>';
+  document.querySelectorAll(".card").forEach(c=>c.onclick=function(){
+    if(this.classList.contains("wrong"))return;
+    if(this.dataset.correct==="1"){
+      this.classList.add("correct");burstAtElement(this,ROOMS[S.room].color);
+      sqState.placed.push(parseInt(this.dataset.i));sqState.step++;S.wrongs=0;S.scannerUsed=false;
+      setTimeout(()=>drawSeq(p),700);
+    }else{handleWrong(this);setTimeout(()=>this.classList.remove("wrong"),500)}
+  });
+}
+
+/* ========================================================
+   QUICK FIRE (True / False)
+   - Has its own wrong counter & scanner logic
+   - _qfAdv is assigned to window BEFORE showOverlay renders
+     the button, guaranteeing it's never a stale reference
+   ======================================================== */
+let qfState;
+function renderQF(p){qfState={i:0,wrong:0,missed:[],total:p.qs.length};drawQF(p)}
+function drawQF(p){
+  const qs=qfState.qs||p.qs;
+  if(qfState.i>=qs.length){
+    if(qfState.missed.length===0||qfState.wrong>=5){puzzleSolved();return}
+    qfState.qs=qfState.missed;qfState.total=qfState.missed.length;
+    qfState.missed=[];qfState.i=0;return drawQF(p);
+  }
+  const q=qs[qfState.i];
+  main.innerHTML='<div class="miniprog">Q'+(qfState.i+1)+' of '+qfState.total+'</div>'+
+    '<div class="qtext">'+q.q+'</div>'+
+    '<div style="text-align:center"><button class="tf t" data-c="1">CONFIRM \u2714</button><button class="tf f" data-c="0">DENY \u2716</button></div>';
+  document.querySelectorAll(".tf").forEach(b=>b.onclick=function(){
+    const correct=parseInt(this.dataset.c)===q.a;
+    if(correct){
+      this.style.boxShadow="0 0 20px #0f0";burstAtElement(this,"#0f0");
+      qfState.i++;setTimeout(()=>drawQF(p),500);
+    }else{
+      this.classList.add("wrong");qfState.wrong++;S.puzzleWrongs++;qfState.missed.push(q);
+      if(qfState.wrong>=5){triggerOverride();return}
+      if(qfState.wrong===1){
+        S.scannerUsed=true;S.roomScannerUsed=true;
+        let advanced=false;
+        const adv=()=>{if(advanced)return;advanced=true;closeAll();qfState.i++;drawQF(p)};
+        /* ISSUE 3 FIX: assign global BEFORE showOverlay renders the button */
+        window._qfAdv=adv;
+        showOverlay('<h2>\uD83D\uDD0D SCANNER ACTIVATED</h2>'+renderGauges(p.gauges)+'<p>'+p.scan+'</p><button onclick="window._qfAdv()">Got it</button>',true);
+        animateGauges();setTimeout(adv,5000);
+      }else{qfState.i++;setTimeout(()=>drawQF(p),500)}
+    }
+  });
+}
+
+/* ========================================================
+   WRONG / SCANNER / OVERRIDE
+   ======================================================== */
+function handleWrong(el){
+  el.classList.add("wrong");S.wrongs++;S.puzzleWrongs++;
+  if(S.wrongs===1){S.scannerUsed=true;S.roomScannerUsed=true;setTimeout(()=>showScannerOverlay(),600)}
+  else if(S.wrongs>=2&&!S.override){triggerOverride()}
+}
+function showScannerOverlay(){
+  const p=PUZZLES[S.room][S.puzzle];
+  showOverlay('<h2>\uD83D\uDD0D SCANNER ACTIVATED</h2>'+renderGauges(p.gauges)+'<p>'+p.scan+'</p><button onclick="closeAll()">Got it</button>',true);
+  animateGauges();
+}
+
+/* ========================================================
+   OVERRIDE CASCADE ANIMATIONS
+   Student watches remaining answers auto-solve one at a time
+   ======================================================== */
+function triggerOverride(){
+  if(S.override)return;S.override=true;closeAll();
+  const p=PUZZLES[S.room][S.puzzle];
+
+  main.innerHTML='<div class="qtext" style="color:#ff0">\u26A1 LOCK OVERRIDE \u2014 Scanner locked on</div><div id="cascade"></div>';
+
+  if(p.type==="match"){
+    cascadeMatch(p,mState.idx,()=>setTimeout(puzzleSolved,600));
+  }else if(p.type==="seq"){
+    cascadeSeq(p,sqState.step,sqState.placed,()=>setTimeout(puzzleSolved,600));
+  }else if(p.type==="diag"){
+    cascadeDiag(p,dState.slot,()=>setTimeout(puzzleSolved,600));
+  }else if(p.type==="qf"){
+    cascadeQF(p,()=>setTimeout(puzzleSolved,600));
+  }else{
+    /* mystery / scanner are single-step, no cascade needed */
+    setTimeout(puzzleSolved,1500);
+  }
+}
+
+/* Match: show remaining pairs auto-matching */
+function cascadeMatch(p,fromIdx,cb){
+  const box=document.getElementById("cascade");
+  let i=fromIdx;
+  function next(){
+    if(i>=p.pairs.length){setTimeout(cb,400);return}
+    const pr=p.pairs[i];
+    const row=document.createElement("div");
+    row.className="cascade-row";
+    row.innerHTML='<div class="card correct" style="min-width:auto;padding:10px 14px;font-size:16px">'+pr.t+'</div>'+
+      '<div class="cascade-arrow">\u27A1</div>'+
+      '<div class="card correct" style="min-width:auto;padding:10px 14px;font-size:16px">'+pr.a+'</div>';
+    box.appendChild(row);
+    setTimeout(()=>{row.classList.add("show");burstAtElement(row,"#0f0")},50);
+    i++;
+    setTimeout(next,600);
+  }
+  next();
+}
+
+/* Sequence: slide remaining cards into position */
+function cascadeSeq(p,fromStep,placed,cb){
+  const box=document.getElementById("cascade");
+  /* Show what's already placed */
+  let html='<div style="text-align:center;opacity:.6;margin:8px 0">'+placed.map(i=>p.cards[i]).join(" \u2192 ")+'</div>';
+  box.innerHTML=html;
+  const remaining=p.order.slice(fromStep);
+  let i=0;
+  function next(){
+    if(i>=remaining.length){setTimeout(cb,400);return}
+    const cardIdx=remaining[i];
+    const row=document.createElement("div");
+    row.className="cascade-row";
+    row.innerHTML='<div class="cascade-seqcard">'+(fromStep+i+1)+'. '+p.cards[cardIdx]+'</div>';
+    box.appendChild(row);
+    setTimeout(()=>{row.classList.add("show");burstAtElement(row,ROOMS[S.room].color)},50);
+    i++;
+    setTimeout(next,600);
+  }
+  next();
+}
+
+/* Diagnostic: fill remaining slots */
+function cascadeDiag(p,fromSlot,cb){
+  const box=document.getElementById("cascade");
+  let i=fromSlot;
+  function next(){
+    if(i>=p.ans.length){setTimeout(cb,400);return}
+    const row=document.createElement("div");
+    row.className="cascade-row";
+    row.innerHTML='<div class="cascade-slot">['+p.slots[i]+'] \u2192 \u2714 '+p.ans[i]+'</div>';
+    box.appendChild(row);
+    setTimeout(()=>{row.classList.add("show");burstAtElement(row,"#0f0")},50);
+    i++;
+    setTimeout(next,600);
+  }
+  next();
+}
+
+/* Quick Fire: show all statements with correct answers */
+function cascadeQF(p,cb){
+  const box=document.getElementById("cascade");
+  const qs=p.qs;
+  let i=0;
+  function next(){
+    if(i>=qs.length){setTimeout(cb,400);return}
+    const q=qs[i];
+    const label=q.a===1?"\u2714 TRUE":"\u2716 FALSE";
+    const color=q.a===1?"#0f0":"#f55";
+    const row=document.createElement("div");
+    row.className="cascade-row";
+    row.innerHTML='<div style="font-size:16px;padding:8px 14px;border:2px solid '+color+';border-radius:8px;background:rgba(255,255,255,.05);color:'+color+'"><span style="opacity:.7;color:#fff">'+q.q+'</span> \u2014 <b>'+label+'</b></div>';
+    box.appendChild(row);
+    setTimeout(()=>row.classList.add("show"),50);
+    i++;
+    setTimeout(next,500);
+  }
+  next();
+}
+
+/* ========================================================
+   PUZZLE SOLVED
+   ======================================================== */
+function puzzleSolved(){
+  if(S.solving)return;S.solving=true;closeAll();
+  const p=PUZZLES[S.room][S.puzzle];
+  if(S.puzzleWrongs===0){
+    S.firstTry++;S.roomCleanFirstTry++;S.streak++;
+  }else{
+    S.streak=0;
+    if(S.scannerUsed&&S.puzzleWrongs===1)S.badges.add("Comeback");
+    if(S.scannerUsed&&S.override)S.badges.add("Deep Scan");
+  }
+  updStreak();S.cleared++;updCleared();
+  vaultSet(S.room*2+S.puzzle,p.digit);
+  $("bigdigit").textContent=p.digit;$("digitReveal").classList.remove("hidden");
+  burstCenter(ROOMS[S.room].color);
+  setTimeout(()=>{
+    closeAll();S.puzzle++;updDots();
+    if(S.puzzle>=2){
+      if(S.roomCleanFirstTry>=2)S.badges.add("Clean Room");
+      if(!S.roomScannerUsed)S.badges.add("No Scanner");
+      codeEntry();
+    }else loadPuzzle();
+  },1800);
+}
+
+/* ========================================================
+   CODE ENTRY
+   ======================================================== */
+function codeEntry(){
+  S.screen="code";const r=ROOMS[S.room];
+  const d1=PUZZLES[S.room][0].digit,d2=PUZZLES[S.room][1].digit;
+  showOverlay('<h2>'+r.emoji+' Enter Room Code</h2><p>Your digits: <b style="font-size:28px">'+d1+' '+d2+'</b></p>'+
+    '<input class="code" id="cin" maxlength="2" inputmode="numeric"><br>'+
+    '<button onclick="checkCode()">UNLOCK</button>');
+  setTimeout(()=>{const ci=$("cin");if(ci)ci.focus()},100);
+}
+window.checkCode=function(){
+  const v=$("cin").value,r=ROOMS[S.room];
+  if(v===r.code){closeAll();burstCenter(r.color);if(S.room<2)passLaptop();else finalLock()}
+  else{$("cin").style.borderColor="#f00";setTimeout(()=>{const ci=$("cin");if(ci)ci.style.borderColor=""},500)}
+};
+
+/* ========================================================
+   ROOM TRANSITION (door animation)
+   ======================================================== */
+function passLaptop(){
+  const next=ROOMS[S.room+1];
+  showOverlay('<h2 style="color:'+next.color+'">\uD83D\uDCF1 PASS THE LAPTOP</h2><p>Get ready for Room '+(S.room+2)+'</p><button style="background:'+next.color+'" onclick="doDoor()">Ready</button>');
+}
+window.doDoor=function(){
+  closeAll();
+  const nextColor=ROOMS[S.room+1].color;
+  document.documentElement.style.setProperty("--rc",nextColor);
+  /* Reset door: icon back to locked, force-restart CSS animation */
+  const lockEl=document.querySelector(".door-lock");
+  if(lockEl)lockEl.textContent="\uD83D\uDD12";
+  const dbox=$("doorbox");
+  dbox.style.animation="none";void dbox.offsetWidth;
+  dbox.style.animation="doorOpen 1.4s forwards";
+  $("door").classList.remove("hidden");
+  if(lockEl)setTimeout(()=>{if(lockEl)lockEl.textContent="\uD83D\uDD13"},1200);
+  let doorDone=false;
+  const advance=()=>{if(doorDone)return;doorDone=true;closeAll();startRoom(S.room+1)};
+  setTimeout(advance,1400);setTimeout(advance,2500);
+};
+
+/* ========================================================
+   FINAL LOCK (Master Match)
+   ======================================================== */
+function finalLock(){
+  S.screen="final";setAtmosphere("final");
+  document.documentElement.style.setProperty("--rc","#ffd700");
+  $("roomName").textContent="\uD83D\uDD10 FINAL LOCK";$("roomProg").textContent="Master Match";
+  $("mission").textContent="Master Match \u2014 connect all 3.";
+  const shuffled=[...FINAL.pairs].sort(()=>Math.random()-.5);
+  let sel=null,matched=0;
+  const draw=()=>{
+    main.innerHTML='<div class="instr">Match each term to its meaning.</div>'+
+      '<div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:20px"><div>'+
+      FINAL.pairs.map((p,i)=>'<div class="card term" data-i="'+i+'" style="border-color:'+p.c+';display:block;margin:8px">'+p.t+'</div>').join("")+
+      '</div><div>'+shuffled.map(p=>'<div class="card tgt" data-i="'+FINAL.pairs.indexOf(p)+'" style="display:block;margin:8px">'+p.a+'</div>').join("")+'</div></div>';
+    document.querySelectorAll(".term").forEach(c=>c.onclick=function(){
+      if(this.classList.contains("locked"))return;
+      document.querySelectorAll(".term").forEach(x=>x.classList.remove("selected"));
+      this.classList.add("selected");sel=this;
+    });
+    document.querySelectorAll(".tgt").forEach(c=>c.onclick=function(){
+      if(!sel||this.classList.contains("locked"))return;
+      if(this.dataset.i===sel.dataset.i){
+        this.classList.add("locked","correct");sel.classList.add("locked","correct");
+        burstAtElement(this,FINAL.pairs[parseInt(this.dataset.i)].c);
+        sel=null;matched++;if(matched>=3)setTimeout(showEscapeReport,1000);
+      }else{this.classList.add("wrong");if(sel){sel.classList.remove("selected");sel=null}setTimeout(()=>this.classList.remove("wrong"),500)}
+    });
+  };
+  draw();
+}
+
+/* ========================================================
+   ESCAPE REPORT
+   ======================================================== */
+function showEscapeReport(){
+  closeAll();S.screen="report";escapeConfetti();
+  const elapsed=Math.round((Date.now()-S.start)/1000);
+  const mins=Math.floor(elapsed/60),secs=elapsed%60;
+  let stars=1;if(S.firstTry>=4)stars=3;else if(S.firstTry>=2)stars=2;
+  const badges=[...S.badges];
+  const starHTML='<div class="star-row">'+[1,2,3].map(i=>
+    '<span class="star '+(i<=stars?"fill":"empty")+'" style="animation-delay:'+(i*.3)+'s">\u2B50</span>'
+  ).join("")+'</div>';
+  showOverlay(
+    '<h2>\uD83C\uDF89 ESCAPED!</h2>'+
+    '<p style="font-size:14px;color:#4fc3f7">MR. JAWAD\'S ESCAPE ROOM SIMULATIONS</p>'+
+    '<p>Rooms: 3/3 | Puzzles: '+S.cleared+'/6 | First-Try: '+S.firstTry+'/6</p>'+
+    starHTML+
+    '<p>Time: '+mins+'m '+secs+'s</p>'+
+    '<p>'+(badges.length?badges.map(b=>'<span class="badge-tag">'+b+'</span>').join(" "):"No badges this run")+'</p>'+
+    '<button onclick="location.reload()">Play Again</button>'+
+    '<button onclick="copyReport('+stars+','+elapsed+')">Copy Report</button>'
+  );
+}
+window.copyReport=function(stars,el){
+  const txt="Mr. Jawad's Escape Room - Skeletal System\nPuzzles: "+S.cleared+"/6\nFirst-Try: "+S.firstTry+"/6\nStars: "+stars+"\nTime: "+el+"s\nBadges: "+([...S.badges].join(", ")||"None");
+  if(navigator.clipboard)navigator.clipboard.writeText(txt);
+};
+
+/* ========================================================
+   SCANNER BUTTON
+   ======================================================== */
+$("scanBtn").onclick=()=>{
+  if(S.screen==="puzzle"){S.scannerUsed=true;S.roomScannerUsed=true;showScannerOverlay()}
+  else{const btn=$("scanBtn");btn.style.borderColor="#f55";setTimeout(()=>btn.style.borderColor="",400)}
+};
+
+/* ========================================================
+   EMERGENCY SKIP (teacher override — 5s long-press or 2s Shift+S)
+   ======================================================== */
+let pressTimer,shiftTimer;
+$("roomName").addEventListener("mousedown",()=>{pressTimer=setTimeout(emergencySkip,5000)});
+$("roomName").addEventListener("mouseup",()=>clearTimeout(pressTimer));
+$("roomName").addEventListener("touchstart",()=>{pressTimer=setTimeout(emergencySkip,5000)});
+$("roomName").addEventListener("touchend",()=>clearTimeout(pressTimer));
+$("roomName").addEventListener("touchcancel",()=>clearTimeout(pressTimer));
+document.addEventListener("keydown",e=>{if(e.shiftKey&&(e.key==="S"||e.key==="s")&&!shiftTimer){shiftTimer=setTimeout(emergencySkip,2000)}});
+document.addEventListener("keyup",()=>{if(shiftTimer){clearTimeout(shiftTimer);shiftTimer=null}});
+
+function emergencySkip(){
+  if(S.screen==="tutorial"){skipTut();return}
+  if(S.screen==="final"||S.screen==="report"){showEscapeReport();return}
+  if(S.screen==="puzzle"||S.screen==="code"){
+    vaultSet(S.room*2,PUZZLES[S.room][0].digit);
+    vaultSet(S.room*2+1,PUZZLES[S.room][1].digit);
+    S.cleared=Math.max(S.cleared,(S.room+1)*2);updCleared();codeEntry();
+  }
+}
+
+/* ========================================================
+   INIT
+   - particles cleared defensively for soft-reset safety
+   ======================================================== */
+particles.length=0;
+S.start=Date.now();
+startTutorial();
+</script></body></html>
