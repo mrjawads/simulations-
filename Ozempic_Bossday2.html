@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulations — Ozempic, Insulin, Diabetes (v2)</title>
+<style>
+:root {
+  --bg1:#0F0A1A;--bg2:#1A0F2E;--neon:#39FF14;--pink:#FF1493;--gold:#FFD700;
+  --orange:#FF6B35;--blue:#00D4FF;--red:#FF4757;--green:#22C55E;
+  --text:#F0E6FF;--text2:#A89CC8;--card:#1E1535;--card2:#2A1F45;
+  --border:#3D2D6B;--overlay:rgba(15,10,26,0.92);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);}
+
+/* ========== WELCOME ========== */
+.welcome-screen{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:100%;padding:30px 20px;text-align:center;overflow-y:auto;}
+.welcome-screen h1{font-size:clamp(24px,5vw,40px);color:var(--gold);margin-bottom:6px;text-shadow:0 0 25px rgba(255,215,0,0.35);letter-spacing:0.5px;}
+.welcome-screen h2{font-size:clamp(14px,2.5vw,20px);color:var(--text2);margin-bottom:24px;font-weight:400;}
+.welcome-screen .theme-text{font-size:clamp(13px,2vw,16px);color:var(--pink);max-width:520px;line-height:1.6;margin-bottom:28px;font-style:italic;}
+.welcome-input{display:flex;flex-direction:column;gap:12px;width:100%;max-width:380px;margin-bottom:24px;}
+.welcome-input label{text-align:left;font-size:14px;color:var(--text2);}
+.welcome-input input{padding:14px 16px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:16px;outline:none;transition:border-color 0.3s;}
+.welcome-input input:focus{border-color:var(--neon);}
+.btn{padding:14px 32px;border-radius:12px;border:none;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.2s;touch-action:manipulation;min-height:48px;user-select:none;}
+.btn-primary{background:linear-gradient(135deg,var(--neon),#2ECC71);color:#0F0A1A;box-shadow:0 0 20px rgba(57,255,20,0.3);}
+.btn-primary:hover{transform:scale(1.03);box-shadow:0 0 30px rgba(57,255,20,0.5);}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-secondary{background:var(--card2);color:var(--text);border:2px solid var(--border);}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--orange));color:#0F0A1A;}
+.btn-pink{background:linear-gradient(135deg,var(--pink),#C71585);color:#FFF;}
+
+/* ========== GAME LAYOUT ========== */
+.game-container{display:none;flex-direction:column;height:100%;overflow:hidden;}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:rgba(30,21,53,0.97);border-bottom:2px solid var(--border);min-height:46px;flex-shrink:0;gap:6px;flex-wrap:wrap;}
+.round-badge{font-size:clamp(13px,2vw,16px);font-weight:700;color:var(--gold);}
+.score-display{font-size:clamp(14px,2vw,18px);font-weight:700;color:var(--neon);position:relative;}
+.score-pop{position:absolute;top:-20px;right:0;font-size:14px;color:var(--neon);font-weight:700;opacity:0;animation:popUp 1s ease-out forwards;}
+@keyframes popUp{0%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-30px);}}
+.streak-display{font-size:clamp(13px,2vw,16px);color:var(--orange);font-weight:700;min-width:50px;text-align:center;transition:all 0.3s;}
+.streak-display.bronze{color:#CD7F32;text-shadow:0 0 8px rgba(205,127,50,0.5);}
+.streak-display.silver{color:#C0C0C0;text-shadow:0 0 10px rgba(192,192,192,0.6);}
+.streak-display.gold{color:var(--gold);text-shadow:0 0 15px rgba(255,215,0,0.7);}
+
+/* MAIN SCROLLABLE AREA — key fix: single scroll container for arena + interaction */
+.main-area{flex:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+.context-panel{flex-shrink:0;padding:10px 12px 6px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}
+.context-caption{font-size:clamp(12px,1.8vw,14px);color:var(--text2);text-align:center;margin-bottom:6px;font-style:italic;padding:0 8px;line-height:1.4;word-wrap:break-word;overflow-wrap:break-word;max-width:640px;}
+.focus-prompt{font-size:clamp(13px,2vw,15px);color:var(--gold);text-align:center;padding:7px 14px;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.25);border-radius:8px;margin-bottom:6px;max-width:640px;line-height:1.4;word-wrap:break-word;overflow-wrap:break-word;}
+
+/* Arena SVG — generous sizing so graphics are large and clear */
+#arenaContainer{width:100%;max-width:660px;display:flex;justify-content:center;}
+.arena-svg{width:100%;height:auto;}
+
+/* INTERACTION ZONE */
+.interaction-zone{flex-shrink:0;padding:14px 16px 16px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;border-top:2px solid var(--border);background:rgba(26,15,46,0.5);}
+.phase-label{font-size:clamp(11px,1.5vw,13px);color:var(--pink);font-weight:700;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;}
+.prompt-text{font-size:clamp(15px,2.3vw,19px);color:var(--text);text-align:center;margin-bottom:12px;line-height:1.45;max-width:580px;word-wrap:break-word;overflow-wrap:break-word;}
+
+/* OPTIONS */
+.options-row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:620px;width:100%;}
+.option-card{padding:14px 18px;border-radius:12px;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:clamp(13px,2vw,16px);cursor:pointer;transition:all 0.2s;min-height:52px;display:flex;align-items:center;justify-content:center;text-align:center;flex:1 1 150px;max-width:280px;word-wrap:break-word;overflow-wrap:break-word;touch-action:manipulation;line-height:1.35;user-select:none;}
+.option-card:hover:not(.disabled):not(.locked){border-color:var(--blue);background:var(--card2);}
+.option-card.selected{border-color:var(--neon);background:rgba(57,255,20,0.1);box-shadow:0 0 12px rgba(57,255,20,0.15);}
+.option-card.correct{border-color:var(--green);background:rgba(34,197,94,0.15);color:var(--green);animation:correctPop 0.4s ease;box-shadow:0 0 16px rgba(34,197,94,0.25);}
+.option-card.wrong{border-color:var(--red);background:rgba(255,71,87,0.1);color:var(--red);opacity:0.45;text-decoration:line-through;pointer-events:none;}
+.option-card.disabled{opacity:0.3;pointer-events:none;text-decoration:line-through;}
+.option-card.dimmed{opacity:0.35;pointer-events:none;}
+.option-card.locked{pointer-events:none;opacity:0.9;}
+@keyframes correctPop{0%{transform:scale(1);}50%{transform:scale(1.06);}100%{transform:scale(1);}}
+.option-card.highlighted{border-color:var(--gold);box-shadow:0 0 14px rgba(255,215,0,0.3);}
+
+/* HOTSPOT */
+.hotspot-area{position:relative;width:100%;max-width:660px;}
+.hotspot-zone{position:absolute;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.3s;min-width:60px;min-height:60px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
+.hotspot-zone:hover{border-color:rgba(0,212,255,0.5);background:rgba(0,212,255,0.05);}
+.hotspot-zone.correct{border-color:var(--green);background:rgba(34,197,94,0.2);animation:correctPop 0.5s;}
+.hotspot-zone.wrong{border-color:var(--red);background:rgba(255,71,87,0.15);}
+
+/* SEQUENCE */
+.sequence-strip{display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:620px;width:100%;margin-bottom:10px;}
+.seq-step{padding:10px 12px;border-radius:8px;border:2px solid var(--border);background:var(--card);font-size:clamp(12px,1.6vw,14px);color:var(--text);flex:1 1 110px;text-align:center;min-height:48px;display:flex;align-items:center;justify-content:center;word-wrap:break-word;overflow-wrap:break-word;line-height:1.3;}
+.seq-step.filled{border-color:var(--green);color:var(--green);background:rgba(34,197,94,0.08);}
+.seq-step.blank{border-color:var(--gold);border-style:dashed;color:var(--gold);animation:blinkBorder 1.5s ease infinite;}
+@keyframes blinkBorder{0%,100%{border-color:var(--gold);}50%{border-color:transparent;}}
+.seq-arrow{color:var(--text2);font-size:18px;flex-shrink:0;}
+
+/* CLAIM BUILDER */
+.tile-chain{display:flex;align-items:stretch;gap:4px;flex-wrap:wrap;max-width:640px;width:100%;margin-bottom:10px;}
+.tile-slot{flex:1 1 130px;min-height:58px;padding:8px;border-radius:8px;border:2px solid var(--border);background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:clamp(11px,1.5vw,13px);word-wrap:break-word;overflow-wrap:break-word;line-height:1.3;}
+.tile-slot .tile-label{color:var(--text2);font-size:11px;margin-bottom:3px;}
+.tile-slot .tile-answer{color:var(--green);font-weight:700;}
+.tile-slot.active{border-color:var(--gold);border-style:dashed;animation:blinkBorder 1.5s ease infinite;}
+.tile-slot.complete{border-color:var(--green);background:rgba(34,197,94,0.08);}
+.tile-arrow{color:var(--text2);font-size:16px;display:flex;align-items:center;flex-shrink:0;}
+
+/* FEEDBACK */
+.coaching-bar{padding:12px 16px;border-radius:10px;margin-top:8px;max-width:580px;width:100%;text-align:center;font-size:clamp(13px,1.8vw,15px);line-height:1.45;word-wrap:break-word;overflow-wrap:break-word;animation:slideUp 0.3s ease;}
+.coaching-bar.wrong-fb{background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.3);color:#FFB4B4;}
+.coaching-bar.hint-fb{background:rgba(255,249,196,0.1);border:1px solid rgba(255,215,0,0.3);color:#FFF9C4;}
+.coaching-bar.correct-fb{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#A7F3D0;}
+@keyframes slideUp{0%{opacity:0;transform:translateY(10px);}100%{opacity:1;transform:translateY(0);}}
+.try-again-btn{margin-top:10px;padding:14px 32px;border-radius:10px;border:none;background:var(--blue);color:#FFF;font-size:16px;font-weight:700;cursor:pointer;min-height:52px;touch-action:manipulation;user-select:none;box-shadow:0 0 12px rgba(0,212,255,0.2);}
+
+/* BOTTOM BAR */
+.bottom-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(30,21,53,0.97);border-top:2px solid var(--border);min-height:44px;flex-shrink:0;gap:5px;flex-wrap:wrap;}
+.bottom-bar .bar-btn{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;cursor:pointer;min-height:38px;touch-action:manipulation;display:flex;align-items:center;gap:4px;user-select:none;}
+.bottom-bar .bar-btn:hover{border-color:var(--blue);}
+.source-day{font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;text-align:center;white-space:nowrap;}
+.source-day.monday{background:rgba(34,197,94,0.15);color:#4ADE80;}
+.source-day.tuesday{background:rgba(0,212,255,0.15);color:#00D4FF;}
+.source-day.wednesday{background:rgba(139,92,246,0.15);color:#A78BFA;}
+.source-day.cross{background:rgba(255,20,147,0.15);color:var(--pink);}
+.progress-bar-container{flex:1;min-width:60px;max-width:160px;height:7px;background:var(--card);border-radius:4px;overflow:hidden;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--neon),var(--gold));border-radius:4px;transition:width 0.5s ease;}
+
+/* VOCAB */
+.vocab-popup{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:var(--overlay);padding:20px;overflow-y:auto;}
+.vocab-inner{max-width:440px;margin:30px auto;background:var(--card2);border-radius:16px;padding:24px;border:2px solid var(--border);}
+.vocab-inner h3{color:var(--gold);margin-bottom:16px;font-size:20px;}
+.vocab-term{padding:14px;border-radius:10px;background:var(--card);margin-bottom:10px;display:flex;align-items:flex-start;gap:10px;line-height:1.4;}
+.vocab-icon{font-size:22px;flex-shrink:0;width:30px;text-align:center;}
+.vocab-body{flex:1;}
+.vocab-body strong{display:block;margin-bottom:2px;}
+.vocab-body span{color:var(--text2);font-size:14px;}
+
+/* HINT */
+.hint-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:90;background:var(--overlay);padding:20px;overflow-y:auto;}
+.hint-inner{max-width:500px;margin:30px auto;background:var(--card2);border-radius:16px;padding:24px;border:2px solid var(--gold);}
+.hint-inner h3{color:var(--gold);margin-bottom:12px;}
+.sbs-panel{padding:16px;border-radius:10px;background:var(--card);margin-bottom:12px;font-size:15px;line-height:1.5;color:var(--text);border:1px solid var(--border);}
+.sbs-panel .sbs-cap{color:var(--text2);font-style:italic;margin-top:8px;}
+
+/* CELEBRATIONS */
+.celebration-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:80;background:rgba(15,10,26,0.85);pointer-events:none;}
+.celebration-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;animation:celebPop 0.5s ease;}
+.celebration-content h2{font-size:clamp(26px,6vw,44px);color:var(--gold);text-shadow:0 0 30px rgba(255,215,0,0.5);}
+.celebration-content .affirm{font-size:clamp(16px,3vw,24px);color:#FFF;margin-top:10px;text-shadow:0 0 10px rgba(255,255,255,0.3);opacity:0;animation:fadeAffirm 1.5s ease 0.3s forwards;}
+@keyframes celebPop{0%{transform:translate(-50%,-50%) scale(0.5);opacity:0;}100%{transform:translate(-50%,-50%) scale(1);opacity:1;}}
+@keyframes fadeAffirm{0%{opacity:0;transform:translateY(8px);}100%{opacity:1;transform:translateY(0);}}
+
+/* PARTICLES */
+#particle-layer{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:81;overflow:hidden;}
+.particle{position:absolute;width:8px;height:8px;border-radius:50%;display:none;animation:particleFall 1.5s ease-out forwards;}
+@keyframes particleFall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(120px) rotate(360deg);}}
+
+/* RECEIPT */
+.receipt-screen{display:none;flex-direction:column;align-items:center;min-height:100%;padding:20px;overflow-y:auto;background:linear-gradient(135deg,var(--bg1),var(--bg2));}
+.receipt-card{max-width:620px;width:100%;background:var(--card2);border-radius:16px;padding:24px;border:2px solid var(--gold);margin-bottom:16px;}
+.receipt-card h2{color:var(--gold);font-size:clamp(18px,3vw,24px);text-align:center;margin-bottom:4px;}
+.receipt-card h3{color:var(--text2);font-size:clamp(13px,2vw,16px);text-align:center;margin-bottom:16px;font-weight:400;}
+.receipt-name-row{display:flex;gap:8px;align-items:center;margin-bottom:16px;}
+.receipt-name-row input{flex:1;padding:12px;border-radius:8px;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:16px;}
+.receipt-name-row .btn{padding:10px 18px;min-height:44px;}
+.big-score{text-align:center;padding:16px;margin-bottom:12px;}
+.big-score .pct{font-size:clamp(42px,9vw,68px);font-weight:900;}
+.big-score .pct.green{color:var(--green);}
+.big-score .pct.yellow{color:var(--gold);}
+.big-score .pct.red{color:var(--red);}
+.big-score .label{font-size:clamp(14px,2vw,18px);color:var(--text2);margin-top:4px;}
+.receipt-table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:clamp(11px,1.5vw,14px);}
+.receipt-table th,.receipt-table td{padding:8px 6px;text-align:center;border-bottom:1px solid var(--border);word-wrap:break-word;overflow-wrap:break-word;}
+.receipt-table th{color:var(--gold);background:var(--card);font-weight:700;}
+.receipt-table tr:nth-child(even){background:rgba(42,31,69,0.4);}
+.receipt-table .bonus-row{color:var(--gold);font-style:italic;}
+.receipt-table .score-green{color:var(--green);}
+.receipt-table .score-yellow{color:var(--gold);}
+.receipt-table .score-red{color:var(--red);}
+.receipt-footer{text-align:center;margin-top:12px;padding-bottom:30px;}
+.receipt-footer p{color:var(--text2);font-size:14px;margin-bottom:8px;}
+.receipt-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px;}
+
+/* OVERLAYS */
+.confirm-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:110;background:var(--overlay);padding:20px;overflow-y:auto;}
+.confirm-box{max-width:360px;margin:100px auto;background:var(--card2);border-radius:16px;padding:24px;border:2px solid var(--red);text-align:center;}
+.confirm-box p{color:var(--text);margin-bottom:16px;font-size:16px;line-height:1.4;}
+.confirm-box .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.round-intro{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:70;background:var(--overlay);pointer-events:none;}
+.round-intro-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;animation:celebPop 0.4s ease;max-width:90%;}
+.round-intro-content h2{font-size:clamp(20px,4.5vw,34px);color:var(--gold);}
+.round-intro-content p{font-size:clamp(14px,2vw,18px);color:var(--text2);margin-top:6px;}
+.choice-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:85;background:var(--overlay);padding:20px;overflow-y:auto;}
+.choice-box{max-width:420px;margin:60px auto;background:var(--card2);border-radius:16px;padding:28px;border:2px solid var(--neon);text-align:center;}
+.choice-box h2{color:var(--gold);margin-bottom:8px;font-size:clamp(20px,3.5vw,28px);}
+.choice-box p{color:var(--text);margin-bottom:16px;font-size:16px;line-height:1.4;}
+.choice-box .btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.ag-screen{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:75;background:var(--overlay);padding:20px;}
+.ag-box{max-width:400px;margin:80px auto;background:var(--card2);border-radius:16px;padding:24px;border:2px solid var(--orange);text-align:center;}
+.ag-box p{color:var(--text);font-size:16px;line-height:1.5;margin-bottom:12px;}
+.ag-box .countdown{color:var(--orange);font-size:32px;font-weight:700;}
+
+.hidden{display:none!important;}
+.pulsing{animation:pulse 1.2s ease infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+
+@media print{
+  .game-container,.bottom-bar,.top-bar,.welcome-screen,.confirm-overlay,.vocab-popup,.hint-overlay,.celebration-overlay,.round-intro,.choice-overlay,.ag-screen,#particle-layer{display:none!important;}
+  .receipt-screen{display:flex!important;background:#FFF!important;}
+  .receipt-card{border-color:#333!important;background:#FFF!important;}
+  .receipt-card h2,.receipt-card h3{color:#333!important;}
+  .big-score .pct{color:#333!important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}
+  .btn{display:none!important;}
+}
+
+/* SVG shared styles for glow/highlights */
+.svg-glow-gold{filter:drop-shadow(0 0 6px rgba(255,215,0,0.4));}
+.svg-glow-green{filter:drop-shadow(0 0 6px rgba(57,255,20,0.4));}
+.svg-glow-red{filter:drop-shadow(0 0 6px rgba(255,71,87,0.4));}
+.svg-glow-blue{filter:drop-shadow(0 0 6px rgba(0,212,255,0.4));}
+</style>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div class="welcome-screen" id="welcomeScreen">
+  <h1>Mr. Jawad's Simulations</h1>
+  <h2>Ozempic, Insulin, Diabetes — Thursday Boss Level</h2>
+  <p class="theme-text">The Final Diagnosis — you've got the clues, the data, and the lab results. Now figure out what broke and why it was deadly.</p>
+  <div class="welcome-input">
+    <label>Your Name</label>
+    <input type="text" id="studentNameInput" placeholder="Enter your name" maxlength="60">
+    <label>Teacher Name (optional)</label>
+    <input type="text" id="teacherNameInput" placeholder="Mr. Jawad" maxlength="60" value="">
+  </div>
+  <button class="btn btn-primary" id="startBtn" disabled>Start the Boss Level</button>
+</div>
+
+<!-- GAME CONTAINER -->
+<div class="game-container" id="gameContainer">
+  <div class="top-bar">
+    <span class="round-badge" id="roundBadge">Round 1 of 8</span>
+    <span class="score-display" id="scoreDisplay">Score: 0</span>
+    <span class="streak-display" id="streakDisplay"></span>
+  </div>
+  <div class="main-area" id="mainArea">
+    <div class="context-panel" id="contextPanel">
+      <div class="focus-prompt" id="focusPrompt"></div>
+      <div class="context-caption" id="contextCaption"></div>
+      <div id="arenaContainer"></div>
+    </div>
+    <div class="interaction-zone" id="interactionZone"></div>
+  </div>
+  <div class="bottom-bar">
+    <button class="bar-btn" id="vocabBtn">&#128214; Vocab</button>
+    <button class="bar-btn" id="hintBtn">&#128161; Hint</button>
+    <div class="source-day" id="sourceDay"></div>
+    <div class="progress-bar-container"><div class="progress-bar-fill" id="progressFill"></div></div>
+    <button class="bar-btn" id="resetLevelBtn">&#8634; Reset</button>
+  </div>
+</div>
+
+<!-- VOCAB -->
+<div class="vocab-popup" id="vocabPopup">
+  <div class="vocab-inner">
+    <h3>Key Vocabulary</h3>
+    <div class="vocab-term"><div class="vocab-icon" style="color:#FFD700">&#9676;</div><div class="vocab-body"><strong style="color:#FFD700">GLUCOSE</strong><span>Sugar cells use for energy</span></div></div>
+    <div class="vocab-term"><div class="vocab-icon" style="color:var(--green)">&#9919;</div><div class="vocab-body"><strong style="color:var(--green)">INSULIN</strong><span>Hormone that unlocks cells</span></div></div>
+    <div class="vocab-term"><div class="vocab-icon" style="color:var(--blue)">&#128274;</div><div class="vocab-body"><strong style="color:var(--blue)">RECEPTOR</strong><span>Cell part that receives signals</span></div></div>
+    <div class="vocab-term"><div class="vocab-icon" style="color:var(--pink)">&#128137;</div><div class="vocab-body"><strong style="color:var(--pink)">HORMONE</strong><span>Chemical messenger carried in blood</span></div></div>
+    <button class="btn btn-secondary" onclick="toggleVocab()" style="margin-top:16px;width:100%;">Close</button>
+  </div>
+</div>
+
+<div class="hint-overlay" id="hintOverlay"></div>
+<div class="celebration-overlay" id="celebOverlay"><div class="celebration-content" id="celebContent"></div></div>
+<div id="particle-layer"></div>
+<div class="round-intro" id="roundIntro"><div class="round-intro-content" id="roundIntroContent"></div></div>
+<div class="choice-overlay" id="choiceOverlay"><div class="choice-box" id="choiceBox"></div></div>
+<div class="ag-screen" id="agScreen"><div class="ag-box" id="agBox"></div></div>
+<div class="confirm-overlay" id="confirmOverlay"><div class="confirm-box" id="confirmBox"></div></div>
+<div class="receipt-screen" id="receiptScreen"></div>
+
+<script>
+// ===== GLOBALS =====
+let studentName='',teacherName='Mr. Jawad';
+let currentRound=0,phase='',processing=false,totalScore=0,streak=0,maxStreak=0;
+let wrongCount=0,hintsUsed=0,resetsThisRound=0,roundStartTime=0,phaseStartTime=0;
+let consecutiveFastWrongs=0;
+let audioCtx=null;
+let celebTimeout=null,transitionTimeout=null,agTimeout=null,agCountdown=null;
+let roundIntroTimeout=null;
+let pendingTimeouts=[];// Track ALL anonymous timeouts for safe cancellation
+function safeTimeout(fn,ms){const gen=arenaGen;const id=setTimeout(()=>{const idx=pendingTimeouts.indexOf(id);if(idx>-1)pendingTimeouts.splice(idx,1);if(arenaGen===gen)fn();},ms);pendingTimeouts.push(id);return id;}
+function cardLocked(card){if(!card)return true;const cl=card.classList;return cl.contains('wrong')||cl.contains('dimmed')||cl.contains('locked')||cl.contains('correct')||cl.contains('disabled');}
+function clearPendingTimeouts(){pendingTimeouts.forEach(id=>clearTimeout(id));pendingTimeouts=[];}
+let requiredCompleteShown=false,bonusCompleteShown=false,receiptRendered=false;
+let ambientInterval=null;
+let arenaGen=0;
+const PARTICLE_POOL=[];const MAX_PARTICLES=15;
+
+const affirmations=[
+  ()=>`${teacherName} is proud of you!`,
+  ()=>`${teacherName} knew you could do it!`,
+  ()=>`That's the kind of thinking ${teacherName} loves to see!`,
+  ()=>`${teacherName} says: you're getting it!`,
+  ()=>`Strong work — ${teacherName} sees your effort!`,
+  ()=>`${teacherName} is impressed right now!`,
+  ()=>`You're showing ${teacherName} what you can do!`,
+  ()=>`${teacherName} says: keep that energy!`
+];
+let lastAffirmIdx=-1;
+function getAffirmation(){let idx;do{idx=Math.floor(Math.random()*affirmations.length);}while(idx===lastAffirmIdx&&affirmations.length>1);lastAffirmIdx=idx;return affirmations[idx]();}
+function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function safeCall(fn,msg){try{fn();}catch(e){console.error(msg,e);}}
+function getAudioContext(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playTone(freq,dur){safeCall(()=>{const ctx=getAudioContext();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;o.type='sine';g.gain.value=0.12;o.start();g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);o.stop(ctx.currentTime+dur);},'Audio error');}
+function playCorrectSound(){playTone(523,0.1);setTimeout(()=>playTone(659,0.1),100);setTimeout(()=>playTone(784,0.15),200);}
+function playWrongSound(){playTone(200,0.2);}
+
+// ===== SVG HELPERS for better graphics =====
+function svgHex(cx,cy,r,fill,opacity){
+  const a=[];for(let i=0;i<6;i++){const ang=Math.PI/3*i-Math.PI/6;a.push((cx+r*Math.cos(ang)).toFixed(1)+','+(cy+r*Math.sin(ang)).toFixed(1));}
+  return `<polygon points="${a.join(' ')}" fill="${fill}" opacity="${opacity||1}"/>`;
+}
+function svgKey(x,y,w,h,fill){
+  return `<g transform="translate(${x},${y})"><rect x="0" y="${h*0.2}" width="${w*0.55}" height="${h*0.6}" rx="${h*0.15}" fill="${fill}"/><rect x="${w*0.4}" y="0" width="${w*0.6}" height="${h}" rx="${h*0.2}" fill="${fill}"/><rect x="${w*0.55}" y="${h*0.15}" width="${w*0.15}" height="${h*0.2}" rx="1" fill="#0F0A1A"/><rect x="${w*0.55}" y="${h*0.6}" width="${w*0.15}" height="${h*0.2}" rx="1" fill="#0F0A1A"/></g>`;
+}
+function svgLock(x,y,w,h,fill,empty){
+  const shackle=empty?`<path d="M${x+w*0.25},${y+h*0.45} Q${x+w*0.25},${y} ${x+w*0.5},${y} Q${x+w*0.75},${y} ${x+w*0.75},${y+h*0.45}" fill="none" stroke="${fill}" stroke-width="2" stroke-dasharray="${empty?'4,3':'none'}"/>`:`<path d="M${x+w*0.25},${y+h*0.45} Q${x+w*0.25},${y} ${x+w*0.5},${y} Q${x+w*0.75},${y} ${x+w*0.75},${y+h*0.45}" fill="none" stroke="${fill}" stroke-width="2"/>`;
+  return `${shackle}<rect x="${x+w*0.15}" y="${y+h*0.4}" width="${w*0.7}" height="${h*0.55}" rx="3" fill="${empty?'none':fill}" stroke="${fill}" stroke-width="1.5" ${empty?'stroke-dasharray="3,2"':''}/>`;
+}
+function svgCell(x,y,w,h,energyPct,dim){
+  const bg=dim?'#0F0818':'#1A1030';const stroke=dim?'#2A1540':'#4A3070';
+  const membraneOuter=dim?'rgba(74,48,112,0.4)':'rgba(74,48,112,0.8)';
+  // Double-wall membrane effect
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h*0.14}" fill="${bg}" stroke="${stroke}" stroke-width="2"/>
+    <rect x="${x+2}" y="${y+2}" width="${w-4}" height="${h-4}" rx="${(h-4)*0.12}" fill="none" stroke="${membraneOuter}" stroke-width="1" stroke-dasharray="6,3"/>
+    <!-- Energy meter -->
+    <rect x="${x+w*0.2}" y="${y+h*0.55}" width="${w*0.6}" height="${h*0.16}" rx="3" fill="#0A0515" stroke="#444" stroke-width="1"/>
+    <rect x="${x+w*0.2+1}" y="${y+h*0.55+1}" width="${Math.max(0,(w*0.6-2)*energyPct/100)}" height="${h*0.16-2}" rx="2" fill="${energyPct>50?'#22C55E':energyPct>20?'#FF6B35':'#FF4757'}"/>
+    <text x="${x+w*0.5}" y="${y+h*0.82}" text-anchor="middle" fill="${energyPct>20?'#A89CC8':'#FF4757'}" font-size="9">${energyPct>0?energyPct+'%':'0%'}</text>`;
+}
+function svgBlood(x,y,w,h,label){
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h/2}" fill="#2A1040" stroke="#6B3FA0" stroke-width="2"/>
+    <rect x="${x+3}" y="${y+3}" width="${w-6}" height="${h-6}" rx="${(h-6)/2}" fill="none" stroke="rgba(107,63,160,0.3)" stroke-width="1"/>
+    ${label?`<text x="${x+w/2}" y="${y-6}" text-anchor="middle" fill="#A89CC8" font-size="10">${label}</text>`:''}`;
+}
+
+// ===== PARTICLES =====
+function initParticles(){const layer=document.getElementById('particle-layer');for(let i=0;i<MAX_PARTICLES;i++){const p=document.createElement('div');p.className='particle';p.style.display='none';layer.appendChild(p);PARTICLE_POOL.push(p);}}
+let particleIdx=0;
+function spawnParticle(x,y,color){const p=PARTICLE_POOL[particleIdx%MAX_PARTICLES];particleIdx++;p.style.display='block';p.style.left=x+'px';p.style.top=y+'px';p.style.background=color;p.style.width=(4+Math.random()*6)+'px';p.style.height=p.style.width;p.style.animation='none';void p.offsetHeight;p.style.animation=`particleFall ${1+Math.random()*1}s ease-out forwards`;setTimeout(()=>{p.style.display='none';},2500);}
+function burstParticles(n,colors){const cx=window.innerWidth/2,cy=window.innerHeight/2;for(let i=0;i<Math.min(n,MAX_PARTICLES);i++){setTimeout(()=>{spawnParticle(cx-60+Math.random()*120,cy-60+Math.random()*120,colors[i%colors.length]);},i*50);}}
+
+// ===== GAME STATE =====
+const gameState={rounds:[]};
+
+// ===== ROUND DATA =====
+const ROUNDS=[
+// ============ ROUND 1 ============
+{
+  num:1,name:"What's Missing?",sourceDay:"Monday",mechanic:"pick-the-match",required:true,
+  focusPrompt:"Something is missing from this body model — look at what's broken.",
+  contextCaption:"From Monday: This model shows the glucose-insulin-receptor system. One part has been removed.",
+  buildArena:function(container){
+    let glucoseHexes='';
+    [85,135,185,240,295,350,405,455,505].forEach((x,i)=>{
+      glucoseHexes+=svgHex(x,108,13,'#FFD700',0.75+Math.sin(i)*0.15);
+      glucoseHexes+=`<text x="${x}" y="${112}" text-anchor="middle" fill="#B8860B" font-size="6" font-weight="bold">G</text>`;
+    });
+    let cells='';
+    [80,260,440].forEach((x,i)=>{
+      cells+=svgCell(x,185,130,95,3+i*2,true);
+      // Receptor lock (empty)
+      cells+=svgLock(x+50,160,30,28,'#00D4FF',true);
+      cells+=`<text x="${x+65}" y="155" text-anchor="middle" fill="#00D4FF" font-size="9" font-weight="bold">RECEPTOR</text>`;
+    });
+    container.innerHTML=`<svg class="arena-svg" viewBox="0 0 620 360" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="bloodGrad1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#3A1060"/><stop offset="50%" stop-color="#2A1040"/><stop offset="100%" stop-color="#3A1060"/></linearGradient></defs>
+      <!-- Bloodstream -->
+      ${svgBlood(35,75,550,65,'BLOODSTREAM')}
+      <!-- Glucose hexagons flooding -->
+      ${glucoseHexes}
+      <text x="310" y="148" text-anchor="middle" fill="#FFD700" font-size="11" font-weight="bold">GLUCOSE piling up — nowhere to go!</text>
+      <!-- Cells with empty receptors -->
+      ${cells}
+      <!-- Pancreas (dimmed) -->
+      <ellipse cx="38" cy="195" rx="32" ry="20" fill="#1A1030" stroke="#444" stroke-width="1.5" opacity="0.35"/>
+      <text x="38" y="199" text-anchor="middle" fill="#555" font-size="8">pancreas</text>
+      <!-- Big mystery label -->
+      <rect x="180" y="305" width="260" height="36" rx="8" fill="rgba(255,20,147,0.1)" stroke="var(--pink)" stroke-width="1.5" stroke-dasharray="6,4">
+        <animate attributeName="stroke-opacity" values="1;0.3;1" dur="2s" repeatCount="3"/>
+      </rect>
+      <text x="310" y="328" text-anchor="middle" fill="#FF1493" font-size="15" font-weight="bold">??? — What's missing?</text>
+      <!-- Remaining labels -->
+      <text x="585" y="195" text-anchor="end" fill="#FF1493" font-size="9" font-style="italic">HORMONE label: ???</text>
+    </svg>`;
+  },
+  doPhase:{prompt:"Which term is missing from this model?",options:[{id:'A',text:'INSULIN'},{id:'B',text:'GLUCOSE'},{id:'C',text:'RECEPTOR'}],correct:'A',
+    feedback:{'B':{text:"Glucose is still here — see the yellow hexagons flooding the blood?"},'C':{text:"Receptors are still on the cells — see the blue locks? They're empty because nothing is docking into them."}}},
+  provePhase:{question:"Why are the cells dark when insulin is missing?",options:[{id:'A',text:'Glucose cannot enter cells without insulin'},{id:'B',text:'Receptors disappear when insulin is gone'},{id:'C',text:'The bloodstream stops carrying glucose'}],correct:'A',
+    feedback:{'B':"The receptors are still there — look at the blue locks on the cells. They're just EMPTY because no insulin key is docking in.",'C':"The bloodstream is still full of glucose — see all the yellow hexagons? The problem is glucose can't get OUT of the blood and INTO the cells."}},
+  hintLadder:{hint1:{text:"Look at the receptor locks on the cells — they're empty. What usually docks into those locks?",target:'receptor'},stepByStep:{panels:[{text:"This lock needs a key.",caption:"The receptor lock has an empty keyhole. A green key shape (INSULIN) belongs there."},{text:"Insulin is the key that opens receptor locks so glucose can enter cells. Without it, cells starve.",caption:"Select INSULIN from the options."}]}}
+},
+// ============ ROUND 2 ============
+{
+  num:2,name:"The Danger Zone",sourceDay:"Tuesday",mechanic:"hotspot",required:true,
+  focusPrompt:"Look at Alec's glucose graph — find the reading that shows he was in danger.",
+  contextCaption:"From Tuesday: This is Alec Smith's blood glucose graph over 27 days of rationing insulin.",
+  buildArena:function(container){
+    container.innerHTML=`<svg class="arena-svg" viewBox="0 0 620 320" xmlns="http://www.w3.org/2000/svg" id="hotspotSvg">
+      <defs><linearGradient id="dangerGrad" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%" stop-color="rgba(34,197,94,0.15)"/><stop offset="40%" stop-color="rgba(34,197,94,0.05)"/><stop offset="100%" stop-color="rgba(255,71,87,0.08)"/></linearGradient></defs>
+      <!-- Graph bg -->
+      <rect x="65" y="18" width="530" height="255" rx="6" fill="#12081E" stroke="#3D2D6B" stroke-width="1.5"/>
+      <rect x="65" y="18" width="530" height="255" rx="6" fill="url(#dangerGrad)"/>
+      <!-- Healthy zone -->
+      <rect x="65" y="175" width="530" height="80" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>
+      <text x="600" y="210" text-anchor="end" fill="#22C55E" font-size="10" font-weight="bold">Healthy Range</text>
+      <text x="600" y="224" text-anchor="end" fill="#22C55E" font-size="9">70-140 mg/dL</text>
+      <!-- Grid lines -->
+      ${[70,120,175,230].map(y=>`<line x1="65" y1="${y}" x2="595" y2="${y}" stroke="rgba(61,45,107,0.4)" stroke-width="0.5"/>`).join('')}
+      <!-- Y-axis -->
+      <text x="58" y="30" text-anchor="end" fill="#A89CC8" font-size="10">600</text>
+      <text x="58" y="75" text-anchor="end" fill="#A89CC8" font-size="10">450</text>
+      <text x="58" y="125" text-anchor="end" fill="#A89CC8" font-size="10">300</text>
+      <text x="58" y="180" text-anchor="end" fill="#22C55E" font-size="10">140</text>
+      <text x="58" y="260" text-anchor="end" fill="#A89CC8" font-size="10">0</text>
+      <text x="30" y="150" text-anchor="middle" fill="#A89CC8" font-size="9" transform="rotate(-90,30,150)">mg/dL</text>
+      <!-- X-axis -->
+      <line x1="65" y1="255" x2="595" y2="255" stroke="#3D2D6B" stroke-width="1"/>
+      <text x="85" y="275" fill="#A89CC8" font-size="10">Day 1</text>
+      <text x="240" y="275" fill="#A89CC8" font-size="10">Day 10</text>
+      <text x="415" y="275" fill="#A89CC8" font-size="10">Day 20</text>
+      <text x="555" y="275" fill="#A89CC8" font-size="10" font-weight="bold">Day 27</text>
+      <!-- Dotted reference -->
+      <line x1="65" y1="205" x2="595" y2="205" stroke="#22C55E" stroke-width="1" stroke-dasharray="5,4" opacity="0.4"/>
+      <!-- Danger fill under line -->
+      <polygon points="85,205 140,203 200,198 260,188 320,168 380,140 440,105 500,72 560,42 560,255 85,255" fill="rgba(255,71,87,0.06)" stroke="none"/>
+      <!-- Alec's glucose line -->
+      <polyline points="85,205 140,203 200,198 260,188 320,168 380,140 440,105 500,72 560,42" fill="none" stroke="#FF4757" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Data points -->
+      <circle cx="85" cy="205" r="5" fill="#22C55E" stroke="#FFF" stroke-width="1.5"/>
+      <circle cx="260" cy="188" r="4" fill="#FF6B35" stroke="#FFF" stroke-width="1"/>
+      <circle cx="440" cy="105" r="4" fill="#FF4757" stroke="#FFF" stroke-width="1"/>
+      <circle cx="560" cy="42" r="8" fill="#FF4757" stroke="#FFF" stroke-width="2">
+        <animate attributeName="r" values="7;10;7" dur="1.5s" repeatCount="3"/>
+      </circle>
+      <!-- 550+ label -->
+      <rect x="492" y="18" width="100" height="22" rx="4" fill="rgba(255,71,87,0.2)" stroke="#FF4757" stroke-width="1"/>
+      <text x="542" y="34" text-anchor="middle" fill="#FF4757" font-size="12" font-weight="bold">550+ mg/dL</text>
+      <!-- Title -->
+      <text x="310" y="300" text-anchor="middle" fill="#A89CC8" font-size="11">Alec Smith's Blood Glucose — 27 days rationing insulin</text>
+    </svg>`;
+    const wrapper=document.createElement('div');wrapper.className='hotspot-area';wrapper.style.position='relative';wrapper.style.maxWidth='660px';wrapper.style.width='100%';
+    wrapper.innerHTML=container.innerHTML;
+    [{id:'A',style:'left:8%;top:58%;width:16%;height:20%;'},{id:'B',style:'left:82%;top:2%;width:17%;height:22%;'},{id:'C',style:'left:88%;top:58%;width:11%;height:16%;'},{id:'D',style:'left:52%;top:26%;width:14%;height:18%;'}].forEach(z=>{
+      const d=document.createElement('div');d.className='hotspot-zone';d.dataset.id=z.id;d.style.cssText=z.style;
+      d.onclick=function(){handleHotspotClick(z.id);};wrapper.appendChild(d);
+    });
+    container.innerHTML='';container.appendChild(wrapper);
+  },
+  doPhase:{prompt:"Tap the reading that proves Alec's glucose was dangerously high.",correct:'B',hotspots:['A','B','C','D'],
+    feedback:{'A':{text:"That reading is IN the healthy range — the green zone. Look higher on the graph for the dangerous number."},'C':{text:"That's the label for what's NORMAL. Look for the reading that's way ABOVE this green zone."},'D':{text:"The glucose is rising there, but it gets much worse. Look at the very end — Day 27."}}},
+  provePhase:{question:"Why is 550 mg/dL dangerous for Alec's cells?",options:[{id:'A',text:'Too much glucose damages the bloodstream walls'},{id:'B',text:'Without insulin, that glucose is locked out of cells'},{id:'C',text:'High glucose means the pancreas overproduces insulin'}],correct:'B',
+    feedback:{'A':"The danger isn't damage to the blood — it's that the glucose CAN'T REACH the cells. Look at the receptor locks: they're empty.",'C':"Alec has Type 1 diabetes — his pancreas can't make insulin at all. That's the whole problem: high glucose, zero insulin, cells starving."}},
+  hintLadder:{hint1:{text:"Look at the graph — find the number that's way above the green 'Healthy Range' zone. It's near the end of the 27 days.",target:'endpoint'},stepByStep:{panels:[{text:"Day 27: The 550+ point is far above the healthy range.",caption:"This number is more than 5 times the healthy range (70-140 mg/dL)."},{text:"By Day 27, Alec's blood had 550 mg/dL of glucose — but without insulin, none of it could enter his cells.",caption:"Tap the 550+ reading at Day 27."}]}}
+},
+// ============ ROUND 3 ============
+{
+  num:3,name:"The Chain Reaction",sourceDay:"Wednesday",mechanic:"what-comes-next",required:true,
+  focusPrompt:"The insulin slider is at NONE. Two steps already happened — what comes next?",
+  contextCaption:"From Wednesday: When you set insulin to NONE in the lab, this chain started.",
+  buildArena:function(c){
+    let glucoseHexes='';[235,265,295,325,360,395,425,455,490,520].forEach((x,i)=>{glucoseHexes+=svgHex(x,92,10,'#FFD700',0.65+i*0.02);});
+    let cells='';[235,375,510].forEach((x,i)=>{
+      cells+=svgCell(x,135,95,72,Math.max(2,15-i*6),i>0);
+      cells+=svgLock(x+32,115,22,22,'#00D4FF',true);
+    });
+    c.innerHTML=`<svg class="arena-svg" viewBox="0 0 620 310" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="8" width="590" height="294" rx="10" fill="#12081E" stroke="#A78BFA" stroke-width="1.5"/>
+      <text x="310" y="30" text-anchor="middle" fill="#A78BFA" font-size="12" font-weight="bold">WEDNESDAY LAB</text>
+      <!-- Insulin slider -->
+      <rect x="30" y="45" width="175" height="32" rx="6" fill="#0A0515" stroke="#A78BFA" stroke-width="1.5"/>
+      <circle cx="44" cy="61" r="8" fill="#FF4757" stroke="#FFF" stroke-width="1.5"/>
+      <text x="60" y="65" fill="#FF4757" font-size="11" font-weight="bold">INSULIN: NONE</text>
+      <!-- Grayed sliders -->
+      <rect x="30" y="84" width="175" height="22" rx="4" fill="#0A0515" stroke="#444" opacity="0.35"/>
+      <text x="40" y="99" fill="#555" font-size="9">Glucose: Normal</text>
+      <rect x="30" y="112" width="175" height="22" rx="4" fill="#0A0515" stroke="#444" opacity="0.35"/>
+      <text x="40" y="127" fill="#555" font-size="9">Receptors: Normal</text>
+      <!-- Bloodstream -->
+      ${svgBlood(220,65,385,55,'BLOODSTREAM')}
+      ${glucoseHexes}
+      <!-- Cells -->
+      ${cells}
+      <!-- Sequence strip -->
+      <rect x="30" y="225" width="560" height="65" rx="8" fill="#0A0515" stroke="#3D2D6B" stroke-width="1"/>
+      <text x="45" y="248" fill="#22C55E" font-size="11" font-weight="bold">Step 1:</text>
+      <text x="100" y="248" fill="#22C55E" font-size="11">Insulin drops to zero</text>
+      <text x="255" y="248" fill="#6B3FA0" font-size="16">\u2192</text>
+      <text x="275" y="248" fill="#22C55E" font-size="11" font-weight="bold">Step 2:</text>
+      <text x="328" y="248" fill="#22C55E" font-size="11">Receptors stay empty</text>
+      <text x="480" y="248" fill="#6B3FA0" font-size="16">\u2192</text>
+      <rect x="496" y="234" width="82" height="24" rx="4" fill="none" stroke="#FFD700" stroke-width="1.5" stroke-dasharray="4,3">
+        <animate attributeName="stroke-opacity" values="1;0.3;1" dur="1.5s" repeatCount="3"/>
+      </rect>
+      <text x="537" y="251" text-anchor="middle" fill="#FFD700" font-size="11" font-weight="bold">Step 3: ???</text>
+      <text x="310" y="280" text-anchor="middle" fill="#A89CC8" font-size="10" font-style="italic">What happens next in the chain?</text>
+    </svg>`;
+  },
+  doPhase:{prompt:"Insulin drops to zero, receptors stay empty — what comes next?",
+    seqSteps:[{filled:true,text:"Insulin drops to zero"},{filled:true,text:"Receptors stay empty"},{filled:false,blankText:"What happens next?"}],
+    options:[{id:'A',text:'Glucose stays locked out of cells'},{id:'B',text:'The pancreas makes more receptors'},{id:'C',text:'Cells produce extra energy to compensate'}],correct:'A',
+    feedback:{'B':{text:"Receptors don't get replaced — they're still there, just empty. The problem is what happens to the GLUCOSE."},'C':{text:"Cells can't make energy without fuel. Look at the energy meters — they're dropping, not rising."}}},
+  provePhase:{question:"What happens to cell energy when glucose is locked out?",options:[{id:'A',text:'Cell energy stays the same until receptors break'},{id:'B',text:'Cell energy increases as the body finds other fuel'},{id:'C',text:'Cell energy drops because glucose is the fuel'}],correct:'C',
+    feedback:{'A':"Look at the energy meters in the cells — they're already dropping. The cells can't wait; they need glucose NOW.",'B':"The cells don't have a backup plan that works fast enough. Look at the energy meters — they're going DOWN, not up."}},
+  hintLadder:{hint1:{text:"Look at the glucose hexagons in the blood — they're piling up. Now look at the receptor locks — they're closed. Where is the glucose going?",target:'glucose'},stepByStep:{panels:[{text:"The locks are closed. Glucose can't get through.",caption:"Glucose hexagons bump against closed receptor locks."},{text:"When receptors are empty and closed, glucose stays trapped in the blood and can't reach the cells.",caption:"Select 'Glucose stays locked out of cells.'"}]}}
+},
+// ============ ROUND 4 ============
+{
+  num:4,name:"Where Ozempic Works",sourceDay:"Monday",mechanic:"coach-click",required:true,
+  focusPrompt:"Look at the model — extra insulin is suddenly flooding the blood. Where is it coming from?",
+  contextCaption:"From Monday: The body model is showing a sudden change — extra insulin keys appeared.",
+  buildArena:function(c){
+    let beforeGlucose='';[55,95,135,175,215].forEach(x=>{beforeGlucose+=svgHex(x,100,9,'#FFD700',0.3);});
+    let afterGlucose='';[345,380,415,450,485,520].forEach(x=>{afterGlucose+=svgHex(x,100,10,'#FFD700',0.7);});
+    let afterKeys='';[358,398,438,478,518].forEach((x,i)=>{afterKeys+=svgKey(x,92,16,12,'#22C55E');});
+    c.innerHTML=`<svg class="arena-svg" viewBox="0 0 620 330" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="afterGlow" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="rgba(57,255,20,0.05)"/><stop offset="100%" stop-color="rgba(57,255,20,0.02)"/></linearGradient></defs>
+      <!-- Divider -->
+      <line x1="305" y1="15" x2="305" y2="290" stroke="#3D2D6B" stroke-width="1" stroke-dasharray="6,4"/>
+      <text x="152" y="22" text-anchor="middle" fill="#666" font-size="11" font-weight="bold">BEFORE</text>
+      <text x="462" y="22" text-anchor="middle" fill="#39FF14" font-size="11" font-weight="bold">AFTER (something changed!)</text>
+      <!-- BEFORE (dimmed) -->
+      <g opacity="0.35">
+        ${svgBlood(25,72,265,48,'')}
+        ${beforeGlucose}
+        ${svgCell(45,145,90,65,5,true)}${svgLock(75,130,20,18,'#00D4FF',true)}
+        ${svgCell(165,145,90,65,8,true)}${svgLock(195,130,20,18,'#00D4FF',true)}
+      </g>
+      <!-- AFTER -->
+      <rect x="310" y="30" width="295" height="260" rx="8" fill="url(#afterGlow)"/>
+      ${svgBlood(320,72,275,48,'')}
+      ${afterGlucose}
+      ${afterKeys}
+      <!-- Cells bright with docked receptors -->
+      ${svgCell(340,150,95,70,85,false)}${svgLock(375,134,22,20,'#22C55E',false)}
+      <text x="386" y="130" text-anchor="middle" fill="#39FF14" font-size="8">docked!</text>
+      ${svgCell(475,150,95,70,78,false)}${svgLock(510,134,22,20,'#22C55E',false)}
+      <text x="521" y="130" text-anchor="middle" fill="#39FF14" font-size="8">docked!</text>
+      <!-- Pancreas (unlabeled mystery organ) -->
+      <ellipse cx="332" cy="260" rx="42" ry="26" fill="#1E1535" stroke="#6B3FA0" stroke-width="2.5"/>
+      <text x="332" y="264" text-anchor="middle" fill="#A89CC8" font-size="10" font-weight="bold">???</text>
+      <!-- Animated flow trail from pancreas to blood -->
+      ${[0,1,2,3,4].map(i=>`${svgKey(355+i*28,248-i*18,12,9,'#22C55E')}
+        <animate attributeName="opacity" values="0.2;0.9;0.2" dur="${1.5+i*0.2}s" begin="${i*0.3}s" repeatCount="3" fill="freeze"/>`).join('')}
+      <!-- Tappable region labels -->
+      <rect x="390" y="96" width="100" height="18" rx="4" fill="rgba(0,212,255,0.1)" stroke="#00D4FF" stroke-width="1"/>
+      <text x="440" y="109" text-anchor="middle" fill="#00D4FF" font-size="9" font-weight="bold">A: Bloodstream</text>
+      <rect x="272" y="282" width="120" height="18" rx="4" fill="rgba(0,212,255,0.1)" stroke="#00D4FF" stroke-width="1"/>
+      <text x="332" y="295" text-anchor="middle" fill="#00D4FF" font-size="9" font-weight="bold">B: This organ</text>
+      <rect x="490" y="178" width="110" height="18" rx="4" fill="rgba(0,212,255,0.1)" stroke="#00D4FF" stroke-width="1"/>
+      <text x="545" y="191" text-anchor="middle" fill="#00D4FF" font-size="9" font-weight="bold">C: Receptor locks</text>
+    </svg>`;
+  },
+  doPhase:{prompt:"Where are all these extra insulin keys coming from?",options:[{id:'A',text:'Bloodstream tube'},{id:'B',text:'The unlabeled organ (left side)'},{id:'C',text:'Receptor locks on cells'}],correct:'B',
+    feedback:{'A':{text:"The bloodstream is carrying the keys, but it didn't MAKE them. Watch the green keys — trace where they're flowing FROM."},'C':{text:"Receptors RECEIVE the keys — they don't make them. Watch the flow: the keys arrive AT the receptors. Where do they start?"}}},
+  provePhase:{question:"Why does Ozempic target the pancreas for diabetics?",options:[{id:'A',text:'The pancreas stores glucose for emergencies'},{id:'B',text:'The pancreas removes damaged receptors'},{id:'C',text:'The pancreas is where insulin is produced'}],correct:'C',
+    feedback:{'A':"The pancreas doesn't store glucose — look at the model. The pancreas makes INSULIN, the hormone that unlocks cells.",'B':"Receptors stay on the cells — the pancreas doesn't touch them. Look at the arrow from Ozempic: it points to where insulin is MADE."}},
+  hintLadder:{hint1:{text:"Watch the green insulin keys — they're flowing OUT of one spot. Trace them backward to where they start.",target:'pancreas'},stepByStep:{panels:[{text:"The insulin keys are coming from THIS organ.",caption:"Green key shapes animate outward from the organ into the bloodstream."},{text:"This organ is the pancreas — it produces insulin. Ozempic forces it to make MORE.",caption:"Tap the unlabeled organ (Option B)."}]}}
+},
+// ============ ROUND 5 ============
+{
+  num:5,name:"Evidence Match",sourceDay:"Tuesday",mechanic:"pick-the-match",required:true,
+  focusPrompt:"Three evidence cards are on the board — each one proves something different about Alec's body.",
+  contextCaption:"From Tuesday: Three pieces of forensic evidence were collected about Alec's body.",
+  buildArena:function(c){
+    c.innerHTML=`<svg class="arena-svg" viewBox="0 0 620 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="310" y="18" text-anchor="middle" fill="#00D4FF" font-size="13" font-weight="bold">EVIDENCE BOARD</text>
+      <!-- Card 1: Blood Glucose Graph -->
+      <rect x="15" y="32" width="185" height="240" rx="12" fill="#12081E" stroke="#3B82F6" stroke-width="2.5"/>
+      <rect x="20" y="37" width="175" height="20" rx="4" fill="rgba(59,130,246,0.15)"/>
+      <text x="107" y="52" text-anchor="middle" fill="#3B82F6" font-size="11" font-weight="bold">Blood Glucose Graph</text>
+      <rect x="30" y="65" width="155" height="90" rx="4" fill="#0A0515" stroke="#3D2D6B"/>
+      <rect x="30" y="120" width="155" height="25" fill="rgba(34,197,94,0.08)"/>
+      <polyline points="40,125 70,123 100,115 130,95 160,78 175,68" fill="none" stroke="#FF4757" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="175" cy="68" r="4" fill="#FF4757"/>
+      <text x="107" y="176" text-anchor="middle" fill="#FF4757" font-size="12" font-weight="bold">550+ mg/dL</text>
+      <text x="107" y="195" text-anchor="middle" fill="#A89CC8" font-size="10">Shows blood sugar</text>
+      <text x="107" y="210" text-anchor="middle" fill="#A89CC8" font-size="10">was dangerously HIGH</text>
+      <rect x="85" y="240" width="44" height="22" rx="6" fill="rgba(59,130,246,0.15)" stroke="#3B82F6"/>
+      <text x="107" y="256" text-anchor="middle" fill="#3B82F6" font-size="11" font-weight="bold">A</text>
+
+      <!-- Card 2: Receptor Image -->
+      <rect x="218" y="32" width="185" height="240" rx="12" fill="#12081E" stroke="#FF4757" stroke-width="2.5"/>
+      <rect x="223" y="37" width="175" height="20" rx="4" fill="rgba(255,71,87,0.12)"/>
+      <text x="310" y="52" text-anchor="middle" fill="#FF4757" font-size="11" font-weight="bold">Receptor Image</text>
+      <rect x="243" y="70" width="135" height="75" rx="6" fill="#0A0515" stroke="#3D2D6B"/>
+      ${svgCell(258,78,45,55,0,true)}${svgLock(270,68,22,20,'#00D4FF',true)}
+      ${svgCell(318,78,45,55,0,true)}${svgLock(330,68,22,20,'#00D4FF',true)}
+      <text x="310" y="165" text-anchor="middle" fill="#00D4FF" font-size="10">Empty locks = no insulin docked</text>
+      <text x="310" y="195" text-anchor="middle" fill="#A89CC8" font-size="10">Shows WHY cells can't</text>
+      <text x="310" y="210" text-anchor="middle" fill="#A89CC8" font-size="10">get glucose inside</text>
+      <rect x="288" y="240" width="44" height="22" rx="6" fill="rgba(255,71,87,0.12)" stroke="#FF4757"/>
+      <text x="310" y="256" text-anchor="middle" fill="#FF4757" font-size="11" font-weight="bold">B</text>
+
+      <!-- Card 3: Cell Energy Comparison -->
+      <rect x="420" y="32" width="185" height="240" rx="12" fill="#12081E" stroke="#22C55E" stroke-width="2.5"/>
+      <rect x="425" y="37" width="175" height="20" rx="4" fill="rgba(34,197,94,0.12)"/>
+      <text x="512" y="52" text-anchor="middle" fill="#22C55E" font-size="11" font-weight="bold">Cell Energy Comparison</text>
+      <!-- Healthy cell -->
+      <rect x="435" y="68" width="70" height="55" rx="8" fill="#0A0515" stroke="#22C55E" stroke-width="1.5"/>
+      <text x="470" y="83" text-anchor="middle" fill="#22C55E" font-size="9" font-weight="bold">Healthy</text>
+      <rect x="448" y="92" width="44" height="10" rx="3" fill="#0A0515" stroke="#22C55E"/>
+      <rect x="449" y="93" width="40" height="8" rx="2" fill="#22C55E"/>
+      <text x="470" y="115" text-anchor="middle" fill="#22C55E" font-size="8">FULL</text>
+      <!-- Alec's cell -->
+      <rect x="520" y="68" width="70" height="55" rx="8" fill="#0A0515" stroke="#FF4757" stroke-width="1.5"/>
+      <text x="555" y="83" text-anchor="middle" fill="#FF4757" font-size="9" font-weight="bold">Alec's</text>
+      <rect x="533" y="92" width="44" height="10" rx="3" fill="#0A0515" stroke="#FF4757"/>
+      <rect x="534" y="93" width="4" height="8" rx="2" fill="#FF4757"/>
+      <text x="555" y="115" text-anchor="middle" fill="#FF4757" font-size="8">EMPTY</text>
+      <!-- Glucose around both -->
+      ${[440,460,480,525,545,565].map(x=>svgHex(x,133,6,'#FFD700',0.5)).join('')}
+      <text x="512" y="150" text-anchor="middle" fill="#FFD700" font-size="9">glucose everywhere</text>
+      <text x="512" y="185" text-anchor="middle" fill="#A89CC8" font-size="10">Shows cells STARVING</text>
+      <text x="512" y="200" text-anchor="middle" fill="#A89CC8" font-size="10">despite glucose present</text>
+      <rect x="490" y="240" width="44" height="22" rx="6" fill="rgba(34,197,94,0.12)" stroke="#22C55E"/>
+      <text x="512" y="256" text-anchor="middle" fill="#22C55E" font-size="11" font-weight="bold">C</text>
+    </svg>`;
+  },
+  doPhase:{prompt:"Which evidence proves that Alec's cells were starving?",options:[{id:'A',text:'Blood Glucose Graph'},{id:'B',text:'Receptor Image'},{id:'C',text:'Cell Energy Comparison'}],correct:'C',
+    feedback:{'A':{text:"The glucose graph shows blood sugar was HIGH — but that's about the BLOOD, not the CELLS. Which evidence shows what's happening INSIDE the cells?"},'B':{text:"The receptor image shows the locks are empty — that explains WHY cells are starving, but which evidence shows the starvation ITSELF?"}}},
+  provePhase:{question:"Why are cells starving when glucose is all around them?",options:[{id:'A',text:'Cells have no glucose anywhere near them'},{id:'B',text:'Cells are surrounded by glucose but have no energy'},{id:'C',text:'Cells have too much energy from excess glucose'}],correct:'B',
+    feedback:{'A':"Look at the evidence again — there IS glucose all around the cells. The yellow hexagons are everywhere. The problem is it can't get IN.",'C':"The cells have ZERO energy, not too much. Look at the battery icon — it's empty. The glucose is outside, not inside."}},
+  hintLadder:{hint1:{text:"Look at the three evidence cards — one of them shows a battery icon inside a cell. That's the one about cell ENERGY.",target:'energy'},stepByStep:{panels:[{text:"Glucose is RIGHT THERE but the cell has no energy.",caption:"The Cell Energy Comparison card shows an empty battery surrounded by glucose hexagons."},{text:"The Cell Energy Comparison directly shows Alec's cells were starving — empty batteries surrounded by fuel they couldn't use.",caption:"Select 'Cell Energy Comparison' (Option C)."}]}}
+},
+// ============ ROUND 6 ============
+{
+  num:6,name:"The Rescue Slider",sourceDay:"Wednesday",mechanic:"coach-click",required:true,
+  focusPrompt:"This patient's cells are dying — look at the insulin slider and the energy meters. What setting fixes it?",
+  contextCaption:"From Wednesday: A patient has dangerously high blood glucose. Use your lab knowledge to pick the right insulin setting.",
+  buildArena:function(c){
+    let glucoseFlood='';[55,85,115,145,175,205,240,270,300,330,360,390,420,450,480,510,540].forEach(x=>{glucoseFlood+=svgHex(x,95,9,'#FFD700',0.6);});
+    c.innerHTML=`<svg class="arena-svg" viewBox="0 0 620 330" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="8" width="590" height="314" rx="10" fill="#12081E" stroke="#FF4757" stroke-width="2"/>
+      <rect x="170" y="15" width="280" height="22" rx="6" fill="rgba(255,71,87,0.15)"/>
+      <text x="310" y="31" text-anchor="middle" fill="#FF4757" font-size="13" font-weight="bold">PATIENT IN CRISIS</text>
+      <!-- Bloodstream flooded -->
+      ${svgBlood(30,65,560,55,'BLOODSTREAM — glucose flooding!')}
+      ${glucoseFlood}
+      <text x="310" y="130" text-anchor="middle" fill="#FF4757" font-size="11" font-weight="bold">NO insulin keys in blood!</text>
+      <!-- Dying cells -->
+      ${[65,245,445].map((x,i)=>{
+        return svgCell(x,148,110,78,2,true)+svgLock(x+40,130,24,22,'#00D4FF',true)+
+          `<text x="${x+55}" y="143" text-anchor="middle" fill="#FF4757" font-size="8" font-weight="bold">CRITICAL</text>`;
+      }).join('')}
+      <!-- Slider panel -->
+      <rect x="30" y="245" width="560" height="65" rx="8" fill="#0A0515" stroke="#A78BFA" stroke-width="1.5"/>
+      <text x="50" y="270" fill="#A78BFA" font-size="12" font-weight="bold">INSULIN SLIDER:</text>
+      <!-- Track -->
+      <line x1="195" y1="268" x2="560" y2="268" stroke="#3D2D6B" stroke-width="5" stroke-linecap="round"/>
+      <!-- NONE -->
+      <circle cx="210" cy="268" r="12" fill="#FF4757" stroke="#FFF" stroke-width="2"/>
+      <text x="210" y="272" text-anchor="middle" fill="#FFF" font-size="8" font-weight="bold">A</text>
+      <text x="210" y="296" text-anchor="middle" fill="#FF4757" font-size="10" font-weight="bold">NONE</text>
+      <text x="210" y="307" text-anchor="middle" fill="#FF4757" font-size="8">(current)</text>
+      <!-- LOW -->
+      <circle cx="380" cy="268" r="12" fill="#6B3FA0" stroke="#A78BFA" stroke-width="2"/>
+      <text x="380" y="272" text-anchor="middle" fill="#FFF" font-size="8" font-weight="bold">B</text>
+      <text x="380" y="296" text-anchor="middle" fill="#A78BFA" font-size="10">LOW</text>
+      <!-- HIGH -->
+      <circle cx="545" cy="268" r="14" fill="#22C55E" stroke="#39FF14" stroke-width="2.5">
+        <animate attributeName="r" values="13;16;13" dur="2s" repeatCount="3"/>
+      </circle>
+      <text x="545" y="272" text-anchor="middle" fill="#FFF" font-size="8" font-weight="bold">C</text>
+      <text x="545" y="296" text-anchor="middle" fill="#39FF14" font-size="10" font-weight="bold">HIGH</text>
+    </svg>`;
+  },
+  doPhase:{prompt:"Which insulin setting will rescue this patient's cells?",options:[{id:'A',text:'NONE (keep current)'},{id:'B',text:'LOW'},{id:'C',text:'HIGH'}],correct:'C',
+    feedback:{'A':{text:"NONE is the current setting — and the cells are dying. Look at the energy meters. You need to ADD insulin, not keep it at zero."},'B':{text:"Low insulin helps a little, but this patient is in crisis — glucose is at dangerous levels. Think about what you saw in the lab when you pushed insulin to the highest setting."}}},
+  provePhase:{question:"What does insulin fill to let glucose enter cells?",options:[{id:'A',text:'HORMONES that travel through blood'},{id:'B',text:'GLUCOSE molecules that need energy'},{id:'C',text:'RECEPTORS on the cell walls'}],correct:'C',
+    feedback:{'A':"Insulin IS a hormone — but it doesn't fill hormones. Look at the blue locks on the cells. Insulin fills THOSE so glucose can get in.",'B':"Glucose is the fuel that ENTERS the cell — it's not what insulin fills. Look at the blue lock shapes on the cell walls."}},
+  hintLadder:{hint1:{text:"Look at the energy meters — they're almost empty. In Wednesday's lab, which slider position made the MOST insulin keys appear in the blood?",target:'slider'},stepByStep:{panels:[{text:"Compare: Insulin NONE = empty receptors, dark cells. Insulin HIGH = full receptors, bright cells.",caption:"HIGH insulin fills the most receptor locks."},{text:"HIGH insulin fills the most receptor locks, which lets the most glucose enter cells and restore energy.",caption:"Select HIGH (Option C)."}]}}
+},
+// ============ ROUND 7 (BONUS) ============
+{
+  num:7,name:"The Fatal Chain",sourceDay:"Tue + Wed",mechanic:"what-comes-next",required:false,
+  focusPrompt:"Glucose is locked out of cells — now look at what happens next inside the body.",
+  contextCaption:"From Wednesday: Glucose can't enter cells. Look at what's happening to the cells themselves.",
+  buildArena:function(c){
+    let glucoseHexes='';[55,90,125,160,200,240,280,320,360,400,440,480,520].forEach(x=>{glucoseHexes+=svgHex(x,80,9,'#FFD700',0.6);});
+    c.innerHTML=`<svg class="arena-svg" viewBox="0 0 620 260" xmlns="http://www.w3.org/2000/svg" id="r7Arena">
+      <rect x="15" y="5" width="590" height="248" rx="10" fill="#12081E" stroke="#A78BFA" stroke-width="1.5"/>
+      <text x="310" y="25" text-anchor="middle" fill="#A78BFA" font-size="12" font-weight="bold">WEDNESDAY LAB — Insulin: NONE</text>
+      ${svgBlood(30,50,560,45,'')}
+      ${glucoseHexes}
+      ${[70,240,430].map((x,i)=>{
+        return svgCell(x,115,115,75,Math.max(1,12-i*5),i>0)+svgLock(x+42,98,24,22,'#00D4FF',true)+
+          `<text x="${x+57}" y="202" text-anchor="middle" fill="#FF4757" font-size="9" font-weight="bold">${['draining','low','empty'][i]}</text>`;
+      }).join('')}
+      <text x="310" y="230" text-anchor="middle" fill="#FFD700" font-size="12" font-weight="bold">Glucose locked out. Cells losing energy...</text>
+    </svg>`;
+  },
+  doPhase:{
+    prompt:"Glucose is locked out — what happens to the cells?",
+    isMultiStep:true,
+    preSteps:["Glucose locked out of cells"],
+    steps:[
+      {prompt:"Glucose is locked out — what happens to the cells?",options:[{id:'A',text:'Cells starve because glucose is their fuel'},{id:'B',text:'Cells switch to using insulin as backup fuel'},{id:'C',text:'Cells produce extra receptors to pull glucose in'}],correct:'A',
+        feedback:{'B':"Cells don't use insulin as fuel — insulin is a KEY that opens doors. Look at the energy meters. They're draining.",'C':"Cells can't make new receptors fast enough. The energy meters are ALREADY dropping."},
+        filledText:'',nextCaption:"From Tuesday: This is what the medical report said killed Alec.",
+        nextArena:function(c){
+          c.innerHTML=`<svg class="arena-svg" viewBox="0 0 620 240" xmlns="http://www.w3.org/2000/svg">
+            <rect x="35" y="15" width="550" height="210" rx="14" fill="#12081E" stroke="#FF4757" stroke-width="2.5"/>
+            <rect x="200" y="25" width="220" height="22" rx="6" fill="rgba(255,71,87,0.15)"/>
+            <text x="310" y="42" text-anchor="middle" fill="#FF4757" font-size="14" font-weight="bold">MEDICAL REPORT</text>
+            <line x1="80" y1="55" x2="540" y2="55" stroke="#3D2D6B" stroke-width="1"/>
+            <text x="310" y="85" text-anchor="middle" fill="#FFD700" font-size="14" font-weight="bold">Cause of Death:</text>
+            <text x="310" y="115" text-anchor="middle" fill="#FF4757" font-size="20" font-weight="bold">Diabetic Ketoacidosis</text>
+            <text x="310" y="148" text-anchor="middle" fill="#A89CC8" font-size="13">Body produced toxic ketones because</text>
+            <text x="310" y="168" text-anchor="middle" fill="#A89CC8" font-size="13">cells couldn't access glucose.</text>
+            <text x="310" y="205" text-anchor="middle" fill="#555" font-size="11">Patient: Alec Smith, Age 26</text>
+          </svg>`;
+        }
+      },
+      {prompt:"Cells are starving — what deadly thing happens next?",options:[{id:'A',text:'The brain sends insulin to replace what\'s missing'},{id:'B',text:'Starving cells force the body to produce toxic ketones'},{id:'C',text:'Blood glucose drops and the system recovers on its own'}],correct:'B',
+        feedback:{'A':"Alec's body CAN'T make insulin — that's the whole problem. Look at the medical card.",'C':"The system didn't recover — Alec died. When cells starve, the body produces something dangerous."},
+        filledText:''}
+    ]
+  },
+  provePhase:{question:"Why is this chain a death sentence without insulin?",options:[{id:'A',text:'Every step depends on the previous one failing'},{id:'B',text:'The chain only affects blood, not cells'},{id:'C',text:'Ketones are produced even in a healthy system'}],correct:'A',
+    feedback:{'B':"The chain absolutely affects cells — cells STARVE. That's what produces the toxic ketones.",'C':"Healthy bodies don't produce dangerous ketone levels. Ketones pile up ONLY when cells can't get glucose."}},
+  hintLadder:{hint1:{text:"Look at the cell energy meters — they're drained. Glucose is right outside but can't get in. What happens to a cell with no fuel?",target:'energy'},stepByStep:{panels:[{text:"No fuel getting in. The cell is starving.",caption:"A cell with an empty energy meter. Glucose hexagons outside, bouncing off closed receptor locks."},{text:"When cells starve long enough, the body produces toxic ketones — ketoacidosis. That's what killed Alec.",caption:"Select the correct sequence option."}]}}
+},
+// ============ ROUND 8 (BONUS) ============
+{
+  num:8,name:"The Final Claim",sourceDay:"All 3 Days",mechanic:"claim-builder",required:false,
+  focusPrompt:"Build the chain that explains why Alec died — fill in each tile from the word bank.",
+  contextCaption:"From all three days: The model shows what happened inside Alec's body. Build the explanation.",
+  buildArena:function(c){
+    let glucoseFlood='';[115,155,195,235,275,315,355,395,435,475,515].forEach(x=>{glucoseFlood+=svgHex(x,82,9,'#FFD700',0.55);});
+    c.innerHTML=`<svg class="arena-svg" viewBox="0 0 620 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="310" y="18" text-anchor="middle" fill="#FFD700" font-size="13" font-weight="bold">THE COMPLETE MODEL — What happened inside Alec</text>
+      <!-- Pancreas OFF -->
+      <ellipse cx="50" cy="90" rx="34" ry="22" fill="#1A1030" stroke="#444" stroke-width="1.5" opacity="0.4"/>
+      <text x="50" y="94" text-anchor="middle" fill="#555" font-size="9">pancreas OFF</text>
+      <!-- Blood -->
+      ${svgBlood(95,60,510,45,'NO INSULIN in blood')}
+      ${glucoseFlood}
+      <text x="350" y="118" text-anchor="middle" fill="#FFD700" font-size="10" font-weight="bold">GLUCOSE flooding blood</text>
+      <!-- Dead cells -->
+      ${[120,310,490].map((x,i)=>{
+        return svgCell(x,135,100,72,1,true)+svgLock(x+35,118,24,22,'#00D4FF',true)+
+          `<text x="${x+50}" y="220" text-anchor="middle" fill="#FF4757" font-size="8">0% energy</text>`;
+      }).join('')}
+      <!-- Vocab reference bar -->
+      <rect x="25" y="240" width="570" height="50" rx="8" fill="rgba(15,10,26,0.8)" stroke="#3D2D6B" stroke-width="1"/>
+      <text x="90" y="260" text-anchor="middle" fill="#FFD700" font-size="10" font-weight="bold">GLUCOSE</text>
+      <text x="90" y="274" text-anchor="middle" fill="#A89CC8" font-size="9">sugar for energy</text>
+      <text x="235" y="260" text-anchor="middle" fill="#22C55E" font-size="10" font-weight="bold">INSULIN</text>
+      <text x="235" y="274" text-anchor="middle" fill="#A89CC8" font-size="9">hormone key</text>
+      <text x="380" y="260" text-anchor="middle" fill="#00D4FF" font-size="10" font-weight="bold">RECEPTOR</text>
+      <text x="380" y="274" text-anchor="middle" fill="#A89CC8" font-size="9">cell lock</text>
+      <text x="525" y="260" text-anchor="middle" fill="#FF1493" font-size="10" font-weight="bold">HORMONE</text>
+      <text x="525" y="274" text-anchor="middle" fill="#A89CC8" font-size="9">blood messenger</text>
+    </svg>`;
+  },
+  doPhase:{
+    prompt:"Fill in each tile to build the chain that explains what killed Alec.",
+    tiles:[
+      {label:"Body stops making ____",options:[{id:'insulin',text:'INSULIN (a hormone)'},{id:'glucose',text:'GLUCOSE (a sugar)'},{id:'receptors',text:'RECEPTORS (cell parts)'}],correct:'insulin',
+        feedback:{'glucose':"The body doesn't MAKE glucose — glucose comes from FOOD. What hormone does the pancreas produce?",'receptors':"Receptors are built into cell walls — the body didn't stop making those. What did Alec's pancreas stop producing?"},filledText:''},
+      {label:"So receptors ____",options:[{id:'noinsulin',text:'had no insulin to receive'},{id:'destroyed',text:'destroyed the extra glucose'},{id:'signals',text:'sent signals to the brain'}],correct:'noinsulin',
+        feedback:{'destroyed':"Receptors don't destroy glucose — the blood is FULL of it. The problem is somewhere else.",'signals':"This chain is about what happened to Alec's CELLS, not brain signals."},filledText:''},
+      {label:"So glucose ____",options:[{id:'flooded',text:'flooded blood but couldn\'t enter cells'},{id:'normal',text:'levels returned to normal'},{id:'absorbed',text:'was absorbed by new receptors'}],correct:'flooded',
+        feedback:{'normal':"Alec couldn't afford insulin — it never came back. Where are the green keys?",'absorbed':"No new receptors appeared — the existing locks stayed empty."},filledText:''},
+      {label:"So cells ____",options:[{id:'overloaded',text:'overloaded with too much energy'},{id:'starved',text:'starved without glucose for fuel'},{id:'switched',text:'switched to using insulin directly'}],correct:'starved',
+        feedback:{'overloaded':"The cells have NO energy — the battery meters are empty.",'switched':"Cells don't use insulin as fuel — they use GLUCOSE. Insulin is the KEY."},filledText:''}
+    ]
+  },
+  provePhase:{question:"Why is insulin called a hormone and not just a chemical?",options:[{id:'A',text:'It is made of glucose and stored in receptors'},{id:'B',text:'It travels through blood to deliver a message to cells'},{id:'C',text:'It only works inside the pancreas where it is made'}],correct:'B',
+    feedback:{'A':"Insulin isn't made of glucose. Look at your chain: insulin TRAVELS from the pancreas through BLOOD to reach distant cells. That's what makes it a messenger.",'C':"If insulin only worked inside the pancreas, it could never reach the receptor locks on cells. It travels THROUGH the bloodstream — that journey makes it a hormone."}},
+  hintLadder:{hint1:{text:"Look at the model — trace where insulin goes. It starts at the pancreas, travels through blood, reaches cells far away. What kind of molecule does that?",target:'hormone'},stepByStep:{panels:[{text:"Insulin travels a long distance through blood to reach cells.",caption:"The insulin key travels from the pancreas through the bloodstream toward a cell."},{text:"A molecule that travels through blood to deliver a message to distant cells is called a HORMONE.",caption:"Select the correct option."}]}}
+}
+];
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded',()=>{
+  initParticles();
+  const sni=document.getElementById('studentNameInput'),sb=document.getElementById('startBtn');
+  sni.addEventListener('input',()=>{sb.disabled=sni.value.trim().length<1;});
+  sb.addEventListener('click',startGame);
+  document.getElementById('vocabBtn').addEventListener('click',toggleVocab);
+  document.getElementById('hintBtn').addEventListener('click',showHint);
+  document.getElementById('resetLevelBtn').addEventListener('click',resetCurrentLevel);
+});
+
+function startGame(){
+  studentName=escHtml(document.getElementById('studentNameInput').value.trim());
+  const tn=document.getElementById('teacherNameInput').value.trim();
+  teacherName=tn?escHtml(tn):'Mr. Jawad';
+  document.getElementById('welcomeScreen').style.display='none';
+  document.getElementById('gameContainer').style.display='flex';
+  ROUNDS.forEach(r=>{gameState.rounds.push({num:r.num,name:r.name,required:r.required,completed:false,score:0,attempts:0,hintsUsed:0,resets:0,timeSeconds:0});});
+  currentRound=0;loadRound(0);
+}
+
+function loadRound(idx){
+  if(processing)return;arenaGen++;const gen=arenaGen;
+  clearAllTimers();closeAllOverlays();
+  currentRound=idx;const r=ROUNDS[idx];
+  wrongCount=0;hintsUsed=0;resetsThisRound=gameState.rounds[idx].resets;consecutiveFastWrongs=0;
+  hotspotWrongCount=0;hotspotSameSpot={};tileWrongCounts={};
+  // Reset mutable round data for clean restart
+  if(r.doPhase&&r.doPhase.tiles){r.doPhase.tiles.forEach(t=>{t.filledText='';if(t.options)t.options.forEach(o=>{o.crossedOut=false;});});}
+  if(r.doPhase&&r.doPhase.steps){r.doPhase.steps.forEach(s=>{s.filledText='';});}
+  roundStartTime=Date.now();phase='intro';processing=true;
+  document.getElementById('roundBadge').textContent=`Round ${r.num} of 8`;
+  updateScore();updateStreak();updateProgress();updateSourceDay(r.sourceDay);
+  document.getElementById('resetLevelBtn').disabled=false;
+  // Scroll to top
+  document.getElementById('mainArea').scrollTop=0;
+  showRoundIntro(r,()=>{if(arenaGen!==gen)return;processing=false;buildRoundContent(r);});
+}
+
+function showRoundIntro(r,cb){
+  const ri=document.getElementById('roundIntro'),ric=document.getElementById('roundIntroContent');
+  ric.innerHTML=`<h2>Round ${r.num}: ${escHtml(r.name)}</h2><p>${r.required?'Required':'Bonus Round'}</p>`;
+  ri.style.display='block';roundIntroTimeout=setTimeout(()=>{ri.style.display='none';cb();},1200);
+}
+
+function buildRoundContent(r){
+  const ap=document.getElementById('arenaContainer');
+  while(ap.firstChild)ap.removeChild(ap.firstChild);
+  document.getElementById('focusPrompt').textContent=r.focusPrompt;
+  document.getElementById('contextCaption').textContent=r.contextCaption;
+  safeCall(()=>{r.buildArena(ap);},'Arena build error');
+  phase='do';phaseStartTime=Date.now();
+  buildDoPhase(r);
+  // Scroll to interaction zone after a brief delay
+  setTimeout(()=>{const iz=document.getElementById('interactionZone');if(iz)iz.scrollIntoView({behavior:'smooth',block:'nearest'});},300);
+}
+
+// ===== MECHANIC ENGINES =====
+function buildDoPhase(r){
+  const iz=document.getElementById('interactionZone');iz.innerHTML='';
+  if(r.mechanic==='pick-the-match'||r.mechanic==='coach-click'){buildPickOptions(r,iz);}
+  else if(r.mechanic==='hotspot'){buildHotspotDo(r,iz);}
+  else if(r.mechanic==='what-comes-next'){buildSequenceDo(r,iz);}
+  else if(r.mechanic==='claim-builder'){buildClaimDo(r,iz);}
+}
+
+function buildPickOptions(r,iz){
+  const d=r.doPhase;
+  iz.innerHTML=`<div class="phase-label">DO</div><div class="prompt-text">${escHtml(d.prompt)}</div><div class="options-row" id="doOptionsRow"></div><div id="doFeedback"></div>`;
+  const row=document.getElementById('doOptionsRow');
+  d.options.forEach(o=>{const card=document.createElement('div');card.className='option-card';card.dataset.id=o.id;card.textContent=o.text;card.onclick=function(){selectDoOption(this,r);};row.appendChild(card);});
+  if(r.num===1){setTimeout(()=>{const cc=row.querySelector(`[data-id="${d.correct}"]`);if(cc)cc.style.boxShadow='0 0 14px rgba(57,255,20,0.12)';},800);}
+}
+function selectDoOption(card,r){
+  if(processing||cardLocked(card))return;const row=document.getElementById('doOptionsRow');if(!row)return;
+  row.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));card.classList.add('selected');
+  processing=true;safeTimeout(()=>{submitDoOption(card.dataset.id,r);},300);
+}
+function submitDoOption(answer,r){
+  const d=r.doPhase,elapsed=Date.now()-phaseStartTime,row=document.getElementById('doOptionsRow');
+  if(!row){processing=false;return;}
+  if(answer===d.correct){
+    const card=row.querySelector(`[data-id="${answer}"]`);if(card){card.classList.add('correct');card.classList.add('locked');}
+    row.querySelectorAll('.option-card:not(.correct)').forEach(c=>c.classList.add('dimmed'));
+    showFeedback('doFeedback','correct-fb','Correct!');playCorrectSound();consecutiveFastWrongs=0;
+    safeTimeout(()=>{processing=false;startProvePhase(r);},1200);
+  } else {
+    gameState.rounds[currentRound].attempts++;wrongCount++;
+    const wrongId=answer;const card=row.querySelector(`[data-id="${wrongId}"]`);
+    if(card){card.classList.remove('selected');card.classList.add('wrong');}
+    playWrongSound();
+    if(elapsed<2000){consecutiveFastWrongs++;if(consecutiveFastWrongs>=2){processing=false;showAntiGuessScreen(r);return;}}
+    if(resetsThisRound>=3){processing=false;safetyAdvance(r);return;}
+    const fb=d.feedback[wrongId];showWrongWithRetry('doFeedback',fb?fb.text:'Look more carefully at the model.',()=>{phaseStartTime=Date.now();processing=false;});
+    if(wrongCount===1)hintsUsed=Math.max(hintsUsed,1);if(wrongCount>=2)hintsUsed=Math.max(hintsUsed,2);
+  }
+}
+
+// HOTSPOT
+function buildHotspotDo(r,iz){iz.innerHTML=`<div class="phase-label">DO</div><div class="prompt-text">${escHtml(r.doPhase.prompt)}</div><div id="doFeedback"></div>`;}
+let hotspotWrongCount=0,hotspotSameSpot={};
+function handleHotspotClick(zoneId){
+  if(processing||phase!=='do')return;const r=ROUNDS[currentRound],d=r.doPhase,elapsed=Date.now()-phaseStartTime;processing=true;
+  if(zoneId===d.correct){
+    const zone=document.querySelector(`.hotspot-zone[data-id="${zoneId}"]`);if(zone)zone.classList.add('correct');
+    showFeedback('doFeedback','correct-fb','Correct!');playCorrectSound();hotspotWrongCount=0;hotspotSameSpot={};consecutiveFastWrongs=0;
+    safeTimeout(()=>{processing=false;startProvePhase(r);},1200);
+  } else {
+    gameState.rounds[currentRound].attempts++;wrongCount++;hotspotWrongCount++;
+    hotspotSameSpot[zoneId]=(hotspotSameSpot[zoneId]||0)+1;
+    const zone=document.querySelector(`.hotspot-zone[data-id="${zoneId}"]`);if(zone){zone.classList.add('wrong');setTimeout(()=>zone.classList.remove('wrong'),800);}
+    playWrongSound();
+    if(elapsed<2000){consecutiveFastWrongs++;if(consecutiveFastWrongs>=2){processing=false;showAntiGuessScreen(r);return;}}
+    if(resetsThisRound>=3){processing=false;safetyAdvance(r);return;}
+    const fb=d.feedback[zoneId];showWrongWithRetry('doFeedback',fb?fb.text:'Try a different spot.',()=>{phaseStartTime=Date.now();processing=false;});
+    if(wrongCount===1)hintsUsed=Math.max(hintsUsed,1);if(wrongCount>=2)hintsUsed=Math.max(hintsUsed,2);
+  }
+}
+
+// WHAT COMES NEXT
+function buildSequenceDo(r,iz){
+  const d=r.doPhase;
+  if(d.isMultiStep&&d.steps&&d.steps.length>0){buildMultiStepSequence(r,iz);return;}
+  iz.innerHTML=`<div class="phase-label">DO</div><div class="prompt-text">${escHtml(d.prompt)}</div><div id="seqStrip" class="sequence-strip"></div><div class="options-row" id="doOptionsRow"></div><div id="doFeedback"></div>`;
+  if(d.seqSteps){const strip=document.getElementById('seqStrip');d.seqSteps.forEach((s,i)=>{if(i>0){const arrow=document.createElement('span');arrow.className='seq-arrow';arrow.textContent='\u2192';strip.appendChild(arrow);}const step=document.createElement('div');step.className='seq-step '+(s.filled?'filled':'blank');step.textContent=s.filled?s.text:(s.blankText||'???');strip.appendChild(step);});}
+  const row=document.getElementById('doOptionsRow');
+  d.options.forEach(o=>{const card=document.createElement('div');card.className='option-card';card.dataset.id=o.id;card.textContent=o.text;card.onclick=function(){selectDoOption(this,r);};row.appendChild(card);});
+}
+function buildMultiStepSequence(r,iz){
+  const d=r.doPhase;r._multiStepIdx=0;
+  iz.innerHTML=`<div class="phase-label">DO</div><div class="prompt-text" id="multiPrompt">${escHtml(d.steps[0].prompt)}</div><div class="sequence-strip" id="seqStrip"></div><div class="options-row" id="doOptionsRow"></div><div id="doFeedback"></div>`;
+  buildMultiStepStrip(d,0);buildMultiStepOptions(r,0);
+}
+function buildMultiStepStrip(d,stepIdx){
+  const strip=document.getElementById('seqStrip');if(!strip)return;strip.innerHTML='';
+  if(d.preSteps){d.preSteps.forEach((txt,i)=>{if(strip.children.length>0){const a=document.createElement('span');a.className='seq-arrow';a.textContent='\u2192';strip.appendChild(a);}const el=document.createElement('div');el.className='seq-step filled';el.textContent=txt;strip.appendChild(el);});}
+  d.steps.forEach((s,i)=>{if(strip.children.length>0){const a=document.createElement('span');a.className='seq-arrow';a.textContent='\u2192';strip.appendChild(a);}const el=document.createElement('div');el.className='seq-step '+(i<stepIdx?'filled':(i===stepIdx?'blank':''));if(i<stepIdx)el.textContent=s.filledText||'';else if(i===stepIdx)el.textContent='???';else el.textContent='';strip.appendChild(el);});
+}
+function buildMultiStepOptions(r,stepIdx){
+  const d=r.doPhase,step=d.steps[stepIdx],row=document.getElementById('doOptionsRow');if(!row)return;row.innerHTML='';
+  step.options.forEach(o=>{const card=document.createElement('div');card.className='option-card';card.dataset.id=o.id;card.textContent=o.text;card.onclick=function(){handleMultiStepSelect(this,r,stepIdx);};row.appendChild(card);});
+}
+function handleMultiStepSelect(card,r,stepIdx){
+  if(processing||cardLocked(card))return;processing=true;const d=r.doPhase,step=d.steps[stepIdx],row=document.getElementById('doOptionsRow');
+  row.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));card.classList.add('selected');
+  safeTimeout(()=>{
+    if(card.dataset.id===step.correct){
+      card.classList.add('correct');card.classList.add('locked');row.querySelectorAll('.option-card:not(.correct)').forEach(c=>c.classList.add('dimmed'));
+      step.filledText=step.options.find(o=>o.id===step.correct).text;buildMultiStepStrip(d,stepIdx+1);playCorrectSound();consecutiveFastWrongs=0;
+      if(step.nextCaption)document.getElementById('contextCaption').textContent=step.nextCaption;
+      if(step.nextArena)safeCall(()=>{step.nextArena(document.getElementById('arenaContainer'));},'Arena update error');
+      if(stepIdx+1<d.steps.length){safeTimeout(()=>{processing=false;document.getElementById('multiPrompt').textContent=d.steps[stepIdx+1].prompt;buildMultiStepOptions(r,stepIdx+1);r._multiStepIdx=stepIdx+1;},800);}
+      else{showFeedback('doFeedback','correct-fb','Full chain complete!');safeTimeout(()=>{processing=false;startProvePhase(r);},1200);}
+    } else {
+      gameState.rounds[currentRound].attempts++;wrongCount++;const wrongId=card.dataset.id;card.classList.remove('selected');card.classList.add('wrong');playWrongSound();
+      if(resetsThisRound>=3){processing=false;safetyAdvance(r);return;}
+      const fb=step.feedback[wrongId];showWrongWithRetry('doFeedback',fb||'Look at the evidence again.',()=>{phaseStartTime=Date.now();processing=false;});
+      if(wrongCount===1)hintsUsed=Math.max(hintsUsed,1);if(wrongCount>=2)hintsUsed=Math.max(hintsUsed,2);
+    }
+  },300);
+}
+
+// CLAIM BUILDER
+function buildClaimDo(r,iz){
+  const d=r.doPhase;r._tileIdx=0;tileWrongCounts={};
+  iz.innerHTML=`<div class="phase-label">DO</div><div class="prompt-text">${escHtml(d.prompt)}</div><div class="tile-chain" id="tileChain"></div><div class="options-row" id="doOptionsRow"></div><div id="doFeedback"></div>`;
+  buildTileChain(d,0);buildTileOptions(r,0);
+}
+function buildTileChain(d,activeIdx){
+  const chain=document.getElementById('tileChain');if(!chain)return;chain.innerHTML='';
+  d.tiles.forEach((t,i)=>{if(i>0){const a=document.createElement('span');a.className='tile-arrow';a.textContent='\u2192';chain.appendChild(a);}
+    const slot=document.createElement('div');slot.className='tile-slot '+(i<activeIdx?'complete':(i===activeIdx?'active':''));
+    slot.innerHTML=`<div class="tile-label">${escHtml(t.label)}</div><div class="tile-answer">${i<activeIdx?(t.filledText||''):'___'}</div>`;chain.appendChild(slot);});
+}
+function buildTileOptions(r,tileIdx){
+  const d=r.doPhase,tile=d.tiles[tileIdx];if(!tile)return;
+  const row=document.getElementById('doOptionsRow');if(!row)return;row.innerHTML='';
+  tile.options.forEach(o=>{if(o.crossedOut)return;const card=document.createElement('div');card.className='option-card';card.dataset.id=o.id;card.textContent=o.text;card.onclick=function(){handleTileSelect(this,r,tileIdx);};row.appendChild(card);});
+}
+let tileWrongCounts={};
+function handleTileSelect(card,r,tileIdx){
+  if(processing||cardLocked(card))return;processing=true;const d=r.doPhase,tile=d.tiles[tileIdx],row=document.getElementById('doOptionsRow'),elapsed=Date.now()-phaseStartTime;
+  row.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));card.classList.add('selected');
+  safeTimeout(()=>{
+    if(card.dataset.id===tile.correct){
+      card.classList.add('correct');card.classList.add('locked');row.querySelectorAll('.option-card:not(.correct)').forEach(c=>c.classList.add('dimmed'));
+      tile.filledText=tile.options.find(o=>o.id===tile.correct).text;buildTileChain(d,tileIdx+1);playCorrectSound();consecutiveFastWrongs=0;
+      if(tileIdx+1<d.tiles.length){safeTimeout(()=>{processing=false;buildTileOptions(r,tileIdx+1);r._tileIdx=tileIdx+1;phaseStartTime=Date.now();},600);}
+      else{showFeedback('doFeedback','correct-fb','Chain complete!');safeTimeout(()=>{processing=false;startProvePhase(r);},1200);}
+    } else {
+      gameState.rounds[currentRound].attempts++;wrongCount++;const wrongId=card.dataset.id;card.classList.remove('selected');card.classList.add('wrong');playWrongSound();
+      if(elapsed<1500){consecutiveFastWrongs++;if(consecutiveFastWrongs>=2){processing=false;showAntiGuessScreen(r);return;}}
+      const key=tileIdx+'_'+wrongId;tileWrongCounts[key]=(tileWrongCounts[key]||0)+1;
+      if(tileWrongCounts[key]>=2){const opt=tile.options.find(o=>o.id===wrongId);if(opt)opt.crossedOut=true;}
+      const fb=tile.feedback?tile.feedback[wrongId]:null;
+      showWrongWithRetry('doFeedback',fb||'Look at the model again.',()=>{phaseStartTime=Date.now();processing=false;buildTileOptions(r,tileIdx);});
+      if(wrongCount===1)hintsUsed=Math.max(hintsUsed,1);if(wrongCount>=2)hintsUsed=Math.max(hintsUsed,2);
+    }
+  },300);
+}
+
+// ===== PROVE =====
+function startProvePhase(r){
+  phase='prove';phaseStartTime=Date.now();wrongCount=0;
+  const iz=document.getElementById('interactionZone'),p=r.provePhase;
+  iz.innerHTML=`<div class="phase-label">PROVE</div><div class="prompt-text">${escHtml(p.question)}</div><div class="options-row" id="proveOptionsRow"></div><div id="proveFeedback"></div>`;
+  const row=document.getElementById('proveOptionsRow');
+  p.options.forEach(o=>{const card=document.createElement('div');card.className='option-card';card.dataset.id=o.id;card.textContent=o.text;card.onclick=function(){handleProveSelect(this,r);};row.appendChild(card);});
+  setTimeout(()=>{const iz2=document.getElementById('interactionZone');if(iz2)iz2.scrollIntoView({behavior:'smooth',block:'nearest'});},200);
+}
+function handleProveSelect(card,r){
+  if(processing||cardLocked(card))return;processing=true;const p=r.provePhase,row=document.getElementById('proveOptionsRow');
+  row.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));card.classList.add('selected');
+  safeTimeout(()=>{
+    if(card.dataset.id===p.correct){card.classList.add('correct');card.classList.add('locked');row.querySelectorAll('.option-card:not(.correct)').forEach(c=>c.classList.add('dimmed'));showFeedback('proveFeedback','correct-fb','Correct!');playCorrectSound();completeRound(r);}
+    else{gameState.rounds[currentRound].attempts++;wrongCount++;const wrongId=card.dataset.id;card.classList.remove('selected');card.classList.add('wrong');playWrongSound();const fb=p.feedback[wrongId]||'Look at the evidence in the model.';showWrongWithRetry('proveFeedback',fb,()=>{phaseStartTime=Date.now();processing=false;});if(wrongCount===1)hintsUsed=Math.max(hintsUsed,1);if(wrongCount>=2)hintsUsed=Math.max(hintsUsed,2);}
+  },300);
+}
+
+// ===== COMPLETION =====
+function completeRound(r){
+  const gs=gameState.rounds[currentRound];gs.completed=true;gs.timeSeconds=Math.round((Date.now()-roundStartTime)/1000);
+  let score=100;if(hintsUsed>=2)score=60;else if(hintsUsed>=1)score=85;if(gs.resets>=1)score=Math.min(score,50);
+  gs.score=score;gs.hintsUsed=hintsUsed;totalScore=calcOverallScore();updateScore();
+  if(score===100){streak++;if(streak>maxStreak)maxStreak=streak;}else{streak=0;}
+  updateStreak();updateProgress();document.getElementById('resetLevelBtn').disabled=true;
+  const isFirstTry=score===100,completedCount=gameState.rounds.filter(r=>r.completed).length;
+  const requiredDone=gameState.rounds.filter((r,i)=>ROUNDS[i].required&&r.completed).length;
+  const allDone=gameState.rounds.every(r=>r.completed);
+  safeTimeout(()=>{processing=false;
+    if(requiredDone===6&&!requiredCompleteShown){requiredCompleteShown=true;showRequiredComplete(isFirstTry);}
+    else if(allDone&&!bonusCompleteShown){bonusCompleteShown=true;showBonusComplete();}
+    else if(completedCount%2===0){showMilestoneCelebration(isFirstTry,()=>advanceToNext());}
+    else if(isFirstTry){showQuickAffirmation(()=>advanceToNext());}
+    else{advanceToNext();}
+  },800);
+}
+function calcOverallScore(){const reqScores=gameState.rounds.filter((r,i)=>ROUNDS[i].required&&r.completed).map(r=>r.score);if(reqScores.length===0)return 0;const avg=reqScores.reduce((a,b)=>a+b,0)/Math.max(reqScores.length,1);const bonusDone=gameState.rounds.filter((r,i)=>!ROUNDS[i].required&&r.completed).length;return Math.min(100,Math.round(avg+bonusDone*5));}
+function advanceToNext(){const next=currentRound+1;if(next<ROUNDS.length)loadRound(next);else showReceipt();}
+
+// ===== CELEBRATIONS =====
+function showMilestoneCelebration(isFirstTry,cb){const cel=document.getElementById('celebOverlay'),cc=document.getElementById('celebContent');cc.innerHTML=`<h2>Nice!</h2><div class="affirm">${escHtml(isFirstTry?getAffirmation():'Keep going!')}</div>`;cel.style.display='block';burstParticles(8,['#39FF14','#FFD700','#FF1493','#00D4FF']);safeCall(()=>playTone(784,0.15),'');celebTimeout=setTimeout(()=>{cel.style.display='none';cb();},1500);}
+function showQuickAffirmation(cb){const cel=document.getElementById('celebOverlay'),cc=document.getElementById('celebContent');cc.innerHTML=`<div class="affirm" style="opacity:1;">${escHtml(getAffirmation())}</div>`;cel.style.display='block';celebTimeout=setTimeout(()=>{cel.style.display='none';cb();},1200);}
+function showRequiredComplete(isFirstTry){const co=document.getElementById('choiceOverlay'),cb=document.getElementById('choiceBox');burstParticles(12,['#39FF14','#FFD700','#FF1493','#00D4FF','#FF6B35']);cb.innerHTML=`<h2>You did it!</h2><p>${escHtml(getAffirmation())}</p><p>6 required rounds complete. 2 Bonus Rounds — dare to try?</p><div class="btns"><button class="btn btn-gold" onclick="closeChoice();advanceToNext();">Keep Going</button><button class="btn btn-secondary" onclick="closeChoice();showReceipt();">See Score</button></div>`;co.style.display='block';}
+function showBonusComplete(){const cel=document.getElementById('celebOverlay'),cc=document.getElementById('celebContent');burstParticles(15,['#FFD700','#39FF14','#FF1493','#00D4FF','#FF6B35']);cc.innerHTML=`<h2>BOSS DEFEATED! ⭐</h2><div class="affirm">${escHtml(getAffirmation())}</div>`;cel.style.display='block';celebTimeout=setTimeout(()=>{cel.style.display='none';showReceipt();},3000);}
+function closeChoice(){document.getElementById('choiceOverlay').style.display='none';}
+
+function safetyAdvance(r){processing=true;const gs=gameState.rounds[currentRound];gs.score=50;gs.completed=true;gs.timeSeconds=Math.round((Date.now()-roundStartTime)/1000);totalScore=calcOverallScore();updateScore();updateProgress();const iz=document.getElementById('interactionZone');iz.innerHTML=`<div class="coaching-bar hint-fb" style="max-width:420px;">Let's move on — you'll see this idea again.</div>`;safeTimeout(()=>{processing=false;advanceToNext();},2500);}
+
+// ===== FEEDBACK =====
+function showFeedback(containerId,cls,text){const el=document.getElementById(containerId);if(el)el.innerHTML=`<div class="coaching-bar ${cls}">${text}</div>`;}
+function showWrongWithRetry(containerId,text,cb){const el=document.getElementById(containerId);if(!el){processing=false;return;}el.innerHTML=`<div class="coaching-bar wrong-fb">${text}</div><button class="try-again-btn" id="tryAgainBtn">Try Again</button>`;document.getElementById('tryAgainBtn').onclick=function(){el.innerHTML='';cb();};}
+
+// ===== ANTI-GUESS =====
+function showAntiGuessScreen(r){const ag=document.getElementById('agScreen'),box=document.getElementById('agBox');let sec=5;box.innerHTML=`<p>Slow down and look at the model carefully.</p><div class="countdown">${sec}</div>`;ag.style.display='block';agCountdown=setInterval(()=>{sec--;const cd=box.querySelector('.countdown');if(cd)cd.textContent=sec;if(sec<=0){clearInterval(agCountdown);ag.style.display='none';consecutiveFastWrongs=0;resetsThisRound++;gameState.rounds[currentRound].resets=resetsThisRound;if(resetsThisRound>=3)safetyAdvance(r);else{wrongCount=0;hintsUsed=0;consecutiveFastWrongs=0;processing=false;buildRoundContent(r);}}},1000);}
+
+// ===== HINTS =====
+function showHint(){
+  if(phase!=='do'&&phase!=='prove')return;const r=ROUNDS[currentRound],h=r.hintLadder;if(!h)return;hintsUsed=Math.max(hintsUsed,1);
+  const ho=document.getElementById('hintOverlay');
+  if(hintsUsed<2){ho.innerHTML=`<div class="hint-inner"><h3>Hint</h3><div class="coaching-bar hint-fb">${h.hint1.text}</div><button class="btn btn-secondary" onclick="closeHint()" style="margin-top:16px;width:100%;">Got It</button></div>`;}
+  else{let panelIdx=0;const renderPanel=()=>{const p=h.stepByStep.panels[panelIdx];ho.innerHTML=`<div class="hint-inner"><h3>Step-by-Step (${panelIdx+1}/${h.stepByStep.panels.length})</h3><div class="sbs-panel"><p>${p.text}</p><p class="sbs-cap">${p.caption}</p></div>${panelIdx<h.stepByStep.panels.length-1?`<button class="btn btn-primary" onclick="window._sbsNext()" style="width:100%;">Next</button>`:`<button class="btn btn-secondary" onclick="closeHint()" style="width:100%;">Got It — Let Me Try</button>`}</div>`;};window._sbsNext=()=>{panelIdx++;renderPanel();};renderPanel();}
+  ho.style.display='block';
+}
+function closeHint(){document.getElementById('hintOverlay').style.display='none';}
+function toggleVocab(){const vp=document.getElementById('vocabPopup');vp.style.display=vp.style.display==='block'?'none':'block';}
+
+// ===== RESET =====
+function resetCurrentLevel(){if(gameState.rounds[currentRound].completed)return;resetsThisRound++;gameState.rounds[currentRound].resets=resetsThisRound;if(resetsThisRound>=3){safetyAdvance(ROUNDS[currentRound]);return;}processing=false;loadRound(currentRound);}
+
+// ===== HUD =====
+function updateScore(){document.getElementById('scoreDisplay').innerHTML=`Score: ${gameState.rounds.filter(r=>r.completed).reduce((a,r)=>a+r.score,0)}`;}
+function updateStreak(){const sd=document.getElementById('streakDisplay');if(streak===0){sd.textContent='';sd.className='streak-display';return;}let cls='streak-display';if(streak>=8)cls+=' gold';else if(streak>=5)cls+=' silver';else if(streak>=3)cls+=' bronze';sd.className=cls;sd.innerHTML=`&#128293; x${streak}`;}
+function updateProgress(){document.getElementById('progressFill').style.width=(gameState.rounds.filter(r=>r.completed).length/8*100)+'%';}
+function updateSourceDay(day){const sd=document.getElementById('sourceDay');let cls='source-day ';if(day==='Monday')cls+='monday';else if(day==='Tuesday')cls+='tuesday';else if(day==='Wednesday')cls+='wednesday';else cls+='cross';sd.className=cls;sd.textContent='Source: '+day;}
+
+// ===== RECEIPT =====
+function showReceipt(){
+  if(receiptRendered)return;receiptRendered=true;clearAllTimers();
+  document.getElementById('gameContainer').style.display='none';
+  const rs=document.getElementById('receiptScreen');rs.style.display='flex';
+  const overall=calcOverallScore(),colorCls=overall>=85?'green':overall>=70?'yellow':'red';
+  const label=overall>=85?'MASTERY':overall>=70?'APPROACHING MASTERY':'NEEDS MORE PRACTICE';
+  const totalTime=gameState.rounds.filter(r=>r.completed).reduce((a,r)=>a+r.timeSeconds,0);
+  const mm=Math.floor(totalTime/60),ss=String(totalTime%60).padStart(2,'0');
+  const reqDone=gameState.rounds.filter((r,i)=>ROUNDS[i].required&&r.completed).length===6;
+  const allDone=gameState.rounds.every(r=>r.completed);
+  const status=allDone?'Bonus Complete!':reqDone?'Required Complete':'In Progress';
+  let rows='';gameState.rounds.forEach((r,i)=>{if(!r.completed)return;const rd=ROUNDS[i];const sc=r.score>=85?'score-green':r.score>=70?'score-yellow':'score-red';const t=Math.floor(r.timeSeconds/60)+':'+String(r.timeSeconds%60).padStart(2,'0');rows+=`<tr class="${rd.required?'':'bonus-row'}"><td>${rd.required?r.num:'&#11088; '+r.num}</td><td style="text-align:left;">${escHtml(r.name)}</td><td>${rd.sourceDay}</td><td class="${sc}">${r.score}%</td><td>${r.attempts+1}</td><td>${t}</td></tr>`;});
+  rs.innerHTML=`<div class="receipt-card"><h2>${escHtml(teacherName)}'s Simulations</h2><h3>Ozempic, Insulin, Diabetes — Thursday Score Report</h3><div class="receipt-name-row"><input type="text" id="receiptName" value="${studentName}" placeholder="Your name"><button class="btn btn-secondary" id="lockNameBtn" onclick="lockName()">Lock</button></div><div class="big-score"><div class="pct ${colorCls}">${overall}%</div><div class="label">${label}</div></div><table class="receipt-table"><tr><th>#</th><th style="text-align:left;">Round</th><th>Source</th><th>Score</th><th>Tries</th><th>Time</th></tr>${rows}</table><div style="text-align:center;color:var(--text2);font-size:13px;"><p>Highest Streak: &#128293; x${maxStreak}</p><p>Total Time: ${mm}:${ss}</p><p>Status: ${status}</p></div></div><div class="receipt-footer"><p>&#128248; Take a screenshot and upload to Google Classroom</p><div class="receipt-btns"><button class="btn btn-primary" onclick="window.print()">&#128424; Print</button><button class="btn btn-secondary" onclick="confirmRestart()">Start Over</button></div></div>`;
+}
+function lockName(){const inp=document.getElementById('receiptName');inp.disabled=true;document.getElementById('lockNameBtn').textContent='Locked';document.getElementById('lockNameBtn').disabled=true;studentName=escHtml(inp.value);}
+function confirmRestart(){const co=document.getElementById('confirmOverlay'),cb=document.getElementById('confirmBox');cb.innerHTML=`<p>Start over? This will erase all progress.</p><div class="btns"><button class="btn btn-pink" onclick="doRestart()">Yes, Start Over</button><button class="btn btn-secondary" onclick="document.getElementById('confirmOverlay').style.display='none';">Cancel</button></div>`;co.style.display='block';}
+function doRestart(){document.getElementById('confirmOverlay').style.display='none';document.getElementById('receiptScreen').style.display='none';document.getElementById('gameContainer').style.display='none';document.getElementById('welcomeScreen').style.display='flex';currentRound=0;phase='';processing=false;totalScore=0;streak=0;maxStreak=0;wrongCount=0;hintsUsed=0;resetsThisRound=0;consecutiveFastWrongs=0;requiredCompleteShown=false;bonusCompleteShown=false;receiptRendered=false;tileWrongCounts={};hotspotWrongCount=0;hotspotSameSpot={};gameState.rounds=[];ROUNDS.forEach(r=>{if(r.doPhase&&r.doPhase.tiles)r.doPhase.tiles.forEach(t=>{t.filledText='';if(t.options)t.options.forEach(o=>{o.crossedOut=false;});});if(r.doPhase&&r.doPhase.steps)r.doPhase.steps.forEach(s=>{s.filledText='';});});}
+
+// ===== TIMER CLEANUP =====
+function clearAllTimers(){[celebTimeout,transitionTimeout,agTimeout,roundIntroTimeout].forEach(t=>{if(t)clearTimeout(t);});if(agCountdown)clearInterval(agCountdown);if(ambientInterval)clearInterval(ambientInterval);celebTimeout=transitionTimeout=agTimeout=roundIntroTimeout=null;agCountdown=ambientInterval=null;pendingTimeouts.forEach(t=>clearTimeout(t));pendingTimeouts=[];}
+function closeAllOverlays(){if(agCountdown){clearInterval(agCountdown);agCountdown=null;}['celebOverlay','hintOverlay','vocabPopup','choiceOverlay','agScreen','confirmOverlay','roundIntro'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearAllTimers();}else{const ag=document.getElementById('agScreen');if(ag&&ag.style.display==='block'){ag.style.display='none';processing=false;consecutiveFastWrongs=0;const r=ROUNDS[currentRound];if(r&&!gameState.rounds[currentRound].completed)buildRoundContent(r);}}});
+</script>
+</body>
+</html>

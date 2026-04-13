@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Ozempic, Insulin, Diabetes</title>
+<style>
+:root{
+--bg1:#F0F4F8;--bg2:#E8EEF4;--accent1:#3B82F6;--accent2:#10B981;--accent3:#8B5CF6;
+--txt:#1E293B;--txtL:#475569;--white:#FFFFFF;--card:#FFFFFF;--border:#CBD5E1;
+--green:#10B981;--yellow:#F59E0B;--red:#EF4444;--orange:#F97316;
+--glow1:rgba(59,130,246,.25);--glow2:rgba(16,185,129,.25);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--txt);}
+button{cursor:pointer;border:none;font-family:inherit;font-size:15px;border-radius:8px;padding:10px 20px;transition:all .2s;min-height:48px;}
+button:active{transform:scale(.96);}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+
+/* TOP BAR */
+#topBar{height:50px;background:linear-gradient(90deg,var(--accent1),var(--accent3));color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-weight:600;z-index:100;position:relative;flex-shrink:0;}
+#topBar .round-badge{background:rgba(255,255,255,.2);padding:4px 14px;border-radius:20px;font-size:14px;white-space:nowrap;}
+#topBar .score-display{font-size:16px;white-space:nowrap;}
+#topBar .progress-wrap{width:120px;height:8px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden;flex-shrink:0;}
+#topBar .progress-fill{height:100%;background:#fff;border-radius:4px;transition:width .4s;}
+
+/* MAIN LAYOUT */
+#mainArea{display:flex;height:calc(100vh - 50px - 44px);overflow:hidden;}
+#sliderPanel{width:210px;min-width:210px;background:var(--card);border-right:1px solid var(--border);padding:10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex-shrink:0;}
+#arenaWrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+#arenaContainer{flex:1;position:relative;overflow:hidden;min-height:180px;background:#F8FAFC;}
+#interactionZone{min-height:140px;max-height:240px;background:var(--card);border-top:2px solid var(--accent1);padding:12px 16px;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;word-wrap:break-word;overflow-wrap:break-word;}
+#dataPanel{width:240px;min-width:240px;background:var(--card);border-left:1px solid var(--border);padding:8px;overflow-y:auto;font-size:12px;flex-shrink:0;}
+
+/* SLIDER PANEL */
+.slider-zone-label{font-size:13px;font-weight:700;color:var(--accent1);text-align:center;padding:4px 6px;background:rgba(59,130,246,.08);border-radius:6px;word-wrap:break-word;overflow-wrap:break-word;}
+.slider-group{display:flex;flex-direction:column;gap:3px;padding:6px 8px;border-radius:8px;border:2px solid transparent;transition:all .3s;position:relative;}
+.slider-group.active{border-color:var(--accent1);background:rgba(59,130,246,.06);box-shadow:0 0 10px var(--glow1);}
+.slider-group.locked{opacity:.45;}
+.slider-group.locked::after{content:'🔒';position:absolute;right:6px;top:6px;font-size:14px;}
+.slider-label{font-size:12px;font-weight:600;color:var(--txt);}
+.slider-value{font-size:14px;font-weight:700;color:var(--accent1);text-align:center;padding:1px 0;}
+input[type=range]{width:100%;height:30px;-webkit-appearance:none;background:transparent;}
+input[type=range]::-webkit-slider-track{height:8px;border-radius:4px;background:linear-gradient(90deg,#E2E8F0,var(--accent1));}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--accent1);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.2);cursor:pointer;}
+.slider-labels-row{display:flex;justify-content:space-between;font-size:9px;color:var(--txtL);}
+#runBtn{background:linear-gradient(135deg,var(--accent2),#059669);color:#fff;font-size:17px;font-weight:700;width:100%;padding:12px;border-radius:10px;margin-top:auto;flex-shrink:0;}
+#runBtn:hover:not(:disabled){box-shadow:0 4px 16px var(--glow2);}
+
+/* DATA TABLE */
+#dataPanel h3{font-size:13px;margin-bottom:6px;color:var(--accent3);}
+.data-table{width:100%;border-collapse:collapse;font-size:10px;}
+.data-table th{background:var(--accent3);color:#fff;padding:4px 2px;text-align:center;font-weight:600;font-size:9px;white-space:nowrap;}
+.data-table td{padding:4px 2px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;}
+.data-table tr.healthy{background:rgba(16,185,129,.1);}
+.data-table tr.moderate{background:rgba(245,158,11,.1);}
+.data-table tr.crisis{background:rgba(239,68,68,.12);}
+.data-table tr.current{outline:2px solid var(--accent1);outline-offset:-1px;}
+.data-table .error-cell{background:rgba(245,158,11,.3);cursor:pointer;}
+.data-table .error-cell:hover{background:rgba(245,158,11,.5);}
+
+/* INTERACTION ZONE */
+.phase-title{font-size:15px;font-weight:700;color:var(--accent1);margin-bottom:6px;text-align:center;flex-shrink:0;}
+.iz-prompt{font-size:14px;text-align:center;max-width:580px;line-height:1.45;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;}
+.options-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px 0;max-width:100%;}
+.option-card{background:var(--bg1);border:2px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;min-height:48px;min-width:100px;max-width:240px;text-align:center;transition:all .2s;cursor:pointer;line-height:1.35;word-wrap:break-word;overflow-wrap:break-word;}
+.option-card:hover:not(.disabled):not(.dimmed){border-color:var(--accent1);background:rgba(59,130,246,.08);}
+.option-card.selected{border-color:var(--accent1);background:rgba(59,130,246,.12);box-shadow:0 0 10px var(--glow1);}
+.option-card.correct{border-color:var(--green);background:rgba(16,185,129,.15);animation:correctFlash .5s;}
+.option-card.wrong{border-color:var(--red);background:rgba(239,68,68,.12);animation:wrongFlash .5s;}
+.option-card.dimmed{opacity:.4;pointer-events:none;text-decoration:line-through;}
+.option-card.disabled{pointer-events:none;opacity:.5;}
+@keyframes correctFlash{0%{box-shadow:0 0 0 rgba(16,185,129,.5)}50%{box-shadow:0 0 20px 8px rgba(16,185,129,.3)}100%{box-shadow:none}}
+@keyframes wrongFlash{0%{box-shadow:0 0 0 rgba(239,68,68,.5)}50%{box-shadow:0 0 20px 8px rgba(239,68,68,.3)}100%{box-shadow:none}}
+
+#lockInBtn{background:linear-gradient(135deg,var(--accent1),var(--accent3));color:#fff;font-size:15px;font-weight:700;padding:10px 32px;margin-top:6px;opacity:0;pointer-events:none;transition:all .3s;flex-shrink:0;}
+#lockInBtn.visible{opacity:1;pointer-events:auto;}
+
+/* COACHING BAR */
+.coaching-bar{background:#FFF9C4;border-left:4px solid var(--yellow);padding:8px 12px;border-radius:0 8px 8px 0;margin-top:6px;font-size:13px;line-height:1.45;max-width:540px;width:100%;animation:slideUp .3s;word-wrap:break-word;overflow-wrap:break-word;}
+.coaching-bar.hint2{background:#FFE0B2;border-color:var(--orange);}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.try-again-btn{background:var(--accent1);color:#fff;font-size:16px;font-weight:600;padding:12px 32px;margin-top:8px;border-radius:10px;flex-shrink:0;}
+
+/* FOCUS PROMPT — prevent overlap with predict-badge */
+.focus-banner{position:absolute;top:6px;left:8px;right:8px;background:rgba(59,130,246,.92);color:#fff;padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:50;text-align:center;transition:opacity .8s;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.focus-banner.subtle{background:rgba(59,130,246,.12);color:var(--accent1);font-size:11px;padding:3px 10px;white-space:normal;}
+
+/* PREDICTION */
+.predict-badge{position:absolute;bottom:6px;right:8px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;z-index:40;transition:all .3s;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.predict-badge.pending{background:rgba(139,92,246,.15);color:var(--accent3);}
+.predict-badge.correct{background:rgba(16,185,129,.25);color:#059669;}
+.predict-badge.wrong{background:rgba(245,158,11,.25);color:#B45309;}
+
+/* BOTTOM BAR */
+#bottomBar{height:44px;background:var(--card);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;flex-shrink:0;gap:6px;}
+#bottomBar button{font-size:12px;padding:6px 12px;min-height:34px;white-space:nowrap;}
+.vocab-btn{background:var(--accent3);color:#fff;}
+.hint-btn{background:var(--yellow);color:#333;}
+.reset-level-btn{background:#E2E8F0;color:var(--txt);}
+.settings-btn{background:#E2E8F0;color:var(--txt);}
+
+/* VOCAB PANEL */
+#vocabOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:500;justify-content:center;align-items:center;}
+#vocabOverlay.open{display:flex;}
+#vocabPanel{background:#fff;border-radius:14px;padding:20px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+#vocabPanel h3{margin-bottom:10px;color:var(--accent3);}
+.vocab-item{padding:8px 10px;border-radius:8px;margin-bottom:6px;background:var(--bg1);font-size:14px;line-height:1.4;}
+.vocab-item b{color:var(--accent1);}
+
+/* STEP BY STEP OVERLAY */
+#sbsOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:600;justify-content:center;align-items:center;}
+#sbsOverlay.open{display:flex;}
+#sbsPanel{background:#fff;border-radius:14px;padding:24px;max-width:460px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+#sbsPanel .sbs-step{font-size:15px;line-height:1.5;margin:14px 0;}
+#sbsPanel .sbs-counter{font-size:12px;color:var(--txtL);margin-bottom:6px;}
+#sbsNextBtn{background:var(--accent1);color:#fff;padding:10px 28px;font-size:15px;}
+
+/* CELEBRATION OVERLAY */
+#celebOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.3);z-index:700;justify-content:center;align-items:center;}
+#celebOverlay.open{display:flex;}
+#celebContent{background:#fff;border-radius:18px;padding:32px;text-align:center;max-width:380px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,.2);}
+#celebContent h2{font-size:26px;margin-bottom:6px;}
+#celebContent .affirmation{font-size:17px;color:var(--accent1);margin:6px 0 14px;opacity:0;animation:fadeInOut 2.5s .3s forwards;}
+@keyframes fadeInOut{0%{opacity:0}15%{opacity:1}85%{opacity:1}100%{opacity:0}}
+.celeb-btns{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+.celeb-btns button{font-size:15px;padding:12px 24px;}
+.btn-primary{background:var(--accent1);color:#fff;}
+.btn-secondary{background:var(--bg1);color:var(--txt);border:1px solid var(--border);}
+
+/* PARTICLE LAYER */
+#particleLayer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:650;overflow:hidden;}
+.particle{position:absolute;width:8px;height:8px;border-radius:50%;display:none;}
+@keyframes particleFall{0%{opacity:1;transform:translateY(0) rotate(0deg)}100%{opacity:0;transform:translateY(100vh) rotate(720deg)}}
+
+/* WELCOME SCREEN */
+#welcomeScreen{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:900;display:flex;justify-content:center;align-items:center;}
+#welcomeBox{background:#fff;border-radius:18px;padding:36px;max-width:420px;width:92%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.1);}
+#welcomeBox h1{font-size:21px;color:var(--accent1);margin-bottom:4px;}
+#welcomeBox h2{font-size:15px;color:var(--accent3);margin-bottom:6px;}
+#welcomeBox .hook{font-size:14px;color:var(--txtL);margin:10px 0 18px;font-style:italic;line-height:1.4;}
+#welcomeBox input{width:100%;padding:12px;border:2px solid var(--border);border-radius:8px;font-size:15px;margin-bottom:10px;text-align:center;}
+#welcomeBox input:focus{border-color:var(--accent1);outline:none;}
+#startBtn{background:linear-gradient(135deg,var(--accent1),var(--accent3));color:#fff;font-size:17px;font-weight:700;width:100%;padding:14px;border-radius:10px;}
+
+/* RECEIPT SCREEN */
+#receiptScreen{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:800;overflow-y:auto;padding:16px;}
+#receiptScreen.open{display:block;}
+#receiptInner{max-width:600px;margin:0 auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.1);}
+.receipt-header{text-align:center;margin-bottom:16px;}
+.receipt-header h2{font-size:19px;color:var(--accent1);}
+.receipt-header h3{font-size:13px;color:var(--txtL);}
+.receipt-grade{text-align:center;margin:16px 0;}
+.receipt-grade .pct{font-size:48px;font-weight:800;}
+.receipt-grade .label{font-size:15px;font-weight:600;}
+.receipt-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;}
+.receipt-table th{background:var(--accent3);color:#fff;padding:6px;text-align:center;}
+.receipt-table td{padding:6px;text-align:center;border-bottom:1px solid var(--border);}
+.receipt-table tr:nth-child(even){background:var(--bg1);}
+.receipt-upload{text-align:center;margin:12px 0;font-size:14px;color:var(--txtL);}
+.receipt-btns{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+
+/* CONFIRMATION DIALOG */
+.confirm-dialog{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:950;display:flex;justify-content:center;align-items:center;}
+.confirm-box{background:#fff;border-radius:14px;padding:24px;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.confirm-box p{margin-bottom:14px;font-size:15px;}
+.confirm-box .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+
+/* ARENA SVG */
+#arenaContainer svg{width:100%;height:100%;}
+.arena-pulse{animation:arenaPulse 0.8s ease-in-out 3;}
+@keyframes arenaPulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* PRINT */
+@media print{
+#topBar,#bottomBar,#sliderPanel,#mainArea,#welcomeScreen,#celebOverlay,#vocabOverlay,#sbsOverlay,#particleLayer,.celeb-btns,.receipt-btns{display:none!important;}
+#receiptScreen{position:static!important;padding:0!important;background:#fff!important;}
+#receiptInner{box-shadow:none!important;max-width:100%!important;}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+@media(max-width:1100px){
+#sliderPanel{width:170px;min-width:170px;padding:6px;}
+#dataPanel{width:200px;min-width:200px;padding:6px;}
+.data-table{font-size:9px;}
+.option-card{font-size:12px;padding:8px 10px;min-width:90px;max-width:200px;}
+}
+@media(max-width:820px){
+#mainArea{flex-direction:column;}
+#sliderPanel{width:100%;min-width:0;flex-direction:row;flex-wrap:wrap;gap:4px;padding:6px;max-height:130px;overflow-y:auto;border-right:none;border-bottom:1px solid var(--border);}
+.slider-group{flex:1;min-width:130px;}
+#runBtn{width:auto;min-width:110px;margin-top:0;}
+#dataPanel{width:100%;min-width:0;max-height:110px;border-left:none;border-top:1px solid var(--border);}
+#arenaContainer{min-height:160px;}
+#interactionZone{min-height:120px;max-height:200px;}
+}
+</style>
+</head>
+<body>
+
+<!-- WELCOME -->
+<div id="welcomeScreen">
+<div id="welcomeBox">
+<h1>Mr. Jawad's Simulations</h1>
+<h2>Ozempic, Insulin, Diabetes</h2>
+<div class="hook">"What happens to your cells when you eat but your body makes zero insulin?"</div>
+<input type="text" id="studentNameInput" placeholder="Your Name" maxlength="40" aria-label="Student Name">
+<input type="text" id="teacherNameInput" placeholder="Teacher Name (optional)" maxlength="40" aria-label="Teacher Name">
+<button id="startBtn" onclick="startSim()">Start Lab</button>
+</div>
+</div>
+
+<!-- TOP BAR -->
+<div id="topBar" style="display:none;">
+<span class="round-badge" id="roundBadge">Round 1 of 6</span>
+<span class="score-display" id="scoreDisplay">Score: 0</span>
+<div class="progress-wrap"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+</div>
+
+<!-- MAIN -->
+<div id="mainArea" style="display:none;">
+<div id="sliderPanel">
+<div class="slider-zone-label" id="changeLabel">CHANGE: Insulin Level</div>
+<div class="slider-group" id="sg_insulin">
+<div class="slider-label">Insulin Level</div>
+<div class="slider-value" id="sv_insulin">Normal</div>
+<input type="range" id="sl_insulin" min="0" max="3" value="2" step="1">
+<div class="slider-labels-row"><span>None</span><span>Low</span><span>Normal</span><span>High</span></div>
+</div>
+<div class="slider-group" id="sg_glucose">
+<div class="slider-label">Glucose Intake</div>
+<div class="slider-value" id="sv_glucose">Normal Meal</div>
+<input type="range" id="sl_glucose" min="0" max="2" value="1" step="1">
+<div class="slider-labels-row"><span>Fasting</span><span>Normal</span><span>Huge Meal</span></div>
+</div>
+<div class="slider-group" id="sg_receptor">
+<div class="slider-label">Receptor Count</div>
+<div class="slider-value" id="sv_receptor">Normal</div>
+<input type="range" id="sl_receptor" min="0" max="2" value="1" step="1">
+<div class="slider-labels-row"><span>Few</span><span>Normal</span><span>Many</span></div>
+</div>
+<button id="runBtn" onclick="pressRun()">RUN</button>
+</div>
+<div id="arenaWrap">
+<div id="arenaContainer"></div>
+<div id="interactionZone"></div>
+</div>
+<div id="dataPanel">
+<h3>Data Table</h3>
+<table class="data-table">
+<thead><tr><th>Rnd</th><th>Changed</th><th>Setting</th><th>BG<br>mg/dL</th><th>Cell<br>Energy%</th><th>Recept<br>Occ%</th></tr></thead>
+<tbody id="dataBody"></tbody>
+</table>
+</div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="bottomBar" style="display:none;">
+<div>
+<button class="vocab-btn" onclick="toggleVocab()">&#128214; Vocab</button>
+<button class="hint-btn" id="hintBtn" onclick="useHint()">&#128161; Hint</button>
+<button class="reset-level-btn" id="resetLevelBtn" onclick="resetLevel()">Reset Round</button>
+</div>
+<span id="roundIndicator">Round 1 of 6</span>
+<button class="settings-btn" onclick="newRun()">New Run</button>
+</div>
+
+<!-- OVERLAYS -->
+<div id="vocabOverlay"><div id="vocabPanel">
+<h3>Key Vocabulary</h3>
+<div class="vocab-item">&#127852; <b>GLUCOSE</b> — Sugar cells use for ENERGY</div>
+<div class="vocab-item">&#128273; <b>INSULIN</b> — HORMONE that unlocks cells</div>
+<div class="vocab-item">&#128274; <b>RECEPTOR</b> — Cell part that receives SIGNALS</div>
+<div class="vocab-item">&#128137; <b>HORMONE</b> — Chemical MESSENGER carried in blood</div>
+<button onclick="toggleVocab()" style="margin-top:12px;background:var(--accent3);color:#fff;width:100%;">Close</button>
+</div></div>
+
+<div id="sbsOverlay"><div id="sbsPanel">
+<div class="sbs-counter" id="sbsCounter">Step 1 of 3</div>
+<div class="sbs-step" id="sbsText"></div>
+<button id="sbsNextBtn" onclick="sbsNext()">Next</button>
+</div></div>
+
+<div id="celebOverlay"><div id="celebContent">
+<h2 id="celebTitle"></h2>
+<div class="affirmation" id="celebAffirm"></div>
+<div class="celeb-btns" id="celebBtns"></div>
+</div></div>
+
+<div id="particleLayer"></div>
+<div id="receiptScreen"><div id="receiptInner"></div></div>
+
+<script>
+/* ============================================================
+   MR. JAWAD'S SIMULATIONS — Cause-and-Effect Lab
+   Topic: Ozempic, Insulin, Diabetes (Wednesday)
+   ============================================================ */
+
+// ── GLOBALS ──
+let studentName='', teacherName='Mr. Jawad';
+let currentRound=0, currentPhase='', processing=false, arenaGen=0;
+let hintLevel=0, wrongCount=0, resetCount=0, consecutiveFastWrongs=0;
+let phaseStartTime=0, roundStartTime=0;
+let transitionTimeout=null, fastGuessGateId=0, watchTimeout=null;
+let predictionChoice=null, predictionCorrect=false;
+let selectedOption=null, claimSlots={};
+let requiredCompleteShown=false, bonusCompleteShown=false, receiptRendered=false;
+let halfwayShown=false;
+let ambientInterval=null, resumeInterval=null;
+let audioCtx=null;
+let sliderMoved=false;
+const PARTICLE_POOL=[];
+let particleIdx=0;
+
+const insulinLabels=['None','Low','Normal','High'];
+const glucoseLabels=['Fasting','Normal Meal','Huge Meal'];
+const receptorLabels=['Few','Normal','Many'];
+
+const affirmations=[
+  ()=>`${teacherName} is proud of your thinking!`,
+  ()=>`${teacherName} knew you could do it!`,
+  ()=>`That's strong cause-and-effect reasoning — ${teacherName} loves to see that!`,
+  ()=>`${teacherName} says: great variable control!`,
+  ()=>`Solid evidence reading — ${teacherName} sees your effort!`,
+  ()=>`${teacherName} is impressed with your data skills!`,
+  ()=>`You're showing ${teacherName} real scientific thinking!`,
+  ()=>`${teacherName} says: keep that pattern-finding energy!`
+];
+let lastAffIdx=-1;
+function getAffirmation(){let i;do{i=Math.floor(Math.random()*affirmations.length)}while(i===lastAffIdx);lastAffIdx=i;return affirmations[i]();}
+
+// ── GAME STATE ──
+const gameState={
+  levels:[],overallScore:0,totalTimeSeconds:0,requiredComplete:false,allComplete:false
+};
+
+// ── ROUND DATA ──
+const ROUNDS=[
+// Round 1
+{
+  num:1,name:"No Insulin",phase:"Guided",required:true,
+  skill:"Isolate a variable (insulin) and observe the effect on glucose movement and cell energy",
+  sc:"SC1",
+  focusPrompt:"Watch what happens to the glucose hexagons in the bloodstream when insulin drops to zero.",
+  change:{
+    active:'insulin',lockedSliders:['glucose','receptor'],
+    lockedValues:{glucose:1,receptor:1},
+    guided:"Slide Insulin Level to NONE. Then tap RUN.",
+    startVal:2, targetVal:0
+  },
+  watchDuration:8000,
+  watchDesc:{insulin:0,glucose:1,receptor:1,bgResult:320,energyResult:12,receptorOcc:0},
+  record:{
+    row:{round:1,changed:'Insulin',setting:'None',bg:320,energy:12,recOcc:0},
+    hasError:false,coaching:"Check the data table. This is what happened when insulin was zero."
+  },
+  prove:{
+    mechanic:'coach-click',
+    prompt:"What stayed closed when insulin was gone?",
+    options:[
+      {id:'A',label:'Glucose hexagons',arena:'glucose'},
+      {id:'B',label:'Receptor locks',arena:'receptors'},
+      {id:'C',label:'Cell energy meters',arena:'energy'}
+    ],
+    correct:'B',
+    feedback:{
+      A:{text:"Glucose didn't stay closed — look at the bloodstream. Glucose is flooding everywhere. What on the CELLS stayed shut?",arenaHighlight:'receptors'},
+      C:{text:"Energy meters didn't close — they drained. Look at the blue shapes on the cells. What never opened?",arenaHighlight:'receptors'}
+    },
+    correctFeedback:"Receptors stay locked without insulin"
+  },
+  hints:{
+    hint1:{text:"Look at the blue lock shapes on the cell walls. Did any of them open during the animation?",target:'receptors'},
+    hint2:{text:"It's not the glucose or the energy meter. The answer is on the cell surface.",eliminate:'A'},
+    sbs:[
+      "You set insulin to NONE.",
+      "Watch the blue receptor locks — they never rotated open. No key means no unlock.",
+      "Tap the part that stayed closed: the receptor locks."
+    ]
+  }
+},
+// Round 2
+{
+  num:2,name:"Insulin Flood",phase:"Guided",required:true,
+  skill:"Observe the contrasting effect when insulin is abundant — trace the full pathway from hormone to cell energy",
+  sc:"SC1",
+  focusPrompt:"Watch the insulin keys travel from the pancreas to the receptor locks when insulin is high.",
+  change:{
+    active:'insulin',lockedSliders:['glucose','receptor'],
+    lockedValues:{glucose:1,receptor:1},
+    guided:"Slide Insulin Level to HIGH. Then tap RUN.",
+    startVal:2, targetVal:3
+  },
+  watchDuration:8000,
+  watchDesc:{insulin:3,glucose:1,receptor:1,bgResult:95,energyResult:88,receptorOcc:98},
+  record:{
+    row:{round:2,changed:'Insulin',setting:'High',bg:95,energy:88,recOcc:98},
+    hasError:false,coaching:"Check the data table. High insulin means low blood glucose and high cell energy. The system is working."
+  },
+  prove:{
+    mechanic:'pick-match',
+    prompt:"Why did cell energy rise when insulin was high?",
+    options:[
+      {id:'A',label:'Insulin made the cells bigger'},
+      {id:'B',label:'Insulin unlocked receptors so glucose could enter cells'},
+      {id:'C',label:'Insulin turned glucose into energy directly'}
+    ],
+    correct:'B',
+    feedback:{
+      A:{text:"Look at the cells — did they get bigger? No. Something on the cell SURFACE changed. Watch the locks.",arenaHighlight:'receptors'},
+      C:{text:"Insulin didn't turn into energy. It unlocked something on the cells. Look at what opened.",arenaHighlight:'receptors'}
+    },
+    correctFeedback:"Insulin unlocked receptors so glucose could enter cells"
+  },
+  hints:{
+    hint1:{text:"Look at the blue receptor locks on the cells. What happened to them when the green insulin keys arrived?",target:'receptors'},
+    hint2:{text:"It's not about cell size or energy conversion. The keys did something to the locks.",eliminate:'A'},
+    sbs:[
+      "You set insulin to HIGH. Lots of green keys entered the blood.",
+      "The keys docked into the blue receptor locks — and the locks OPENED. Then glucose flowed in.",
+      "Insulin unlocked receptors so glucose could enter. Tap option B."
+    ]
+  }
+},
+// Round 3 - TODO
+{
+  num:3,name:"Glucose Overload",phase:"Pattern",required:true,
+  skill:"Isolate a DIFFERENT variable (glucose intake) and observe its effect on blood sugar",
+  sc:"SC3",
+  focusPrompt:"Watch the bloodstream when glucose intake jumps to Huge Meal — how many hexagons flood in?",
+  change:{active:'glucose',lockedSliders:['insulin','receptor'],lockedValues:{insulin:2,receptor:1},guided:"Move the Glucose Intake slider to HUGE MEAL. Then tap RUN.",startVal:0,targetVal:2},
+  watchDuration:7000,
+  watchDesc:{insulin:2,glucose:2,receptor:1,bgResult:195,energyResult:78,receptorOcc:85},
+  record:{row:{round:3,changed:'Glucose Intake',setting:'Huge Meal',bg:195,energy:78,recOcc:85},hasError:true,errorCol:'recOcc',errorVal:65,correctVal:85,catchCoaching:"Nice catch! Most of the receptor locks are open — that's about 85%, not 65%. Normal insulin keeps the system working even with a huge meal.",missCoaching:"Look at the receptor locks — are really only 65% of them open?",coaching:"Tap Confirm after checking each value."},
+  prove:{mechanic:'what-next',prompt:"After a huge meal with normal insulin, what comes next?",sequence:["Huge meal","Glucose floods blood","Insulin keys unlock receptors"],options:[{id:'A',label:'Cells get energy, but extra glucose stays in blood'},{id:'B',label:'Cells starve because receptors close'},{id:'C',label:'Cells get too much energy and shut down'}],correct:'A',feedback:{B:{text:"Look at the receptor locks — are they closed? No! Insulin is normal, so locks are open. Cells ARE getting energy.",arenaHighlight:'receptors'},C:{text:"Look at the cell energy meters — are they overloaded? No, they're at a normal healthy level. The EXTRA glucose stayed in the bloodstream, not in the cells.",arenaHighlight:'energy'}},correctFeedback:"The system works, but it takes time to clear excess glucose."},
+  hints:{hint1:{text:"Look at the cell energy meters — are they full or empty? Now look at the bloodstream — is it clear or crowded?",target:'both'},hint2:{text:"Cells aren't starving (B is wrong). Look at the energy meters — are they overloaded or just normal?",eliminate:'C'},sbs:["You sent a huge meal through the system. Lots of glucose flooded the blood.","Insulin is normal, so receptors ARE open — cells are getting energy. But there's SO much glucose that the blood stays crowded.","Cells get energy, but extra glucose stays in blood. Tap option A."]}
+},
+// Round 4 - TODO
+{
+  num:4,name:"Fewer Locks",phase:"Pattern+Predict",required:true,
+  skill:"Predict the effect of a NEW variable (receptor count) on cell energy",
+  sc:"SC2",
+  focusPrompt:"Before you run, PREDICT: with fewer receptor locks, will cell energy stay the same?",
+  hasPrediction:true,
+  prediction:{
+    prompt:"If I reduce receptor count to FEW while insulin stays Normal, I think...",
+    options:[
+      {id:'A',label:'Cell energy will drop — fewer locks means less glucose gets in'},
+      {id:'B',label:'Cell energy will stay the same — insulin is still normal so cells are fine'}
+    ],
+    correct:'A',
+    bridge:"On Tuesday you saw receptors empty because there was no insulin. Now you'll see what happens when there are FEWER receptors — even when insulin IS there."
+  },
+  change:{active:'receptor',lockedSliders:['insulin','glucose'],lockedValues:{insulin:2,glucose:1},guided:"Slide Receptor Count to FEW. Then tap RUN.",startVal:1,targetVal:0},
+  watchDuration:8000,
+  watchDesc:{insulin:2,glucose:1,receptor:0,bgResult:180,energyResult:45,receptorOcc:30},
+  record:{row:{round:4,changed:'Receptor Count',setting:'Few',bg:180,energy:45,recOcc:30},hasError:true,errorCol:'energy',errorVal:68,correctVal:45,catchCoaching:"Good eye! The meters are only about 45% full — fewer receptors means much less glucose entering cells. 68% was way too high.",missCoaching:"Look at the energy meters — are the cells really at 68%?",coaching:"Tap Confirm after checking each value."},
+  prove:{mechanic:'coach-click',prompt:"What caused low cell energy even with normal insulin?",options:[{id:'A',label:'Pancreas',arena:'pancreas'},{id:'B',label:'Glucose hexagons',arena:'glucose'},{id:'C',label:'Few remaining receptor locks',arena:'receptors'}],correct:'C',feedback:{A:{text:"The pancreas is working fine — look, insulin keys are in the blood. The problem is on the CELLS.",arenaHighlight:'receptors'},B:{text:"Glucose IS available — there's plenty in the blood. The issue is that it can't get INTO the cells. What's missing on the cell surface?",arenaHighlight:'receptors'}},correctFeedback:"Fewer receptor locks caused low cell energy."},
+  hints:{hint1:{text:"Look at the cell walls — how many blue receptor locks are left compared to earlier rounds?",target:'receptors'},hint2:{text:"The pancreas and glucose supply are both fine. The problem is on the cell surface — there aren't enough of something.",eliminate:'A'},sbs:["You reduced receptor count to FEW. Insulin is still normal — keys are in the blood.","But there are barely any locks for the keys to dock into. Most glucose bounces off the cell wall.","Fewer receptor locks caused low cell energy. Tap the receptor locks (C)."]}
+},
+// Round 5 - TODO
+{
+  num:5,name:"Alec's Crisis",phase:"Predict+Challenge",required:false,
+  skill:"Predict the combined effect of zero insulin and high glucose",
+  sc:"SC2+SC3",
+  focusPrompt:"Predict what happens inside the body with ZERO insulin and a HUGE meal — then run it and compare.",
+  hasPrediction:true,
+  prediction:{
+    prompt:"If insulin is ZERO and glucose intake is HUGE MEAL, I think...",
+    options:[
+      {id:'A',label:'Blood sugar will stay normal because there is plenty of glucose to go around'},
+      {id:'B',label:'Blood sugar will spike dangerously high and cells will have almost no energy'}
+    ],
+    correct:'B',
+    bridge:"This is exactly what was happening inside Alec's body when he rationed his insulin."
+  },
+  isPreset:true,
+  change:{active:'none',lockedSliders:['insulin','glucose','receptor'],lockedValues:{insulin:0,glucose:2,receptor:1},guided:"These settings match Alec's body. Tap RUN to see what happens.",startVal:null,targetVal:null},
+  watchDuration:10000,
+  watchDesc:{insulin:0,glucose:2,receptor:1,bgResult:550,energyResult:3,receptorOcc:0},
+  record:{row:{round:5,changed:'Insulin + Glucose',setting:'None + Huge Meal',bg:550,energy:3,recOcc:0},hasError:false,coaching:"Look at Row 1 and Row 5. Both have zero insulin — and cells are starving."},
+  prove:{mechanic:'pick-match',prompt:"Blood was flooded with glucose but cells had no energy. Why?",options:[{id:'A',label:'Glucose was the wrong type for the cells to use'},{id:'B',label:'No insulin meant receptors stayed locked, so glucose could not enter'},{id:'C',label:'The cells were already full of energy and rejected the glucose'}],correct:'B',feedback:{A:{text:"The glucose was fine — look at the bloodstream, it's the same yellow hexagons as every round. Something on the CELLS blocked it from entering.",arenaHighlight:'receptors'},C:{text:"Look at the cell energy meters — they're at 3%. The cells aren't full, they're empty. What stopped glucose from getting in?",arenaHighlight:'receptors'}},correctFeedback:"Without insulin, receptors stay locked. Glucose can't get in no matter how much is in the blood."},
+  hints:{hint1:{text:"Look at the blue receptor locks on the cells. Are any of them open?",target:'receptors'},hint2:{text:"The glucose and the cells are both fine on their own. The problem is what's MISSING between them.",eliminate:'A'},sbs:["Insulin was at ZERO. Look at the receptor locks — they're all closed. No key means no unlock.","Glucose hexagons are packed in the blood, but NONE can get through the closed locks into cells.","No insulin means locked receptors means glucose stuck outside means cells starve. Tap option B."]}
+},
+// Round 6 - TODO
+{
+  num:6,name:"System Rescue",phase:"Multi-Variable",required:false,
+  skill:"Synthesize all variable knowledge to find the healthiest system configuration",
+  sc:"SC1+SC2+SC3",
+  focusPrompt:"All sliders are unlocked. Find the combination that gives cells the MOST energy.",
+  isMultiVar:true,
+  change:{active:'all',lockedSliders:[],lockedValues:{},guided:"Adjust ALL three sliders to give cells the MOST energy. Tap RUN when ready.",startVal:null,targetVal:null},
+  watchDuration:8000,
+  watchDesc:{insulin:3,glucose:1,receptor:2,bgResult:85,energyResult:95,receptorOcc:100},
+  goals:[
+    {label:"GOAL 1: Make the Healthiest Body",instruction:"Adjust ALL three sliders to give cells the MOST energy. Tap RUN when ready.",optimal:{insulin:3,glucose:1,receptor:2}},
+    {label:"GOAL 2: Now Make the Most Dangerous Body",instruction:"Reset the sliders to create the MOST dangerous combination. Tap RUN.",optimal:{insulin:0,glucose:2,receptor:0}}
+  ],
+  record:{row:{round:6,changed:'All Three',setting:'Multi',bg:0,energy:0,recOcc:0},hasError:false,coaching:"Look at Goal 1 vs. Goal 2. What's the biggest difference?"},
+  prove:{mechanic:'claim-builder',prompt:"Finish the claim about what cells need most.",frame:"Cells get energy when ___ unlocks ___ on the cell surface.",blanks:[{id:'blank1',label:'Blank 1',options:['INSULIN','GLUCOSE','RECEPTOR'],correct:'INSULIN'},{id:'blank2',label:'Blank 2',options:['receptors','hormones','glucose molecules'],correct:'receptors'}],feedback:{blank1:{GLUCOSE:"Glucose is the fuel, but it can't get into cells on its own. What KEY unlocks the cells?",RECEPTOR:"Receptors are the locks — but what KEY opens them?"},blank2:{hormones:"Hormones travel in blood — but what's on the CELL SURFACE that opens up?","glucose molecules":"Glucose is what goes THROUGH the opening. What does insulin actually unlock?"}},correctFeedback:"INSULIN unlocks RECEPTORS so glucose can enter cells."},
+  hints:{hint1:{text:"Look at your data table. Which round had the highest cell energy? What was HIGH in that round?",target:'data'},hint2:{text:"Blank 1 is the hormone that unlocks cells. Blank 2 is the part on the cell surface that insulin opens.",eliminate:null},sbs:["INSULIN is the key that unlocks cells. Without it, nothing works — you proved that in Round 1.","The locks on the cell surface are called RECEPTORS. Insulin unlocks receptors so glucose can enter.","Fill in: INSULIN, receptors."]}
+}
+];
+
+// Init game state
+ROUNDS.forEach(r=>{
+  gameState.levels.push({
+    levelNum:r.num,levelName:r.name,required:r.required,completed:false,
+    score:0,attempts:0,hintsUsed:0,resets:0,timeSeconds:0
+  });
+});
+
+// ── UTILITY ──
+function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function safeCall(fn,msg){try{fn()}catch(e){console.error(msg,e)}}
+function getAudioContext(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playTone(freq,dur){safeCall(()=>{const ctx=getAudioContext();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;g.gain.value=0.1;o.start();g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);o.stop(ctx.currentTime+dur);},'audio err')}
+function playCorrect(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.15),200);}
+function playWrong(){playTone(200,.2);}
+
+function closeAllOverlays(){
+  document.querySelectorAll('.coaching-bar,.feedback-popup,.confirm-dialog').forEach(el=>el.remove());
+  document.getElementById('sbsOverlay').classList.remove('open');
+  document.getElementById('celebOverlay').classList.remove('open');
+}
+
+function clearTimers(){
+  if(transitionTimeout){clearTimeout(transitionTimeout);transitionTimeout=null;}
+  if(watchTimeout){clearTimeout(watchTimeout);watchTimeout=null;}
+}
+
+// Particles
+function initParticles(){
+  const layer=document.getElementById('particleLayer');
+  const colors=['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#EC4899','#06B6D4'];
+  for(let i=0;i<15;i++){
+    const p=document.createElement('div');p.className='particle';
+    p.style.background=colors[i%colors.length];
+    p.style.width=(6+Math.random()*6)+'px';p.style.height=p.style.width;
+    layer.appendChild(p);PARTICLE_POOL.push(p);
+  }
+}
+function fireParticles(count){
+  for(let i=0;i<Math.min(count,15);i++){
+    const p=PARTICLE_POOL[particleIdx%15];particleIdx++;
+    p.style.display='block';
+    p.style.left=Math.random()*100+'%';p.style.top='-10px';
+    p.style.animation='none';p.offsetHeight;
+    p.style.animationDuration=(1.5+Math.random())+'s';
+    p.style.animation='particleFall '+(1.5+Math.random())+'s linear forwards';
+    setTimeout(()=>{p.style.display='none'},3000);
+  }
+}
+
+// ── SLIDER LOGIC ──
+const sliders={
+  insulin:document.getElementById('sl_insulin'),
+  glucose:document.getElementById('sl_glucose'),
+  receptor:document.getElementById('sl_receptor')
+};
+const sliderValues={
+  insulin:document.getElementById('sv_insulin'),
+  glucose:document.getElementById('sv_glucose'),
+  receptor:document.getElementById('sv_receptor')
+};
+const sliderGroups={
+  insulin:document.getElementById('sg_insulin'),
+  glucose:document.getElementById('sg_glucose'),
+  receptor:document.getElementById('sg_receptor')
+};
+
+sliders.insulin.addEventListener('input',()=>{sliderValues.insulin.textContent=insulinLabels[sliders.insulin.value];sliderMoved=true;});
+sliders.glucose.addEventListener('input',()=>{sliderValues.glucose.textContent=glucoseLabels[sliders.glucose.value];sliderMoved=true;});
+sliders.receptor.addEventListener('input',()=>{sliderValues.receptor.textContent=receptorLabels[sliders.receptor.value];sliderMoved=true;});
+
+function configureSliders(rd){
+  const ch=rd.change;
+  ['insulin','glucose','receptor'].forEach(k=>{
+    const locked=ch.lockedSliders.includes(k);
+    sliderGroups[k].classList.toggle('locked',locked);
+    sliderGroups[k].classList.toggle('active',ch.active==='all'||(k===ch.active));
+    sliders[k].disabled=locked;
+    if(locked&&ch.lockedValues[k]!==undefined){
+      sliders[k].value=ch.lockedValues[k];
+      if(k==='insulin')sliderValues[k].textContent=insulinLabels[ch.lockedValues[k]];
+      else if(k==='glucose')sliderValues[k].textContent=glucoseLabels[ch.lockedValues[k]];
+      else sliderValues[k].textContent=receptorLabels[ch.lockedValues[k]];
+    }
+    if(ch.active==='all'){
+      sliderGroups[k].classList.remove('locked');
+      sliders[k].disabled=false;
+      sliderGroups[k].classList.add('active');
+    }
+  });
+  if(ch.startVal!==null&&ch.active!=='all'&&ch.active!=='none'){
+    sliders[ch.active].value=ch.startVal;
+    const labels=ch.active==='insulin'?insulinLabels:ch.active==='glucose'?glucoseLabels:receptorLabels;
+    sliderValues[ch.active].textContent=labels[ch.startVal];
+  }
+  document.getElementById('changeLabel').textContent=ch.active==='all'?'CHANGE: All Variables':ch.active==='none'?'OBSERVE: Pre-set Values':'CHANGE: '+(ch.active==='insulin'?'Insulin Level':ch.active==='glucose'?'Glucose Intake':'Receptor Count');
+  sliderMoved=false;
+}
+
+// ── ARENA RENDERING ──
+function buildArena(state){
+  const c=document.getElementById('arenaContainer');
+  while(c.firstChild)c.removeChild(c.firstChild);
+  arenaGen++;
+  const ins=state.insulin, glu=state.glucose, rec=state.receptor;
+  const energy=state.energyResult||50, bgLevel=state.bgResult||100, recOcc=state.receptorOcc||50;
+  const hl=state.highlights||{};
+  const F='font-family="Segoe UI,sans-serif"';
+
+  const hexCount=Math.min((glu===0?3:glu===1?7:14)+(ins===0?5:0),16);
+  const keyCount=[0,2,5,9][ins];
+  const lockTotal=[2,5,8][rec];
+  const openLocks=Math.min(keyCount,lockTotal);
+  const eColor=energy>60?'#059669':energy>30?'#CA8A04':'#DC2626';
+  const eFill=energy>60?'#10B981':energy>30?'#EAB308':'#EF4444';
+  const eW=Math.max(4,energy/100*68);
+  const bgC=bgLevel>300?'#DC2626':bgLevel>180?'#CA8A04':'#059669';
+  const bloodC=bgLevel>300?'#FB923C':bgLevel>180?'#FACC15':'#93C5FD';
+  const bloodBg=bgLevel>300?'.25':bgLevel>180?'.14':'.1';
+  const cellA=energy>60?.3:energy>30?.16:.06;
+
+  let s=`<svg viewBox="0 0 820 480" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">`;
+  s+=`<defs>
+  <linearGradient id="gBG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#F1F5F9"/><stop offset="100%" stop-color="#E0E7EE"/></linearGradient>
+  <linearGradient id="gBld" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${bloodC}" stop-opacity=".05"/><stop offset="35%" stop-color="${bloodC}" stop-opacity="${bloodBg}"/><stop offset="65%" stop-color="${bloodC}" stop-opacity="${bloodBg}"/><stop offset="100%" stop-color="${bloodC}" stop-opacity=".05"/></linearGradient>
+  <linearGradient id="gE" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${eFill}"/><stop offset="100%" stop-color="${energy>60?'#6EE7B7':energy>30?'#FDE68A':'#FCA5A5'}"/></linearGradient>
+  <linearGradient id="gPan" x1=".2" y1="0" x2=".8" y2="1"><stop offset="0%" stop-color="#FDE68A"/><stop offset="100%" stop-color="#F59E0B"/></linearGradient>
+  <linearGradient id="gCell" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(96,165,250,${cellA+.12})"/><stop offset="100%" stop-color="rgba(59,130,246,${cellA})"/></linearGradient>
+  </defs>`;
+
+  s+=`<rect width="820" height="480" fill="url(#gBG)" rx="8"/>`;
+
+  // ═══ ZONE A: PANCREAS (left) + DASHBOARD (right)  y 0-148 ═══
+  const pO=ins>0?1:.25;
+  const pS=hl.pancreas?'stroke="#2563EB" stroke-width="4"':'';
+  s+=`<g transform="translate(16,10)" opacity="${pO}" ${pS}>`;
+  s+=`<path d="M20,42 Q10,20 40,12 Q70,4 90,18 Q108,30 100,50 Q92,68 65,72 Q35,76 20,60Z" fill="url(#gPan)" stroke="#B45309" stroke-width="2"/>`;
+  s+=`<ellipse cx="50" cy="32" rx="22" ry="14" fill="#FEF3C7" opacity=".5"/>`;
+  s+=`<ellipse cx="76" cy="44" rx="16" ry="11" fill="#FEF3C7" opacity=".35"/>`;
+  for(let i=0;i<7;i++){const a=i*.9,r=18+i%2*6;
+    s+=`<circle cx="${55+Math.cos(a)*r}" cy="${38+Math.sin(a)*r*.7}" r="${2.5+i%3}" fill="#D97706" opacity=".45"/>`;}
+  s+=`<path d="M45,55 Q65,62 90,52" fill="none" stroke="#92400E" stroke-width="1.2" stroke-dasharray="3,2" opacity=".4"/>`;
+  s+=`<text x="58" y="90" text-anchor="middle" fill="#78350F" font-size="13" font-weight="800" ${F}>PANCREAS</text>`;
+  if(ins===0){
+    s+=`<line x1="25" y1="15" x2="92" y2="62" stroke="#DC2626" stroke-width="4" stroke-linecap="round" opacity=".75"/>`;
+    s+=`<line x1="92" y1="15" x2="25" y2="62" stroke="#DC2626" stroke-width="4" stroke-linecap="round" opacity=".75"/>`;
+  }
+  s+=`</g>`;
+  if(ins===0)s+=`<text x="74" y="112" text-anchor="middle" fill="#DC2626" font-size="10" font-weight="700" ${F}>NO INSULIN</text>`;
+  else s+=`<text x="74" y="112" text-anchor="middle" fill="#047857" font-size="10" font-weight="600" ${F}>Producing insulin</text>`;
+  s+=`<rect x="14" y="118" width="120" height="22" rx="11" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1"/>`;
+  s+=`<text x="74" y="133" text-anchor="middle" fill="#6D28D9" font-size="9" font-weight="700" ${F}>OZEMPIC  &#10132;  more insulin</text>`;
+  if(ins>0){
+    s+=`<path d="M100,70 C130,110 150,130 175,168" fill="none" stroke="#10B981" stroke-width="2.5" stroke-dasharray="7,5" opacity=".45"/>`;
+    s+=`<polygon points="175,168 167,160 173,157" fill="#10B981" opacity=".5"/>`;
+  }
+
+  // Dashboard cards
+  s+=`<rect x="620" y="8" width="188" height="62" rx="12" fill="#fff" stroke="${bgC}" stroke-width="2.5"/>`;
+  s+=`<text x="714" y="28" text-anchor="middle" fill="${bgC}" font-size="11" font-weight="700" ${F}>BLOOD GLUCOSE</text>`;
+  s+=`<text x="686" y="58" text-anchor="middle" fill="${bgC}" font-size="30" font-weight="900" ${F}>${bgLevel}</text>`;
+  s+=`<text x="730" y="58" fill="${bgC}" font-size="11" font-weight="600" ${F}>mg/dL</text>`;
+  if(bgLevel>400)s+=`<rect x="620" y="8" width="188" height="62" rx="12" fill="none" stroke="#EF4444" stroke-width="2"><animate attributeName="opacity" values=".3;.9;.3" dur="1s" repeatCount="4"/></rect>`;
+  s+=`<rect x="620" y="78" width="188" height="36" rx="8" fill="#EFF6FF" stroke="#93C5FD" stroke-width="1.2"/>`;
+  s+=`<text x="686" y="96" text-anchor="middle" fill="#1E40AF" font-size="10" font-weight="600" ${F}>Receptor Occupancy</text>`;
+  s+=`<text x="770" y="100" text-anchor="middle" fill="#1E40AF" font-size="18" font-weight="900" ${F}>${recOcc}%</text>`;
+  s+=`<rect x="620" y="120" width="188" height="26" rx="6" fill="#F5F3FF" stroke="#C4B5FD" stroke-width="1"/>`;
+  s+=`<text x="714" y="137" text-anchor="middle" fill="#6D28D9" font-size="10" font-weight="700" ${F}>HORMONE = Insulin</text>`;
+
+  // ═══ ZONE B: BLOODSTREAM  y 155-240 ═══
+  const bY=158,bH=78;
+  s+=`<rect x="148" y="${bY}" width="460" height="${bH}" rx="39" fill="url(#gBld)"/>`;
+  s+=`<rect x="148" y="${bY}" width="460" height="${bH}" rx="39" fill="none" stroke="${bloodC}" stroke-width="2.5" opacity=".5"/>`;
+  s+=`<rect x="155" y="${bY+5}" width="446" height="${bH-10}" rx="34" fill="none" stroke="${bloodC}" stroke-width=".8" stroke-dasharray="8,6" opacity=".2"/>`;
+  s+=`<text x="378" y="${bY-8}" text-anchor="middle" fill="#1E40AF" font-size="13" font-weight="800" ${F}>BLOODSTREAM</text>`;
+
+  // Glucose hexagons
+  const gPulse=hl.glucose?'class="arena-pulse"':'';
+  for(let i=0;i<Math.min(hexCount,14);i++){
+    const gx=170+i*28+(i%3)*7, gy=bY+20+Math.sin(i*.85)*22;
+    if(gx>580)continue;
+    const sz=bgLevel>300?13:11;
+    s+=`<g ${gPulse}><polygon points="${hex(gx,gy,sz)}" fill="#FBBF24" stroke="#A16207" stroke-width="1.5"/>`;
+    s+=`<polygon points="${hex(gx,gy,sz*.55)}" fill="#FDE68A" opacity=".5"/></g>`;
+    if(bgLevel>300&&i%3===0)s+=`<polygon points="${hex(gx+5,gy-4,5)}" fill="#FEF3C7" opacity=".4"/>`;
+  }
+
+  // Insulin keys
+  for(let i=0;i<Math.min(keyCount,8);i++){
+    const kx=200+i*44, ky=bY+20+Math.cos(i*2.2)*20;
+    s+=`<g transform="translate(${kx},${ky})">`;
+    s+=`<rect x="-5" y="-14" width="10" height="28" rx="4" fill="#10B981" stroke="#047857" stroke-width="1.5"/>`;
+    s+=`<rect x="5" y="-10" width="9" height="5" rx="2" fill="#10B981" stroke="#047857" stroke-width="1"/>`;
+    s+=`<rect x="5" y="-1" width="7" height="4" rx="1.5" fill="#10B981" stroke="#047857" stroke-width="1"/>`;
+    s+=`<circle cx="0" cy="-14" r="5" fill="#34D399" stroke="#047857" stroke-width="1"/>`;
+    s+=`<circle cx="0" cy="-14" r="2" fill="#047857"/>`;
+    s+=`</g>`;
+  }
+
+  // Label row
+  const lbY=bY+bH+4;
+  s+=`<rect x="150" y="${lbY}" width="180" height="20" rx="4" fill="rgba(251,191,36,.1)"/>`;
+  s+=`<text x="240" y="${lbY+14}" text-anchor="middle" fill="#92400E" font-size="11" font-weight="800" ${F}>GLUCOSE (sugar fuel)</text>`;
+  if(keyCount>0){
+    s+=`<rect x="380" y="${lbY}" width="200" height="20" rx="4" fill="rgba(16,185,129,.08)"/>`;
+    s+=`<text x="480" y="${lbY+14}" text-anchor="middle" fill="#047857" font-size="11" font-weight="800" ${F}>INSULIN (hormone keys)</text>`;
+  }
+
+  // Flow arrows
+  const arrTop=lbY+26,arrBot=320;
+  if(openLocks>0){
+    for(let i=0;i<Math.min(openLocks,5);i++){
+      const fx=220+i*90;
+      s+=`<line x1="${fx}" y1="${arrTop}" x2="${fx}" y2="${arrBot}" stroke="#EAB308" stroke-width="2.5" stroke-dasharray="6,5" opacity=".3"/>`;
+      s+=`<polygon points="${fx},${arrBot} ${fx-6},${arrBot-10} ${fx+6},${arrBot-10}" fill="#EAB308" opacity=".35"/>`;
+      s+=`<polygon points="${hex(fx,arrTop+18,5)}" fill="#FBBF24" opacity=".4"/>`;
+    }
+  }
+
+  // ═══ ZONE C: CELLS  y 330-430 ═══
+  const cY=330,cH=95,cW=125,cGap=10;
+  const totW=4*cW+3*cGap,cX0=Math.round((620-totW)/2)+140;
+
+  for(let ci=0;ci<4;ci++){
+    const cx=cX0+ci*(cW+cGap), mx=cx+cW/2;
+    // Cell body
+    s+=`<rect x="${cx}" y="${cY}" width="${cW}" height="${cH}" rx="18" fill="url(#gCell)" stroke="#3B82F6" stroke-width="2.5"/>`;
+    s+=`<rect x="${cx+4}" y="${cY+4}" width="${cW-8}" height="${cH-8}" rx="14" fill="none" stroke="#93C5FD" stroke-width="1.2" stroke-dasharray="5,3" opacity=".4"/>`;
+    // Nucleus
+    s+=`<ellipse cx="${mx+8}" cy="${cY+cH-22}" rx="14" ry="10" fill="rgba(99,102,241,.12)" stroke="rgba(99,102,241,.25)" stroke-width="1"/>`;
+    s+=`<ellipse cx="${mx+8}" cy="${cY+cH-22}" rx="5" ry="4" fill="rgba(99,102,241,.2)"/>`;
+    // Mitochondria
+    s+=`<ellipse cx="${mx-18}" cy="${cY+cH-26}" rx="10" ry="6" fill="rgba(139,92,246,.1)" stroke="rgba(139,92,246,.18)" stroke-width="1"/>`;
+    s+=`<path d="M${mx-24},${cY+cH-26} Q${mx-18},${cY+cH-30} ${mx-12},${cY+cH-26}" fill="none" stroke="rgba(139,92,246,.2)" stroke-width=".8"/>`;
+
+    // Energy battery
+    const bW2=74,bH2=22,bx=mx-bW2/2,by=cY+18;
+    const ePulse=hl.energy?'class="arena-pulse"':'';
+    s+=`<rect x="${bx-4}" y="${by+5}" width="6" height="${bH2-10}" rx="2" fill="#64748B"/>`;
+    s+=`<rect ${ePulse} x="${bx}" y="${by}" width="${bW2}" height="${bH2}" rx="5" fill="#E2E8F0" stroke="#94A3B8" stroke-width="1.5"/>`;
+    s+=`<rect x="${bx+2}" y="${by+2}" width="${Math.min(eW,bW2-4)}" height="${bH2-4}" rx="3" fill="url(#gE)"/>`;
+    s+=`<text x="${mx}" y="${by+bH2+16}" text-anchor="middle" fill="${eColor}" font-size="14" font-weight="900" ${F}>${energy}%</text>`;
+
+    // Receptor locks
+    const rPC=[1,2,3][rec], rPulse=hl.receptors?'class="arena-pulse"':'';
+    const lSp=cW/(rPC+1);
+    for(let ri=0;ri<rPC;ri++){
+      const lx=cx+lSp*(ri+1)-8, ly=cY-8;
+      const isOp=ri<Math.ceil(openLocks/4);
+      if(isOp){
+        s+=`<g ${rPulse}>`;
+        s+=`<rect x="${lx}" y="${ly}" width="20" height="15" rx="4" fill="#10B981" stroke="#047857" stroke-width="1.5"/>`;
+        s+=`<path d="M${lx+15},${ly} L${lx+15},${ly-5} Q${lx+20},${ly-10} ${lx+25},${ly-5} L${lx+25},${ly+3}" fill="none" stroke="#047857" stroke-width="2.5" stroke-linecap="round"/>`;
+        s+=`<circle cx="${lx+8}" cy="${ly+7}" r="3" fill="#fff" opacity=".5"/>`;
+        s+=`<rect x="${lx-6}" y="${ly+2}" width="6" height="10" rx="2" fill="#34D399" stroke="#047857" stroke-width=".8"/>`;
+        s+=`</g>`;
+      } else {
+        s+=`<g ${rPulse}>`;
+        s+=`<rect x="${lx}" y="${ly+5}" width="18" height="18" rx="4" fill="#3B82F6" stroke="#1E40AF" stroke-width="1.5"/>`;
+        s+=`<path d="M${lx+3},${ly+5} L${lx+3},${ly-2} Q${lx+9},${ly-10} ${lx+15},${ly-2} L${lx+15},${ly+5}" fill="none" stroke="#1E40AF" stroke-width="2.5" stroke-linecap="round"/>`;
+        s+=`<circle cx="${lx+9}" cy="${ly+13}" r="2.5" fill="#1E40AF"/>`;
+        s+=`<rect x="${lx+8}" y="${ly+14}" width="2" height="4" rx="1" fill="#1E40AF"/>`;
+        s+=`</g>`;
+      }
+    }
+    if(rec===0){
+      for(let ri=rPC;ri<3;ri++){
+        const gx2=cx+lSp*(ri+1)-8;
+        s+=`<rect x="${gx2}" y="${cY-1}" width="18" height="16" rx="4" fill="none" stroke="#CBD5E1" stroke-width="1.2" stroke-dasharray="4,3" opacity=".3"/>`;
+        s+=`<text x="${gx2+9}" y="${cY+10}" text-anchor="middle" fill="#CBD5E1" font-size="9" ${F}>?</text>`;
+      }
+    }
+  }
+
+  s+=`<text x="${cX0+totW/2}" y="${cY+cH+18}" text-anchor="middle" fill="#1E40AF" font-size="12" font-weight="800" ${F}>CELLS  &#8226;  RECEPTOR LOCKS  &#8226;  ENERGY METERS</text>`;
+  const sumY=cY+cH+28;
+  s+=`<rect x="${cX0}" y="${sumY}" width="${totW}" height="22" rx="6" fill="rgba(59,130,246,.06)"/>`;
+  s+=`<text x="${cX0+totW/2}" y="${sumY+15}" text-anchor="middle" fill="#475569" font-size="10" ${F}>`;
+  s+=`Cell Energy: <tspan fill="${eColor}" font-weight="800">${energy}%</tspan>`;
+  s+=`  &#8226;  Blood Glucose: <tspan fill="${bgC}" font-weight="800">${bgLevel} mg/dL</tspan>`;
+  s+=`  &#8226;  Receptors Open: <tspan fill="#1E40AF" font-weight="800">${recOcc}%</tspan>`;
+  s+=`</text>`;
+
+  s+=`</svg>`;
+  c.innerHTML=s;
+}
+function hex(cx,cy,r){
+  let pts=[];
+  for(let i=0;i<6;i++){
+    let a=Math.PI/3*i-Math.PI/6;
+    pts.push((cx+r*Math.cos(a)).toFixed(1)+','+(cy+r*Math.sin(a)).toFixed(1));
+  }
+  return pts.join(' ');
+}
+
+// ── START / NAVIGATION ──
+function startSim(){
+  studentName=escHtml(document.getElementById('studentNameInput').value.trim())||'Student';
+  let tn=escHtml(document.getElementById('teacherNameInput').value.trim());
+  if(tn)teacherName=tn;
+  document.getElementById('welcomeScreen').style.display='none';
+  document.getElementById('topBar').style.display='flex';
+  document.getElementById('mainArea').style.display='flex';
+  document.getElementById('bottomBar').style.display='flex';
+  initParticles();
+  loadRound(0);
+}
+
+function loadRound(idx){
+  if(processing)return;
+  processing=true;
+  closeAllOverlays();clearTimers();
+  currentRound=idx;
+  const rd=ROUNDS[idx];
+  hintLevel=0;wrongCount=0;resetCount=gameState.levels[idx].resets;
+  consecutiveFastWrongs=0;selectedOption=null;predictionChoice=null;predictionCorrect=false;
+  claimSlots={};sliderMoved=false;
+  dataErrorCaught=false;dataConfirmAttempts=0;multiVarGoal=0;goal1Results=null;goal2Results=null;
+
+  // Update HUD
+  document.getElementById('roundBadge').textContent=`Round ${rd.num} of 6`;
+  document.getElementById('roundIndicator').textContent=`Round ${rd.num} of 6`;
+  updateScore();updateProgress();
+
+  // Configure sliders
+  configureSliders(rd);
+  document.getElementById('runBtn').disabled=false;
+  document.getElementById('runBtn').style.display='block';
+  document.getElementById('resetLevelBtn').disabled=false;
+  document.getElementById('hintBtn').disabled=true;
+
+  // Build initial arena (neutral state)
+  let initState;
+  if(rd.isPreset){
+    // Preset rounds: show a neutral starting state before RUN
+    initState=calcState(2,1,1); // Normal everything
+  } else if(rd.isMultiVar){
+    initState=calcState(2,1,1); // Start neutral for multi-var
+  } else if(rd.change.active!=='none'&&rd.change.startVal!==null){
+    initState=getPreState(rd);
+  } else {
+    initState=Object.assign({},rd.watchDesc||calcState(2,1,1));
+  }
+  buildArena(initState);
+
+  // Start round timer
+  roundStartTime=Date.now();
+
+  // Check if prediction round
+  if(rd.hasPrediction){
+    showPrediction(rd);
+  } else {
+    showChangePhase(rd);
+  }
+  processing=false;
+}
+
+function getPreState(rd){
+  const lv=rd.change.lockedValues;
+  const sv=rd.change.startVal;
+  const act=rd.change.active;
+  let ins=lv.insulin!==undefined?lv.insulin:(act==='insulin'?sv:2);
+  let glu=lv.glucose!==undefined?lv.glucose:(act==='glucose'?sv:1);
+  let rec=lv.receptor!==undefined?lv.receptor:(act==='receptor'?sv:1);
+  if(ins===undefined)ins=2;
+  if(glu===undefined)glu=1;
+  if(rec===undefined)rec=1;
+  return calcState(ins,glu,rec);
+}
+
+function calcState(ins,glu,rec){
+  // Known states from content pack
+  const known={
+    '0_1_1':{bgResult:320,energyResult:12,receptorOcc:0},
+    '3_1_1':{bgResult:95,energyResult:88,receptorOcc:98},
+    '2_2_1':{bgResult:195,energyResult:78,receptorOcc:85},
+    '2_1_0':{bgResult:180,energyResult:45,receptorOcc:30},
+    '0_2_1':{bgResult:550,energyResult:3,receptorOcc:0},
+    '2_1_1':{bgResult:110,energyResult:72,receptorOcc:70},
+    '3_1_2':{bgResult:85,energyResult:95,receptorOcc:100},
+    '0_2_0':{bgResult:580,energyResult:2,receptorOcc:0},
+    '1_1_1':{bgResult:180,energyResult:40,receptorOcc:35},
+  };
+  const key=ins+'_'+glu+'_'+rec;
+  if(known[key])return Object.assign({insulin:ins,glucose:glu,receptor:rec},known[key]);
+  // Fallback calculation
+  let insEff=ins===0?0:ins===1?.3:ins===2?.7:1;
+  let recEff=rec===0?.25:rec===1?.7:1;
+  let baseBG=glu===0?70:glu===1?110:200;
+  let clearance=insEff*recEff;
+  let bg=Math.round(baseBG+baseBG*(1-clearance));
+  let energy=Math.round(clearance*90);
+  let recOcc=Math.round(insEff*recEff*100);
+  if(ins===0){energy=Math.max(2,energy);recOcc=0;bg=Math.round(baseBG*2.5);}
+  return{insulin:ins,glucose:glu,receptor:rec,bgResult:bg,energyResult:energy,receptorOcc:recOcc};
+}
+
+// ── PHASE: PREDICTION ──
+function showPrediction(rd){
+  currentPhase='PREDICT';
+  const iz=document.getElementById('interactionZone');
+  iz.innerHTML='';
+  
+  // Round 4: Show visual preview comparing Normal vs Few receptor locks
+  if(rd.num===4){
+    iz.innerHTML=`<div class="phase-title">PREDICT</div><div class="iz-prompt">Comparing receptor counts...</div>`;
+    // Build side-by-side preview in arena
+    buildReceptorPreview();
+    setTimeout(()=>{
+      // After 2s, show the actual prediction prompt
+      buildPredictionUI(rd);
+    },2500);
+  } else {
+    buildPredictionUI(rd);
+  }
+  showFocusBanner(rd.focusPrompt);
+}
+
+function buildReceptorPreview(){
+  const c=document.getElementById('arenaContainer');
+  let old=c.querySelector('.focus-banner');
+  // Overlay a comparison SVG
+  let preview=document.createElement('div');
+  preview.id='receptorPreview';
+  preview.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;z-index:30;background:rgba(248,250,252,.95);display:flex;justify-content:center;align-items:center;';
+  preview.innerHTML=`<svg viewBox="0 0 500 200" style="width:80%;max-width:500px;">
+    <text x="250" y="22" text-anchor="middle" fill="#1E293B" font-size="14" font-weight="700">Comparing Receptor Counts</text>
+    <!-- Normal side -->
+    <rect x="20" y="40" width="210" height="140" rx="12" fill="#EFF6FF" stroke="#3B82F6" stroke-width="2"/>
+    <text x="125" y="62" text-anchor="middle" fill="#1D4ED8" font-size="12" font-weight="700">Normal Locks</text>
+    <rect x="40" y="80" width="170" height="60" rx="10" fill="rgba(147,197,253,.2)" stroke="#60A5FA" stroke-width="2"/>
+    ${[0,1,2,3,4].map(i=>`<g transform="translate(${55+i*32},74)"><rect x="0" y="-2" width="12" height="14" rx="3" fill="#3B82F6" stroke="#1E40AF" stroke-width="1.2"/><path d="M2,-2 L2,-7 Q6,-12 10,-7 L10,-2" fill="none" stroke="#1E40AF" stroke-width="1.5"/><circle cx="6" cy="5" r="2" fill="#1E40AF"/></g>`).join('')}
+    <text x="125" y="158" text-anchor="middle" fill="#3B82F6" font-size="10">5 receptor locks per cell</text>
+    <!-- Few side -->
+    <rect x="270" y="40" width="210" height="140" rx="12" fill="#FFF7ED" stroke="#F97316" stroke-width="2"/>
+    <text x="375" y="62" text-anchor="middle" fill="#C2410C" font-size="12" font-weight="700">Few Locks</text>
+    <rect x="290" y="80" width="170" height="60" rx="10" fill="rgba(251,191,36,.1)" stroke="#FBBF24" stroke-width="2"/>
+    ${[0,1].map(i=>`<g transform="translate(${320+i*50},74)"><rect x="0" y="-2" width="12" height="14" rx="3" fill="#3B82F6" stroke="#1E40AF" stroke-width="1.2"/><path d="M2,-2 L2,-7 Q6,-12 10,-7 L10,-2" fill="none" stroke="#1E40AF" stroke-width="1.5"/><circle cx="6" cy="5" r="2" fill="#1E40AF"/></g>`).join('')}
+    ${[2,3,4].map(i=>`<rect x="${320+i*32}" y="72" width="12" height="14" rx="3" fill="#E2E8F0" stroke="#CBD5E1" stroke-width="1" stroke-dasharray="2" opacity=".4"/>`).join('')}
+    <text x="375" y="158" text-anchor="middle" fill="#C2410C" font-size="10">Only 1-2 locks per cell</text>
+  </svg>`;
+  c.appendChild(preview);
+  // Auto-fade after 2.5s
+  setTimeout(()=>{let p=document.getElementById('receptorPreview');if(p)p.remove();},2500);
+}
+
+function buildPredictionUI(rd){
+  const iz=document.getElementById('interactionZone');
+  iz.innerHTML='';
+  let html=`<div class="phase-title">PREDICT</div>`;
+  html+=`<div class="iz-prompt">${escHtml(rd.prediction.prompt)}</div>`;
+  if(rd.prediction.bridge)html+=`<div style="font-size:12px;color:var(--txtL);max-width:500px;text-align:center;margin-bottom:8px;">${escHtml(rd.prediction.bridge)}</div>`;
+  html+=`<div class="options-row" id="predictOptions">`;
+  rd.prediction.options.forEach(o=>{
+    html+=`<div class="option-card" data-id="${o.id}" onclick="selectPrediction('${o.id}')">${escHtml(o.label)}</div>`;
+  });
+  html+=`</div>`;
+  html+=`<button id="lockInBtn" class="" onclick="lockPrediction()">Lock In Prediction</button>`;
+  iz.innerHTML=html;
+}
+
+function selectPrediction(id){
+  predictionChoice=id;
+  document.querySelectorAll('#predictOptions .option-card').forEach(c=>{
+    c.classList.toggle('selected',c.dataset.id===id);
+  });
+  document.getElementById('lockInBtn').classList.add('visible');
+}
+
+function lockPrediction(){
+  if(!predictionChoice||processing)return;
+  processing=true;
+  const rd=ROUNDS[currentRound];
+  predictionCorrect=(predictionChoice===rd.prediction.correct);
+  // Show badge on arena
+  const ac=document.getElementById('arenaContainer');
+  let badge=ac.querySelector('.predict-badge');
+  if(badge)badge.remove();
+  badge=document.createElement('div');
+  badge.className='predict-badge pending';
+  let choiceLabel=rd.prediction.options.find(o=>o.id===predictionChoice);
+  badge.textContent='Your prediction: '+(choiceLabel?choiceLabel.label.substring(0,40)+'...':'Option '+predictionChoice);
+  ac.appendChild(badge);
+
+  processing=false;
+  showChangePhase(rd);
+}
+
+// ── PHASE: CHANGE ──
+function showChangePhase(rd){
+  currentPhase='CHANGE';
+  const iz=document.getElementById('interactionZone');
+  iz.innerHTML='';
+  let html=`<div class="phase-title">CHANGE</div>`;
+  if(rd.isMultiVar){
+    html+=`<div class="iz-prompt" style="font-weight:700;color:var(--accent2);">GOAL 1: Make the Healthiest Body</div>`;
+  }
+  html+=`<div class="iz-prompt">${escHtml(rd.change.guided)}</div>`;
+  iz.innerHTML=html;
+  document.getElementById('runBtn').disabled=false;
+  if(rd.isPreset){sliderMoved=true;}
+  if(rd.isMultiVar){sliderMoved=true;}
+  showFocusBanner(rd.focusPrompt);
+  document.getElementById('hintBtn').disabled=true;
+}
+
+function pressRun(){
+  if(processing)return;
+  const rd=ROUNDS[currentRound];
+  if(rd.isMultiVar){
+    handleMultiVarRun();return;
+  }
+  if(currentPhase!=='CHANGE')return;
+  if(!rd.isPreset&&!sliderMoved){
+    showCoachingInIZ("Move the slider first — try a different setting and see what changes.");
+    return;
+  }
+  processing=true;
+  document.getElementById('runBtn').disabled=true;
+  startWatchPhase(rd);
+}
+
+// ── PHASE: WATCH ──
+function startWatchPhase(rd){
+  currentPhase='WATCH';
+  const iz=document.getElementById('interactionZone');
+  iz.innerHTML=`<div class="phase-title">WATCH</div><div class="iz-prompt">Observe what happens...</div>`;
+
+  // Animate arena to result state
+  const targetState=rd.watchDesc;
+  buildArena(targetState);
+
+  // Focus banner
+  showFocusBanner(rd.focusPrompt,true);
+
+  // Safety timeout
+  const gen=arenaGen;
+  watchTimeout=setTimeout(()=>{
+    if(arenaGen!==gen)return;
+    processing=false;
+    startRecordPhase(rd);
+  },rd.watchDuration||8000);
+}
+
+// ── PHASE: RECORD ──
+function startRecordPhase(rd){
+  currentPhase='RECORD';
+  const iz=document.getElementById('interactionZone');
+  iz.innerHTML='';
+
+  // Prediction reveal if applicable
+  if(rd.hasPrediction&&predictionChoice){
+    const ac=document.getElementById('arenaContainer');
+    let badge=ac.querySelector('.predict-badge');
+    if(badge){
+      badge.className='predict-badge '+(predictionCorrect?'correct':'wrong');
+      badge.textContent=predictionCorrect?'Prediction matched!':'Prediction was off — see why below';
+    }
+  }
+
+  // Add data row
+  const row=Object.assign({},rd.record.row);
+  let displayRow=Object.assign({},row);
+  if(rd.record.hasError){
+    displayRow[rd.record.errorCol]=rd.record.errorVal;
+  }
+  addDataRow(displayRow,rd.record.hasError?rd.record.errorCol:null,rd);
+
+  let html=`<div class="phase-title">RECORD</div>`;
+  html+=`<div class="iz-prompt">${escHtml(rd.record.coaching)}</div>`;
+
+  // Round 5 special comparison prompts
+  if(rd.num===5){
+    html+=`<div style="font-size:13px;color:var(--txtL);margin:6px 0;text-align:center;">Look at Row 1 and Row 5 in the data table. Both have zero insulin — and cells are starving.</div>`;
+    html+=`<button class="btn-primary" onclick="moveToProve()" style="padding:12px 32px;font-size:16px;margin-top:8px;">Got It — Continue</button>`;
+  } else if(rd.record.hasError){
+    html+=`<div style="font-size:12px;color:var(--txtL);margin-bottom:8px;">Check each value — does it match what you saw?</div>`;
+    html+=`<button class="btn-primary" id="confirmDataBtn" onclick="confirmData()" style="padding:12px 32px;font-size:16px;">Confirm Data</button>`;
+  } else {
+    html+=`<button class="btn-primary" id="confirmDataBtn" onclick="moveToProve()" style="padding:12px 32px;font-size:16px;">Continue</button>`;
+  }
+  iz.innerHTML=html;
+  phaseStartTime=Date.now();
+}
+
+let dataErrorCaught=false;
+let dataConfirmAttempts=0;
+function confirmData(){
+  if(processing)return;
+  const rd=ROUNDS[currentRound];
+  if(Date.now()-phaseStartTime<2000&&rd.record.hasError){
+    showCoachingInIZ("Check each value — does it match what you saw?");
+    return;
+  }
+  if(rd.record.hasError&&!dataErrorCaught){
+    dataConfirmAttempts++;
+    if(dataConfirmAttempts===1){
+      showCoachingInIZ(rd.record.missCoaching,true);
+      highlightErrorCell(rd);
+      return;
+    }
+  }
+  moveToProve();
+}
+
+function catchDataError(){
+  if(processing)return;
+  const rd=ROUNDS[currentRound];
+  dataErrorCaught=true;
+  fixDataCell(rd);
+  showCoachingInIZ(rd.record.catchCoaching);
+  setTimeout(()=>{moveToProve()},2500);
+}
+
+function moveToProve(){
+  processing=false;
+  const rd=ROUNDS[currentRound];
+  startProvePhase(rd);
+}
+
+function addDataRow(row,errorCol,rd){
+  const tbody=document.getElementById('dataBody');
+  const tr=document.createElement('tr');
+  let healthClass=row.bg>300?'crisis':row.bg>180?'moderate':'healthy';
+  tr.className=healthClass+' current';
+  tr.id='dataRow'+row.round;
+  // Remove current from others
+  tbody.querySelectorAll('tr').forEach(t=>t.classList.remove('current'));
+
+  const cols=['round','changed','setting','bg','energy','recOcc'];
+  const keys=['round','changed','setting','bg','energy','recOcc'];
+  keys.forEach(k=>{
+    const td=document.createElement('td');
+    td.textContent=row[k];
+    td.dataset.col=k;
+    if(errorCol&&k===errorCol){
+      td.classList.add('error-cell');
+      td.title='Tap to correct';
+      td.onclick=()=>catchDataError();
+    }
+    tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+}
+
+function highlightErrorCell(rd){
+  const row=document.getElementById('dataRow'+rd.record.row.round);
+  if(!row)return;
+  row.querySelectorAll('td').forEach(td=>{
+    if(td.dataset.col===rd.record.errorCol){
+      td.classList.add('error-cell');
+      td.style.background='rgba(245,158,11,.4)';
+      td.onclick=()=>catchDataError();
+    }
+  });
+}
+
+function fixDataCell(rd){
+  const row=document.getElementById('dataRow'+rd.record.row.round);
+  if(!row)return;
+  row.querySelectorAll('td').forEach(td=>{
+    if(td.dataset.col===rd.record.errorCol){
+      td.textContent=rd.record.correctVal;
+      td.classList.remove('error-cell');
+      td.style.background='rgba(16,185,129,.2)';
+      td.onclick=null;
+    }
+  });
+}
+
+// ── PHASE: PROVE ──
+function startProvePhase(rd){
+  currentPhase='PROVE';
+  phaseStartTime=Date.now();
+  const iz=document.getElementById('interactionZone');
+  iz.innerHTML='';
+  document.getElementById('hintBtn').disabled=false;
+  document.getElementById('runBtn').disabled=true;
+
+  // Update prediction badge if applicable
+  if(rd.hasPrediction){
+    const ac=document.getElementById('arenaContainer');
+    let badge=ac.querySelector('.predict-badge');
+    if(badge){
+      badge.className='predict-badge '+(predictionCorrect?'correct':'wrong');
+      badge.textContent=predictionCorrect?'Prediction matched!':'Prediction was off';
+    }
+  }
+
+  const m=rd.prove.mechanic;
+  if(m==='coach-click')buildCoachClick(rd);
+  else if(m==='pick-match')buildPickMatch(rd);
+  else if(m==='what-next')buildWhatNext(rd);
+  else if(m==='claim-builder')buildClaimBuilder(rd);
+}
+
+// ── MECHANIC: Coach-Click ──
+function buildCoachClick(rd){
+  const iz=document.getElementById('interactionZone');
+  let html=`<div class="phase-title">PROVE</div>`;
+  html+=`<div class="iz-prompt">${escHtml(rd.prove.prompt)}</div>`;
+  html+=`<div class="options-row" id="proveOptionsRow">`;
+  rd.prove.options.forEach(o=>{
+    let extra='';
+    // Guided mode: subtle glow on correct option for Round 1
+    if(rd.num===1&&o.id===rd.prove.correct)extra=' style="box-shadow:0 0 12px rgba(16,185,129,.25);"';
+    html+=`<div class="option-card" data-id="${o.id}"${extra} onclick="selectProveOption('${o.id}')">${escHtml(o.label)}</div>`;
+  });
+  html+=`</div>`;
+  html+=`<button id="lockInBtn" class="" onclick="submitProve()">Lock In</button>`;
+  iz.innerHTML=html;
+  // Guided coaching for Round 1
+  if(rd.num===1){
+    let c=document.createElement('div');
+    c.style.cssText='font-size:12px;color:var(--txtL);text-align:center;margin-top:4px;';
+    c.textContent='Did you see what stayed shut? Now show me.';
+    iz.appendChild(c);
+  }
+}
+
+// ── MECHANIC: Pick-the-Match ──
+function buildPickMatch(rd){
+  const iz=document.getElementById('interactionZone');
+  let html=`<div class="phase-title">PROVE</div>`;
+  html+=`<div class="iz-prompt">${escHtml(rd.prove.prompt)}</div>`;
+  html+=`<div class="options-row" id="proveOptionsRow">`;
+  rd.prove.options.forEach(o=>{
+    html+=`<div class="option-card" data-id="${o.id}" onclick="selectProveOption('${o.id}')">${escHtml(o.label)}</div>`;
+  });
+  html+=`</div>`;
+  html+=`<button id="lockInBtn" class="" onclick="submitProve()">Lock In</button>`;
+  iz.innerHTML=html;
+}
+
+// ── MECHANIC: What-Comes-Next ──
+function buildWhatNext(rd){
+  const iz=document.getElementById('interactionZone');
+  let html=`<div class="phase-title">PROVE</div>`;
+  html+=`<div class="iz-prompt">${escHtml(rd.prove.prompt)}</div>`;
+  // Show partial sequence
+  html+=`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:10px;">`;
+  rd.prove.sequence.forEach((s,i)=>{
+    html+=`<div style="background:var(--accent1);color:#fff;padding:6px 12px;border-radius:8px;font-size:13px;">${escHtml(s)}</div>`;
+    if(i<rd.prove.sequence.length-1)html+=`<span style="font-size:18px;color:var(--txtL);">&#8594;</span>`;
+  });
+  html+=`<span style="font-size:18px;color:var(--txtL);">&#8594;</span>`;
+  html+=`<div style="background:var(--bg1);border:2px dashed var(--accent1);padding:6px 12px;border-radius:8px;font-size:13px;color:var(--accent1);">???</div>`;
+  html+=`</div>`;
+  html+=`<div class="options-row" id="proveOptionsRow">`;
+  rd.prove.options.forEach(o=>{
+    html+=`<div class="option-card" data-id="${o.id}" onclick="selectProveOption('${o.id}')">${escHtml(o.label)}</div>`;
+  });
+  html+=`</div>`;
+  html+=`<button id="lockInBtn" class="" onclick="submitProve()">Lock In</button>`;
+  iz.innerHTML=html;
+}
+
+// ── MECHANIC: Claim Builder ──
+function buildClaimBuilder(rd){
+  const iz=document.getElementById('interactionZone');
+  let html=`<div class="phase-title">PROVE</div>`;
+  html+=`<div class="iz-prompt">${escHtml(rd.prove.prompt)}</div>`;
+  // Frame with blanks
+  html+=`<div style="font-size:16px;text-align:center;margin:8px 0;">`;
+  html+=`Cells get energy when <span id="claimBlank1" style="background:var(--bg1);border:2px dashed var(--accent1);padding:2px 12px;border-radius:6px;min-width:80px;display:inline-block;cursor:pointer;" onclick="showBlankOptions('blank1')">___</span>`;
+  html+=` unlocks <span id="claimBlank2" style="background:var(--bg1);border:2px dashed var(--accent3);padding:2px 12px;border-radius:6px;min-width:80px;display:inline-block;cursor:pointer;" onclick="showBlankOptions('blank2')">___</span> on the cell surface.</div>`;
+  html+=`<div class="options-row" id="claimOptionsRow" style="min-height:48px;"></div>`;
+  html+=`<button id="lockInBtn" class="" onclick="submitClaim()">Lock In</button>`;
+  iz.innerHTML=html;
+  claimSlots={blank1:null,blank2:null};
+  showBlankOptions('blank1');
+}
+
+function showBlankOptions(blankId){
+  const rd=ROUNDS[currentRound];
+  const blank=rd.prove.blanks.find(b=>b.id===blankId);
+  if(!blank)return;
+  const container=document.getElementById('claimOptionsRow');
+  container.innerHTML='';
+  blank.options.forEach(opt=>{
+    const card=document.createElement('div');
+    card.className='option-card';
+    if(claimSlots[blankId]===opt)card.classList.add('selected');
+    card.textContent=opt;
+    card.onclick=()=>{
+      claimSlots[blankId]=opt;
+      document.getElementById('claim'+blankId.charAt(0).toUpperCase()+blankId.slice(1)).textContent=opt;
+      container.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      // Auto-show next blank if this one just filled
+      if(blankId==='blank1'&&!claimSlots.blank2){
+        setTimeout(()=>showBlankOptions('blank2'),400);
+      }
+      if(claimSlots.blank1&&claimSlots.blank2){
+        document.getElementById('lockInBtn').classList.add('visible');
+      }
+    };
+    container.appendChild(card);
+  });
+}
+
+function submitClaim(){
+  if(processing||!claimSlots.blank1||!claimSlots.blank2)return;
+  const rd=ROUNDS[currentRound];
+  // Pre-check correctness for fast-guess gate
+  let preCheckCorrect=true;
+  rd.prove.blanks.forEach(b=>{ if(claimSlots[b.id]!==b.correct)preCheckCorrect=false; });
+  if(!preCheckCorrect && Date.now()-phaseStartTime<1500){
+    consecutiveFastWrongs++;
+    if(consecutiveFastWrongs>=2){
+      // CLEAN STATE before fast-guess coaching
+      const lb=document.getElementById('lockInBtn');
+      if(lb)lb.classList.remove('visible');
+      processing=false;
+      showFastGuessCoaching();return;
+    }
+  }
+  processing=true;
+  let allCorrect=true;
+  let fbText='';
+  rd.prove.blanks.forEach(b=>{
+    if(claimSlots[b.id]!==b.correct){
+      allCorrect=false;
+      let fb=rd.prove.feedback[b.id][claimSlots[b.id]];
+      if(fb)fbText=fb;
+    }
+  });
+  if(allCorrect){
+    handleCorrectProve(rd);
+  } else {
+    wrongCount++;hintLevel=Math.max(hintLevel,wrongCount);
+    gameState.levels[currentRound].attempts++;
+    safeCall(()=>playWrong(),'snd');
+    if(fbText)showCoachingInIZ(fbText);
+    buildArena(Object.assign({},rd.watchDesc||calcState(2,1,1),{highlights:{receptors:true}}));
+    // Safety valve: auto-advance after too many fails
+    if(wrongCount>=4&&resetCount>=3){
+      autoAdvance50();return;
+    }
+    // Show try again that resets claim
+    const iz=document.getElementById('interactionZone');
+    let existing=iz.querySelector('.try-again-btn');if(existing)existing.remove();
+    let btn=document.createElement('button');
+    btn.className='try-again-btn';btn.textContent='Try Again';
+    btn.onclick=()=>{
+      btn.remove();iz.querySelectorAll('.coaching-bar').forEach(c=>c.remove());
+      claimSlots={blank1:null,blank2:null};
+      document.getElementById('claimBlank1').textContent='___';
+      document.getElementById('claimBlank2').textContent='___';
+      document.getElementById('lockInBtn').classList.remove('visible');
+      showBlankOptions('blank1');
+      phaseStartTime=Date.now();
+      processing=false;
+    };
+    iz.appendChild(btn);
+    processing=false;
+  }
+}
+
+// ── COMMON PROVE LOGIC ──
+function selectProveOption(id){
+  const row=document.getElementById('proveOptionsRow');
+  if(!row||processing)return;
+  // Guard: ignore clicks on dimmed/wrong/correct/disabled cards
+  const card=row.querySelector('.option-card[data-id="'+id+'"]');
+  if(!card||card.classList.contains('dimmed')||card.classList.contains('wrong')||card.classList.contains('correct')||card.classList.contains('disabled'))return;
+  selectedOption=id;
+  row.querySelectorAll('.option-card').forEach(c=>{
+    if(!c.classList.contains('dimmed')&&!c.classList.contains('wrong')&&!c.classList.contains('correct')){
+      c.classList.toggle('selected',c.dataset.id===id);
+    }
+  });
+  const lb=document.getElementById('lockInBtn');
+  if(lb)lb.classList.add('visible');
+}
+
+function submitProve(){
+  if(!selectedOption||processing)return;
+  const rd=ROUNDS[currentRound];
+  const isCorrect=(selectedOption===rd.prove.correct);
+  // Fast guess gate (only counts WRONG fast answers)
+  if(!isCorrect && Date.now()-phaseStartTime<2000){
+    consecutiveFastWrongs++;
+    if(consecutiveFastWrongs>=2){
+      // CLEAN STATE before fast-guess coaching
+      selectedOption=null;
+      const r=document.getElementById('proveOptionsRow');
+      if(r)r.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+      const lb=document.getElementById('lockInBtn');
+      if(lb)lb.classList.remove('visible');
+      processing=false;
+      showFastGuessCoaching();return;
+    }
+  }
+  processing=true;
+  if(isCorrect){
+    handleCorrectProve(rd);
+  } else {
+    handleWrongProve(rd);
+  }
+}
+
+function handleCorrectProve(rd){
+  safeCall(()=>playCorrect(),'snd');
+  consecutiveFastWrongs=0;
+  // Flash correct
+  const row=document.getElementById('proveOptionsRow')||document.getElementById('claimOptionsRow');
+  if(row){
+    if(rd.prove.mechanic==='claim-builder'){
+      document.getElementById('claimBlank1').style.background='rgba(16,185,129,.2)';
+      document.getElementById('claimBlank2').style.background='rgba(16,185,129,.2)';
+    } else {
+      row.querySelectorAll('.option-card').forEach(c=>{
+        if(c.dataset.id===selectedOption||c.classList.contains('selected'))c.classList.add('correct');
+      });
+    }
+  }
+  // Arena correct state
+  buildArena(Object.assign({},rd.watchDesc||calcState(2,1,1),{highlights:{}}));
+
+  // Show feedback
+  const iz=document.getElementById('interactionZone');
+  let fb=document.createElement('div');
+  fb.className='coaching-bar';
+  fb.style.borderColor='var(--green)';fb.style.background='rgba(16,185,129,.1)';
+  fb.textContent=rd.prove.correctFeedback;
+  iz.appendChild(fb);
+
+  // Score
+  let score=100;
+  if(hintLevel>=3)score=60;
+  else if(hintLevel>=2)score=70;
+  else if(hintLevel>=1)score=85;
+  if(resetCount>0)score=50;
+  // Prediction penalty: wrong prediction caps at 85
+  if(rd.hasPrediction&&predictionChoice&&!predictionCorrect&&score>85)score=85;
+
+  const ls=gameState.levels[currentRound];
+  ls.completed=true;ls.score=score;ls.attempts++;
+  ls.timeSeconds=Math.round((Date.now()-roundStartTime)/1000);
+  updateScore();updateProgress();
+
+  document.getElementById('hintBtn').disabled=true;
+  document.getElementById('lockInBtn')&&(document.getElementById('lockInBtn').style.display='none');
+
+  // Check milestones
+  const gen=arenaGen;
+  transitionTimeout=setTimeout(()=>{
+    if(arenaGen!==gen)return;
+    processing=false;
+    checkMilestones();
+  },1500);
+}
+
+function handleWrongProve(rd){
+  wrongCount++;hintLevel=Math.max(hintLevel,wrongCount);
+  gameState.levels[currentRound].attempts++;
+  safeCall(()=>playWrong(),'snd');
+
+  // Capture wrong ID BEFORE clearing state
+  const wrongId=selectedOption;
+
+  // Flash wrong
+  const row=document.getElementById('proveOptionsRow');
+  if(row){
+    row.querySelectorAll('.option-card').forEach(c=>{
+      if(c.dataset.id===wrongId)c.classList.add('wrong');
+    });
+  }
+
+  // Coaching feedback (use wrongId, not stale selectedOption)
+  const fb=rd.prove.feedback[wrongId];
+  if(fb){
+    showCoachingInIZ(fb.text);
+    if(fb.arenaHighlight){
+      let hl={};hl[fb.arenaHighlight]=true;
+      buildArena(Object.assign({},rd.watchDesc,{highlights:hl}));
+    }
+  }
+
+  // Dim wrong option (uses captured wrongId, not stale selectedOption)
+  setTimeout(()=>{
+    if(row){
+      row.querySelectorAll('.option-card').forEach(c=>{
+        if(c.dataset.id===wrongId){c.classList.add('dimmed');c.classList.remove('wrong');}
+      });
+    }
+  },600);
+
+  // Clear ALL state
+  selectedOption=null;
+  const lb=document.getElementById('lockInBtn');
+  if(lb)lb.classList.remove('visible');
+  showTryAgainBtn();
+
+  // Check if 3+ resets needed
+  if(wrongCount>=4&&resetCount>=3){
+    autoAdvance50();return;
+  }
+  processing=false;
+}
+
+function showTryAgainBtn(){
+  const iz=document.getElementById('interactionZone');
+  let existing=iz.querySelector('.try-again-btn');
+  if(existing)existing.remove();
+  let btn=document.createElement('button');
+  btn.className='try-again-btn';
+  btn.textContent='Try Again';
+  btn.onclick=()=>{
+    btn.remove();
+    iz.querySelectorAll('.coaching-bar').forEach(c=>c.remove());
+    selectedOption=null;
+    phaseStartTime=Date.now();
+  };
+  iz.appendChild(btn);
+}
+
+function showCoachingInIZ(text,isWarning){
+  const iz=document.getElementById('interactionZone');
+  iz.querySelectorAll('.coaching-bar').forEach(c=>c.remove());
+  let bar=document.createElement('div');
+  bar.className='coaching-bar'+(isWarning?' hint2':'');
+  bar.textContent=text;
+  iz.appendChild(bar);
+}
+
+function showFocusBanner(text,subtle){
+  const ac=document.getElementById('arenaContainer');
+  let old=ac.querySelector('.focus-banner');if(old)old.remove();
+  let b=document.createElement('div');
+  b.className='focus-banner'+(subtle?' subtle':'');
+  b.textContent=text;
+  ac.appendChild(b);
+  if(!subtle){
+    setTimeout(()=>{b.classList.add('subtle')},3000);
+  }
+}
+
+function showFastGuessCoaching(){
+  const iz=document.getElementById('interactionZone');
+  iz.innerHTML=`<div class="phase-title" style="color:var(--yellow)">Slow Down</div>
+  <div class="iz-prompt">Slow down. Look at what changed in the model.</div>`;
+  consecutiveFastWrongs=0;
+  setTimeout(()=>{
+    processing=false;
+    startProvePhase(ROUNDS[currentRound]);
+  },5000);
+}
+
+function autoAdvance50(){
+  processing=true;
+  const ls=gameState.levels[currentRound];
+  ls.completed=true;ls.score=50;
+  ls.timeSeconds=Math.round((Date.now()-roundStartTime)/1000);
+  updateScore();updateProgress();
+  const iz=document.getElementById('interactionZone');
+  iz.innerHTML=`<div class="iz-prompt">Let's move on — you'll see this idea again.</div>`;
+  const gen=arenaGen;
+  transitionTimeout=setTimeout(()=>{if(arenaGen!==gen)return;processing=false;checkMilestones()},2000);
+}
+
+// ── HINTS ──
+function useHint(){
+  if(currentPhase!=='PROVE')return;
+  const rd=ROUNDS[currentRound];
+  hintLevel++;
+  gameState.levels[currentRound].hintsUsed=hintLevel;
+  if(hintLevel===1){
+    showCoachingInIZ(rd.hints.hint1.text);
+    let target=rd.hints.hint1.target;
+    if(target==='data'){
+      // Highlight data table instead of arena
+      let dp=document.getElementById('dataPanel');
+      dp.style.boxShadow='0 0 16px rgba(59,130,246,.5)';
+      setTimeout(()=>{dp.style.boxShadow=''},4000);
+    } else if(target==='both'){
+      buildArena(Object.assign({},rd.watchDesc,{highlights:{energy:true,glucose:true}}));
+    } else if(target){
+      let hl={};hl[target]=true;
+      buildArena(Object.assign({},rd.watchDesc,{highlights:hl}));
+    }
+  } else if(hintLevel===2){
+    showCoachingInIZ(rd.hints.hint2.text);
+    if(rd.hints.hint2.eliminate){
+      const row=document.getElementById('proveOptionsRow');
+      if(row){
+        row.querySelectorAll('.option-card').forEach(c=>{
+          if(c.dataset.id===rd.hints.hint2.eliminate)c.classList.add('dimmed');
+        });
+      }
+    }
+  } else if(hintLevel>=3){
+    showStepByStep(rd.hints.sbs);
+  }
+}
+
+let sbsSteps=[],sbsIdx=0;
+function showStepByStep(steps){
+  sbsSteps=steps;sbsIdx=0;
+  document.getElementById('sbsOverlay').classList.add('open');
+  updateSBS();
+}
+function updateSBS(){
+  document.getElementById('sbsCounter').textContent=`Step ${sbsIdx+1} of ${sbsSteps.length}`;
+  document.getElementById('sbsText').textContent=sbsSteps[sbsIdx];
+  document.getElementById('sbsNextBtn').textContent=sbsIdx<sbsSteps.length-1?'Next':'Got It';
+}
+function sbsNext(){
+  sbsIdx++;
+  if(sbsIdx>=sbsSteps.length){
+    document.getElementById('sbsOverlay').classList.remove('open');
+  } else {
+    updateSBS();
+  }
+}
+
+// ── RESET LEVEL ──
+function resetLevel(){
+  const ls=gameState.levels[currentRound];
+  if(ls.completed)return;
+  ls.resets++;resetCount=ls.resets;
+  if(resetCount>=3){
+    processing=false;
+    autoAdvance50();return;
+  }
+  // Force-clear state regardless of processing flag
+  closeAllOverlays();clearTimers();
+  arenaGen++;
+  processing=false;
+  wrongCount=0;selectedOption=null;consecutiveFastWrongs=0;
+  loadRound(currentRound);
+}
+
+function newRun(){
+  // Confirmation
+  let d=document.createElement('div');d.className='confirm-dialog';
+  d.innerHTML=`<div class="confirm-box"><p>Start over? All progress will be lost.</p><div class="btns"><button class="btn-primary" onclick="confirmNewRun()">Yes, Start Over</button><button class="btn-secondary" onclick="this.closest('.confirm-dialog').remove()">Cancel</button></div></div>`;
+  document.body.appendChild(d);
+}
+function confirmNewRun(){
+  document.querySelectorAll('.confirm-dialog').forEach(d=>d.remove());
+  location.reload();
+}
+
+// ── MILESTONES & CELEBRATIONS ──
+function checkMilestones(){
+  const completedCount=gameState.levels.filter(l=>l.completed).length;
+  const reqCompleteCount=gameState.levels.filter(l=>l.required&&l.completed).length;
+
+  // All complete (6)
+  if(completedCount===6&&!bonusCompleteShown){
+    bonusCompleteShown=true;
+    showCelebration('BONUS COMPLETE!',3000,false,false,true);return;
+  }
+  // Required complete (4)
+  if(reqCompleteCount===4&&!requiredCompleteShown){
+    requiredCompleteShown=true;
+    showCelebration('You Did It!',0,true,true);return;
+  }
+  // Halfway (2 required done)
+  if(reqCompleteCount===2&&!halfwayShown){
+    halfwayShown=true;
+    showCelebration('Halfway There!',2000,false);return;
+  }
+  // First-try affirmation (score 100 on current)
+  const ls=gameState.levels[currentRound];
+  if(ls.completed&&ls.score===100){
+    // Brief affirmation in IZ before advancing
+    const iz=document.getElementById('interactionZone');
+    let aff=document.createElement('div');
+    aff.style.cssText='font-size:20px;color:var(--accent1);text-align:center;margin:8px 0;font-weight:600;animation:fadeInOut 2s .1s forwards;opacity:0;';
+    aff.textContent=getAffirmation();
+    iz.appendChild(aff);
+    setTimeout(()=>{advanceToNextRound()},1500);
+    return;
+  }
+  advanceToNextRound();
+}
+
+function showCelebration(title,autoDismiss,showChoice,isReqComplete,isBonusComplete){
+  const cnt=gameState.levels.filter(l=>l.completed).length;
+  fireParticles(Math.min(cnt*6,15));
+  const co=document.getElementById('celebOverlay');
+  const ct=document.getElementById('celebTitle');
+  const ca=document.getElementById('celebAffirm');
+  const cb=document.getElementById('celebBtns');
+  ct.textContent=title;
+  ca.textContent=getAffirmation();
+  ca.style.animation='none';ca.offsetHeight;ca.style.animation='fadeInOut 2.5s .3s forwards';
+  cb.innerHTML='';
+  co.classList.add('open');
+
+  safeCall(()=>playCorrect(),'snd');
+
+  if(showChoice){
+    cb.innerHTML=`<button class="btn-primary" onclick="closeCeleb();advanceToNextRound()">Keep Going</button>
+    <button class="btn-secondary" onclick="closeCeleb();showReceipt()">See Score</button>`;
+  } else if(isBonusComplete){
+    setTimeout(()=>{closeCeleb();showReceipt()},3000);
+  } else if(autoDismiss>0){
+    setTimeout(()=>{closeCeleb();advanceToNextRound()},autoDismiss);
+  } else {
+    setTimeout(()=>{closeCeleb();advanceToNextRound()},2000);
+  }
+}
+
+function closeCeleb(){document.getElementById('celebOverlay').classList.remove('open');}
+function completed(){return gameState.levels.filter(l=>l.completed).length;}
+
+function advanceToNextRound(){
+  let next=currentRound+1;
+  if(next>=ROUNDS.length){showReceipt();return;}
+  loadRound(next);
+}
+
+// ── SCORE & PROGRESS ──
+function updateScore(){
+  const req=gameState.levels.filter(l=>l.required&&l.completed);
+  const bonus=gameState.levels.filter(l=>!l.required&&l.completed);
+  let base=req.length>0?req.reduce((s,l)=>s+l.score,0)/req.length:0;
+  let bp=bonus.length*5;
+  gameState.overallScore=Math.min(100,Math.round(base+bp));
+  document.getElementById('scoreDisplay').textContent='Score: '+gameState.overallScore;
+}
+
+function updateProgress(){
+  let done=gameState.levels.filter(l=>l.completed).length;
+  document.getElementById('progressFill').style.width=Math.round(done/6*100)+'%';
+}
+
+// ── RECEIPT ──
+function showReceipt(){
+  if(receiptRendered)return;
+  receiptRendered=true;
+  document.getElementById('topBar').style.display='none';
+  document.getElementById('mainArea').style.display='none';
+  document.getElementById('bottomBar').style.display='none';
+
+  const rs=document.getElementById('receiptScreen');
+  rs.classList.add('open');
+  const ri=document.getElementById('receiptInner');
+
+  let totalTime=gameState.levels.reduce((s,l)=>s+l.timeSeconds,0);
+  let mm=Math.floor(totalTime/60);let ss=totalTime%60;
+  let pct=gameState.overallScore;
+  let color=pct>=85?'var(--green)':pct>=70?'var(--yellow)':'var(--red)';
+  let label=pct>=85?'MASTERY':pct>=70?'APPROACHING MASTERY':'NEEDS MORE PRACTICE';
+  let allDone=gameState.levels.every(l=>l.completed);
+  let reqDone=gameState.levels.filter(l=>l.required).every(l=>l.completed);
+  let statusText=allDone?'All Complete (Bonus!)':reqDone?'Required Complete':'In Progress';
+
+  let html=`<div class="receipt-header">
+    <h2>${escHtml(teacherName)}'s Simulations</h2>
+    <h3>Ozempic, Insulin, Diabetes — Wednesday Score Report</h3>
+  </div>`;
+  html+=`<div style="text-align:center;margin:8px 0;"><label>Student Name: </label><input type="text" id="receiptName" value="${escHtml(studentName)}" style="padding:6px 12px;border:2px solid var(--border);border-radius:6px;font-size:15px;width:200px;text-align:center;"> <button onclick="lockReceiptName()" class="btn-secondary" id="lockNameBtn" style="font-size:13px;padding:6px 12px;">Lock</button></div>`;
+  html+=`<div class="receipt-grade"><div class="pct" style="color:${color}">${pct}%</div><div class="label" style="color:${color}">${label}</div></div>`;
+  html+=`<table class="receipt-table"><thead><tr><th>#</th><th>Name</th><th>Score</th><th>Attempts</th><th>Time</th></tr></thead><tbody>`;
+  gameState.levels.forEach(l=>{
+    if(!l.completed)return;
+    let sc=l.score>=85?'color:var(--green)':l.score>=70?'color:var(--yellow)':'color:var(--red)';
+    let star=l.required?'':'&#11088; ';
+    let tm=Math.floor(l.timeSeconds/60)+':'+String(l.timeSeconds%60).padStart(2,'0');
+    html+=`<tr><td>${star}${l.levelNum}</td><td>${escHtml(l.levelName)}</td><td style="${sc};font-weight:700">${l.score}%</td><td>${l.attempts}</td><td>${tm}</td></tr>`;
+  });
+  html+=`</tbody></table>`;
+  html+=`<div style="text-align:center;font-size:13px;color:var(--txtL);">Total Time: ${mm}:${String(ss).padStart(2,'0')} &nbsp;|&nbsp; Status: ${statusText}</div>`;
+  html+=`<div class="receipt-upload">Take a screenshot and upload to Google Classroom</div>`;
+  html+=`<div class="receipt-btns"><button class="btn-primary" onclick="window.print()">Print</button><button class="btn-secondary" onclick="newRun()">Start Over</button></div>`;
+  ri.innerHTML=html;
+}
+function lockReceiptName(){
+  const inp=document.getElementById('receiptName');
+  inp.disabled=true;
+  document.getElementById('lockNameBtn').disabled=true;
+  studentName=escHtml(inp.value);
+}
+
+// ── MULTI-VARIABLE ROUND 6 ──
+let multiVarGoal=0;
+let goal1Results=null, goal2Results=null;
+function handleMultiVarRun(){
+  if(processing)return;
+  processing=true;
+  const rd=ROUNDS[currentRound];
+  let ins=parseInt(sliders.insulin.value);
+  let glu=parseInt(sliders.glucose.value);
+  let rec=parseInt(sliders.receptor.value);
+  let state=calcState(ins,glu,rec);
+  document.getElementById('runBtn').disabled=true;
+  buildArena(state);
+  const iz=document.getElementById('interactionZone');
+
+  if(multiVarGoal===0){
+    goal1Results=state;
+    iz.innerHTML=`<div class="phase-title">WATCH</div><div class="iz-prompt">Observing Goal 1 results...</div>`;
+    watchTimeout=setTimeout(()=>{
+      multiVarGoal=1;
+      processing=false;
+      showGoal2();
+    },rd.watchDuration);
+  } else {
+    goal2Results=state;
+    iz.innerHTML=`<div class="phase-title">WATCH</div><div class="iz-prompt">Observing Goal 2 results...</div>`;
+    watchTimeout=setTimeout(()=>{
+      // Record data
+      let row1={round:6,changed:'All Three',setting:'Goal 1',bg:goal1Results.bgResult,energy:goal1Results.energyResult,recOcc:goal1Results.receptorOcc};
+      addDataRow(row1,null,rd);
+      let row2={round:'vs',changed:'All Three',setting:'Goal 2',bg:goal2Results.bgResult,energy:goal2Results.energyResult,recOcc:goal2Results.receptorOcc};
+      addDataRow(row2,null,rd);
+      // Show brief coaching then move to PROVE
+      iz.innerHTML=`<div class="phase-title">RECORD</div><div class="iz-prompt">${escHtml(rd.record.coaching)}</div>
+      <button class="btn-primary" onclick="moveToProve()" style="padding:12px 32px;font-size:16px;">Continue</button>`;
+      processing=false;
+    },rd.watchDuration);
+  }
+}
+
+function showGoal2(){
+  currentPhase='CHANGE';
+  const rd=ROUNDS[currentRound];
+  const iz=document.getElementById('interactionZone');
+  iz.innerHTML=`<div class="phase-title">CHANGE</div>
+  <div class="iz-prompt" style="font-weight:700;color:var(--red);">GOAL 2: Now Make the Most Dangerous Body</div>
+  <div class="iz-prompt">${escHtml(rd.goals[1].instruction)}</div>`;
+  sliders.insulin.value=2;sliderValues.insulin.textContent='Normal';
+  sliders.glucose.value=1;sliderValues.glucose.textContent='Normal Meal';
+  sliders.receptor.value=1;sliderValues.receptor.textContent='Normal';
+  ['insulin','glucose','receptor'].forEach(k=>{
+    sliderGroups[k].classList.remove('locked');
+    sliderGroups[k].classList.add('active');
+    sliders[k].disabled=false;
+  });
+  document.getElementById('runBtn').disabled=false;
+  document.getElementById('changeLabel').textContent='CHANGE: All Variables';
+}
+
+// ── VOCAB ──
+function toggleVocab(){document.getElementById('vocabOverlay').classList.toggle('open');}
+
+// ── VISIBILITY CHANGE ──
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    if(ambientInterval){clearInterval(ambientInterval);ambientInterval=null;}
+  }
+});
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('studentNameInput').focus();
+  // Enter key starts simulation
+  document.getElementById('welcomeBox').addEventListener('keydown',(e)=>{
+    if(e.key==='Enter')startSim();
+  });
+});
+</script>
+</body>
+</html>
