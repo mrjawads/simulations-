@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulations — Capsaicin &amp; Sensory Receptors</title>
+<style>
+:root {
+  --bg1: #F0F4F8; --bg2: #E8EEF4;
+  --blue: #3B82F6; --green: #10B981; --purple: #8B5CF6;
+  --dark: #1E293B; --mid: #475569; --light: #94A3B8;
+  --correct-green: #22C55E; --wrong-red: #EF4444;
+  --hint1-bg: #FFF9C4; --hint2-bg: #FFE0B2;
+  --card-bg: #FFFFFF; --card-border: #CBD5E1;
+  --radius: 12px; --radius-sm: 8px;
+  --tongue-pink: #E8707A; --neuron-color: #6366F1;
+  --brain-gray: #9CA3AF;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, var(--bg1), var(--bg2));
+  color: var(--dark); line-height: 1.5;
+}
+button { cursor: pointer; border: none; font-family: inherit; font-size: 1rem; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Layout */
+.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px; background: var(--blue); color: #fff;
+  font-weight: 600; flex-shrink: 0; min-height: 48px; z-index: 100;
+}
+.top-bar .round-info { font-size: 1rem; }
+.top-bar .score-display { font-size: 1rem; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; }
+.top-bar .progress-wrap { flex: 1; max-width: 200px; margin: 0 12px; height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px; overflow: hidden; }
+.top-bar .progress-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width 0.5s ease; }
+
+.main-area {
+  display: flex; flex: 1; overflow: hidden; position: relative;
+}
+.arena-panel {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 8px; position: relative; overflow: hidden;
+}
+.data-panel {
+  width: 260px; flex-shrink: 0; background: var(--card-bg);
+  border-left: 2px solid var(--card-border); overflow-y: auto;
+  padding: 12px; display: flex; flex-direction: column;
+}
+.data-panel h3 { font-size: 0.85rem; color: var(--mid); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.data-table th { background: var(--blue); color: #fff; padding: 6px 4px; text-align: center; font-weight: 600; }
+.data-table td { padding: 6px 4px; text-align: center; border-bottom: 1px solid var(--card-border); }
+.data-table tr:nth-child(even) td { background: #F8FAFC; }
+.data-table tr.current-row td { background: #DBEAFE; font-weight: 600; }
+.data-table td.error-cell { background: #FEF3C7; border: 2px solid #F59E0B; cursor: pointer; position: relative; }
+.data-table td.fixed-cell { background: #D1FAE5; border: 2px solid var(--correct-green); }
+
+.interaction-zone {
+  flex-shrink: 1; background: var(--card-bg); border-top: 2px solid var(--card-border);
+  padding: 16px; min-height: 120px; max-height: 45vh; overflow-y: auto;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start; position: relative; z-index: 50;
+}
+.bottom-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px; background: #fff; border-top: 1px solid var(--card-border);
+  flex-shrink: 0; min-height: 48px; z-index: 100;
+}
+.bottom-bar button {
+  padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.85rem;
+  background: var(--bg1); color: var(--mid); transition: all 0.2s;
+}
+.bottom-bar button:hover:not(:disabled) { background: var(--blue); color: #fff; }
+
+/* Welcome Screen */
+.welcome-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(135deg, #F0F4F8, #DBEAFE);
+  display: flex; align-items: center; justify-content: center;
+  overflow-y: auto; padding: 20px;
+}
+.welcome-card {
+  background: #fff; border-radius: 20px; padding: 32px; max-width: 480px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.1); text-align: center;
+}
+.welcome-card h1 { font-size: 1.6rem; color: var(--blue); margin-bottom: 8px; }
+.welcome-card .hook { font-size: 1.1rem; color: var(--mid); margin: 16px 0 24px; font-style: italic; }
+.welcome-card input {
+  width: 100%; padding: 14px 16px; border: 2px solid var(--card-border); border-radius: var(--radius);
+  font-size: 1.1rem; margin-bottom: 12px; text-align: center; outline: none;
+  transition: border-color 0.2s;
+}
+.welcome-card input:focus { border-color: var(--blue); }
+.welcome-card .start-btn {
+  width: 100%; padding: 16px; background: var(--blue); color: #fff; font-size: 1.2rem;
+  font-weight: 700; border-radius: var(--radius); transition: transform 0.15s, background 0.2s;
+}
+.welcome-card .start-btn:hover { background: #2563EB; transform: scale(1.02); }
+.welcome-card .start-btn:disabled { background: var(--light); transform: none; }
+
+/* Arena Visualization */
+.arena-svg { width: 100%; height: 100%; max-width: 820px; max-height: 420px; }
+
+/* Controls Panel */
+.controls-panel {
+  display: none; flex-direction: column; gap: 12px; align-items: center; width: 100%; max-width: 600px; overflow-wrap: break-word;
+}
+.control-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.control-group {
+  background: #F8FAFC; border: 2px solid var(--card-border); border-radius: var(--radius);
+  padding: 12px 20px; text-align: center; position: relative; min-width: 200px;
+}
+.control-group.locked { opacity: 0.5; pointer-events: none; }
+.control-group.locked::after {
+  content: '🔒 Locked'; position: absolute; top: -10px; right: -10px;
+  background: var(--light); color: #fff; font-size: 0.7rem; padding: 2px 8px;
+  border-radius: 10px; font-weight: 600;
+}
+.control-label { font-weight: 700; font-size: 0.95rem; color: var(--dark); margin-bottom: 4px; }
+.control-sublabel { font-size: 0.7rem; color: var(--light); }
+.spice-slider-wrap { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.spice-slider {
+  -webkit-appearance: none; width: 180px; height: 8px; border-radius: 4px;
+  background: linear-gradient(to right, #FCD34D, #F97316, #DC2626);
+  outline: none;
+}
+.spice-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%;
+  background: #fff; border: 3px solid var(--blue); cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.spice-label { font-size: 0.8rem; font-weight: 600; min-width: 50px; }
+.receptor-toggle { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.toggle-track {
+  width: 60px; height: 30px; background: var(--light); border-radius: 15px;
+  position: relative; cursor: pointer; transition: background 0.3s;
+}
+.toggle-track.active { background: var(--wrong-red); }
+.toggle-thumb {
+  width: 26px; height: 26px; background: #fff; border-radius: 50%; position: absolute;
+  top: 2px; left: 2px; transition: left 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.toggle-track.active .toggle-thumb { left: 32px; }
+.toggle-label { font-size: 0.8rem; font-weight: 600; }
+.both-unlocked-banner {
+  background: linear-gradient(90deg, var(--purple), var(--blue));
+  color: #fff; padding: 6px 20px; border-radius: 20px; font-weight: 700;
+  font-size: 0.85rem; display: none; animation: pulse-glow 1.5s infinite;
+}
+@keyframes pulse-glow { 0%,100% { box-shadow: 0 0 8px rgba(139,92,246,0.4); } 50% { box-shadow: 0 0 20px rgba(139,92,246,0.7); } }
+
+.run-btn {
+  padding: 14px 40px; background: var(--green); color: #fff; font-size: 1.2rem;
+  font-weight: 700; border-radius: var(--radius); margin-top: 8px;
+  transition: transform 0.15s, box-shadow 0.3s; position: relative;
+}
+.run-btn:hover:not(:disabled) { transform: scale(1.05); }
+.run-btn.pulse-ready { animation: btn-pulse 1.5s infinite; }
+@keyframes btn-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 50% { box-shadow: 0 0 0 12px rgba(16,185,129,0); } }
+.run-btn.locked-btn { background: var(--light); pointer-events: none; }
+.run-btn .lock-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(148,163,184,0.95); color: #fff; font-size: 0.9rem; font-weight: 700;
+  border-radius: var(--radius);
+}
+
+/* Focus Prompt */
+.focus-prompt {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  background: rgba(59,130,246,0.95); color: #fff; padding: 10px 24px;
+  border-radius: var(--radius); font-weight: 600; font-size: 0.95rem;
+  z-index: 80; opacity: 0; transition: opacity 0.5s;
+  max-width: 90%; text-align: center; pointer-events: none;
+}
+.focus-prompt.visible { opacity: 1; }
+.focus-prompt.subtle { opacity: 0.6; font-size: 0.8rem; background: rgba(59,130,246,0.7); }
+
+/* Interaction Options */
+.phase-label {
+  font-size: 1.1rem; font-weight: 700; color: var(--blue); margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px; justify-content: center;
+  flex-wrap: wrap; text-align: center; width: 100%;
+}
+.question-text { font-size: 1rem; color: var(--dark); margin-bottom: 16px; text-align: center; max-width: 560px; width: 100%; overflow-wrap: break-word; }
+.options-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; width: 100%; max-width: 560px; }
+.option-card {
+  padding: 14px 20px; background: #F8FAFC; border: 2px solid var(--card-border);
+  border-radius: var(--radius); font-size: 0.95rem; font-weight: 500;
+  min-width: 120px; max-width: 100%; flex: 1 1 140px; text-align: center;
+  transition: all 0.2s; min-height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  overflow-wrap: break-word; word-break: break-word;
+}
+.option-card:hover:not(.disabled):not(.selected):not(.wrong):not(.correct) {
+  border-color: var(--blue); background: #EFF6FF; transform: translateY(-2px);
+}
+.option-card.selected { border-color: var(--blue); background: #DBEAFE; }
+.option-card.correct { border-color: var(--correct-green); background: #D1FAE5; }
+.option-card.wrong { border-color: var(--wrong-red); background: #FEE2E2; animation: shake 0.5s; }
+.option-card.dimmed { opacity: 0.35; pointer-events: none; text-decoration: line-through; }
+.option-card.disabled { pointer-events: none; }
+
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+.lock-in-btn {
+  padding: 14px 36px; background: var(--blue); color: #fff; font-size: 1.1rem;
+  font-weight: 700; border-radius: var(--radius); transition: all 0.2s;
+  opacity: 0; pointer-events: none;
+}
+.lock-in-btn.visible { opacity: 1; pointer-events: auto; }
+.lock-in-btn:hover { background: #2563EB; transform: scale(1.03); }
+
+/* Coaching Bar */
+.coaching-bar {
+  position: fixed; bottom: 56px; left: 50%; transform: translateX(-50%);
+  background: var(--hint1-bg); color: #92400E; padding: 12px 24px;
+  border-radius: var(--radius); font-size: 0.9rem; font-weight: 500;
+  max-width: 90%; text-align: center; z-index: 200; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  animation: slideUp 0.3s ease-out; overflow-wrap: break-word;
+}
+@keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+.try-again-btn {
+  display: inline-block; margin-top: 10px; padding: 12px 32px;
+  background: var(--blue); color: #fff; font-size: 1rem; font-weight: 700;
+  border-radius: var(--radius); min-height: 48px;
+}
+.try-again-btn:hover { background: #2563EB; }
+
+/* Hint Overlays */
+.hint-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+}
+.hint-panel {
+  background: #fff; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%;
+  text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.hint-panel h3 { font-size: 1.1rem; margin-bottom: 12px; }
+.hint-panel p { font-size: 0.95rem; color: var(--mid); margin-bottom: 16px; overflow-wrap: break-word; }
+.hint-panel button {
+  padding: 12px 28px; background: var(--blue); color: #fff; border-radius: var(--radius);
+  font-weight: 600;
+}
+
+/* Record Phase */
+.record-zone { width: 100%; max-width: 560px; text-align: center; overflow-wrap: break-word; }
+.record-zone .confirm-btn {
+  padding: 14px 36px; background: var(--green); color: #fff; font-size: 1.1rem;
+  font-weight: 700; border-radius: var(--radius); margin-top: 12px;
+}
+.fix-dropdown {
+  position: absolute; background: #fff; border: 2px solid var(--blue); border-radius: var(--radius);
+  padding: 4px; z-index: 400; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+.fix-dropdown button {
+  display: block; width: 100%; padding: 10px 20px; text-align: left; background: none;
+  font-size: 0.9rem; border-radius: 6px;
+}
+.fix-dropdown button:hover { background: #DBEAFE; }
+
+/* Predict Phase */
+.predict-zone { width: 100%; max-width: 560px; text-align: center; overflow-wrap: break-word; }
+.prediction-stamp {
+  display: inline-block; background: var(--purple); color: #fff; padding: 4px 14px;
+  border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin-top: 6px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* Celebration Overlay */
+.celebration-overlay {
+  position: fixed; inset: 0; z-index: 500; display: flex;
+  align-items: center; justify-content: center; pointer-events: none;
+}
+.celebration-text {
+  font-size: 2rem; font-weight: 800; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  animation: celebPop 0.6s ease-out;
+}
+@keyframes celebPop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.affirmation-text {
+  font-size: 1.3rem; font-weight: 500; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  margin-top: 8px; opacity: 0; animation: fadeInUp 0.5s 0.3s forwards;
+}
+@keyframes fadeInUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Particle layer */
+#particle-layer { position: fixed; inset: 0; pointer-events: none; z-index: 501; overflow: hidden; }
+.particle {
+  position: absolute; width: 10px; height: 10px; border-radius: 50%;
+  display: none; will-change: transform;
+}
+@keyframes particleFall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* Vocab Popup */
+.vocab-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 600;
+  display: none; align-items: center; justify-content: center;
+}
+.vocab-overlay.open { display: flex; }
+.vocab-card {
+  background: #fff; border-radius: 16px; padding: 32px; max-width: 440px; width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+.vocab-card h2 { font-size: 1.2rem; color: var(--blue); margin-bottom: 16px; }
+.vocab-item { padding: 10px 0; border-bottom: 1px solid var(--card-border); }
+.vocab-item:last-child { border-bottom: none; }
+.vocab-term { font-weight: 700; color: var(--dark); }
+.vocab-def { font-size: 0.9rem; color: var(--mid); }
+.vocab-card .close-vocab {
+  margin-top: 16px; padding: 10px 24px; background: var(--blue); color: #fff;
+  border-radius: var(--radius); font-weight: 600; width: 100%;
+}
+
+/* Completion / Choice Screen */
+.choice-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+}
+.choice-card {
+  background: #fff; border-radius: 20px; padding: 40px; max-width: 480px; width: 90%;
+  text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.choice-card h2 { font-size: 1.5rem; margin-bottom: 8px; }
+.choice-card p { color: var(--mid); margin-bottom: 24px; }
+.choice-card .choice-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.choice-card .choice-btns button {
+  padding: 14px 28px; border-radius: var(--radius); font-weight: 700; font-size: 1rem;
+  min-height: 48px;
+}
+.btn-continue { background: var(--green); color: #fff; }
+.btn-score { background: var(--blue); color: #fff; }
+
+/* Receipt Screen */
+.receipt-screen {
+  position: fixed; inset: 0; z-index: 9998; background: linear-gradient(135deg, #F0F4F8, #E8EEF4);
+  display: none; overflow-y: auto; padding: 24px;
+}
+.receipt-screen.open { display: block; }
+.receipt-inner {
+  max-width: 600px; margin: 0 auto; background: #fff; border-radius: 16px;
+  padding: 32px; box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+}
+.receipt-inner h1 { font-size: 1.3rem; color: var(--blue); text-align: center; }
+.receipt-inner h2 { font-size: 1rem; color: var(--mid); text-align: center; margin-bottom: 20px; }
+.receipt-name-row { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; }
+.receipt-name-row input {
+  flex: 1; padding: 10px 14px; border: 2px solid var(--card-border); border-radius: var(--radius);
+  font-size: 1rem;
+}
+.receipt-name-row .lock-name-btn {
+  padding: 10px 16px; background: var(--blue); color: #fff; border-radius: var(--radius);
+  font-weight: 600; white-space: nowrap;
+}
+.overall-score-box {
+  text-align: center; margin: 20px 0; padding: 20px; border-radius: var(--radius);
+  background: #F8FAFC;
+}
+.overall-score-num { font-size: 3rem; font-weight: 800; }
+.overall-score-num.green { color: var(--correct-green); }
+.overall-score-num.yellow { color: #EAB308; }
+.overall-score-num.red { color: var(--wrong-red); }
+.overall-score-label { font-size: 1.1rem; font-weight: 600; color: var(--mid); }
+.receipt-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.85rem; }
+.receipt-table th { background: var(--blue); color: #fff; padding: 8px; text-align: center; }
+.receipt-table td { padding: 8px; text-align: center; border-bottom: 1px solid var(--card-border); }
+.receipt-table tr:nth-child(even) td { background: #F8FAFC; }
+.receipt-table .bonus-row td { background: #FEF3C7; }
+.receipt-table .score-green { color: var(--correct-green); font-weight: 700; }
+.receipt-table .score-yellow { color: #EAB308; font-weight: 700; }
+.receipt-table .score-red { color: var(--wrong-red); font-weight: 700; }
+.receipt-footer { text-align: center; margin-top: 20px; color: var(--mid); font-size: 0.9rem; }
+.receipt-footer .print-btn {
+  padding: 12px 28px; background: var(--blue); color: #fff; border-radius: var(--radius);
+  font-weight: 600; margin: 12px 4px;
+}
+.receipt-footer .restart-btn {
+  padding: 12px 28px; background: var(--light); color: #fff; border-radius: var(--radius);
+  font-weight: 600; margin: 12px 4px;
+}
+
+/* Confirmation Dialog */
+.confirm-dialog {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+.confirm-dialog-card {
+  background: #fff; border-radius: 16px; padding: 32px; max-width: 400px; width: 90%;
+  text-align: center;
+}
+.confirm-dialog-card p { margin-bottom: 20px; font-size: 1rem; }
+.confirm-dialog-card button { padding: 10px 24px; border-radius: var(--radius); font-weight: 600; margin: 0 6px; }
+.confirm-yes { background: var(--wrong-red); color: #fff; }
+.confirm-no { background: var(--light); color: #fff; }
+
+/* Pulsing highlight for arena elements */
+@keyframes arena-pulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.3); } }
+.arena-highlight { animation: arena-pulse 1s infinite; }
+
+/* Hidden helper */
+.hidden { display: none !important; }
+
+/* Mobile */
+@media (max-width: 768px) {
+  .main-area { flex-direction: column; }
+  .data-panel { width: 100%; max-height: 120px; border-left: none; border-top: 2px solid var(--card-border); }
+  .arena-panel { min-height: 160px; }
+  .interaction-zone { max-height: 50vh; min-height: 100px; padding: 12px 8px; }
+  .options-row { gap: 8px; max-width: 100%; }
+  .option-card { min-width: 100px; max-width: 100%; flex: 1 1 100%; padding: 10px 14px; font-size: 0.85rem; }
+  .control-group { min-width: 140px; padding: 8px 12px; }
+  .control-row { gap: 8px; }
+  .spice-slider { width: 120px; }
+  .question-text { font-size: 0.9rem; margin-bottom: 10px; }
+  .phase-label { font-size: 1rem; }
+  .run-btn { padding: 12px 28px; font-size: 1rem; }
+  .lock-in-btn { padding: 12px 24px; font-size: 1rem; }
+  .welcome-card { padding: 24px 20px; }
+  .welcome-card h1 { font-size: 1.3rem; }
+  .welcome-card .hook { font-size: 0.95rem; margin: 12px 0 16px; }
+  .welcome-card input { font-size: 1rem; padding: 12px 14px; }
+  .focus-prompt { font-size: 0.8rem; padding: 8px 16px; }
+}
+
+@media print {
+  .app, .welcome-screen, .vocab-overlay, .celebration-overlay, #particle-layer,
+  .bottom-bar, .top-bar, .coaching-bar, .choice-overlay { display: none !important; }
+  .receipt-screen { position: static !important; padding: 0 !important; background: #fff !important; }
+  .receipt-inner { box-shadow: none !important; }
+  .print-btn, .restart-btn { display: none !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="app hidden" id="app">
+  <div class="top-bar">
+    <span class="round-info" id="roundInfo">Round 1 of 6</span>
+    <div class="progress-wrap"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <span class="score-display" id="scoreDisplay">Score: 0%</span>
+  </div>
+  <div class="main-area">
+    <div class="arena-panel" id="arenaPanel">
+      <div class="focus-prompt" id="focusPrompt"></div>
+      <!-- SVG Arena built by JS -->
+    </div>
+    <div class="data-panel" id="dataPanel">
+      <h3>Lab Data</h3>
+      <table class="data-table" id="dataTable">
+        <thead>
+          <tr><th>Rnd</th><th>Spice</th><th>Receptor</th><th>Signal</th><th>Brain</th></tr>
+        </thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="interaction-zone" id="interactionZone"></div>
+  <div class="bottom-bar">
+    <button id="vocabBtn">&#128214; Vocab</button>
+    <button id="hintBtn">&#128161; Hint</button>
+    <span id="roundLabel" style="color:var(--mid);font-size:0.85rem;">Round 1 of 6</span>
+    <button id="resetLevelBtn">&#8634; Reset Round</button>
+  </div>
+</div>
+
+<!-- Welcome -->
+<div class="welcome-screen" id="welcomeScreen">
+  <div class="welcome-card">
+    <h1>Mr. Jawad's Simulations</h1>
+    <p style="color:var(--blue);font-weight:600;">Capsaicin &amp; Sensory Receptors Lab</p>
+    <p class="hook">Why do some people eat ghost peppers and laugh while others cry from Takis — is it the chip or something in your body?</p>
+    <input type="text" id="studentNameInput" placeholder="Enter your name" maxlength="40">
+    <input type="text" id="teacherNameInput" placeholder="Enter your teacher's name (optional)" maxlength="40" style="margin-bottom:12px;">
+    <button class="start-btn" id="startBtn" disabled>Start Lab</button>
+  </div>
+</div>
+
+<!-- Vocab Overlay -->
+<div class="vocab-overlay" id="vocabOverlay">
+  <div class="vocab-card">
+    <h2>Key Vocabulary</h2>
+    <div class="vocab-item"><span class="vocab-term">Capsaicin</span> — <span class="vocab-def">chemical in peppers causing burn feeling</span></div>
+    <div class="vocab-item"><span class="vocab-term">Receptor</span> — <span class="vocab-def">protein that detects a stimulus</span></div>
+    <div class="vocab-item"><span class="vocab-term">Neuron</span> — <span class="vocab-def">nerve cell that carries signals</span></div>
+    <div class="vocab-item"><span class="vocab-term">Stimulus</span> — <span class="vocab-def">trigger that activates a receptor</span></div>
+    <button class="close-vocab" id="closeVocab">Close</button>
+  </div>
+</div>
+
+<!-- Particle Layer -->
+<div id="particle-layer"></div>
+
+<!-- Receipt -->
+<div class="receipt-screen" id="receiptScreen">
+  <div class="receipt-inner" id="receiptInner"></div>
+</div>
+
+<script>
+// ========== GLOBAL STATE ==========
+let TEACHER = "Your teacher";
+const TOPIC = "Capsaicin & Sensory Receptors";
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { console.error('AudioCtx fail', e); } }
+  return audioCtx;
+}
+let speechResumeInterval = null;
+let processing = false;
+let requiredCompleteShown = false;
+let bonusCompleteShown = false;
+let receiptRendered = false;
+let ambientInterval = null;
+let phaseTimeouts = [];
+let currentAnimations = [];
+let arenaGen = 0;
+
+const gameState = {
+  studentName: '', currentRound: 0, phase: 'welcome',
+  capsaicin: 0, receptor: 0, // 0=Low,1=Med,2=High / 0=Normal,1=ExtraSensitive
+  rounds: [],
+  totalTime: 0, startTime: 0
+};
+
+function getAffirmations() {
+  return [
+    `${TEACHER} is proud of you!`, `${TEACHER} knew you could do it!`,
+    `That's the kind of thinking ${TEACHER} loves to see!`,
+    `${TEACHER} says: you're getting it!`, `Strong work — ${TEACHER} sees your effort!`,
+    `${TEACHER} is impressed right now!`, `You're showing ${TEACHER} what you can do!`,
+    `${TEACHER} says: keep that energy!`
+  ];
+}
+let lastAffirmation = -1;
+function getAffirmation() {
+  const affirmations = getAffirmations();
+  let idx; do { idx = Math.floor(Math.random() * affirmations.length); } while (idx === lastAffirmation && affirmations.length > 1);
+  lastAffirmation = idx; return affirmations[idx];
+}
+
+// ========== ROUND DATA ==========
+const ROUNDS = [
+  // Round 1: Baseline Run
+  {
+    num: 1, name: "Baseline Run", required: true,
+    skill: "Observing a controlled baseline in a cause-and-effect system",
+    focusPrompt: "Watch what happens to the receptor channel and brain color when capsaicin is set to Low.",
+    changeConfig: { capsaicinLocked: true, receptorLocked: true, preset: { capsaicin: 0, receptor: 0 }, isBaseline: true,
+      coaching: "Every experiment starts with a baseline. Tap Run to see what Low capsaicin does." },
+    predict: null,
+    watchDuration: 8000,
+    watchResult: { capsaicin: 0, receptor: 0, signal: 'Weak', brain: 'Yellow',
+      particleCount: 3, particleSpeed: 0.5, channelWidth: 0.2, pulseSpeed: 0.3, pulseColor: '#FBBF24', brainColor: '#FDE68A' },
+    record: { errorCell: null, correctValues: { signal: 'Weak', brain: 'Yellow' },
+      coaching: "This is your baseline data. Check each box, then tap Confirm." },
+    prove: {
+      mechanic: 'coach-click', arenaHighlight: 'brain',
+      prompt: "What was the brain response at Low capsaicin?",
+      options: [
+        { text: "Yellow — mild response", correct: true },
+        { text: "Orange — moderate response", correct: false, coaching: "Look at the brain color — it's lighter than orange." },
+        { text: "Red — intense response", correct: false, coaching: "Red means intense — did the signal look intense?" }
+      ],
+      hints: {
+        hint1: { text: "Look at the brain zone on the right side of the diagram — what color is it showing right now?", target: 'brain' },
+        hint2: { text: "It's not Red — that would mean the signal was very strong. The brain zone is much lighter.", eliminateIdx: 2 },
+        stepByStep: [
+          "You ran Low capsaicin with a Normal receptor.",
+          "The receptor barely opened. The neuron sent one weak pulse. The brain turned yellow — that means mild.",
+          "Now pick the color the brain showed."
+        ]
+      }
+    }
+  },
+  // Round 2: Turning Up the Heat
+  {
+    num: 2, name: "Turning Up the Heat", required: true,
+    skill: "Identifying a cause-and-effect change when one variable increases",
+    focusPrompt: "Watch the neuron pulse speed when you raise capsaicin from Low to Medium.",
+    changeConfig: { capsaicinLocked: false, receptorLocked: true, startCapsaicin: 0, targetCapsaicin: 1,
+      coaching: "Slide capsaicin up to Medium and tap Run." },
+    predict: null,
+    watchDuration: 8000,
+    watchResult: { capsaicin: 1, receptor: 0, signal: 'Medium', brain: 'Orange',
+      particleCount: 6, particleSpeed: 1, channelWidth: 0.5, pulseSpeed: 0.6, pulseColor: '#F97316', brainColor: '#FDBA74' },
+    record: { errorCell: null, correctValues: { signal: 'Medium', brain: 'Orange' },
+      coaching: "Compare this row to Round 1. The signal got stronger. Tap Confirm." },
+    prove: {
+      mechanic: 'pick-match',
+      prompt: "What did the neuron pulses do when capsaicin went up?",
+      options: [
+        { text: "Faster orange pulses instead of one slow yellow pulse", correct: true },
+        { text: "Same speed, same color as Round 1", correct: false, coaching: "Compare the pulse speed now to Round 1 — is it the same color?" },
+        { text: "Slower and dimmer than Round 1", correct: false, coaching: "Dimmer would mean less color — but the pulses are orange now, not yellow." }
+      ],
+      hints: {
+        hint1: { text: "Look at the neuron in the center of the diagram — compare how fast the pulses are moving now versus Round 1.", target: 'neuron' },
+        hint2: { text: "It's not 'same speed, same color' — the pulses clearly changed. What color are they now?", eliminateIdx: 1 },
+        stepByStep: [
+          "You raised capsaicin from Low to Medium.",
+          "The receptor opened wider. The neuron fired faster orange pulses instead of one slow yellow pulse. That means the signal got stronger.",
+          "Now pick what happened to the neuron signal."
+        ]
+      }
+    }
+  },
+  // Round 3: Maximum Capsaicin
+  {
+    num: 3, name: "Maximum Capsaicin", required: true,
+    skill: "Identifying a pattern across three data points in a cause-and-effect relationship",
+    focusPrompt: "Watch the brain zone — what color does it turn at High capsaicin?",
+    changeConfig: { capsaicinLocked: false, receptorLocked: true, startCapsaicin: 1, targetCapsaicin: 2,
+      coaching: "One more level — slide capsaicin to High and tap Run." },
+    predict: null, watchDuration: 8000,
+    watchResult: { capsaicin: 2, receptor: 0, signal: 'Strong', brain: 'Red', particleCount: 10, particleSpeed: 1.5, channelWidth: 0.9, pulseSpeed: 1, pulseColor: '#EF4444', brainColor: '#FCA5A5' },
+    record: { errorCell: 'signal', errorValue: 'Medium', correctValues: { signal: 'Strong', brain: 'Red' },
+      coaching: "Check the data carefully before you confirm." },
+    prove: {
+      mechanic: 'what-comes-next',
+      prompt: "Capsaicin went Low, Medium, High. What's the pattern?",
+      options: [
+        { text: "Strong signal — the pattern keeps increasing", correct: true },
+        { text: "Weak signal — it resets back down", correct: false, coaching: "Look at the data table — did anything decrease as capsaicin went up?" },
+        { text: "Medium signal — it stays the same", correct: false, coaching: "Check the data — the signal at Medium and High aren't the same." }
+      ],
+      hints: {
+        hint1: { text: "Look at the data table on the right — read the Neuron Signal column from top to bottom. What direction is it going?", target: 'data' },
+        hint2: { text: "It's not 'stays the same' — each row shows a different signal strength. Look at the direction: Weak, then Medium, then...", eliminateIdx: 2 },
+        stepByStep: [
+          "You tested three capsaicin levels: Low, Medium, High.",
+          "Each time you raised capsaicin, the signal got stronger. Weak, then Medium, then Strong. That's an increasing pattern.",
+          "Now pick what the pattern shows."
+        ]
+      }
+    }
+  },
+  // Round 4: The Receptor Switch
+  {
+    num: 4, name: "The Receptor Switch", required: true,
+    skill: "Generating and testing a prediction about a second biological variable",
+    focusPrompt: "Before you run it — predict what Extra Sensitive does to the brain response.",
+    changeConfig: { capsaicinLocked: true, receptorLocked: false, lockedCapsaicin: 1,
+      coaching: "This time you're changing the receptor, not the chip. Switch to Extra Sensitive and predict what happens." },
+    predict: { prompt: "If I set the receptor to Extra Sensitive at Medium capsaicin, I think...", options: [
+      { text: "The brain response will jump to Red (intense)", correct: true },
+      { text: "The brain response will stay at Orange (moderate)", correct: false }
+    ]},
+    watchDuration: 8000,
+    watchResult: { capsaicin: 1, receptor: 1, signal: 'Strong', brain: 'Red', particleCount: 6, particleSpeed: 1, channelWidth: 0.85, pulseSpeed: 1, pulseColor: '#EF4444', brainColor: '#FCA5A5' },
+    record: { errorCell: null, correctValues: { signal: 'Strong', brain: 'Red' },
+      coaching: "Your receptor was set to Extra Sensitive this time. Compare to Round 2 — same capsaicin, different receptor." },
+    prove: {
+      mechanic: 'coach-click', arenaHighlight: 'receptor',
+      prompt: "Same capsaicin, different receptor. What changed the signal?",
+      options: [
+        { text: "The spice level", correct: false, coaching: "Look at the spice level column — it's the same in both rounds." },
+        { text: "The receptor setting", correct: true },
+        { text: "The neuron length", correct: false, coaching: "The neuron didn't change shape — something else did. Look at the receptor." }
+      ],
+      hints: {
+        hint1: { text: "Look at the data table — compare Round 2 and Round 4. Which column changed?", target: 'receptor' },
+        hint2: { text: "It's not the spice level — that column says Medium in both rows. What's different?", eliminateIdx: 0 },
+        stepByStep: [
+          "Round 2: Medium capsaicin + Normal receptor produced an Orange brain response.",
+          "Round 4: Medium capsaicin + Extra Sensitive receptor produced a Red brain response. The only thing you changed was the receptor setting.",
+          "Now pick what caused the stronger signal."
+        ]
+      }
+    }
+  },
+  // Round 5: Full Power (BONUS)
+  {
+    num: 5, name: "Full Power", required: false,
+    skill: "Explaining an extreme outcome using two combined variables",
+    focusPrompt: "Set BOTH variables to maximum — predict the brain response before you run it.",
+    changeConfig: { capsaicinLocked: false, receptorLocked: false, bothUnlocked: true,
+      coaching: "For the first time, you control both variables. Set spice level to High AND receptor to Extra Sensitive." },
+    predict: { prompt: "If I set capsaicin to High AND receptor to Extra Sensitive, I think...", options: [
+      { text: "The brain response will be Orange (moderate)", correct: false },
+      { text: "The brain response will be Red — the strongest yet", correct: true }
+    ]},
+    watchDuration: 10000,
+    watchResult: { capsaicin: 2, receptor: 1, signal: 'Strong', brain: 'Red', particleCount: 12, particleSpeed: 2, channelWidth: 1.0, pulseSpeed: 1.2, pulseColor: '#DC2626', brainColor: '#FCA5A5' },
+    record: { errorCell: null, correctValues: { signal: 'Strong', brain: 'Red' },
+      coaching: "This is the highest possible activation. This is what happened inside Harris." },
+    prove: {
+      mechanic: 'claim-builder',
+      prompt: "Finish this sentence about Harris.",
+      sentenceFrame: "Harris's body reacted so strongly because his receptor was set to Extra Sensitive and the capsaicin level was ___.",
+      harrisReminder: "Harris = the student from the One Chip Challenge (Monday's story).",
+      options: [
+        { text: "Low", correct: false, coaching: "Low capsaicin made a weak signal in Round 1 — Harris's chip was much stronger." },
+        { text: "High", correct: true },
+        { text: "Unknown", correct: false, coaching: "You already tested this — look at where the slider is set right now." }
+      ],
+      hints: {
+        hint1: { text: "Look at the capsaicin slider — what level is it set to right now? That's what was in Harris's chip.", target: 'capsaicin' },
+        hint2: { text: "It's not 'Low' — a Low level made a weak yellow response in Round 1. Harris's response was much more intense.", eliminateIdx: 0 },
+        stepByStep: [
+          "Harris ate a chip at the highest capsaicin level — the same 'High' setting on your slider.",
+          "You just ran High capsaicin + Extra Sensitive receptor = strongest possible activation. That's what happened to Harris.",
+          "Now complete the sentence — what was his capsaicin level?"
+        ]
+      }
+    }
+  },
+  // Round 6: The Bigger Change (BONUS)
+  {
+    num: 6, name: "The Bigger Change", required: false,
+    skill: "Comparing the relative influence of two independent variables on the same outcome",
+    focusPrompt: "You'll run two setups and compare them — watch which one turns the brain MORE red.",
+    changeConfig: { isComparison: true, bothUnlocked: true,
+      coaching: "First setup: Set spice level to Low and receptor to Extra Sensitive. Tap Run." },
+    predict: null, watchDuration: 6000,
+    runA: { capsaicin: 0, receptor: 1, signal: 'Medium', brain: 'Orange', particleCount: 3, particleSpeed: 0.5, channelWidth: 0.5, pulseSpeed: 0.6, pulseColor: '#F97316', brainColor: '#FDBA74' },
+    runB: { capsaicin: 2, receptor: 0, signal: 'Strong', brain: 'Red', particleCount: 10, particleSpeed: 1.5, channelWidth: 0.9, pulseSpeed: 1, pulseColor: '#EF4444', brainColor: '#FCA5A5' },
+    watchResult: { capsaicin: 2, receptor: 0, signal: 'Strong', brain: 'Red', particleCount: 10, particleSpeed: 1.5, channelWidth: 0.9, pulseSpeed: 1, pulseColor: '#EF4444', brainColor: '#FCA5A5' },
+    record: { errorCell: null, correctValues: { signal: 'Strong', brain: 'Red' },
+      coaching: "Both variables matter — but one produced a stronger response. Tap Confirm." },
+    prove: {
+      mechanic: 'pick-match',
+      prompt: "In these two tests, what made the bigger change?",
+      options: [
+        { text: "The chip (spice level)", correct: true },
+        { text: "The receptor (sensitivity setting)", correct: false, coaching: "The Extra Sensitive receptor wasn't enough to beat High capsaicin. Look at which brain was more red." },
+        { text: "They changed equally", correct: false, coaching: "Look at the comparison — the brain responses aren't the same. One is clearly stronger." }
+      ],
+      hints: {
+        hint1: { text: "Look at the comparison panel — which run made the brain turn red? What variable was higher in that run?", target: 'brain' },
+        hint2: { text: "It's not 'changed equally' — one brain is orange and the other is red. The red brain had the higher spice level.", eliminateIdx: 2 },
+        stepByStep: [
+          "Run A had an extra sensitive receptor but weak capsaicin, producing an orange brain response.",
+          "Run B had a normal receptor but strong capsaicin, producing a red brain response. The spice level overpowered the receptor setting.",
+          "Now pick which variable made the bigger change."
+        ]
+      }
+    }
+  }
+];
+
+// Initialize round tracking
+ROUNDS.forEach((r, i) => {
+  gameState.rounds.push({
+    num: r.num, name: r.name, required: r.required, completed: false,
+    score: 0, attempts: 0, hintsUsed: 0, resets: 0, timeStart: 0, timeSeconds: 0,
+    prediction: null, predictionCorrect: null
+  });
+});
+
+// ========== DOM REFS ==========
+const $ = id => document.getElementById(id);
+const app = $('app'), welcomeScreen = $('welcomeScreen');
+const arenaPanel = $('arenaPanel'), interactionZone = $('interactionZone');
+const focusPromptEl = $('focusPrompt');
+const roundInfoEl = $('roundInfo'), scoreDisplayEl = $('scoreDisplay');
+const progressFill = $('progressFill'), roundLabelEl = $('roundLabel');
+const dataBody = $('dataBody');
+
+// ========== UTILITY ==========
+function clearPhaseTimeouts() { phaseTimeouts.forEach(t => clearTimeout(t)); phaseTimeouts = []; }
+function addTimeout(fn, ms) { const t = setTimeout(fn, ms); phaseTimeouts.push(t); return t; }
+function safeTimeout(fn, ms) {
+  const gen = arenaGen;
+  const t = setTimeout(() => { if (gen === arenaGen) { try { fn(); } catch(e){ console.error(e); } } }, ms);
+  phaseTimeouts.push(t);
+  return t;
+}
+function closeAllOverlays() {
+  document.querySelectorAll('.coaching-bar, .hint-overlay, .choice-overlay, .confirm-dialog, .celebration-overlay, .fix-dropdown').forEach(el => el.remove());
+}
+function cleanupArenaAnimations() {
+  try { arenaPanel.getAnimations().forEach(a => a.cancel()); } catch(e) {}
+  document.querySelectorAll('.arena-highlight').forEach(el => el.classList.remove('arena-highlight'));
+}
+
+function updateHUD() {
+  const r = gameState.currentRound;
+  roundInfoEl.textContent = `Round ${r + 1} of 6`;
+  roundLabelEl.textContent = `Round ${r + 1} of 6`;
+  const completed = gameState.rounds.filter(x => x.completed).length;
+  progressFill.style.width = `${(completed / 6) * 100}%`;
+  const reqScores = gameState.rounds.filter(x => x.required && x.completed).map(x => x.score);
+  const bonusCount = gameState.rounds.filter(x => !x.required && x.completed).length;
+  let overall = 0;
+  if (reqScores.length > 0) {
+    overall = reqScores.reduce((a, b) => a + b, 0) / 4 + bonusCount * 5;
+    overall = Math.min(100, Math.round(overall));
+  }
+  scoreDisplayEl.textContent = `Score: ${overall}%`;
+}
+
+function calcRoundScore(rd) {
+  if (rd.resets >= 1) return 50;
+  if (rd.hintsUsed >= 3) return 60;
+  if (rd.hintsUsed === 2) return 70;
+  if (rd.hintsUsed === 1) return 85;
+  return 100;
+}
+
+function playTone(freq, dur) {
+  safeCall(() => {
+    const ctx = getAudioCtx(); if (!ctx) return;
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + dur);
+  }, 'tone fail');
+}
+
+function safeCall(fn, msg) { try { fn(); } catch(e) { console.error(msg, e); } }
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ========== PARTICLE SYSTEM ==========
+const PARTICLE_POOL = [];
+function initParticles() {
+  const layer = $('particle-layer');
+  for (let i = 0; i < 15; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle'; p.style.display = 'none';
+    layer.appendChild(p); PARTICLE_POOL.push(p);
+  }
+}
+let particleIdx = 0;
+function spawnConfetti(count) {
+  const colors = ['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#EC4899'];
+  for (let i = 0; i < Math.min(count, 15); i++) {
+    const p = PARTICLE_POOL[particleIdx % 15]; particleIdx++;
+    p.style.display = 'block';
+    p.style.left = Math.random() * 100 + '%'; p.style.top = '-10px';
+    p.style.width = (6 + Math.random() * 8) + 'px'; p.style.height = p.style.width;
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    p.style.animation = `particleFall ${1.5 + Math.random() * 1.5}s linear forwards`;
+    p.addEventListener('animationend', () => { p.style.display = 'none'; p.style.animation = ''; }, { once: true });
+    setTimeout(() => { p.style.display = 'none'; p.style.animation = ''; }, 4000);
+  }
+}
+
+// ========== ARENA VISUALIZATION ==========
+let arenaState = { channelWidth: 0, pulseProgress: 0, brainColor: '#D1D5DB', pulseColor: '#FBBF24', particleCount: 0 };
+
+function buildArena() {
+  const existing = arenaPanel.querySelector('.arena-container');
+  if (existing) existing.remove();
+  const container = document.createElement('div');
+  container.className = 'arena-container';
+  container.style.cssText = 'width:100%;height:100%;position:relative;display:flex;align-items:center;justify-content:center;';
+  container.innerHTML = `
+    <svg viewBox="0 0 820 400" class="arena-svg" xmlns="http://www.w3.org/2000/svg" id="arenaSvg">
+      <defs>
+        <linearGradient id="tongueGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#FB7185"/><stop offset="50%" stop-color="#E11D48"/><stop offset="100%" stop-color="#9F1239"/>
+        </linearGradient>
+        <linearGradient id="neuronGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#818CF8"/><stop offset="100%" stop-color="#6366F1"/>
+        </linearGradient>
+        <linearGradient id="myelinGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#C7D2FE"/><stop offset="50%" stop-color="#A5B4FC"/><stop offset="100%" stop-color="#C7D2FE"/>
+        </linearGradient>
+        <linearGradient id="membraneGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#DDD6FE"/><stop offset="50%" stop-color="#8B5CF6"/><stop offset="100%" stop-color="#DDD6FE"/>
+        </linearGradient>
+        <radialGradient id="brainGrad" cx="0.45" cy="0.4" r="0.6">
+          <stop offset="0%" stop-color="#E5E7EB"/><stop offset="100%" stop-color="#9CA3AF"/>
+        </radialGradient>
+        <filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="strongGlow"><feGaussianBlur stdDeviation="8" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="softShadow"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000030"/></filter>
+      </defs>
+
+      <!-- Background zones -->
+      <rect x="0" y="28" width="220" height="370" rx="12" fill="#FFF1F2" opacity="0.5"/>
+      <rect x="225" y="28" width="340" height="370" rx="12" fill="#EEF2FF" opacity="0.4"/>
+      <rect x="570" y="28" width="245" height="370" rx="12" fill="#F3F4F6" opacity="0.5"/>
+
+      <!-- Section labels with pill backgrounds -->
+      <rect x="30" y="4" width="160" height="22" rx="11" fill="#FDE68A"/>
+      <text x="110" y="19" font-size="11" fill="#92400E" font-weight="700" text-anchor="middle">TONGUE SURFACE</text>
+      <rect x="305" y="4" width="160" height="22" rx="11" fill="#C7D2FE"/>
+      <text x="385" y="19" font-size="11" fill="#3730A3" font-weight="700" text-anchor="middle">NEURON PATHWAY</text>
+      <rect x="615" y="4" width="160" height="22" rx="11" fill="#D1D5DB"/>
+      <text x="695" y="19" font-size="11" fill="#374151" font-weight="700" text-anchor="middle">BRAIN RESPONSE</text>
+
+      <!-- Flow arrows between zones -->
+      <path d="M210,195 L230,195" stroke="#94A3B8" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+      <path d="M555,185 L575,185" stroke="#94A3B8" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+      <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#94A3B8"/>
+      </marker>
+
+      <!-- ============ CHIP ICON ============ -->
+      <g id="chipIcon" transform="translate(110, 52)">
+        <rect x="-28" y="-18" width="56" height="36" rx="6" fill="#FCD34D" stroke="#D97706" stroke-width="2" filter="url(#softShadow)"/>
+        <line x1="-18" y1="-8" x2="-18" y2="8" stroke="#D97706" stroke-width="1" opacity="0.4"/>
+        <line x1="-8" y1="-8" x2="-8" y2="8" stroke="#D97706" stroke-width="1" opacity="0.4"/>
+        <line x1="8" y1="-8" x2="8" y2="8" stroke="#D97706" stroke-width="1" opacity="0.4"/>
+        <line x1="18" y1="-8" x2="18" y2="8" stroke="#D97706" stroke-width="1" opacity="0.4"/>
+        <text x="0" y="6" font-size="13" fill="#92400E" text-anchor="middle" font-weight="800" id="chipLabel">TAKI</text>
+      </g>
+      <!-- "Capsaicin" label near chip -->
+      <rect x="58" y="80" width="105" height="20" rx="10" fill="#FEE2E2" opacity="0" id="capsaicinBg"/>
+      <text x="110" y="94" font-size="12" fill="#DC2626" font-weight="700" text-anchor="middle" opacity="0" id="capsaicinLabel">Capsaicin</text>
+
+      <!-- ============ CAPSAICIN PARTICLES ============ -->
+      <g id="capsaicinParticles"></g>
+
+      <!-- ============ TONGUE CROSS-SECTION ============ -->
+      <g id="tongueGroup">
+        <!-- Tongue body - large and fleshy -->
+        <path d="M25,155 Q50,110 110,100 Q170,92 195,115 Q215,135 215,175 Q215,230 175,260 Q140,280 90,275 Q45,265 25,230 Z" fill="url(#tongueGrad)" filter="url(#softShadow)"/>
+        <!-- Surface texture lines -->
+        <path d="M50,145 Q80,130 120,127" stroke="#FDA4AF" stroke-width="1" fill="none" opacity="0.6"/>
+        <path d="M45,170 Q85,155 130,152" stroke="#FDA4AF" stroke-width="1" fill="none" opacity="0.5"/>
+        <!-- Papillae bumps - larger, more visible -->
+        <circle cx="65" cy="135" r="12" fill="#FDA4AF" opacity="0.6" stroke="#FB7185" stroke-width="1"/>
+        <circle cx="95" cy="122" r="14" fill="#FDA4AF" opacity="0.6" stroke="#FB7185" stroke-width="1"/>
+        <circle cx="130" cy="125" r="11" fill="#FDA4AF" opacity="0.6" stroke="#FB7185" stroke-width="1"/>
+        <circle cx="155" cy="138" r="12" fill="#FDA4AF" opacity="0.6" stroke="#FB7185" stroke-width="1"/>
+        <circle cx="80" cy="158" r="10" fill="#FDA4AF" opacity="0.5" stroke="#FB7185" stroke-width="1"/>
+
+        <!-- ============ CELL MEMBRANE ============ -->
+        <rect x="60" y="190" width="120" height="10" rx="5" fill="url(#membraneGrad)" opacity="0.7"/>
+
+        <!-- ============ TRPV1 RECEPTOR ============ -->
+        <g id="receptorGroup" transform="translate(120, 200)">
+          <!-- Receptor glow background -->
+          <rect x="-32" y="-24" width="64" height="48" rx="8" fill="#7C3AED" opacity="0.15" id="receptorGlow"/>
+          <!-- Receptor protein body - two halves forming a channel -->
+          <rect x="-28" y="-20" width="22" height="40" rx="4" fill="#6D28D9" stroke="#A78BFA" stroke-width="2"/>
+          <rect x="6" y="-20" width="22" height="40" rx="4" fill="#6D28D9" stroke="#A78BFA" stroke-width="2"/>
+          <!-- Keyhole notches at top -->
+          <path d="M-6,-20 Q-6,-28 0,-28 Q6,-28 6,-20" fill="#4C1D95" stroke="#A78BFA" stroke-width="1"/>
+          <!-- Channel opening - THE key visual -->
+          <rect id="channelOpening" x="-4" y="-20" width="8" height="40" fill="#1E1B4B" rx="2"/>
+          <!-- Ion dots ready to flow -->
+          <circle cx="0" cy="-5" r="2" fill="#FDE68A" opacity="0.5"/>
+          <circle cx="0" cy="5" r="2" fill="#FDE68A" opacity="0.5"/>
+          <circle cx="0" cy="15" r="2" fill="#FDE68A" opacity="0.5"/>
+          <!-- Label -->
+          <rect x="-50" y="28" width="100" height="18" rx="9" fill="#EDE9FE"/>
+          <text x="0" y="40" font-size="10" fill="#6D28D9" text-anchor="middle" font-weight="700">Receptor (TRPV1)</text>
+        </g>
+
+        <!-- Sensitivity label -->
+        <rect x="48" y="158" width="145" height="20" rx="10" fill="#EDE9FE" opacity="0" id="sensitivityBg"/>
+        <text x="120" y="172" font-size="11" fill="#7C3AED" font-weight="800" text-anchor="middle" opacity="0" id="sensitivityLabel">EXTRA SENSITIVE</text>
+
+        <!-- Stimulus label -->
+        <rect x="10" y="280" width="90" height="18" rx="9" fill="#FFE4E6"/>
+        <text x="55" y="293" font-size="10" fill="#BE185D" font-weight="700" text-anchor="middle">Stimulus &#8594;</text>
+      </g>
+
+      <!-- ============ NEURON PATHWAY ============ -->
+      <g id="neuronGroup">
+        <!-- Myelin sheath segments - thick, visible -->
+        <path d="M215,195 Q270,195 330,190 Q400,185 460,180 Q510,177 560,175" stroke="url(#myelinGrad)" stroke-width="22" fill="none" stroke-linecap="round" opacity="0.5"/>
+        <!-- Myelin segment boundaries (Nodes of Ranvier) -->
+        <circle cx="270" cy="193" r="4" fill="#6366F1" opacity="0.3"/>
+        <circle cx="340" cy="189" r="4" fill="#6366F1" opacity="0.3"/>
+        <circle cx="410" cy="184" r="4" fill="#6366F1" opacity="0.3"/>
+        <circle cx="475" cy="179" r="4" fill="#6366F1" opacity="0.3"/>
+        <!-- Core axon -->
+        <path d="M215,195 Q270,195 330,190 Q400,185 460,180 Q510,177 560,175" stroke="url(#neuronGrad)" stroke-width="6" fill="none" stroke-linecap="round" id="neuronAxon"/>
+        <!-- Dendrites at tongue end - branching -->
+        <line x1="215" y1="195" x2="192" y2="175" stroke="#818CF8" stroke-width="3" stroke-linecap="round"/>
+        <line x1="215" y1="195" x2="188" y2="198" stroke="#818CF8" stroke-width="3" stroke-linecap="round"/>
+        <line x1="215" y1="195" x2="195" y2="215" stroke="#818CF8" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="192" cy="175" r="3" fill="#818CF8"/>
+        <circle cx="188" cy="198" r="3" fill="#818CF8"/>
+        <circle cx="195" cy="215" r="3" fill="#818CF8"/>
+        <!-- Axon terminal at brain end -->
+        <circle cx="560" cy="175" r="6" fill="#6366F1" opacity="0.6"/>
+        <line x1="560" y1="175" x2="575" y2="165" stroke="#6366F1" stroke-width="2"/>
+        <line x1="560" y1="175" x2="578" y2="178" stroke="#6366F1" stroke-width="2"/>
+        <line x1="560" y1="175" x2="573" y2="190" stroke="#6366F1" stroke-width="2"/>
+
+        <!-- Signal pulses container -->
+        <g id="signalPulses"></g>
+
+        <!-- Neuron label -->
+        <rect x="340" y="210" width="90" height="20" rx="10" fill="#EEF2FF"/>
+        <text x="385" y="224" font-size="11" fill="#4338CA" font-weight="700" text-anchor="middle">Neuron</text>
+        <!-- Signal strength readout -->
+        <rect x="310" y="234" width="150" height="18" rx="9" fill="#EEF2FF"/>
+        <text x="385" y="247" font-size="10" fill="#6366F1" text-anchor="middle" font-weight="600" id="signalLabel">Signal Strength: --</text>
+      </g>
+
+      <!-- ============ BRAIN ============ -->
+      <g id="brainGroup" transform="translate(695, 180)">
+        <!-- Brain outline - much bigger and more detailed -->
+        <ellipse cx="0" cy="0" rx="85" ry="75" fill="url(#brainGrad)" id="brainFill" opacity="0.9" filter="url(#softShadow)"/>
+        <!-- Cerebral fissure (top groove) -->
+        <path d="M0,-75 Q0,-60 0,-45" stroke="#6B7280" stroke-width="2" fill="none"/>
+        <!-- Gyri (brain folds) - left hemisphere -->
+        <path d="M-60,-40 Q-45,-55 -20,-55 Q0,-55 10,-45" stroke="#9CA3AF" stroke-width="2" fill="none"/>
+        <path d="M-70,-15 Q-55,-30 -30,-28 Q-5,-26 15,-20" stroke="#9CA3AF" stroke-width="1.5" fill="none"/>
+        <path d="M-72,15 Q-50,5 -25,8 Q0,10 20,5" stroke="#9CA3AF" stroke-width="1.5" fill="none"/>
+        <path d="M-65,40 Q-40,30 -15,33 Q10,36 30,28" stroke="#9CA3AF" stroke-width="1.5" fill="none"/>
+        <!-- Right hemisphere folds -->
+        <path d="M15,-45 Q30,-55 50,-50 Q65,-42 70,-30" stroke="#9CA3AF" stroke-width="1.5" fill="none"/>
+        <path d="M20,-20 Q40,-28 55,-22 Q70,-15 75,-5" stroke="#9CA3AF" stroke-width="1.5" fill="none"/>
+        <path d="M25,5 Q45,0 58,8 Q72,18 75,30" stroke="#9CA3AF" stroke-width="1.5" fill="none"/>
+        <!-- Lateral fissure -->
+        <path d="M-75,0 Q-60,-5 -40,-3 Q-10,0 20,-2 Q50,-4 75,-2" stroke="#6B7280" stroke-width="1.5" fill="none"/>
+        <!-- Central fissure -->
+        <path d="M-5,-70 Q-15,-40 -10,-10 Q-8,15 -12,40" stroke="#6B7280" stroke-width="1.5" fill="none"/>
+        <!-- Somatosensory cortex highlight zone -->
+        <ellipse cx="15" cy="-20" rx="28" ry="24" fill="none" stroke="#8B5CF6" stroke-width="2.5" stroke-dasharray="4,3" id="sensoryCortex"/>
+        <!-- Brain labels -->
+        <rect x="-55" y="82" width="110" height="22" rx="11" fill="#F3F4F6"/>
+        <text x="0" y="97" font-size="12" fill="#374151" font-weight="700" text-anchor="middle">Brain Response</text>
+        <rect x="-35" y="108" width="70" height="18" rx="9" fill="#F3F4F6"/>
+        <text x="0" y="120" font-size="11" fill="#6B7280" text-anchor="middle" font-weight="600" id="brainLabel">Inactive</text>
+        <!-- Radiating rings for intense activation -->
+        <circle cx="0" cy="0" r="95" fill="none" stroke="transparent" stroke-width="2" id="brainRing1"/>
+        <circle cx="0" cy="0" r="110" fill="none" stroke="transparent" stroke-width="1.5" id="brainRing2"/>
+      </g>
+    </svg>
+  `;
+  arenaPanel.appendChild(container);
+}
+
+function updateArenaVisuals(result, animate) {
+  safeCall(() => {
+    const channel = document.getElementById('channelOpening');
+    const brainFill = document.getElementById('brainFill');
+    const signalLabel = document.getElementById('signalLabel');
+    const brainLabel = document.getElementById('brainLabel');
+    const chipLabel = document.getElementById('chipLabel');
+    const capsaicinLabel = document.getElementById('capsaicinLabel');
+    const capsaicinBg = document.getElementById('capsaicinBg');
+    const sensitivityLabel = document.getElementById('sensitivityLabel');
+    const sensitivityBg = document.getElementById('sensitivityBg');
+    const brainRing1 = document.getElementById('brainRing1');
+    const brainRing2 = document.getElementById('brainRing2');
+
+    if (!channel || !brainFill) return;
+
+    // Channel width - now bigger and more dramatic
+    const cw = 4 + result.channelWidth * 24;
+    channel.setAttribute('width', cw);
+    channel.setAttribute('x', -cw / 2);
+
+    // Brain color
+    brainFill.setAttribute('fill', result.brainColor);
+    brainFill.setAttribute('opacity', '0.95');
+
+    // Signal label
+    signalLabel.textContent = `Signal Strength: ${result.signal}`;
+    brainLabel.textContent = result.brain === 'Yellow' ? 'Mild' : result.brain === 'Orange' ? 'Moderate' : 'Intense';
+
+    // Chip label and color
+    const chipNames = ['TAKI', 'JALAPENO', 'GHOST'];
+    chipLabel.textContent = chipNames[result.capsaicin] || 'TAKI';
+    const chipColors = [['#FCD34D','#D97706'], ['#4ADE80','#16A34A'], ['#F87171','#DC2626']];
+    const chipRect = document.querySelector('#chipIcon rect');
+    if (chipRect) { chipRect.setAttribute('fill', chipColors[result.capsaicin][0]); chipRect.setAttribute('stroke', chipColors[result.capsaicin][1]); }
+
+    // Capsaicin label + background
+    capsaicinLabel.setAttribute('opacity', '1');
+    if (capsaicinBg) capsaicinBg.setAttribute('opacity', '1');
+
+    // Sensitivity label + background
+    const showSens = result.receptor === 1 ? '1' : '0';
+    sensitivityLabel.setAttribute('opacity', showSens);
+    if (sensitivityBg) sensitivityBg.setAttribute('opacity', showSens);
+
+    // Brain rings for high activation
+    if (result.brain === 'Red') {
+      brainRing1.setAttribute('stroke', 'rgba(239,68,68,0.35)');
+      brainRing2.setAttribute('stroke', 'rgba(239,68,68,0.18)');
+    } else {
+      brainRing1.setAttribute('stroke', 'transparent');
+      brainRing2.setAttribute('stroke', 'transparent');
+    }
+
+    // Signal pulses
+    if (animate) animateSignalPulses(result);
+  }, 'arena update fail');
+}
+
+function animateSignalPulses(result) {
+  safeCall(() => {
+    const pulsesG = document.getElementById('signalPulses');
+    if (!pulsesG) return;
+    while (pulsesG.firstChild) pulsesG.removeChild(pulsesG.firstChild);
+
+    const numPulses = result.signal === 'Weak' ? 1 : result.signal === 'Medium' ? 3 : 5;
+    const dur = result.signal === 'Weak' ? 3 : result.signal === 'Medium' ? 2 : 1.2;
+
+    for (let i = 0; i < numPulses; i++) {
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('r', '8');
+      circle.setAttribute('fill', result.pulseColor);
+      circle.setAttribute('filter', 'url(#glow)');
+      circle.setAttribute('opacity', '0');
+      const anim = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+      anim.setAttribute('path', 'M215,195 Q270,195 330,190 Q400,185 460,180 Q510,177 560,175');
+      anim.setAttribute('dur', dur + 's');
+      anim.setAttribute('begin', (i * (dur / numPulses)) + 's');
+      anim.setAttribute('repeatCount', '2');
+      anim.setAttribute('fill', 'freeze');
+      const opAnim = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+      opAnim.setAttribute('attributeName', 'opacity');
+      opAnim.setAttribute('values', '0;1;1;0');
+      opAnim.setAttribute('dur', dur + 's');
+      opAnim.setAttribute('begin', (i * (dur / numPulses)) + 's');
+      opAnim.setAttribute('repeatCount', '2');
+      circle.appendChild(anim);
+      circle.appendChild(opAnim);
+      pulsesG.appendChild(circle);
+    }
+  }, 'pulse anim fail');
+}
+
+function animateCapsaicinParticles(result) {
+  safeCall(() => {
+    const pg = document.getElementById('capsaicinParticles');
+    if (!pg) return;
+    while (pg.firstChild) pg.removeChild(pg.firstChild);
+    const count = Math.min(result.particleCount, 12);
+    for (let i = 0; i < count; i++) {
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('r', '5');
+      c.setAttribute('fill', '#EF4444');
+      c.setAttribute('opacity', '0.85');
+      const startX = 110 + (Math.random() - 0.5) * 30;
+      const startY = 75;
+      const endX = 120 + (Math.random() - 0.5) * 14;
+      const endY = 190;
+      const dur = 1.5 + Math.random();
+      const animX = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+      animX.setAttribute('attributeName', 'cx');
+      animX.setAttribute('from', startX);
+      animX.setAttribute('to', endX);
+      animX.setAttribute('dur', dur + 's');
+      animX.setAttribute('begin', (i * 0.3) + 's');
+      animX.setAttribute('fill', 'freeze');
+      const animY = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+      animY.setAttribute('attributeName', 'cy');
+      animY.setAttribute('from', startY);
+      animY.setAttribute('to', endY);
+      animY.setAttribute('dur', dur + 's');
+      animY.setAttribute('begin', (i * 0.3) + 's');
+      animY.setAttribute('fill', 'freeze');
+      c.setAttribute('cx', startX);
+      c.setAttribute('cy', startY);
+      c.appendChild(animX);
+      c.appendChild(animY);
+      pg.appendChild(c);
+    }
+  }, 'capsaicin particles fail');
+}
+
+function highlightArenaElement(target) {
+  safeCall(() => {
+    const map = {
+      brain: 'brainFill', neuron: 'neuronAxon', receptor: 'receptorGlow',
+      channel: 'channelOpening', data: null, capsaicin: 'capsaicinLabel'
+    };
+    const elId = map[target];
+    if (elId) {
+      const el = document.getElementById(elId);
+      if (el) el.classList.add('arena-highlight');
+    }
+  }, 'highlight fail');
+}
+function clearArenaHighlights() {
+  document.querySelectorAll('.arena-highlight').forEach(el => el.classList.remove('arena-highlight'));
+}
+
+// ========== PHASE SYSTEM ==========
+function startRound(roundIdx) {
+  if (processing) return;
+  processing = true;
+  arenaGen++;
+  clearPhaseTimeouts();
+  closeAllOverlays();
+  cleanupArenaAnimations();
+  clearArenaHighlights();
+  gameState.currentRound = roundIdx;
+  gameState.phase = 'change';
+  gameState.rounds[roundIdx].timeStart = Date.now();
+  updateHUD();
+
+  const rd = ROUNDS[roundIdx];
+  interactionZone.innerHTML = '';
+
+  // Show focus prompt
+  focusPromptEl.textContent = rd.focusPrompt;
+  focusPromptEl.classList.add('visible');
+  focusPromptEl.classList.remove('subtle');
+  addTimeout(() => { focusPromptEl.classList.add('subtle'); }, 4000);
+
+  // Start CHANGE phase
+  if (rd.changeConfig.isComparison) {
+    showComparisonChange(roundIdx);
+  } else {
+    showChangePhase(roundIdx);
+  }
+  processing = false;
+}
+
+function showChangePhase(roundIdx) {
+  const rd = ROUNDS[roundIdx];
+  const cfg = rd.changeConfig;
+  interactionZone.innerHTML = '';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'controls-panel';
+  wrap.style.display = 'flex';
+
+  // Coaching text
+  const coachDiv = document.createElement('div');
+  coachDiv.style.cssText = 'font-size:0.95rem;color:var(--mid);text-align:center;margin-bottom:4px;max-width:400px;overflow-wrap:break-word;';
+  coachDiv.textContent = cfg.coaching;
+  wrap.appendChild(coachDiv);
+
+  if (cfg.bothUnlocked) {
+    const banner = document.createElement('div');
+    banner.className = 'both-unlocked-banner';
+    banner.style.display = 'block';
+    banner.textContent = 'BOTH UNLOCKED';
+    wrap.appendChild(banner);
+  }
+
+  const row = document.createElement('div');
+  row.className = 'control-row';
+
+  // Capsaicin slider
+  const capsGroup = document.createElement('div');
+  capsGroup.className = 'control-group' + (cfg.capsaicinLocked ? ' locked' : '');
+  capsGroup.innerHTML = `
+    <div class="control-label">Spice Level</div>
+    <div class="control-sublabel">Capsaicin</div>
+    <div class="spice-slider-wrap">
+      <span class="spice-label" id="spiceLabelLeft">Low</span>
+      <input type="range" min="0" max="2" step="1" value="${cfg.preset ? cfg.preset.capsaicin : (cfg.startCapsaicin !== undefined ? cfg.startCapsaicin : (cfg.lockedCapsaicin !== undefined ? cfg.lockedCapsaicin : gameState.capsaicin))}" class="spice-slider" id="spiceSlider" ${cfg.capsaicinLocked ? 'disabled' : ''}>
+      <span class="spice-label" id="spiceLabelRight">High</span>
+    </div>
+    <div style="font-size:0.75rem;color:var(--mid);margin-top:4px;" id="spiceValueText">${['Low (Taki)', 'Medium (Jalapeno)', 'High (Ghost Pepper)'][cfg.preset ? cfg.preset.capsaicin : (cfg.startCapsaicin !== undefined ? cfg.startCapsaicin : (cfg.lockedCapsaicin !== undefined ? cfg.lockedCapsaicin : gameState.capsaicin))]}</div>
+  `;
+  row.appendChild(capsGroup);
+
+  // Receptor toggle
+  const recGroup = document.createElement('div');
+  recGroup.className = 'control-group' + (cfg.receptorLocked ? ' locked' : '');
+  const recVal = cfg.preset ? cfg.preset.receptor : gameState.receptor;
+  recGroup.innerHTML = `
+    <div class="control-label">Your Receptor Setting</div>
+    <div class="control-sublabel" id="recSubLabel">${recVal === 1 ? 'Hypersensitive' : ''}</div>
+    <div class="receptor-toggle">
+      <span class="toggle-label">Normal</span>
+      <div class="toggle-track ${recVal === 1 ? 'active' : ''}" id="recToggle">
+        <div class="toggle-thumb"></div>
+      </div>
+      <span class="toggle-label">Extra Sensitive</span>
+    </div>
+  `;
+  row.appendChild(recGroup);
+  wrap.appendChild(row);
+
+  // Dimmed label for preset
+  if (cfg.preset) {
+    const preLabel = document.createElement('div');
+    preLabel.style.cssText = 'font-size:0.8rem;color:var(--light);font-style:italic;';
+    preLabel.textContent = 'Pre-set for Round 1';
+    wrap.appendChild(preLabel);
+  }
+
+  // RUN button
+  const runBtn = document.createElement('button');
+  runBtn.className = 'run-btn' + (cfg.isBaseline ? '' : '');
+  runBtn.textContent = cfg.isBaseline ? 'Run Baseline' : 'RUN';
+  runBtn.id = 'runBtn';
+
+  let changed = cfg.isBaseline || cfg.preset;
+  if (!changed) runBtn.classList.add('pulse-ready');
+
+  wrap.appendChild(runBtn);
+  interactionZone.appendChild(wrap);
+
+  // Slider event
+  const slider = document.getElementById('spiceSlider');
+  if (slider && !cfg.capsaicinLocked) {
+    const spiceTexts = ['Low (Taki)', 'Medium (Jalapeno)', 'High (Ghost Pepper)'];
+    const startVal = parseInt(slider.value);
+    slider.addEventListener('input', () => {
+      const v = parseInt(slider.value);
+      document.getElementById('spiceValueText').textContent = spiceTexts[v];
+      gameState.capsaicin = v;
+      changed = (v !== startVal) || cfg.bothUnlocked;
+      if (changed) runBtn.classList.add('pulse-ready');
+    });
+  }
+
+  // Toggle event
+  const toggle = document.getElementById('recToggle');
+  if (toggle && !cfg.receptorLocked) {
+    toggle.addEventListener('click', () => {
+      const isActive = toggle.classList.toggle('active');
+      gameState.receptor = isActive ? 1 : 0;
+      document.getElementById('recSubLabel').textContent = isActive ? 'Hypersensitive' : '';
+      changed = true;
+      runBtn.classList.add('pulse-ready');
+    });
+  }
+
+  // RUN click
+  runBtn.addEventListener('click', () => {
+    if (!changed && !cfg.isBaseline) {
+      runBtn.style.animation = 'shake 0.5s';
+      const nudge = cfg.receptorLocked ? "Move the slider first, then tap Run." :
+                    cfg.capsaicinLocked ? "Switch the receptor setting, then tap Run." :
+                    "Change a variable first, then tap Run.";
+      showCoaching(nudge);
+      setTimeout(() => { runBtn.style.animation = ''; }, 600);
+      return;
+    }
+    // Validate student set slider to correct target for guided rounds
+    if (cfg.targetCapsaicin !== undefined && !cfg.capsaicinLocked) {
+      const currentSlider = document.getElementById('spiceSlider');
+      if (currentSlider && parseInt(currentSlider.value) !== cfg.targetCapsaicin) {
+        const targetNames = ['Low', 'Medium', 'High'];
+        showCoaching(`Set the spice level to ${targetNames[cfg.targetCapsaicin]}, then tap Run.`);
+        runBtn.style.animation = 'shake 0.5s';
+        setTimeout(() => { runBtn.style.animation = ''; }, 600);
+        return;
+      }
+    }
+    // Validate receptor for rounds that require Extra Sensitive
+    if (!cfg.receptorLocked && cfg.capsaicinLocked) {
+      const toggle = document.getElementById('recToggle');
+      if (toggle && !toggle.classList.contains('active')) {
+        showCoaching("Switch the receptor to Extra Sensitive, then tap Run.");
+        runBtn.style.animation = 'shake 0.5s';
+        setTimeout(() => { runBtn.style.animation = ''; }, 600);
+        return;
+      }
+    }
+    // Check if prediction needed
+    if (rd.predict) {
+      showPredictPhase(roundIdx);
+    } else {
+      gameState.phase = 'watch';
+      startWatchPhase(roundIdx);
+    }
+  });
+}
+
+function showPredictPhase(roundIdx) {
+  const rd = ROUNDS[roundIdx];
+  gameState.phase = 'predict';
+  interactionZone.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'predict-zone';
+  wrap.innerHTML = `<div class="phase-label">Predict</div>
+    <div class="question-text">${rd.predict.prompt}</div>`;
+  const optRow = document.createElement('div');
+  optRow.className = 'options-row';
+  let selected = null;
+  rd.predict.options.forEach((opt, i) => {
+    const card = document.createElement('button');
+    card.className = 'option-card';
+    card.textContent = opt.text;
+    card.addEventListener('click', () => {
+      optRow.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selected = i;
+      lockPredBtn.classList.add('visible');
+    });
+    optRow.appendChild(card);
+  });
+  wrap.appendChild(optRow);
+  const lockPredBtn = document.createElement('button');
+  lockPredBtn.className = 'lock-in-btn';
+  lockPredBtn.textContent = 'Lock In Prediction';
+  lockPredBtn.addEventListener('click', () => {
+    if (selected === null) return;
+    gameState.rounds[roundIdx].prediction = selected;
+    gameState.rounds[roundIdx].predictionCorrect = rd.predict.options[selected].correct;
+    const stamp = document.createElement('div');
+    stamp.className = 'prediction-stamp';
+    stamp.textContent = 'YOUR PREDICTION';
+    optRow.querySelectorAll('.option-card').forEach(c => c.classList.add('disabled'));
+    optRow.children[selected].after(stamp);
+    lockPredBtn.remove();
+    addTimeout(() => startWatchPhase(roundIdx), 1200);
+  });
+  wrap.appendChild(lockPredBtn);
+  interactionZone.appendChild(wrap);
+
+  // Lock run button visual
+  const runBtn = document.getElementById('runBtn');
+  if (runBtn) runBtn.remove();
+}
+
+function startWatchPhase(roundIdx) {
+  const rd = ROUNDS[roundIdx];
+  gameState.phase = 'watch';
+  interactionZone.innerHTML = '<div class="phase-label">Observing...</div><div style="color:var(--mid);font-size:0.9rem;">Watch the pathway carefully.</div>';
+
+  // Animate arena
+  animateCapsaicinParticles(rd.watchResult);
+  addTimeout(() => updateArenaVisuals(rd.watchResult, true), 800);
+
+  // Auto-advance with safety timeout (max 12s)
+  const advanceTime = Math.min(rd.watchDuration, 12000);
+  addTimeout(() => { gameState.phase = 'record'; showRecordPhase(roundIdx); }, advanceTime + 1000);
+}
+
+function showRecordPhase(roundIdx) {
+  const rd = ROUNDS[roundIdx];
+  const wr = rd.watchResult;
+  interactionZone.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'record-zone';
+  wrap.innerHTML = `<div class="phase-label">Record Data</div>
+    <div class="question-text" style="margin-bottom:8px;">${rd.record.coaching}</div>`;
+
+  // Prediction comparison
+  if (rd.predict && gameState.rounds[roundIdx].prediction !== null) {
+    const predCorrect = gameState.rounds[roundIdx].predictionCorrect;
+    const banner = document.createElement('div');
+    banner.style.cssText = `padding:8px 16px;border-radius:8px;margin-bottom:12px;font-weight:600;font-size:0.9rem;${predCorrect ? 'background:#D1FAE5;color:#065F46;' : 'background:#FEF3C7;color:#92400E;'}`;
+    banner.textContent = predCorrect ? '✓ Your prediction matched!' : '✗ Different than you expected — look at the data';
+    wrap.appendChild(banner);
+  }
+
+  // Mini data table showing new row
+  const tbl = document.createElement('table');
+  tbl.className = 'data-table';
+  tbl.style.maxWidth = '400px';
+  tbl.style.margin = '0 auto';
+  const spiceNames = ['Low', 'Medium', 'High'];
+  const recNames = ['Normal', 'Extra Sensitive'];
+
+  const displaySignal = rd.record.errorCell === 'signal' ? rd.record.errorValue : wr.signal;
+  const displayBrain = rd.record.errorCell === 'brain' ? rd.record.errorValue : wr.brain;
+
+  tbl.innerHTML = `<thead><tr><th>Rnd</th><th>Spice</th><th>Receptor</th><th>Signal</th><th>Brain</th></tr></thead>
+    <tbody><tr class="current-row">
+      <td>${rd.num}</td><td>${spiceNames[wr.capsaicin]}</td><td>${recNames[wr.receptor]}</td>
+      <td class="${rd.record.errorCell === 'signal' ? 'error-cell' : ''}" id="recordSignalCell">${displaySignal}</td>
+      <td class="${rd.record.errorCell === 'brain' ? 'error-cell' : ''}" id="recordBrainCell">${displayBrain}</td>
+    </tr></tbody>`;
+  wrap.appendChild(tbl);
+
+  let errorFixed = !rd.record.errorCell;
+  let confirmClickTime = Date.now();
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'confirm-btn';
+  confirmBtn.textContent = 'Confirm';
+  confirmBtn.style.cssText = 'padding:14px 36px;background:var(--green);color:#fff;font-size:1.1rem;font-weight:700;border-radius:12px;margin-top:12px;';
+
+  // Error cell interaction
+  if (rd.record.errorCell) {
+    const errCellId = rd.record.errorCell === 'signal' ? 'recordSignalCell' : 'recordBrainCell';
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.4';
+
+    // Add bouncing arrow
+    const arrow = document.createElement('div');
+    arrow.style.cssText = 'text-align:center;font-size:0.85rem;color:#D97706;font-weight:600;margin-top:4px;animation:bounce 1s infinite;';
+    arrow.innerHTML = '&#x26A0;&#xFE0F; Fix THIS box to continue &#8593;';
+    wrap.appendChild(arrow);
+
+    addTimeout(() => {
+      const cell = document.getElementById(errCellId);
+      if (!cell) return;
+      cell.addEventListener('click', () => {
+        if (errorFixed) return;
+        // Remove any existing dropdown first
+        document.querySelectorAll('.fix-dropdown').forEach(d => d.remove());
+        // Show dropdown
+        const rect = cell.getBoundingClientRect();
+        const dd = document.createElement('div');
+        dd.className = 'fix-dropdown';
+        dd.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;z-index:400;`;
+        const opts = ['Weak', 'Medium', 'Strong'];
+        opts.forEach(o => {
+          const btn = document.createElement('button');
+          btn.textContent = o;
+          btn.addEventListener('click', () => {
+            if (o === rd.record.correctValues[rd.record.errorCell]) {
+              cell.textContent = o;
+              cell.classList.remove('error-cell');
+              cell.classList.add('fixed-cell');
+              errorFixed = true;
+              confirmBtn.disabled = false;
+              confirmBtn.style.opacity = '1';
+              arrow.style.display = 'none';
+            } else {
+              showCoaching("That's not right — check the neuron pulses again.");
+            }
+            dd.remove();
+          });
+          dd.appendChild(btn);
+        });
+        document.body.appendChild(dd);
+        setTimeout(() => { if (dd.parentNode) dd.remove(); }, 5000);
+      });
+    }, 100);
+  }
+
+  confirmBtn.addEventListener('click', () => {
+    if (!errorFixed) return;
+    // Record phase gate: check if too fast
+    if (Date.now() - confirmClickTime < 1000) {
+      showCoaching("Read each box first — then confirm.");
+      confirmClickTime = Date.now();
+      return;
+    }
+    // Add to real data table
+    addDataRow(rd.num, wr, rd.record.errorCell ? rd.record.correctValues : null);
+    showProvePhase(roundIdx);
+  });
+  wrap.appendChild(confirmBtn);
+  interactionZone.appendChild(wrap);
+  confirmClickTime = Date.now();
+}
+
+function addDataRow(roundNum, wr, correctedVals) {
+  const spiceNames = ['Low', 'Medium', 'High'];
+  const recNames = ['Normal', 'Extra Sensitive'];
+  const tr = document.createElement('tr');
+  tr.dataset.round = String(roundNum);
+  const signal = correctedVals ? correctedVals.signal : wr.signal;
+  const brain = correctedVals ? correctedVals.brain : wr.brain;
+  tr.innerHTML = `<td>${roundNum}</td><td>${spiceNames[wr.capsaicin]}</td><td>${recNames[wr.receptor]}</td><td>${signal}</td><td>${brain}</td>`;
+  dataBody.appendChild(tr);
+}
+
+function clearDataRowsForRound(roundNum) {
+  const rows = dataBody.querySelectorAll(`tr[data-round="${roundNum}"]`);
+  rows.forEach(r => r.remove());
+  // Also clear comparison sub-rows
+  const subA = dataBody.querySelectorAll(`tr[data-round="${roundNum}A"]`);
+  const subB = dataBody.querySelectorAll(`tr[data-round="${roundNum}B"]`);
+  subA.forEach(r => r.remove());
+  subB.forEach(r => r.remove());
+}
+
+// ========== PROVE PHASE ==========
+let proveState = { wrongCount: 0, hintsUsed: 0, resets: 0, selectedIdx: null, dimmedIndices: [], phaseStart: 0, consecutiveFast: 0 };
+
+function showProvePhase(roundIdx) {
+  const rd = ROUNDS[roundIdx];
+  const prove = rd.prove;
+  gameState.phase = 'prove';
+
+  // Route to claim builder for Round 5
+  if (prove.mechanic === 'claim-builder' && prove.sentenceFrame) {
+    showClaimBuilderProve(roundIdx);
+    return;
+  }
+
+  proveState = { wrongCount: 0, hintsUsed: gameState.rounds[roundIdx].hintsUsed, resets: gameState.rounds[roundIdx].resets, selectedIdx: null, dimmedIndices: [], phaseStart: Date.now(), consecutiveFast: 0 };
+
+  interactionZone.innerHTML = '';
+  clearArenaHighlights();
+  if (prove.arenaHighlight) highlightArenaElement(prove.arenaHighlight);
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'text-align:center;width:100%;max-width:560px;';
+
+  // Add sequence display for What Comes Next mechanic
+  let sequenceHtml = '';
+  if (prove.mechanic === 'what-comes-next') {
+    sequenceHtml = `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="background:#D1FAE5;border:2px solid var(--correct-green);border-radius:8px;padding:8px 12px;font-size:0.85rem;text-align:center;">
+        <div style="font-weight:700;">Low</div><div style="color:var(--mid);">Weak signal</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:1.2rem;color:var(--mid);">&#8594;</div>
+      <div style="background:#D1FAE5;border:2px solid var(--correct-green);border-radius:8px;padding:8px 12px;font-size:0.85rem;text-align:center;">
+        <div style="font-weight:700;">Medium</div><div style="color:var(--mid);">Medium signal</div>
+      </div>
+      <div style="display:flex;align-items:center;font-size:1.2rem;color:var(--mid);">&#8594;</div>
+      <div style="background:#FEF3C7;border:2px dashed #F59E0B;border-radius:8px;padding:8px 12px;font-size:0.85rem;text-align:center;">
+        <div style="font-weight:700;">High</div><div style="color:#D97706;">???</div>
+      </div>
+    </div>`;
+  }
+
+  wrap.innerHTML = `<div class="phase-label">${prove.mechanic === 'coach-click' ? 'Coach-Click' : prove.mechanic === 'pick-match' ? 'Pick the Match' : prove.mechanic === 'what-comes-next' ? 'What Comes Next?' : prove.mechanic === 'claim-builder' ? 'Claim Builder' : 'Prove It'}</div>
+    ${sequenceHtml}
+    <div class="question-text">${prove.prompt}</div>`;
+
+  const optRow = document.createElement('div');
+  optRow.className = 'options-row';
+  optRow.id = 'proveOptions';
+
+  prove.options.forEach((opt, i) => {
+    const card = document.createElement('button');
+    card.className = 'option-card';
+    card.textContent = opt.text;
+    card.dataset.idx = i;
+    if (proveState.dimmedIndices.includes(i)) { card.classList.add('dimmed'); }
+    card.addEventListener('click', () => handleProveClick(roundIdx, i, card));
+    optRow.appendChild(card);
+  });
+  wrap.appendChild(optRow);
+
+  const lockBtn = document.createElement('button');
+  lockBtn.className = 'lock-in-btn';
+  lockBtn.id = 'proveLockBtn';
+  lockBtn.textContent = 'Lock In';
+  lockBtn.addEventListener('click', () => handleProveLockIn(roundIdx));
+  wrap.appendChild(lockBtn);
+  interactionZone.appendChild(wrap);
+}
+
+function handleProveClick(roundIdx, optIdx, card) {
+  if (processing) return;
+  if (card.classList.contains('disabled') || card.classList.contains('dimmed') || card.classList.contains('correct') || card.classList.contains('wrong') || card.classList.contains('locked')) return;
+  const optRow = document.getElementById('proveOptions');
+  if (!optRow) return;
+  optRow.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  proveState.selectedIdx = optIdx;
+  const lockBtn = document.getElementById('proveLockBtn');
+  if (lockBtn) lockBtn.classList.add('visible');
+}
+
+function handleProveLockIn(roundIdx) {
+  if (processing) return;
+  if (proveState.selectedIdx === null) return;
+  processing = true;
+
+  const rd = ROUNDS[roundIdx];
+  const prove = rd.prove;
+  const opt = prove.options[proveState.selectedIdx];
+  const optRow = document.getElementById('proveOptions');
+  const cards = optRow ? optRow.querySelectorAll('.option-card') : [];
+
+  // Fast guess check
+  const elapsed = Date.now() - proveState.phaseStart;
+
+  if (opt.correct) {
+    // CORRECT
+    cards.forEach(c => c.classList.add('disabled'));
+    cards[proveState.selectedIdx].classList.add('correct');
+    clearArenaHighlights();
+    playTone(523, 0.2);
+    setTimeout(() => playTone(659, 0.2), 150);
+    setTimeout(() => playTone(784, 0.3), 300);
+
+    gameState.rounds[roundIdx].attempts++;
+    gameState.rounds[roundIdx].hintsUsed = proveState.hintsUsed;
+    gameState.rounds[roundIdx].resets = proveState.resets;
+    gameState.rounds[roundIdx].score = calcRoundScore(gameState.rounds[roundIdx]);
+    gameState.rounds[roundIdx].completed = true;
+    gameState.rounds[roundIdx].timeSeconds = Math.round((Date.now() - gameState.rounds[roundIdx].timeStart) / 1000);
+    updateHUD();
+
+    // Check for first-try affirmation
+    const isFirstTry = proveState.hintsUsed === 0 && proveState.resets === 0 && proveState.wrongCount === 0;
+
+    addTimeout(() => {
+      processing = false;
+      onRoundComplete(roundIdx, isFirstTry);
+    }, 1200);
+  } else {
+    // WRONG
+    const wrongIdx = proveState.selectedIdx;
+    proveState.wrongCount++;
+    gameState.rounds[roundIdx].attempts++;
+    proveState.phaseStart = Date.now();
+
+    // Fast guess gate
+    if (elapsed < 2000) {
+      proveState.consecutiveFast++;
+      if (proveState.consecutiveFast >= 2) {
+        proveState.consecutiveFast = 0;
+        if (cards[wrongIdx]) cards[wrongIdx].classList.add('wrong');
+        closeAllOverlays();
+        const gateBar = document.createElement('div');
+        gateBar.className = 'coaching-bar';
+        gateBar.innerHTML = 'Check the brain color and neuron pulses. Then pick.<br><button class="try-again-btn" id="gateOkBtn">Got It</button>';
+        document.body.appendChild(gateBar);
+        let unlocked = false;
+        const unlockGate = () => {
+          if (unlocked) return;
+          unlocked = true;
+          if (gateBar.parentNode) gateBar.remove();
+          if (cards[wrongIdx]) {
+            cards[wrongIdx].classList.remove('wrong');
+            cards[wrongIdx].classList.add('dimmed');
+          }
+          if (!proveState.dimmedIndices.includes(wrongIdx)) proveState.dimmedIndices.push(wrongIdx);
+          proveState.selectedIdx = null;
+          const lockBtn = document.getElementById('proveLockBtn');
+          if (lockBtn) lockBtn.classList.remove('visible');
+          // Sync hint ladder with wrongCount so next wrong triggers the correct hint
+          if (proveState.wrongCount === 1 && proveState.hintsUsed === 0) {
+            proveState.hintsUsed = 1;
+            showHintOverlay(rd.prove.hints.hint1.text, 'Hint 1', rd.prove.hints.hint1.target);
+          } else if (proveState.wrongCount === 2 && proveState.hintsUsed <= 1) {
+            proveState.hintsUsed = 2;
+            if (rd.prove.hints.hint2.eliminateIdx !== undefined) {
+              const elimIdx = rd.prove.hints.hint2.eliminateIdx;
+              if (!proveState.dimmedIndices.includes(elimIdx)) {
+                proveState.dimmedIndices.push(elimIdx);
+                if (cards[elimIdx]) cards[elimIdx].classList.add('dimmed');
+              }
+            }
+            showHintOverlay(rd.prove.hints.hint2.text, 'Hint 2', null);
+          } else if (proveState.wrongCount >= 3 && proveState.hintsUsed <= 2) {
+            proveState.hintsUsed = 3;
+            showStepByStep(rd.prove.hints.stepByStep);
+          }
+          processing = false;
+        };
+        const gateOkBtn = document.getElementById('gateOkBtn');
+        if (gateOkBtn) gateOkBtn.addEventListener('click', unlockGate);
+        addTimeout(unlockGate, 6000);
+        return;
+      }
+    } else {
+      proveState.consecutiveFast = 0;
+    }
+
+    if (cards[wrongIdx]) cards[wrongIdx].classList.add('wrong');
+    if (prove.arenaHighlight) highlightArenaElement(prove.arenaHighlight);
+
+    // Show coaching + try again
+    const coachText = opt.coaching || "That's not quite right. Look at the diagram again.";
+    closeAllOverlays();
+    const bar = document.createElement('div');
+    bar.className = 'coaching-bar';
+    bar.innerHTML = `${coachText}<br><button class="try-again-btn" id="tryAgainBtn">Try Again</button>`;
+    document.body.appendChild(bar);
+
+    let tryAgainHandled = false;
+    const handleTryAgain = () => {
+      if (tryAgainHandled) return;
+      tryAgainHandled = true;
+      if (bar.parentNode) bar.remove();
+      if (cards[wrongIdx]) {
+        cards[wrongIdx].classList.remove('wrong');
+        cards[wrongIdx].classList.add('dimmed');
+      }
+      if (!proveState.dimmedIndices.includes(wrongIdx)) proveState.dimmedIndices.push(wrongIdx);
+      proveState.selectedIdx = null;
+      const lockBtn = document.getElementById('proveLockBtn');
+      if (lockBtn) lockBtn.classList.remove('visible');
+      // Reset claim builder blank if present
+      const claimBlank = document.getElementById('claimBlank');
+      if (claimBlank) claimBlank.textContent = '___';
+
+      // Auto-trigger hints based on wrong count
+      if (proveState.wrongCount === 1 && proveState.hintsUsed === 0) {
+        proveState.hintsUsed = 1;
+        showHintOverlay(prove.hints.hint1.text, 'Hint 1', prove.hints.hint1.target);
+      } else if (proveState.wrongCount === 2 && proveState.hintsUsed <= 1) {
+        proveState.hintsUsed = 2;
+        if (prove.hints.hint2.eliminateIdx !== undefined) {
+          const elimIdx = prove.hints.hint2.eliminateIdx;
+          if (!proveState.dimmedIndices.includes(elimIdx)) {
+            proveState.dimmedIndices.push(elimIdx);
+            if (cards[elimIdx]) cards[elimIdx].classList.add('dimmed');
+          }
+        }
+        showHintOverlay(prove.hints.hint2.text, 'Hint 2', null);
+      } else if (proveState.wrongCount >= 3 && proveState.hintsUsed <= 2) {
+        proveState.hintsUsed = 3;
+        showStepByStep(prove.hints.stepByStep);
+      }
+      processing = false;
+    };
+    const tryAgainBtn = document.getElementById('tryAgainBtn');
+    if (tryAgainBtn) tryAgainBtn.addEventListener('click', handleTryAgain);
+    // Safety: if they don't click try again in 10s, auto-dismiss and unlock
+    addTimeout(() => { if (!tryAgainHandled) handleTryAgain(); }, 10000);
+  }
+}
+
+function showHintOverlay(text, title, target) {
+  closeAllOverlays();
+  if (target) highlightArenaElement(target);
+  const overlay = document.createElement('div');
+  overlay.className = 'hint-overlay';
+  overlay.innerHTML = `<div class="hint-panel">
+    <h3>${title === 'Hint 1' ? '&#128161;' : '&#128269;'} ${title}</h3>
+    <p>${text}</p>
+    <button id="closeHintBtn">Got It</button>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#closeHintBtn').addEventListener('click', () => overlay.remove());
+  addTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 15000);
+}
+
+function showStepByStep(panels) {
+  closeAllOverlays();
+  let panelIdx = 0;
+  function showPanel() {
+    closeAllOverlays();
+    const overlay = document.createElement('div');
+    overlay.className = 'hint-overlay';
+    overlay.innerHTML = `<div class="hint-panel">
+      <h3>Step-by-Step (${panelIdx + 1}/${panels.length})</h3>
+      <p>${panels[panelIdx]}</p>
+      <button id="stepBtn">${panelIdx < panels.length - 1 ? 'Next' : 'Got It'}</button>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#stepBtn').addEventListener('click', () => {
+      overlay.remove();
+      panelIdx++;
+      if (panelIdx < panels.length) showPanel();
+    });
+    addTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 20000);
+  }
+  showPanel();
+}
+
+function showCoaching(text) {
+  closeAllOverlays();
+  const bar = document.createElement('div');
+  bar.className = 'coaching-bar';
+  bar.textContent = text;
+  document.body.appendChild(bar);
+  addTimeout(() => { if (bar.parentNode) bar.remove(); }, 4000);
+}
+
+// ========== HINT BUTTON ==========
+$('hintBtn').addEventListener('click', () => {
+  if (gameState.phase !== 'prove') return; // Only active during PROVE
+  const roundIdx = gameState.currentRound;
+  const rd = ROUNDS[roundIdx];
+  if (!rd || !rd.prove || !rd.prove.hints) return;
+  const hints = rd.prove.hints;
+  if (proveState.hintsUsed === 0) {
+    proveState.hintsUsed = 1;
+    gameState.rounds[roundIdx].hintsUsed = Math.max(gameState.rounds[roundIdx].hintsUsed, 1);
+    showHintOverlay(hints.hint1.text, 'Hint 1', hints.hint1.target);
+  } else if (proveState.hintsUsed === 1) {
+    proveState.hintsUsed = 2;
+    gameState.rounds[roundIdx].hintsUsed = Math.max(gameState.rounds[roundIdx].hintsUsed, 2);
+    showHintOverlay(hints.hint2.text, 'Hint 2', null);
+  } else {
+    proveState.hintsUsed = 3;
+    gameState.rounds[roundIdx].hintsUsed = Math.max(gameState.rounds[roundIdx].hintsUsed, 3);
+    showStepByStep(hints.stepByStep);
+  }
+});
+
+// ========== ROUND COMPLETION ==========
+function onRoundComplete(roundIdx, isFirstTry) {
+  closeAllOverlays();
+  const rd = ROUNDS[roundIdx];
+  const score = gameState.rounds[roundIdx].score;
+
+  // Affirmation for first try
+  const affirmText = isFirstTry ? getAffirmation() : null;
+
+  // Celebration at milestones (every 2 rounds)
+  const completedCount = gameState.rounds.filter(x => x.completed).length;
+  const isMilestone = completedCount % 2 === 0 && completedCount > 0;
+
+  // Required complete check
+  const allRequiredDone = gameState.rounds.filter(x => x.required).every(x => x.completed);
+  const allDone = gameState.rounds.every(x => x.completed);
+
+  if (allDone && !bonusCompleteShown) {
+    bonusCompleteShown = true;
+    showCelebration('BONUS COMPLETE!', affirmText || getAffirmation(), 3000, () => showReceipt());
+    return;
+  }
+
+  if (allRequiredDone && !requiredCompleteShown) {
+    requiredCompleteShown = true;
+    showCelebration('You did it!', affirmText || getAffirmation(), 2000, () => showRequiredChoiceScreen());
+    return;
+  }
+
+  if (isMilestone) {
+    const msg = `${completedCount} rounds down!`;
+    showCelebration(msg, affirmText, 2000, () => advanceToNextRound(roundIdx));
+  } else if (affirmText) {
+    showCelebration('', affirmText, 1500, () => advanceToNextRound(roundIdx));
+  } else {
+    advanceToNextRound(roundIdx);
+  }
+}
+
+function showCelebration(mainText, subText, duration, callback) {
+  closeAllOverlays();
+  spawnConfetti(Math.min(15, 12));
+  const overlay = document.createElement('div');
+  overlay.className = 'celebration-overlay';
+  overlay.innerHTML = `<div style="text-align:center;">
+    ${mainText ? `<div class="celebration-text">${mainText}</div>` : ''}
+    ${subText ? `<div class="affirmation-text">${subText}</div>` : ''}
+  </div>`;
+  document.body.appendChild(overlay);
+  addTimeout(() => { if (overlay.parentNode) overlay.remove(); if (callback) callback(); }, duration);
+  // Safety
+  addTimeout(() => { if (overlay.parentNode) overlay.remove(); }, duration + 2000);
+}
+
+function showRequiredChoiceScreen() {
+  closeAllOverlays();
+  const overlay = document.createElement('div');
+  overlay.className = 'choice-overlay';
+  overlay.innerHTML = `<div class="choice-card">
+    <h2>You finished the required rounds!</h2>
+    <p>${getAffirmation()}</p>
+    <p>Continue to Bonus rounds or see your score?</p>
+    <div class="choice-btns">
+      <button class="btn-continue" id="choiceKeepGoing">Keep Going</button>
+      <button class="btn-score" id="choiceSeeScore">See Score</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('choiceKeepGoing').addEventListener('click', () => { overlay.remove(); advanceToNextRound(3); });
+  document.getElementById('choiceSeeScore').addEventListener('click', () => { overlay.remove(); showReceipt(); });
+}
+
+function advanceToNextRound(currentIdx) {
+  const nextIdx = currentIdx + 1;
+  if (nextIdx >= ROUNDS.length) {
+    showReceipt();
+    return;
+  }
+  startRound(nextIdx);
+}
+
+// ========== RESET LEVEL ==========
+$('resetLevelBtn').addEventListener('click', () => {
+  const roundIdx = gameState.currentRound;
+  if (gameState.rounds[roundIdx].completed) return;
+  gameState.rounds[roundIdx].resets++;
+  proveState.resets = gameState.rounds[roundIdx].resets;
+
+  if (gameState.rounds[roundIdx].resets >= 3) {
+    gameState.rounds[roundIdx].score = 50;
+    gameState.rounds[roundIdx].completed = true;
+    gameState.rounds[roundIdx].timeSeconds = Math.round((Date.now() - gameState.rounds[roundIdx].timeStart) / 1000);
+    const wr = ROUNDS[roundIdx].watchResult;
+    addDataRow(ROUNDS[roundIdx].num, wr, ROUNDS[roundIdx].record.errorCell ? ROUNDS[roundIdx].record.correctValues : null);
+    updateHUD();
+    showCoaching("Let's keep going — you'll see this pattern again.");
+    addTimeout(() => onRoundComplete(roundIdx, false), 2500);
+    return;
+  }
+
+  clearPhaseTimeouts();
+  closeAllOverlays();
+  cleanupArenaAnimations();
+  clearArenaHighlights();
+  clearDataRowsForRound(ROUNDS[roundIdx].num);
+  arenaGen++;
+  processing = false; // Force unlock so startRound doesn't bail
+  startRound(roundIdx);
+});
+
+// ========== VOCAB ==========
+$('vocabBtn').addEventListener('click', () => $('vocabOverlay').classList.add('open'));
+$('closeVocab').addEventListener('click', () => $('vocabOverlay').classList.remove('open'));
+$('vocabOverlay').addEventListener('click', (e) => {
+  if (e.target === $('vocabOverlay')) $('vocabOverlay').classList.remove('open');
+});
+
+// ========== RECEIPT ==========
+function showReceipt() {
+  if (receiptRendered) return;
+  receiptRendered = true;
+  closeAllOverlays();
+  clearPhaseTimeouts();
+  if (ambientInterval) clearInterval(ambientInterval);
+
+  gameState.totalTime = Math.round((Date.now() - gameState.startTime) / 1000);
+  const reqScores = gameState.rounds.filter(x => x.required && x.completed).map(x => x.score);
+  const bonusCount = gameState.rounds.filter(x => !x.required && x.completed).length;
+  let overall = 0;
+  if (reqScores.length > 0) {
+    overall = reqScores.reduce((a, b) => a + b, 0) / 4 + bonusCount * 5;
+    overall = Math.min(100, Math.round(overall));
+  }
+  const colorClass = overall >= 85 ? 'green' : overall >= 70 ? 'yellow' : 'red';
+  const label = overall >= 85 ? 'Strong Mastery' : overall >= 70 ? 'Approaching Mastery' : 'Needs More Practice';
+
+  const allRequiredDone = gameState.rounds.filter(x => x.required).every(x => x.completed);
+  const allDone = gameState.rounds.every(x => x.completed);
+  let statusText = allDone ? 'All Complete (Bonus!)' : allRequiredDone ? 'Required Complete' : 'In Progress';
+
+  const totalMin = Math.floor(gameState.totalTime / 60);
+  const totalSec = gameState.totalTime % 60;
+
+  let rowsHtml = '';
+  gameState.rounds.forEach(r => {
+    if (!r.completed) return;
+    const sc = r.score;
+    const scClass = sc >= 85 ? 'score-green' : sc >= 70 ? 'score-yellow' : 'score-red';
+    const bonusClass = !r.required ? ' bonus-row' : '';
+    const bonusMark = !r.required ? ' &#11088;' : '';
+    const min = Math.floor(r.timeSeconds / 60);
+    const sec = r.timeSeconds % 60;
+    rowsHtml += `<tr class="${bonusClass}"><td>${r.num}${bonusMark}</td><td style="text-align:left;">${r.name}</td><td class="${scClass}">${sc}%</td><td>${r.attempts}</td><td>${min}:${String(sec).padStart(2,'0')}</td></tr>`;
+  });
+
+  const inner = $('receiptInner');
+  inner.innerHTML = `
+    <h1>${TEACHER}'s Simulations</h1>
+    <h2>${TOPIC} — Wednesday Score Report</h2>
+    <div class="receipt-name-row">
+      <input type="text" id="receiptName" value="${escHtml(gameState.studentName)}" placeholder="Your name">
+      <button class="lock-name-btn" id="lockNameBtn">Lock</button>
+    </div>
+    <div class="overall-score-box">
+      <div class="overall-score-num ${colorClass}">${overall}%</div>
+      <div class="overall-score-label">${label}</div>
+    </div>
+    <table class="receipt-table">
+      <thead><tr><th>#</th><th>Round</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div style="text-align:center;color:var(--mid);font-size:0.85rem;margin:8px 0;">Total Time: ${totalMin}:${String(totalSec).padStart(2,'0')} &nbsp;|&nbsp; Status: ${allDone ? '&#9989;' : allRequiredDone ? '&#9989;' : '&#9898;'} ${statusText}</div>
+    <div class="receipt-footer">
+      <p>&#128248; Take a screenshot and upload to Google Classroom</p>
+      <button class="print-btn" id="printBtn">&#128424; Print</button>
+      <button class="restart-btn" id="restartBtn">Start Over</button>
+    </div>
+  `;
+
+  $('receiptScreen').classList.add('open');
+  app.classList.add('hidden');
+
+  $('lockNameBtn').addEventListener('click', () => {
+    const nameInput = $('receiptName');
+    nameInput.disabled = true;
+    $('lockNameBtn').textContent = 'Locked';
+    $('lockNameBtn').disabled = true;
+  });
+  $('printBtn').addEventListener('click', () => { safeCall(() => window.print(), 'print fail'); });
+  $('restartBtn').addEventListener('click', () => {
+    const cd = document.createElement('div');
+    cd.className = 'confirm-dialog';
+    cd.innerHTML = `<div class="confirm-dialog-card">
+      <p>Are you sure? This will erase all your progress.</p>
+      <button class="confirm-yes" id="confirmYes">Yes, Start Over</button>
+      <button class="confirm-no" id="confirmNo">Cancel</button>
+    </div>`;
+    document.body.appendChild(cd);
+    $('confirmYes').addEventListener('click', () => location.reload());
+    $('confirmNo').addEventListener('click', () => cd.remove());
+  });
+}
+
+// ========== SPECIAL ROUND HANDLERS ==========
+
+// Round 6: Comparison flow
+function showComparisonChange(roundIdx) {
+  const rd = ROUNDS[roundIdx];
+  interactionZone.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'text-align:center;width:100%;max-width:560px;';
+
+  const banner = document.createElement('div');
+  banner.className = 'both-unlocked-banner';
+  banner.style.display = 'inline-block';
+  banner.textContent = 'BOTH UNLOCKED';
+  wrap.appendChild(banner);
+
+  const coachDiv = document.createElement('div');
+  coachDiv.style.cssText = 'margin:12px 0;color:var(--mid);font-size:0.95rem;';
+  coachDiv.textContent = rd.changeConfig.coaching;
+  wrap.appendChild(coachDiv);
+
+  const runABtn = document.createElement('button');
+  runABtn.className = 'run-btn pulse-ready';
+  runABtn.textContent = 'Run Setup A';
+  runABtn.addEventListener('click', () => {
+    // Watch Run A
+    interactionZone.innerHTML = '<div class="phase-label">Watching Run A...</div><div style="color:var(--mid);">Low capsaicin + Extra Sensitive receptor</div>';
+    animateCapsaicinParticles(rd.runA);
+    addTimeout(() => updateArenaVisuals(rd.runA, true), 800);
+    addTimeout(() => {
+      // Add Run A data
+      addDataRow('6A', rd.runA, null);
+      // Show Next Test button
+      interactionZone.innerHTML = '';
+      const nextWrap = document.createElement('div');
+      nextWrap.style.cssText = 'text-align:center;';
+      nextWrap.innerHTML = '<div class="phase-label">Run A Complete</div><div style="color:var(--mid);margin-bottom:12px;">Low capsaicin + Extra Sensitive = Orange brain</div>';
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'run-btn pulse-ready';
+      nextBtn.textContent = 'NEXT TEST';
+      nextBtn.addEventListener('click', () => {
+        interactionZone.innerHTML = '<div class="phase-label">Watching Run B...</div><div style="color:var(--mid);">High capsaicin + Normal receptor</div>';
+        animateCapsaicinParticles(rd.runB);
+        addTimeout(() => updateArenaVisuals(rd.runB, true), 800);
+        addTimeout(() => {
+          addDataRow('6B', rd.runB, null);
+          showComparisonScreen(roundIdx);
+        }, rd.watchDuration + 1000);
+      });
+      nextWrap.appendChild(nextBtn);
+      interactionZone.appendChild(nextWrap);
+    }, rd.watchDuration + 1000);
+  });
+  wrap.appendChild(runABtn);
+  interactionZone.appendChild(wrap);
+}
+
+function showComparisonScreen(roundIdx) {
+  const rd = ROUNDS[roundIdx];
+  interactionZone.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'text-align:center;width:100%;max-width:600px;';
+  wrap.innerHTML = `
+    <div class="phase-label">Compare Results</div>
+    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:12px 0;">
+      <div style="flex:1;min-width:200px;background:#FEF3C7;border:2px solid #F59E0B;border-radius:12px;padding:16px;">
+        <div style="font-weight:700;margin-bottom:4px;">Run A</div>
+        <div style="font-size:0.85rem;color:var(--mid);">Low capsaicin + Extra Sensitive</div>
+        <div style="font-size:2rem;margin:8px 0;">&#x1F7E0;</div>
+        <div style="font-weight:600;color:#D97706;">Orange Brain</div>
+      </div>
+      <div style="flex:1;min-width:200px;background:#FEE2E2;border:2px solid #EF4444;border-radius:12px;padding:16px;">
+        <div style="font-weight:700;margin-bottom:4px;">Run B</div>
+        <div style="font-size:0.85rem;color:var(--mid);">High capsaicin + Normal receptor</div>
+        <div style="font-size:2rem;margin:8px 0;">&#x1F534;</div>
+        <div style="font-weight:600;color:#DC2626;">Red Brain</div>
+      </div>
+    </div>
+    <div style="color:var(--mid);font-size:0.9rem;margin-bottom:12px;">Look at which setup turned the brain MORE red.</div>
+  `;
+  const confirmBtn = document.createElement('button');
+  confirmBtn.style.cssText = 'padding:14px 36px;background:var(--green);color:#fff;font-size:1.1rem;font-weight:700;border-radius:12px;';
+  confirmBtn.textContent = 'Confirm Data';
+  confirmBtn.addEventListener('click', () => showProvePhase(roundIdx));
+  wrap.appendChild(confirmBtn);
+  interactionZone.appendChild(wrap);
+}
+
+// Enhanced prove phase for claim builder (Round 5)
+function showClaimBuilderProve(roundIdx) {
+  const rd = ROUNDS[roundIdx];
+  const prove = rd.prove;
+  proveState = { wrongCount: 0, hintsUsed: gameState.rounds[roundIdx].hintsUsed, resets: gameState.rounds[roundIdx].resets, selectedIdx: null, dimmedIndices: [], phaseStart: Date.now(), consecutiveFast: 0 };
+
+  interactionZone.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'text-align:center;width:100%;max-width:560px;';
+
+  // Harris reminder card
+  wrap.innerHTML = `<div class="phase-label">Claim Builder</div>
+    <div style="background:#EFF6FF;border:1px solid var(--blue);border-radius:8px;padding:8px 12px;font-size:0.8rem;color:var(--blue);margin-bottom:8px;display:inline-block;">${prove.harrisReminder}</div>
+    <div class="question-text">${prove.prompt}</div>
+    <div style="background:#F8FAFC;border:2px solid var(--card-border);border-radius:12px;padding:16px;margin-bottom:16px;font-size:1rem;line-height:1.6;overflow-wrap:break-word;">
+      ${prove.sentenceFrame.replace('___', '<span style="border-bottom:3px solid var(--blue);padding:0 8px;font-weight:700;" id="claimBlank">___</span>')}
+    </div>`;
+
+  const optRow = document.createElement('div');
+  optRow.className = 'options-row';
+  optRow.id = 'proveOptions';
+
+  prove.options.forEach((opt, i) => {
+    const card = document.createElement('button');
+    card.className = 'option-card';
+    card.textContent = opt.text;
+    card.dataset.idx = i;
+    card.addEventListener('click', () => {
+      if (processing) return;
+      if (card.classList.contains('disabled') || card.classList.contains('dimmed') || card.classList.contains('correct') || card.classList.contains('wrong') || card.classList.contains('locked')) return;
+      optRow.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      proveState.selectedIdx = i;
+      const blank = document.getElementById('claimBlank');
+      if (blank) blank.textContent = opt.text;
+      lockBtn.classList.add('visible');
+    });
+    optRow.appendChild(card);
+  });
+  wrap.appendChild(optRow);
+
+  const lockBtn = document.createElement('button');
+  lockBtn.className = 'lock-in-btn';
+  lockBtn.id = 'proveLockBtn';
+  lockBtn.textContent = 'Lock In';
+  lockBtn.addEventListener('click', () => handleProveLockIn(roundIdx));
+  wrap.appendChild(lockBtn);
+  interactionZone.appendChild(wrap);
+}
+
+// ========== WELCOME / START ==========
+const nameInput = $('studentNameInput');
+const teacherInput = $('teacherNameInput');
+const startBtn = $('startBtn');
+nameInput.addEventListener('input', () => { startBtn.disabled = nameInput.value.trim().length === 0; });
+startBtn.addEventListener('click', () => {
+  gameState.studentName = nameInput.value.trim();
+  const teacherVal = teacherInput.value.trim();
+  TEACHER = teacherVal.length > 0 ? escHtml(teacherVal) : "Your teacher";
+  gameState.startTime = Date.now();
+  welcomeScreen.style.display = 'none';
+  app.classList.remove('hidden');
+  buildArena();
+  initParticles();
+  startRound(0);
+});
+
+// Visibility handler
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (ambientInterval) { clearInterval(ambientInterval); ambientInterval = null; }
+    if (speechResumeInterval) { clearInterval(speechResumeInterval); speechResumeInterval = null; }
+  }
+});
+
+// Add CSS for bounce animation
+const style = document.createElement('style');
+style.textContent = '@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }';
+document.head.appendChild(style);
+</script>
+</body>
+</html>
