@@ -1,0 +1,2244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Addiction &amp; The Rat Park Experiment</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg1:#F0F4F8;--bg2:#E8EEF4;--accent1:#3B82F6;--accent2:#10B981;--accent3:#8B5CF6;
+--text:#1E293B;--textLight:#475569;--white:#FFFFFF;--correct:#22C55E;--wrong:#EF4444;
+--hint1:#FFF9C4;--hint2:#FFE0B2;--gold:#FFD700;--shadow:0 2px 8px rgba(0,0,0,0.1);
+--radius:12px;--radiusSm:8px;
+}
+html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text)}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px}
+
+/* SCREENS */
+.screen{display:none;width:100%;height:100%;position:absolute;top:0;left:0}
+.screen.active{display:flex}
+
+/* WELCOME */
+#welcomeScreen{flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg1),var(--bg2));gap:16px;padding:20px}
+#welcomeScreen h1{font-size:28px;color:var(--accent1);text-align:center}
+#welcomeScreen h2{font-size:18px;color:var(--textLight);text-align:center;margin-bottom:8px}
+.welcome-input{width:min(320px,90%);padding:14px 16px;font-size:16px;border:2px solid #CBD5E1;border-radius:var(--radiusSm);background:var(--white);color:var(--text);transition:border-color .2s}
+.welcome-input:focus{border-color:var(--accent1)}
+.welcome-input::placeholder{color:#94A3B8}
+#startBtn{padding:16px 48px;font-size:20px;font-weight:700;background:var(--accent1);color:var(--white);border-radius:var(--radius);margin-top:12px;transition:transform .15s,background .2s;min-height:56px}
+#startBtn:hover{background:#2563EB}
+#startBtn:active{transform:scale(0.97)}
+.welcome-lt{font-size:14px;color:var(--textLight);text-align:center;max-width:400px;margin-top:8px;line-height:1.5}
+
+/* GAME UI */
+#gameScreen{flex-direction:column}
+#topBar{display:flex;align-items:center;padding:8px 16px;background:linear-gradient(135deg,#FFFFFF,#F8FAFC);border-bottom:2px solid #E2E8F0;gap:12px;min-height:52px;flex-shrink:0;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.round-badge{background:linear-gradient(135deg,var(--accent1),#2563EB);color:var(--white);font-weight:700;font-size:14px;padding:6px 14px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 6px rgba(59,130,246,0.25)}
+.round-name{font-weight:600;font-size:15px;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hud-score{font-weight:700;font-size:18px;color:var(--accent2);white-space:nowrap;text-shadow:0 1px 2px rgba(16,185,129,0.1)}
+.progress-bar{display:flex;gap:4px;align-items:center}
+.progress-seg{width:30px;height:12px;border-radius:6px;background:#E2E8F0;transition:background .4s,box-shadow .4s;box-shadow:inset 0 1px 2px rgba(0,0,0,0.06)}
+.progress-seg.done{background:linear-gradient(135deg,var(--accent2),#059669);box-shadow:0 1px 4px rgba(16,185,129,0.3)}
+.progress-seg.current{background:var(--accent1);animation:segPulse 1.5s infinite}
+.progress-seg.bonus{border:2px solid var(--gold);background:transparent}
+.progress-seg.bonus.done{background:linear-gradient(135deg,var(--gold),#F59E0B);box-shadow:0 1px 4px rgba(245,158,11,0.3)}
+@keyframes segPulse{0%,100%{opacity:1}50%{opacity:.5}}
+.var-indicator{font-size:13px;color:var(--accent3);font-weight:600;white-space:nowrap}
+
+/* MAIN AREA */
+#mainArea{display:flex;flex:1;overflow:hidden;position:relative}
+
+/* LEFT: CONTROLS */
+#controlPanel{width:220px;min-width:220px;background:var(--white);border-right:2px solid #E2E8F0;padding:12px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
+.ctrl-header{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent3);letter-spacing:1.2px;display:flex;align-items:center;gap:6px}
+.ctrl-header .badge{background:linear-gradient(135deg,var(--accent3),#7C3AED);color:var(--white);font-size:9px;padding:3px 10px;border-radius:10px;font-weight:700;letter-spacing:0.5px}
+.ctrl-group{background:linear-gradient(135deg,#F8FAFC,#F1F5F9);border:2px solid #E2E8F0;border-radius:10px;padding:10px;transition:border-color .3s,opacity .3s,box-shadow .3s}
+.ctrl-group.active-ctrl{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,215,0,.2),0 2px 8px rgba(255,215,0,.1)}
+.ctrl-group.locked{opacity:.4;pointer-events:none}
+.ctrl-group .ctrl-label{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:6px;letter-spacing:0.3px}
+.ctrl-group .lock-icon{font-size:11px}
+.selector-row{display:flex;gap:4px;flex-wrap:wrap}
+.sel-btn{padding:8px 10px;font-size:12px;font-weight:600;border-radius:8px;background:linear-gradient(135deg,#E2E8F0,#F1F5F9);color:var(--textLight);transition:all .2s;border:2px solid transparent;min-height:40px;flex:1;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+.sel-btn.selected{background:linear-gradient(135deg,var(--accent1),#2563EB);color:var(--white);border-color:var(--accent1);box-shadow:0 2px 6px rgba(59,130,246,0.3)}
+.sel-btn:not(.selected):hover{background:#CBD5E1;border-color:#94A3B8}
+#runBtn{width:100%;padding:14px;font-size:16px;font-weight:700;background:linear-gradient(135deg,var(--accent2),#059669);color:var(--white);border-radius:10px;margin-top:auto;min-height:52px;transition:all .3s;position:relative;overflow:hidden;box-shadow:0 3px 10px rgba(16,185,129,0.3);letter-spacing:0.5px}
+#runBtn.disabled{background:linear-gradient(135deg,#94A3B8,#64748B);cursor:not-allowed;box-shadow:none}
+#runBtn.ready{animation:runPulse 1.5s infinite}
+@keyframes runPulse{0%,100%{box-shadow:0 3px 10px rgba(16,185,129,.3)}50%{box-shadow:0 3px 20px rgba(16,185,129,.6)}}
+.run-msg{font-size:11px;color:var(--textLight);text-align:center;margin-top:4px}
+
+/* CENTER: ARENA */
+#arenaContainer{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+#focusPrompt{background:rgba(59,130,246,.1);border-bottom:2px solid var(--accent1);padding:10px 16px;font-size:14px;color:var(--accent1);font-weight:600;text-align:center;transition:opacity .5s;min-height:0}
+#focusPrompt.hidden{opacity:0;height:0;padding:0;border:0;overflow:hidden}
+#arena{flex:1;position:relative;overflow:hidden;background:#E8EEF4;display:flex;align-items:center;justify-content:center}
+
+/* RIGHT: DATA */
+#dataPanel{width:240px;min-width:240px;background:var(--white);border-left:2px solid #E2E8F0;padding:12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.meter-container{display:flex;flex-direction:column;align-items:center;gap:6px}
+.meter-label{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--textLight);letter-spacing:.5px;text-align:center}
+.meter-value{font-size:40px;font-weight:800;transition:color .5s;line-height:1}
+.meter-bar{width:54px;height:200px;border-radius:10px;background:linear-gradient(to bottom,#FEE2E2 0%,#E2E8F0 50%,#DCFCE7 100%);position:relative;overflow:hidden;border:3px solid #CBD5E1;box-shadow:inset 0 2px 6px rgba(0,0,0,0.08)}
+.meter-fill{position:absolute;bottom:0;width:100%;border-radius:0 0 7px 7px;transition:height 2s ease-out,background 2s ease-out}
+.meter-scale{position:absolute;right:-18px;top:0;height:100%;display:flex;flex-direction:column;justify-content:space-between;font-size:8px;color:#94A3B8;font-weight:600}
+.meter-snapshot{background:linear-gradient(135deg,#F0FDF4,#ECFDF5);border:2px solid var(--accent2);border-radius:var(--radiusSm);padding:10px;font-size:12px;text-align:center;display:none;box-shadow:0 2px 6px rgba(16,185,129,0.15)}
+.meter-snapshot .snap-val{font-size:24px;font-weight:800;color:var(--accent2)}
+.data-table-wrap{flex:1;overflow-y:auto}
+.data-table{width:100%;border-collapse:collapse;font-size:11px}
+.data-table th{background:var(--accent1);color:var(--white);padding:6px 4px;text-align:center;font-weight:600;position:sticky;top:0}
+.data-table td{padding:6px 4px;text-align:center;border-bottom:1px solid #E2E8F0;transition:background .3s}
+.data-table tr.current-row{background:rgba(59,130,246,.08)}
+.data-table tr.highlight-row{background:rgba(255,215,0,.15)}
+.data-table td.error-cell{color:var(--wrong);font-weight:700;cursor:pointer;text-decoration:underline}
+.data-table td.corrected-cell{color:var(--accent2);font-weight:700}
+.data-table td.glow-cell{animation:cellGlow 1s infinite}
+@keyframes cellGlow{0%,100%{box-shadow:inset 0 0 0 2px transparent}50%{box-shadow:inset 0 0 0 2px var(--gold)}}
+
+/* INTERACTION ZONE */
+#interactionZone{min-height:140px;max-height:220px;border-top:2px solid #E2E8F0;background:linear-gradient(180deg,#FFFFFF,#F8FAFC);padding:12px 16px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:10px;justify-content:flex-start}
+#izPrompt{font-size:15px;font-weight:600;color:var(--text);text-align:center;max-width:600px;word-wrap:break-word;overflow-wrap:break-word;line-height:1.5}
+#izOptions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:700px}
+.opt-card{padding:14px 18px;font-size:14px;font-weight:500;background:linear-gradient(135deg,#F8FAFC,#F1F5F9);border:2px solid #CBD5E1;border-radius:10px;cursor:pointer;transition:all .2s;min-height:48px;display:flex;align-items:center;text-align:center;max-width:280px;word-wrap:break-word;overflow-wrap:break-word;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.opt-card:hover{border-color:var(--accent1);background:#EFF6FF;box-shadow:0 2px 8px rgba(59,130,246,0.12)}
+.opt-card.selected{border-color:var(--accent1);background:linear-gradient(135deg,#DBEAFE,#EFF6FF);font-weight:700;box-shadow:0 2px 10px rgba(59,130,246,0.2)}
+.opt-card.correct-card{border-color:var(--correct);background:linear-gradient(135deg,#DCFCE7,#F0FDF4);pointer-events:none;box-shadow:0 2px 10px rgba(34,197,94,0.2)}
+.opt-card.wrong-card{border-color:var(--wrong);background:linear-gradient(135deg,#FEE2E2,#FEF2F2);opacity:.5;pointer-events:none}
+.opt-card.dimmed{opacity:.35;pointer-events:none;text-decoration:line-through}
+.opt-card.eliminated{opacity:.3;pointer-events:none;text-decoration:line-through;border-color:#94A3B8}
+#izActions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
+.action-btn{padding:12px 32px;font-size:15px;font-weight:700;border-radius:10px;min-height:48px;transition:all .2s;letter-spacing:0.3px}
+.lock-in-btn{background:linear-gradient(135deg,var(--accent1),#2563EB);color:var(--white);box-shadow:0 3px 10px rgba(59,130,246,0.25)}
+.lock-in-btn:hover{background:linear-gradient(135deg,#2563EB,#1D4ED8);box-shadow:0 4px 14px rgba(59,130,246,0.35)}
+.lock-in-btn.disabled{background:linear-gradient(135deg,#94A3B8,#64748B);cursor:not-allowed;pointer-events:none;box-shadow:none}
+.try-again-btn{background:linear-gradient(135deg,var(--accent1),#2563EB);color:var(--white);font-size:16px;padding:14px 40px;box-shadow:0 3px 12px rgba(59,130,246,0.3)}
+.try-again-btn:hover{box-shadow:0 4px 16px rgba(59,130,246,0.4)}
+.confirm-btn{background:linear-gradient(135deg,var(--accent2),#059669);color:var(--white);box-shadow:0 3px 10px rgba(16,185,129,0.25)}
+.confirm-btn:hover{background:linear-gradient(135deg,#059669,#047857);box-shadow:0 4px 14px rgba(16,185,129,0.35)}
+.tap-continue{padding:10px 24px;font-size:14px;font-weight:600;background:linear-gradient(135deg,var(--accent1),#2563EB);color:var(--white);border-radius:10px;animation:fadeInUp .5s;min-height:48px;box-shadow:0 3px 10px rgba(59,130,246,0.25)}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* COACHING BAR */
+.coaching-bar{background:linear-gradient(135deg,#FFF9C4,#FEF3C7);border:2px solid #FDE68A;border-radius:10px;padding:12px 16px;font-size:13px;color:#92400E;max-width:600px;text-align:center;animation:slideUp .3s;box-shadow:0 2px 8px rgba(251,191,36,0.15);line-height:1.5}
+.coaching-bar.hint2{background:linear-gradient(135deg,#FFE0B2,#FED7AA);border-color:#FDBA74;color:#9A3412;box-shadow:0 2px 8px rgba(251,146,60,0.15)}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* BOTTOM BAR */
+#bottomBar{display:flex;align-items:center;padding:8px 16px;background:linear-gradient(135deg,#FFFFFF,#F8FAFC);border-top:2px solid #E2E8F0;gap:10px;min-height:48px;flex-shrink:0;flex-wrap:wrap;box-shadow:0 -1px 4px rgba(0,0,0,0.03)}
+.bottom-btn{padding:8px 14px;font-size:13px;font-weight:600;border-radius:8px;background:linear-gradient(135deg,#F1F5F9,#E2E8F0);color:var(--textLight);border:1px solid #CBD5E1;min-height:40px;transition:all .2s;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+.bottom-btn:hover{background:linear-gradient(135deg,#E2E8F0,#CBD5E1);box-shadow:0 2px 4px rgba(0,0,0,0.08)}
+.bottom-btn.disabled{opacity:.4;pointer-events:none}
+.round-indicator{flex:1;text-align:center;font-size:13px;color:var(--textLight);font-weight:500}
+
+/* OVERLAYS */
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1000;display:flex;align-items:center;justify-content:center}
+.overlay-bg{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5)}
+.overlay-content{position:relative;z-index:1;background:var(--white);border-radius:var(--radius);padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.overlay-content h3{font-size:20px;margin-bottom:12px;color:var(--text)}
+.overlay-content p{font-size:14px;color:var(--textLight);margin-bottom:8px;line-height:1.5}
+.overlay-content .panel-nav{display:flex;gap:8px;justify-content:center;margin-top:12px}
+
+/* STEP BY STEP */
+.sbs-panel{font-size:14px;color:var(--text);line-height:1.6;min-height:60px}
+.sbs-dots{display:flex;gap:6px;justify-content:center;margin-top:8px}
+.sbs-dot{width:10px;height:10px;border-radius:50%;background:#CBD5E1}
+.sbs-dot.active{background:var(--accent1)}
+
+/* VOCAB POPUP */
+#vocabOverlay .overlay-content{max-width:420px;border-radius:16px;border:2px solid #E2E8F0}
+.vocab-item{padding:12px;border-bottom:1px solid #F1F5F9}
+.vocab-item:last-child{border-bottom:none}
+.vocab-term{font-weight:700;color:var(--accent1);font-size:16px;margin-bottom:4px;letter-spacing:0.5px}
+.vocab-def{font-size:14px;color:var(--textLight);line-height:1.4}
+
+/* CELEBRATION */
+#celebOverlay{pointer-events:none}
+#celebOverlay .celeb-content{background:transparent;text-align:center;pointer-events:none}
+.celeb-text{font-size:32px;font-weight:800;color:var(--white);text-shadow:0 3px 12px rgba(0,0,0,.6),0 0 40px rgba(59,130,246,0.3);animation:celebBounce .6s;letter-spacing:1px}
+.celeb-sub{font-size:20px;color:var(--white);text-shadow:0 2px 8px rgba(0,0,0,.5);margin-top:10px;opacity:0;animation:fadeInUp .5s .3s forwards}
+.affirmation-text{font-size:24px;color:var(--white);text-shadow:0 2px 8px rgba(0,0,0,.5);margin-top:14px;opacity:0;animation:fadeInUp .5s .5s forwards;font-style:italic}
+@keyframes celebBounce{0%{transform:scale(0) rotate(-5deg);opacity:0}60%{transform:scale(1.15) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+
+/* PARTICLES */
+#particleLayer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;overflow:hidden}
+.particle{position:absolute;width:10px;height:10px;border-radius:50%;display:none;pointer-events:none}
+@keyframes particleFall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.particle.active{display:block;animation:particleFall 2s ease-in forwards}
+
+/* PREDICTION BADGE */
+.predict-badge{position:absolute;top:8px;right:8px;background:rgba(139,92,246,.9);color:var(--white);font-size:11px;font-weight:600;padding:4px 10px;border-radius:12px;z-index:5}
+.predict-badge.correct-pred{background:rgba(34,197,94,.9)}
+.predict-badge.wrong-pred{background:rgba(249,115,22,.9)}
+
+/* CORRECTION PROMPT */
+.correction-prompt{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.corr-btn{padding:8px 16px;font-size:14px;font-weight:600;background:#F1F5F9;border:2px solid #CBD5E1;border-radius:6px;min-height:44px;cursor:pointer;transition:all .2s}
+.corr-btn:hover{border-color:var(--accent1);background:#EFF6FF}
+.corr-btn.correct-corr{border-color:var(--correct);background:#DCFCE7}
+
+/* GUIDED OVERLAY */
+.guided-msg{background:rgba(59,130,246,.08);border:2px solid var(--accent1);border-radius:var(--radiusSm);padding:10px 14px;font-size:14px;color:var(--accent1);font-weight:500;text-align:center;max-width:500px;animation:slideUp .3s}
+
+/* RECEIPT */
+#receiptScreen{flex-direction:column;align-items:center;padding:20px;overflow-y:auto;background:linear-gradient(135deg,var(--bg1),var(--bg2))}
+.receipt-box{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;width:min(640px,95%);max-width:640px}
+.receipt-header{text-align:center;margin-bottom:16px}
+.receipt-header h2{font-size:22px;color:var(--accent1)}
+.receipt-header h3{font-size:15px;color:var(--textLight)}
+.receipt-name-row{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.receipt-name-row input{flex:1;padding:10px;font-size:15px;border:2px solid #CBD5E1;border-radius:6px}
+.receipt-name-row button{padding:10px 20px;font-size:14px;font-weight:600;background:var(--accent1);color:var(--white);border-radius:6px;min-height:44px}
+.receipt-grade{text-align:center;margin:16px 0}
+.receipt-pct{font-size:52px;font-weight:800}
+.receipt-pct.green{color:var(--correct)}
+.receipt-pct.yellow{color:#F59E0B}
+.receipt-pct.red{color:var(--wrong)}
+.receipt-label{font-size:16px;font-weight:600;color:var(--textLight)}
+.receipt-table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+.receipt-table th{background:var(--accent1);color:var(--white);padding:8px;text-align:center}
+.receipt-table td{padding:8px;text-align:center;border-bottom:1px solid #E2E8F0}
+.receipt-table tr:nth-child(even) td{background:#F8FAFC}
+.receipt-table .bonus-row td{background:#FFFBEB}
+.receipt-table .score-green{color:var(--correct);font-weight:700}
+.receipt-table .score-yellow{color:#F59E0B;font-weight:700}
+.receipt-table .score-red{color:var(--wrong);font-weight:700}
+.receipt-footer{text-align:center;margin-top:16px}
+.receipt-footer p{font-size:14px;color:var(--textLight);margin-bottom:8px}
+.receipt-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+
+/* CHOICE OVERLAY */
+.choice-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:900;display:flex;align-items:center;justify-content:center}
+.choice-overlay .overlay-bg{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5)}
+.choice-box{position:relative;z-index:1;background:var(--white);border-radius:var(--radius);padding:28px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);max-width:400px;width:90%}
+.choice-box h3{font-size:22px;margin-bottom:8px}
+.choice-box p{font-size:14px;color:var(--textLight);margin-bottom:16px}
+.choice-box .choice-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.choice-box .choice-btns button{padding:14px 28px;font-size:15px;font-weight:700;border-radius:var(--radiusSm);min-height:52px}
+
+/* BINARY SWITCH */
+.binary-switch{display:flex;align-items:center;gap:12px;margin:10px auto}
+.switch-label{font-size:13px;font-weight:700;transition:color .3s}
+.switch-label.active-label{color:var(--accent1)}
+.switch-track{width:80px;height:40px;border-radius:20px;background:#E2E8F0;position:relative;cursor:pointer;border:2px solid #CBD5E1;transition:background .3s}
+.switch-track.on{background:var(--accent2);border-color:var(--accent2)}
+.switch-thumb{position:absolute;top:3px;left:3px;width:30px;height:30px;border-radius:50%;background:var(--white);box-shadow:0 2px 4px rgba(0,0,0,.2);transition:left .3s}
+.switch-track.on .switch-thumb{left:43px}
+
+/* ARENA SVG styles */
+.arena-scene{width:100%;height:100%;position:relative}
+.cage-bg{transition:all 1.5s ease-out}
+.rat-svg{transition:all 1s}
+.enrichment-item{opacity:0;transition:opacity .8s,transform .8s}
+.enrichment-item.visible{opacity:1;transform:scale(1)!important}
+.bottle{transition:all .5s}
+.bottle-active{animation:bottleGlow 2s infinite}
+@keyframes bottleGlow{0%,100%{opacity:1}50%{opacity:.7}}
+.arena-label{font-size:11px;font-weight:700;fill:var(--textLight);transition:opacity .5s}
+.arena-label.hidden-label{opacity:0}
+.same-rat-label{font-size:14px;font-weight:700;fill:var(--accent1);opacity:0;transition:opacity 1s}
+.same-rat-label.visible{opacity:1}
+.label-pill{rx:8;ry:8}
+.rat-breathe{animation:ratBreathe 2.5s ease-in-out infinite}
+@keyframes ratBreathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.03)}}
+.rat-agitated{animation:ratPace 1.2s ease-in-out infinite alternate}
+@keyframes ratPace{0%{transform:translateX(0)}100%{transform:translateX(8px)}}
+.rat-explore{animation:ratExplore 3s ease-in-out infinite alternate}
+@keyframes ratExplore{0%{transform:translateX(0) translateY(0)}33%{transform:translateX(5px) translateY(-3px)}66%{transform:translateX(-4px) translateY(2px)}100%{transform:translateX(3px) translateY(-1px)}}
+.wheel-spin{animation:wheelSpin 3s linear infinite}
+@keyframes wheelSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.sparkle{animation:sparkleFloat 4s ease-in-out infinite}
+@keyframes sparkleFloat{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:.8;transform:translateY(-6px)}}
+.drip-anim{animation:drip 2s ease-in infinite}
+@keyframes drip{0%{opacity:0;transform:translateY(-2px)}30%{opacity:.6}100%{opacity:0;transform:translateY(8px)}}
+
+/* Record check overlay inside IZ */
+.record-check{font-size:13px;color:var(--accent2);font-weight:600;text-align:center}
+
+/* Anti-guess coaching screen */
+.ag-screen{position:fixed;top:0;left:0;width:100%;height:100%;z-index:800;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)}
+.ag-box{background:var(--white);border-radius:var(--radius);padding:24px;max-width:400px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.ag-box p{font-size:15px;color:var(--text);line-height:1.6;margin-bottom:12px}
+.ag-timer{font-size:13px;color:var(--textLight)}
+
+/* Hotspot styles */
+.hotspot-row{cursor:pointer;transition:background .2s}
+.hotspot-row:hover{background:rgba(59,130,246,.08)!important}
+.hotspot-row.hs-correct{background:rgba(34,197,94,.15)!important}
+.hotspot-row.hs-wrong{background:rgba(239,68,68,.12)!important}
+.hotspot-row.hs-highlight{outline:3px solid var(--gold);outline-offset:-2px}
+
+/* Sequence/claim slots */
+.seq-slot{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F1F5F9;border:2px dashed #CBD5E1;border-radius:var(--radiusSm);min-height:44px;font-size:13px;color:var(--textLight)}
+.seq-slot.filled{border-style:solid;border-color:var(--accent2);background:#F0FDF4;color:var(--text);font-weight:600}
+.seq-rank{width:28px;height:28px;border-radius:50%;background:var(--accent1);color:var(--white);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+
+@media print{
+  .screen:not(#receiptScreen){display:none!important}
+  #receiptScreen{display:flex!important;position:static!important;overflow:visible!important}
+  #bottomBar,#topBar,.bottom-btn,.receipt-actions{display:none!important}
+  .receipt-box{box-shadow:none;width:100%;max-width:100%}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media(max-width:768px){
+  #mainArea{flex-direction:column}
+  #controlPanel,#dataPanel{width:100%;min-width:0;max-height:30vh;flex-direction:row;flex-wrap:wrap;border:none;border-bottom:2px solid #E2E8F0}
+  #controlPanel{order:1;max-height:none;min-height:auto}
+  #arenaContainer{order:2;min-height:200px}
+  #dataPanel{order:3;flex-direction:column;max-height:25vh;border-top:2px solid #E2E8F0;border-left:none}
+  .meter-bar{height:100px}
+}
+</style>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div id="welcomeScreen" class="screen active">
+  <div style="text-align:center">
+    <svg width="80" height="80" viewBox="0 0 80 80" style="margin-bottom:8px">
+      <circle cx="40" cy="40" r="38" fill="#EFF6FF" stroke="#3B82F6" stroke-width="2"/>
+      <text x="40" y="32" text-anchor="middle" style="font-size:28px">🔬</text>
+      <text x="40" y="54" text-anchor="middle" style="font-size:10px;font-weight:700;fill:#3B82F6">LAB</text>
+    </svg>
+  </div>
+  <h1>Mr. Jawad's Simulations</h1>
+  <h2>Addiction &amp; The Rat Park Experiment</h2>
+  <input type="text" id="studentNameInput" class="welcome-input" placeholder="Enter your name" maxlength="40" aria-label="Student name">
+  <input type="text" id="teacherNameInput" class="welcome-input" placeholder="Teacher name (optional)" maxlength="40" aria-label="Teacher name">
+  <button id="startBtn">Start Lab</button>
+  <div class="welcome-lt">I can manipulate environment variables in order to predict how isolation changes dependence levels.</div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen" class="screen">
+  <div id="topBar">
+    <span class="round-badge" id="roundBadge">Round 1 of 6</span>
+    <span class="round-name" id="roundName">First Test</span>
+    <span class="var-indicator" id="varIndicator">Testing: SOCIAL ACCESS</span>
+    <span class="hud-score" id="hudScore">Score: 0</span>
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+  <div id="mainArea">
+    <div id="controlPanel">
+      <div class="ctrl-header">VARIABLE <span class="badge">CONTROL</span></div>
+      <div class="ctrl-group" id="ctrlSocial">
+        <div class="ctrl-label">SOCIAL ACCESS <span class="lock-icon"></span></div>
+        <div class="selector-row">
+          <button class="sel-btn" data-var="social" data-val="alone">Alone</button>
+          <button class="sel-btn" data-var="social" data-val="8rats">With 8 Rats</button>
+        </div>
+      </div>
+      <div class="ctrl-group" id="ctrlSpace">
+        <div class="ctrl-label">SPACE SIZE <span class="lock-icon"></span></div>
+        <div class="selector-row">
+          <button class="sel-btn" data-var="space" data-val="small">Small Cage</button>
+          <button class="sel-btn" data-var="space" data-val="medium">Medium</button>
+          <button class="sel-btn" data-var="space" data-val="large">Large Park</button>
+        </div>
+      </div>
+      <div class="ctrl-group" id="ctrlEnrich">
+        <div class="ctrl-label">ENRICHMENT <span class="lock-icon"></span></div>
+        <div class="selector-row">
+          <button class="sel-btn" data-var="enrich" data-val="none">None</button>
+          <button class="sel-btn" data-var="enrich" data-val="some">Some</button>
+          <button class="sel-btn" data-var="enrich" data-val="full">Full</button>
+        </div>
+      </div>
+      <button id="runBtn" class="disabled">RUN EXPERIMENT</button>
+      <div class="run-msg" id="runMsg"></div>
+    </div>
+    <div id="arenaContainer">
+      <div id="focusPrompt" class="hidden"></div>
+      <div id="arena"></div>
+    </div>
+    <div id="dataPanel">
+      <div class="meter-container">
+        <div class="meter-label">DEPENDENCE LEVEL</div>
+        <div class="meter-value" id="meterValue">--</div>
+        <div style="position:relative">
+          <div class="meter-bar">
+            <div class="meter-fill" id="meterFill" style="height:0%;background:#E2E8F0"></div>
+          </div>
+          <div class="meter-scale"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
+        </div>
+      </div>
+      <div class="meter-snapshot" id="meterSnapshot">
+        <div style="font-size:11px;color:#64748B">Meter reading:</div>
+        <div class="snap-val" id="snapVal">--</div>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table" id="dataTable">
+          <thead><tr><th>Rnd</th><th>Variable</th><th>Setting</th><th>Level</th></tr></thead>
+          <tbody id="dataBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div id="interactionZone">
+    <div id="izPrompt"></div>
+    <div id="izOptions"></div>
+    <div id="izActions"></div>
+  </div>
+  <div id="bottomBar">
+    <button class="bottom-btn" id="vocabBtn">Vocab</button>
+    <button class="bottom-btn" id="hintBtn">Hint</button>
+    <span class="round-indicator" id="roundIndicatorBottom">Round 1 of 6</span>
+    <button class="bottom-btn" id="resetLevelBtn">Reset Level</button>
+  </div>
+</div>
+
+<!-- RECEIPT SCREEN -->
+<div id="receiptScreen" class="screen"></div>
+
+<!-- VOCAB OVERLAY -->
+<div id="vocabOverlay" class="overlay" style="display:none;z-index:1100">
+  <div class="overlay-bg" id="vocabClose"></div>
+  <div class="overlay-content">
+    <h3>Key Vocabulary</h3>
+    <div class="vocab-item"><div class="vocab-term">ISOLATION</div><div class="vocab-def">Cut off from social contact</div></div>
+    <div class="vocab-item"><div class="vocab-term">ENVIRONMENT</div><div class="vocab-def">Surroundings that shape your behavior</div></div>
+    <div class="vocab-item"><div class="vocab-term">DEPENDENCE</div><div class="vocab-def">Needing a substance to feel normal</div></div>
+    <div class="vocab-item"><div class="vocab-term">VARIABLE</div><div class="vocab-def">A factor you change to test</div></div>
+    <button class="action-btn lock-in-btn" style="margin-top:12px" id="vocabCloseBtn">Close</button>
+  </div>
+</div>
+
+<!-- CELEBRATION OVERLAY -->
+<div id="celebOverlay" class="overlay" style="display:none">
+  <div class="celeb-content">
+    <div class="celeb-text" id="celebText"></div>
+    <div class="celeb-sub" id="celebSub"></div>
+    <div class="affirmation-text" id="affirmText"></div>
+  </div>
+</div>
+
+<!-- PARTICLE LAYER -->
+<div id="particleLayer"></div>
+
+<script>
+"use strict";
+// ===== SANITIZE =====
+function escHtml(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+
+// ===== AUDIO (LAZY) =====
+let audioCtx=null;
+function getAudioCtx(){
+  try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+  catch(e){return null;}
+}
+function playTone(freq,dur){
+  try{const c=getAudioCtx();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=freq;g.gain.value=0.08;o.start();g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+dur);o.stop(c.currentTime+dur);}
+  catch(e){}
+}
+function playCorrectSound(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100);setTimeout(()=>playTone(784,.15),200)}
+function playWrongSound(){playTone(200,.2)}
+
+// ===== PARTICLES =====
+const PARTICLE_POOL=[];
+(function initParticles(){
+  const layer=document.getElementById('particleLayer');
+  for(let i=0;i<15;i++){const p=document.createElement('div');p.className='particle';p.style.display='none';layer.appendChild(p);PARTICLE_POOL.push(p)}
+})();
+let particleIdx=0;
+function launchParticles(count,colors){
+  const ct=Math.min(count,15);
+  for(let i=0;i<ct;i++){
+    const p=PARTICLE_POOL[particleIdx%15];particleIdx++;
+    p.style.display='none';p.classList.remove('active');
+    void p.offsetWidth;
+    p.style.left=Math.random()*100+'%';p.style.top='-10px';
+    p.style.width=(6+Math.random()*8)+'px';p.style.height=p.style.width;
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.display='block';p.classList.add('active');
+    const rm=()=>{p.style.display='none';p.classList.remove('active')};
+    p.addEventListener('animationend',rm,{once:true});
+    setTimeout(rm,2500);
+  }
+}
+
+// ===== GAME STATE =====
+const GS={
+  studentName:'',teacherName:'Mr. Jawad',
+  currentRound:0,phase:'',
+  totalScore:0,roundScores:[],roundTimes:[],
+  vars:{social:'alone',space:'small',enrich:'none'},
+  meterVal:0,
+  roundData:[],
+  processing:false,
+  wrongCount:0,consecutiveFastWrongs:0,phaseStartTime:0,
+  resets:0,hintsUsed:0,
+  roundStartTime:0,gameStartTime:0,
+  requiredCompleteShown:false,bonusCompleteShown:false,receiptRendered:false,
+  predictionChoice:null,predictionCorrect:null,
+  recordConfirmedFast:false,
+  varChanged:false
+};
+
+// ===== AFFIRMATIONS =====
+let lastAffirmIdx=-1;
+function getAffirmation(){
+  const pool=[
+    `${GS.teacherName} is proud of you!`,
+    `${GS.teacherName} knew you could do it!`,
+    `That's the kind of thinking ${GS.teacherName} loves to see!`,
+    `${GS.teacherName} says: you're getting it!`,
+    `Strong work — ${GS.teacherName} sees your effort!`,
+    `${GS.teacherName} is impressed right now!`,
+    `You're showing ${GS.teacherName} what you can do!`,
+    `${GS.teacherName} says: keep that energy!`
+  ];
+  let idx;do{idx=Math.floor(Math.random()*pool.length)}while(idx===lastAffirmIdx&&pool.length>1);
+  lastAffirmIdx=idx;return pool[idx];
+}
+
+// ===== TIMEOUTS/INTERVALS TRACKING =====
+let allTimeouts=[];let allIntervals=[];
+let _gameGen=0;// generation counter — bumped on resetCurrentLevel and startRound to invalidate stale callbacks
+function bumpGen(){_gameGen++}
+function safeTimeout(fn,ms){
+  const gen=_gameGen;
+  const id=setTimeout(()=>{allTimeouts=allTimeouts.filter(t=>t!==id);if(gen!==_gameGen)return;try{fn()}catch(e){console.error('Timeout error',e)}},ms);
+  allTimeouts.push(id);return id;
+}
+function rawTimeout(fn,ms){
+  // For visual-only timeouts (removing CSS class, fading) — fires regardless of round changes
+  const id=setTimeout(()=>{allTimeouts=allTimeouts.filter(t=>t!==id);try{fn()}catch(e){console.error('Timeout error',e)}},ms);
+  allTimeouts.push(id);return id;
+}
+function safeClearTimeout(id){clearTimeout(id);allTimeouts=allTimeouts.filter(t=>t!==id)}
+function safeInterval(fn,ms){const id=setInterval(()=>{try{fn()}catch(e){console.error('Interval error',e)}},ms);allIntervals.push(id);return id}
+function clearAllTimers(){allTimeouts.forEach(clearTimeout);allTimeouts=[];allIntervals.forEach(clearInterval);allIntervals=[]}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){allIntervals.forEach(clearInterval);allIntervals=[]}});
+
+// ===== OVERLAY MANAGEMENT =====
+function closeAllOverlays(){
+  document.querySelectorAll('.overlay:not(#vocabOverlay),.coaching-bar,.ag-screen,.choice-overlay,.guided-msg').forEach(el=>{
+    if(el.id==='celebOverlay'){el.style.display='none'}
+    else if(el.parentNode)el.remove()
+  });
+}
+
+// ===== SCREENS =====
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ===== ROUND DATA =====
+const ROUNDS=[
+  {// Round 1
+    num:1,name:'First Test — Social Access (Alone)',required:true,
+    activeVar:'social',lockedVars:['space','enrich'],
+    guidedInstruction:'Set Social Access to ALONE. Then press RUN EXPERIMENT.',
+    guidedTarget:{var:'social',val:'alone'},
+    focusPrompt:'Watch the morphine meter on the right side after you run the experiment with the rat alone.',
+    watchDuration:5000,meterTarget:85,
+    recordError:null,
+    proveMechanic:'coach-click',
+    provePrompt:'The meter reads 85 out of 100. What does that number mean for the rat?',
+    proveOptions:[
+      {id:'a',text:'The rat has high dependence on morphine'},
+      {id:'b',text:'The rat has low dependence on morphine'},
+      {id:'c',text:'The rat is not affected by morphine'}
+    ],
+    proveCorrect:'a',
+    wrongFeedback:{
+      b:{text:'85 out of 100 is near the top of the meter. Does that look low to you?',highlight:'meter'},
+      c:{text:'If the rat wasn\'t affected, the meter would be near 0. Where is it now?',highlight:'meter'}
+    },
+    hintLadder:{
+      hint1:{text:'Look at the morphine meter on the right side of the screen. The number at the top is 85. On a scale of 0 to 100, is that close to the top or the bottom?',action:'highlightMeter'},
+      hint2:{text:'The meter is at 85 — not zero. The rat IS affected. Is 85 high or low?',eliminate:'c'},
+      stepByStep:[
+        'The morphine meter goes from 0 (no dependence) to 100 (maximum dependence).',
+        'The rat\'s meter reads 85. That\'s near the top of the scale.',
+        '85 out of 100 = high dependence. Pick the answer that says high.'
+      ]
+    },
+    varLabel:'Social Access',settingLabel:'Alone',
+    predict:false
+  },
+  {// Round 2
+    num:2,name:'Second Test — Social Access (8 Rats)',required:true,
+    activeVar:'social',lockedVars:['space','enrich'],
+    guidedInstruction:'Now set Social Access to WITH 8 RATS. Then press RUN EXPERIMENT.',
+    guidedTarget:{var:'social',val:'8rats'},
+    focusPrompt:'Watch how the morphine meter changes when rats have company.',
+    watchDuration:5000,meterTarget:15,
+    recordError:{col:'level',shown:25,correct:15,options:[15,25,35]},
+    proveMechanic:'pick-match',
+    provePrompt:'What happened to dependence when you added social contact?',
+    proveOptions:[
+      {id:'a',text:'Dependence dropped from 85 to 15'},
+      {id:'b',text:'Dependence stayed at 85'},
+      {id:'c',text:'Dependence rose above 85'}
+    ],
+    proveCorrect:'a',
+    wrongFeedback:{
+      b:{text:'Check your data table. Compare the Morphine Level in Round 1 to Round 2.',highlight:'dataRows12'},
+      c:{text:'Look at the meter. Is the current level higher or lower than 85?',highlight:'meter'}
+    },
+    hintLadder:{
+      hint1:{text:'Look at your data table below the arena. Round 1 shows 85. Round 2 shows 15. Did dependence go up or down?',action:'highlightDataRows12'},
+      hint2:{text:'Dependence didn\'t rise — 15 is lower than 85. Did it drop or stay the same?',eliminate:'c'},
+      stepByStep:[
+        'Round 1: rat was alone. Morphine level = 85.',
+        'Round 2: rat had 8 companions. Morphine level = 15.',
+        'Dependence dropped from 85 to 15. Pick the card that says this.'
+      ]
+    },
+    varLabel:'Social Access',settingLabel:'With 8 Rats',
+    predict:false
+  },
+  {// Round 3 - TODO
+    num:3,name:'Space Test — Does Size Matter?',required:true,
+    activeVar:'space',lockedVars:['social','enrich'],
+    guidedInstruction:null,guidedTarget:null,
+    focusPrompt:'Watch the morphine meter carefully. Does making the cage bigger have the same effect as adding friends?',
+    watchDuration:5000,meterTarget:65,
+    recordError:{col:'level',shown:56,correct:65,options:[56,65,75]},
+    proveMechanic:'hotspot',
+    provePrompt:'Click the row where dependence dropped the MOST from 85.',
+    proveOptions:[],proveCorrect:'row2',
+    wrongFeedback:{
+      row3:{text:'That row shows 65. Row 2 shows 15. Which number is farther from 85?',highlight:'dataRows23'},
+      row1:{text:'That\'s the starting point — 85. Look for the row where the number dropped the most FROM 85.',highlight:'dataRows23'}
+    },
+    hintLadder:{
+      hint1:{text:'Look at the Morphine Level column. You see 85, 15, and 65. Which number is the farthest from 85?',action:'highlightLevelCol'},
+      hint2:{text:'85 to 15 is a drop of 70 points. 85 to 65 is a drop of only 20. Click the row with 15.',action:'highlightRow2'},
+      stepByStep:[
+        'Social contact dropped dependence from 85 to 15 — that\'s 70 points.',
+        'Space dropped dependence from 85 to 65 — that\'s only 20 points.',
+        '70 is a bigger drop than 20. Click the row that shows 15.'
+      ]
+    },
+    varLabel:'Space Size',settingLabel:'Large Park',
+    predict:false
+  },
+  {// Round 4 - TODO
+    num:4,name:'Enrichment Test — Predict First',required:true,
+    activeVar:'enrich',lockedVars:['social','space'],
+    guidedInstruction:null,guidedTarget:null,
+    focusPrompt:'Before you run this test, predict what will happen. Then watch the meter to see if you were right.',
+    watchDuration:5000,meterTarget:58,
+    recordError:null,
+    proveMechanic:'what-comes-next',
+    provePrompt:'Social access had the biggest effect. Which came second?',
+    proveOptions:[
+      {id:'enrich',text:'Enrichment: 85 \u2192 58'},
+      {id:'space',text:'Space Size: 85 \u2192 65'}
+    ],
+    proveCorrect:'enrich',
+    wrongFeedback:{
+      space:{text:'Compare the two numbers. Enrichment dropped to 58. Space dropped to 65. Which number is lower — meaning which dropped MORE from 85?',highlight:'dataRows34'}
+    },
+    hintLadder:{
+      hint1:{text:'Look at the Morphine Level column in your data table. Enrichment = 58 and Space = 65. Which number is lower?',action:'highlightDataRows34'},
+      hint2:{text:'Lower number = bigger drop from 85. 58 is lower than 65. Which variable had the bigger effect?',action:'highlightRow4'},
+      stepByStep:[
+        'Enrichment: 85 \u2192 58. That\'s a drop of 27 points.',
+        'Space: 85 \u2192 65. That\'s a drop of only 20 points.',
+        '27 is more than 20, so enrichment had a bigger effect. Tap the Enrichment card.'
+      ]
+    },
+    varLabel:'Enrichment',settingLabel:'Full Enrichment',
+    predict:true,
+    predictText:'If I add full enrichment (wheels, platforms, hiding spots) but keep the rat ALONE, I think...',
+    predictA:{text:'Dependence will drop some, but not as much as social contact.',correct:true},
+    predictB:{text:'Dependence will barely change because the rat is still alone.',correct:false},
+    predictFeedbackCorrect:'Correct! Enrichment helped — 85 dropped to 58. But social contact dropped it to 15, so enrichment helped less.',
+    predictFeedbackWrong:'Not quite — 85 dropped to 58. Enrichment did make a difference, even though the rat was still alone. But it wasn\'t as strong as social contact (15).'
+  },
+  {// Round 5 - TODO
+    num:5,name:'The Full Rat Park Combo',required:false,
+    activeVar:'multi_social_enrich',lockedVars:['space'],
+    guidedInstruction:null,guidedTarget:null,
+    focusPrompt:'You\'re unlocking two variables at once. Predict what happens when you give the rat BOTH friends AND enrichment.',
+    watchDuration:6000,meterTarget:8,
+    recordError:null,
+    proveMechanic:'claim-builder',
+    provePrompt:'Which explanation fits the data from all five rounds?',
+    proveOptions:[
+      {id:'a',text:'Social contact and enrichment together reduced dependence to 8 because the rat had more reasons not to use the drug.'},
+      {id:'b',text:'Social contact alone was enough — adding enrichment barely changed the result from 15 to 8.'},
+      {id:'c',text:'Each variable had about the same effect, so it doesn\'t matter which one you change.'}
+    ],
+    proveCorrect:'a',
+    wrongFeedback:{
+      b:{text:'15 to 8 — is that barely a change? The combination still cut dependence almost in half again. Check Rows 2 and 5.',highlight:'dataRows25'},
+      c:{text:'Check the Morphine Level column. Social access = 15, enrichment = 58, space = 65. Those are NOT the same.',highlight:'levelCol'}
+    },
+    hintLadder:{
+      hint1:{text:'Look at the Morphine Level column. Social alone = 15. Social + enrichment = 8. Did adding enrichment make a difference?',action:'highlightRows25'},
+      hint2:{text:'The data shows different numbers for each variable — they didn\'t all have the same effect. Now compare Cards A and B.',eliminate:'c'},
+      stepByStep:[
+        'Social contact alone brought dependence to 15. Adding enrichment brought it to 8. That\'s a real difference.',
+        'So the combination helped MORE than social contact alone — the rat had friends AND activities.',
+        'Pick the card that says the combination reduced dependence because the rat had more reasons not to use the drug.'
+      ]
+    },
+    varLabel:'Social Access + Enrichment',settingLabel:'8 Rats + Full',
+    predict:true,
+    predictText:'If I give the rat social contact AND full enrichment at the same time, I think...',
+    predictA:{text:'Dependence will stay about the same as social contact alone — friends are enough.',correct:false},
+    predictB:{text:'Dependence will drop to almost zero — the rat won\'t need the drug at all.',correct:true},
+    predictFeedbackCorrect:'You nailed it! Combining social contact with enrichment dropped dependence to almost nothing — just 8.',
+    predictFeedbackWrong:'Friends helped a lot (15), but adding enrichment dropped it even further to 8. The combination made a real difference.'
+  },
+  {// Round 6 - TODO
+    num:6,name:'The Big Switch — Same Rat, New Environment',required:false,
+    activeVar:'binary_switch',lockedVars:[],
+    guidedInstruction:null,guidedTarget:null,
+    focusPrompt:'Watch what happens to the SAME rat when you flip the environment from Isolation to Rat Park.',
+    watchDuration:7000,meterTarget:5,
+    recordError:null,
+    proveMechanic:'coach-click',
+    provePrompt:'The rat stayed the same. The environment changed. What does that prove?',
+    proveOptions:[
+      {id:'a',text:'The environment shapes dependence, not just the drug.'},
+      {id:'b',text:'The rat got used to the drug over time.'},
+      {id:'c',text:'The drug stopped working in a bigger space.'}
+    ],
+    proveCorrect:'a',
+    wrongFeedback:{
+      b:{text:'The switch happened instantly — the rat didn\'t have time to "get used to" anything. What changed was the environment.',highlight:'switch'},
+      c:{text:'The drug was exactly the same in both conditions. Look at what actually changed.',highlight:'switch'}
+    },
+    hintLadder:{
+      hint1:{text:'Look at the switch at the top of the control panel. It went from ISOLATION to RAT PARK. The rat is the same. The drug is the same. Only the environment changed.',action:'highlightSwitch'},
+      hint2:{text:'The drug didn\'t stop working — it was the same morphine. Something else explains why the rat stopped drinking it.',eliminate:'c'},
+      stepByStep:[
+        'Same rat. Same drug. The only thing that changed was the environment.',
+        'The meter went from 85 to 5. The environment change caused the dependence to drop.',
+        'Pick the answer that says the environment shapes dependence.'
+      ]
+    },
+    varLabel:'Environment Type',settingLabel:'Isolation \u2192 Rat Park',
+    predict:false
+  }
+];
+
+// ===== SCORING =====
+function calcRoundScore(hints,resets){
+  if(resets>=1)return 50;
+  if(hints>=3)return 60;
+  if(hints>=2)return 70;
+  if(hints>=1)return 85;
+  return 100;
+}
+function calcOverall(){
+  const reqScores=GS.roundScores.filter((_,i)=>ROUNDS[i].required).filter(s=>s>0);
+  if(reqScores.length===0)return 0;
+  const base=reqScores.reduce((s,v)=>s+v,0)/4; // always divide by 4 total required
+  const bonus=GS.roundScores.filter((_,i)=>!ROUNDS[i].required&&GS.roundScores[i]>0).length*5;
+  return Math.min(100,Math.round(base+bonus));
+}
+
+// ===== UI HELPERS =====
+function updateHUD(){
+  const r=ROUNDS[GS.currentRound];
+  document.getElementById('roundBadge').textContent=`Round ${r.num} of 6`;
+  document.getElementById('roundName').textContent=r.name;
+  document.getElementById('varIndicator').textContent=r.activeVar==='binary_switch'?'Testing: ENVIRONMENT TYPE':r.activeVar==='multi_social_enrich'?'Testing: SOCIAL ACCESS + ENRICHMENT':`Testing: ${r.varLabel.toUpperCase()}`;
+  document.getElementById('hudScore').textContent=`Score: ${GS.totalScore}`;
+  document.getElementById('roundIndicatorBottom').textContent=`Round ${r.num} of 6`;
+  // Progress
+  const pb=document.getElementById('progressBar');
+  pb.innerHTML='';
+  for(let i=0;i<6;i++){
+    const seg=document.createElement('div');
+    seg.className='progress-seg';
+    if(!ROUNDS[i].required)seg.classList.add('bonus');
+    if(i<GS.currentRound)seg.classList.add('done');
+    if(i===GS.currentRound)seg.classList.add('current');
+    pb.appendChild(seg);
+  }
+}
+
+function updateMeter(val,animate=true){
+  GS.meterVal=val;
+  const fill=document.getElementById('meterFill');
+  const valEl=document.getElementById('meterValue');
+  const pct=Math.max(0,Math.min(100,val));
+  const r=Math.round(pct*2.55);const g=Math.round((100-pct)*2.55);
+  fill.style.transition=animate?'height 2s ease-out, background 2s ease-out':'none';
+  fill.style.height=pct+'%';
+  fill.style.background=`rgb(${r},${g},60)`;
+  valEl.textContent=val;
+  valEl.style.color=val>60?'#EF4444':val>30?'#F59E0B':'#22C55E';
+}
+
+function showSnapshot(val){
+  const snap=document.getElementById('meterSnapshot');
+  snap.style.display='block';
+  document.getElementById('snapVal').textContent=val;
+  document.getElementById('snapVal').style.color=val>60?'#EF4444':val>30?'#F59E0B':'#22C55E';
+}
+function hideSnapshot(){document.getElementById('meterSnapshot').style.display='none'}
+
+function addDataRow(round,varChanged,setting,level,isError,shownVal){
+  const body=document.getElementById('dataBody');
+  const tr=document.createElement('tr');
+  tr.className='current-row';tr.dataset.round=round;
+  const displayLevel=isError?shownVal:level;
+  tr.innerHTML=`<td>${round}</td><td style="font-size:10px">${escHtml(varChanged)}</td><td style="font-size:10px">${escHtml(setting)}</td><td class="${isError?'error-cell':''}" data-correct="${level}">${displayLevel}</td>`;
+  body.appendChild(tr);
+  // Remove current-row from others
+  body.querySelectorAll('tr').forEach(r=>{if(r!==tr)r.classList.remove('current-row')});
+  return tr;
+}
+
+function clearIZ(){
+  document.getElementById('izPrompt').textContent='';
+  document.getElementById('izOptions').innerHTML='';
+  document.getElementById('izActions').innerHTML='';
+}
+
+function setFocus(text){
+  const fp=document.getElementById('focusPrompt');
+  fp.textContent=text;fp.classList.remove('hidden');
+  safeTimeout(()=>{fp.style.opacity='.5';fp.style.fontSize='12px'},3000);
+}
+function hideFocus(){
+  const fp=document.getElementById('focusPrompt');
+  fp.classList.add('hidden');fp.style.opacity='';fp.style.fontSize='';
+}
+
+// ===== ARENA RENDERING =====
+let arenaGen=0;
+
+function buildArena(social,space,enrich,meterVal,opts={}){
+  arenaGen++;
+  const arena=document.getElementById('arena');
+  while(arena.firstChild)arena.removeChild(arena.firstChild);
+
+  const w=arena.clientWidth||600;const h=arena.clientHeight||350;
+  const isLarge=space==='large';const isMed=space==='medium';
+  const isAlone=social==='alone';
+  const hasEnrich=enrich==='full'||enrich==='some';
+  const isFullEnrich=enrich==='full';
+  const highDep=meterVal>50;
+
+  // Cage geometry
+  const cageW=isLarge?w*0.88:isMed?w*0.68:w*0.42;
+  const cageH=isLarge?h*0.78:isMed?h*0.68:h*0.55;
+  const cageX=(w-cageW)/2;
+  const cageY=h*0.12;
+  const floorY=cageY+cageH;
+
+  // Color palette based on environment quality
+  const wallC=isLarge?'#6D5D4E':isMed?'#78716C':'#52525B';
+  const wallCLight=isLarge?'#8B7D6B':isMed?'#A8A29E':'#71717A';
+  const floorC=isLarge?'#C4A97D':isMed?'#B8A990':'#94A3B8';
+  const floorCLight=isLarge?'#D4BC96':isMed?'#C9BBB0':'#CBD5E1';
+  const beddingC=isLarge?'#E8D5B7':'#D6D3D1';
+
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+  svg.setAttribute('width','100%');svg.setAttribute('height','100%');
+  svg.style.maxWidth='100%';svg.style.maxHeight='100%';
+
+  let svgContent='';
+
+  // ── DEFS ──
+  svgContent+=`<defs>
+    <linearGradient id="labBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8EEF4"/>
+      <stop offset="100%" stop-color="#D1D9E6"/>
+    </linearGradient>
+    <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${wallCLight}"/>
+      <stop offset="100%" stop-color="${wallC}"/>
+    </linearGradient>
+    <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${floorC}"/>
+      <stop offset="60%" stop-color="${floorCLight}"/>
+      <stop offset="100%" stop-color="${floorC}"/>
+    </linearGradient>
+    <linearGradient id="morphGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FCA5A5"/>
+      <stop offset="100%" stop-color="#DC2626"/>
+    </linearGradient>
+    <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#93C5FD"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="glassGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+      <stop offset="50%" stop-color="white" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0.2"/>
+    </linearGradient>
+    <pattern id="beddingPat" width="12" height="8" patternUnits="userSpaceOnUse">
+      <rect width="12" height="8" fill="${beddingC}"/>
+      <line x1="0" y1="2" x2="6" y2="1" stroke="${floorC}" stroke-width="0.5" opacity="0.4"/>
+      <line x1="4" y1="6" x2="11" y2="5" stroke="${floorC}" stroke-width="0.5" opacity="0.3"/>
+      <line x1="2" y1="4" x2="9" y2="3.5" stroke="${floorC}" stroke-width="0.4" opacity="0.25"/>
+    </pattern>
+    ${isLarge?`<pattern id="grassPat" width="16" height="10" patternUnits="userSpaceOnUse">
+      <rect width="16" height="10" fill="#C4A97D"/>
+      <path d="M2,10 Q2,6 3,4" stroke="#8B9E6B" stroke-width="0.6" fill="none" opacity="0.5"/>
+      <path d="M7,10 Q7.5,5 6,3" stroke="#7A8F5E" stroke-width="0.5" fill="none" opacity="0.4"/>
+      <path d="M12,10 Q11,7 13,5" stroke="#8B9E6B" stroke-width="0.5" fill="none" opacity="0.45"/>
+    </pattern>`:''}
+  </defs>`;
+
+  // ── BACKGROUND: LAB ROOM ──
+  svgContent+=`<rect width="${w}" height="${h}" fill="url(#labBg)"/>`;
+  // Lab wall tiles
+  for(let tx=0;tx<w;tx+=40){
+    svgContent+=`<line x1="${tx}" y1="0" x2="${tx}" y2="${cageY-2}" stroke="#C8D0DC" stroke-width="0.5" opacity="0.4"/>`;
+  }
+  for(let ty=0;ty<cageY;ty+=30){
+    svgContent+=`<line x1="0" y1="${ty}" x2="${w}" y2="${ty}" stroke="#C8D0DC" stroke-width="0.5" opacity="0.4"/>`;
+  }
+  // Lab shelf
+  svgContent+=`<rect x="${w-70}" y="8" width="55" height="6" rx="1" fill="#A8A29E" opacity="0.5"/>
+    <rect x="${w-60}" y="2" width="8" height="6" rx="2" fill="#7DD3FC" opacity="0.4"/>
+    <rect x="${w-48}" y="1" width="6" height="7" rx="1" fill="#FCA5A5" opacity="0.4"/>
+    <rect x="${w-38}" y="3" width="7" height="5" rx="1" fill="#BBF7D0" opacity="0.4"/>`;
+  // Lab bench line
+  svgContent+=`<rect x="0" y="${floorY+2}" width="${w}" height="${h-floorY-2}" rx="0" fill="#CBD5E1" opacity="0.3"/>`;
+
+  // ── CAGE / ENCLOSURE ──
+  // Back wall
+  svgContent+=`<rect x="${cageX}" y="${cageY}" width="${cageW}" height="${cageH}" rx="3" fill="url(#wallGrad)" opacity="0.25"/>`;
+  // Floor with bedding texture
+  const floorH=cageH*0.35;
+  svgContent+=`<rect x="${cageX+2}" y="${floorY-floorH}" width="${cageW-4}" height="${floorH}" fill="${isLarge?'url(#grassPat)':'url(#beddingPat)'}" rx="2"/>`;
+  // Floor surface highlight
+  svgContent+=`<rect x="${cageX+2}" y="${floorY-floorH}" width="${cageW-4}" height="3" fill="${floorCLight}" opacity="0.5" rx="1"/>`;
+
+  // Side walls (3D perspective)
+  const wallThick=isLarge?6:isMed?7:8;
+  // Left wall
+  svgContent+=`<rect x="${cageX}" y="${cageY}" width="${wallThick}" height="${cageH}" fill="url(#wallGrad)" rx="2"/>
+    <rect x="${cageX}" y="${cageY}" width="${wallThick}" height="${cageH}" fill="white" opacity="0.08" rx="2"/>`;
+  // Right wall
+  svgContent+=`<rect x="${cageX+cageW-wallThick}" y="${cageY}" width="${wallThick}" height="${cageH}" fill="url(#wallGrad)" rx="2"/>`;
+  // Top edge (rim)
+  svgContent+=`<rect x="${cageX}" y="${cageY}" width="${cageW}" height="5" rx="2" fill="${wallC}"/>
+    <rect x="${cageX}" y="${cageY}" width="${cageW}" height="2" rx="1" fill="${wallCLight}" opacity="0.6"/>`;
+  // Bottom edge
+  svgContent+=`<rect x="${cageX}" y="${floorY-2}" width="${cageW}" height="4" rx="2" fill="${wallC}"/>`;
+
+  // Cage bars for small cage
+  if(!isLarge&&!isMed){
+    const barSpacing=cageW/8;
+    for(let i=1;i<8;i++){
+      const bx=cageX+i*barSpacing;
+      svgContent+=`<line x1="${bx}" y1="${cageY+5}" x2="${bx}" y2="${floorY-2}" stroke="#71717A" stroke-width="2" opacity="0.35"/>
+        <line x1="${bx+0.5}" y1="${cageY+5}" x2="${bx+0.5}" y2="${floorY-2}" stroke="white" stroke-width="0.5" opacity="0.15"/>`;
+    }
+    // Cross bar
+    const crossY=cageY+cageH*0.35;
+    svgContent+=`<line x1="${cageX+wallThick}" y1="${crossY}" x2="${cageX+cageW-wallThick}" y2="${crossY}" stroke="#71717A" stroke-width="2" opacity="0.25"/>`;
+  }
+
+  // Open fence for large park
+  if(isLarge){
+    // Wooden fence posts
+    const postSpacing=cageW/10;
+    for(let i=0;i<=10;i++){
+      const px=cageX+i*postSpacing;
+      svgContent+=`<rect x="${px-2}" y="${cageY-5}" width="4" height="${cageH*0.4}" rx="1" fill="#8B7355" opacity="0.6"/>
+        <rect x="${px-1.5}" y="${cageY-5}" width="1" height="${cageH*0.4}" fill="#A69279" opacity="0.3"/>`;
+    }
+    // Horizontal rails
+    svgContent+=`<line x1="${cageX}" y1="${cageY+8}" x2="${cageX+cageW}" y2="${cageY+8}" stroke="#8B7355" stroke-width="3" opacity="0.5"/>
+      <line x1="${cageX}" y1="${cageY+cageH*0.25}" x2="${cageX+cageW}" y2="${cageY+cageH*0.25}" stroke="#8B7355" stroke-width="3" opacity="0.4"/>`;
+  }
+
+  // ── BOTTLES (water + morphine) ──
+  const bottleZoneX=cageX+cageW-wallThick-10;
+  const bottleBaseY=floorY-floorH-2;
+  // Morphine bottle (taller, red-tinted)
+  const mbx=bottleZoneX-20;const mby=bottleBaseY-52;
+  const morphActive=highDep;
+  svgContent+=`<g class="bottle ${morphActive?'bottle-active':''}">
+    <!-- Bottle body -->
+    <rect x="${mbx}" y="${mby}" width="22" height="42" rx="4" fill="#F9E2E2" stroke="#E5ABAB" stroke-width="1.5"/>
+    <!-- Liquid fill -->
+    <rect x="${mbx+2}" y="${mby+8}" width="18" height="32" rx="3" fill="url(#morphGrad)" opacity="0.75"/>
+    <!-- Glass highlight -->
+    <rect x="${mbx+3}" y="${mby+2}" width="5" height="36" rx="2" fill="url(#glassGrad)"/>
+    <!-- Cap -->
+    <rect x="${mbx+4}" y="${mby-6}" width="14" height="8" rx="3" fill="#991B1B"/>
+    <rect x="${mbx+6}" y="${mby-7}" width="10" height="3" rx="1.5" fill="#B91C1C"/>
+    <!-- Spout tube -->
+    <line x1="${mbx+11}" y1="${mby+42}" x2="${mbx+11}" y2="${bottleBaseY+8}" stroke="#B91C1C" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="${mbx+11}" cy="${bottleBaseY+10}" r="3" fill="#DC2626" opacity="0.6"/>
+    ${morphActive?`<!-- Drip -->
+    <circle cx="${mbx+11}" cy="${bottleBaseY+14}" r="1.5" fill="#DC2626" class="drip-anim" opacity="0.5"/>`:''}
+    <!-- Label -->
+    <rect x="${mbx-2}" y="${mby+15}" width="26" height="14" rx="3" fill="white" opacity="0.85"/>
+    <text x="${mbx+11}" y="${mby+25}" text-anchor="middle" style="font-size:7px;font-weight:800;fill:#B91C1C;letter-spacing:0.3px">MORPH</text>
+    <!-- Skull icon hint -->
+    <text x="${mbx+11}" y="${mby+48+18}" text-anchor="middle" style="font-size:9px;font-weight:700;fill:#DC2626">Morphine</text>
+  </g>`;
+
+  // Water bottle (shorter, blue)
+  const wbx=bottleZoneX-48;const wby=bottleBaseY-42;
+  svgContent+=`<g class="bottle">
+    <rect x="${wbx}" y="${wby}" width="18" height="34" rx="4" fill="#E0F2FE" stroke="#93C5FD" stroke-width="1.5"/>
+    <rect x="${wbx+2}" y="${wby+10}" width="14" height="22" rx="3" fill="url(#waterGrad)" opacity="0.6"/>
+    <rect x="${wbx+3}" y="${wby+2}" width="4" height="28" rx="2" fill="url(#glassGrad)"/>
+    <rect x="${wbx+3}" y="${wby-5}" width="12" height="7" rx="3" fill="#1E40AF" opacity="0.7"/>
+    <line x1="${wbx+9}" y1="${wby+34}" x2="${wbx+9}" y2="${bottleBaseY+6}" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="${wbx+9}" cy="${bottleBaseY+8}" r="2.5" fill="#3B82F6" opacity="0.4"/>
+    <text x="${wbx+9}" y="${wby+42+14}" text-anchor="middle" style="font-size:9px;font-weight:700;fill:#3B82F6">Water</text>
+  </g>`;
+
+  // ── ENRICHMENT ITEMS ──
+  let enrichSVG='';
+  if(hasEnrich){
+    const vis=opts.animate?'':'visible';
+    const scl=opts.animate?'transform:scale(0)':'';
+
+    // ─ Running Wheel ─
+    const wX=cageX+wallThick+cageW*0.08;const wY=floorY-floorH-38;const wR=28;
+    enrichSVG+=`<g class="enrichment-item ${vis}" style="transform-origin:${wX+wR}px ${wY+wR}px;${scl}">
+      <!-- Wheel stand -->
+      <rect x="${wX+wR-3}" y="${wY+wR+6}" width="6" height="18" rx="2" fill="#92400E"/>
+      <rect x="${wX+wR-12}" y="${wY+wR+22}" width="24" height="4" rx="2" fill="#92400E"/>
+      <!-- Wheel rim -->
+      <circle cx="${wX+wR}" cy="${wY+wR}" r="${wR}" fill="none" stroke="#D97706" stroke-width="4"/>
+      <circle cx="${wX+wR}" cy="${wY+wR}" r="${wR}" fill="none" stroke="#FDE68A" stroke-width="1" opacity="0.5"/>
+      <!-- Spokes (static, no spinning - Chromebook safe) -->
+      <g>
+        ${[0,45,90,135].map(a=>{
+          const rad=a*Math.PI/180;
+          const x1=wX+wR+Math.cos(rad)*6;const y1=wY+wR+Math.sin(rad)*6;
+          const x2=wX+wR+Math.cos(rad)*(wR-2);const y2=wY+wR+Math.sin(rad)*(wR-2);
+          return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#D97706" stroke-width="1.5" opacity="0.6"/>`;
+        }).join('')}
+      </g>
+      <!-- Hub -->
+      <circle cx="${wX+wR}" cy="${wY+wR}" r="5" fill="#B45309"/>
+      <circle cx="${wX+wR}" cy="${wY+wR}" r="3" fill="#D97706"/>
+      <!-- Treads -->
+      <circle cx="${wX+wR}" cy="${wY+wR}" r="${wR}" fill="none" stroke="#B45309" stroke-width="1" stroke-dasharray="4,6" opacity="0.4"/>
+      <text x="${wX+wR}" y="${wY+wR+32}" text-anchor="middle" style="font-size:8px;font-weight:700;fill:#92400E">Wheel</text>
+    </g>`;
+
+    // ─ Platform with Ramp ─
+    const pX=cageX+cageW*0.35;const pY=floorY-floorH-15;const pW=55;const pH=6;
+    enrichSVG+=`<g class="enrichment-item ${vis}" style="transform-origin:${pX+pW/2}px ${pY}px;${scl}">
+      <!-- Platform top -->
+      <rect x="${pX}" y="${pY}" width="${pW}" height="${pH}" rx="2" fill="#7C3AED"/>
+      <rect x="${pX}" y="${pY}" width="${pW}" height="2" rx="1" fill="#A78BFA" opacity="0.6"/>
+      <!-- Support legs -->
+      <rect x="${pX+4}" y="${pY+pH}" width="5" height="22" rx="1" fill="#6D28D9"/>
+      <rect x="${pX+pW-9}" y="${pY+pH}" width="5" height="22" rx="1" fill="#6D28D9"/>
+      <!-- Cross brace -->
+      <line x1="${pX+6}" y1="${pY+pH+12}" x2="${pX+pW-6}" y2="${pY+pH+12}" stroke="#6D28D9" stroke-width="2" opacity="0.5"/>
+      <!-- Ramp -->
+      <polygon points="${pX+pW-2},${pY+pH} ${pX+pW+18},${pY+pH+24} ${pX+pW+18},${pY+pH+28} ${pX+pW-6},${pY+pH}" fill="#8B5CF6" opacity="0.7"/>
+      <line x1="${pX+pW}" y1="${pY+pH+2}" x2="${pX+pW+16}" y2="${pY+pH+26}" stroke="#7C3AED" stroke-width="1" opacity="0.4"/>
+      <!-- Grip lines on ramp -->
+      ${[0.25,0.5,0.75].map(f=>{
+        const rx=pX+pW-2+(20*f);const ry=pY+pH+(28*f);
+        return `<line x1="${rx-4}" y1="${ry}" x2="${rx+4}" y2="${ry-1}" stroke="#6D28D9" stroke-width="0.8" opacity="0.4"/>`;
+      }).join('')}
+      <text x="${pX+pW/2}" y="${pY-4}" text-anchor="middle" style="font-size:8px;font-weight:700;fill:#5B21B6">Platform</text>
+    </g>`;
+
+    // ─ Tunnel (full enrichment only) ─
+    if(isFullEnrich){
+      const tX=cageX+cageW*0.52;const tY=floorY-floorH+2;const tW=44;const tH=24;
+      enrichSVG+=`<g class="enrichment-item ${vis}" style="transform-origin:${tX+tW/2}px ${tY+tH/2}px;${scl}">
+        <!-- Tunnel body -->
+        <ellipse cx="${tX+tW/2}" cy="${tY+tH/2+2}" rx="${tW/2}" ry="${tH/2+2}" fill="#78716C"/>
+        <ellipse cx="${tX+tW/2}" cy="${tY+tH/2}" rx="${tW/2}" ry="${tH/2}" fill="#A8A29E"/>
+        <!-- Highlight -->
+        <ellipse cx="${tX+tW/2}" cy="${tY+tH/2-2}" rx="${tW/2-3}" ry="${tH/2-4}" fill="#D6D3D1" opacity="0.5"/>
+        <!-- Opening left -->
+        <ellipse cx="${tX+4}" cy="${tY+tH/2}" rx="7" ry="${tH/2-2}" fill="#57534E"/>
+        <ellipse cx="${tX+4}" cy="${tY+tH/2}" rx="5" ry="${tH/2-4}" fill="#44403C"/>
+        <!-- Opening right -->
+        <ellipse cx="${tX+tW-4}" cy="${tY+tH/2}" rx="7" ry="${tH/2-2}" fill="#57534E"/>
+        <ellipse cx="${tX+tW-4}" cy="${tY+tH/2}" rx="5" ry="${tH/2-4}" fill="#44403C"/>
+        <!-- Texture rings -->
+        ${[0.3,0.5,0.7].map(f=>`<ellipse cx="${tX+tW*f}" cy="${tY+tH/2}" rx="2" ry="${tH/2-1}" fill="none" stroke="#78716C" stroke-width="1" opacity="0.4"/>`).join('')}
+        <text x="${tX+tW/2}" y="${tY+tH+12}" text-anchor="middle" style="font-size:8px;font-weight:700;fill:#57534E">Tunnel</text>
+      </g>`;
+
+      // ─ Hiding Spot (tin can) ─
+      const hX=cageX+cageW*0.22;const hY=floorY-floorH-4;
+      enrichSVG+=`<g class="enrichment-item ${vis}" style="transform-origin:${hX+10}px ${hY+8}px;${scl}">
+        <!-- Tin can on side -->
+        <ellipse cx="${hX}" cy="${hY+8}" rx="5" ry="9" fill="#A8A29E"/>
+        <rect x="${hX}" y="${hY}" width="22" height="17" rx="1" fill="#D6D3D1" stroke="#A8A29E" stroke-width="1"/>
+        <rect x="${hX}" y="${hY}" width="22" height="3" fill="#A8A29E" opacity="0.3"/>
+        <ellipse cx="${hX+22}" cy="${hY+8}" rx="5" ry="9" fill="#E7E5E4" stroke="#A8A29E" stroke-width="0.5"/>
+        <!-- Label on can -->
+        <rect x="${hX+4}" y="${hY+5}" width="14" height="7" rx="1" fill="#FEF3C7" opacity="0.6"/>
+      </g>`;
+    }
+  }
+
+  // ── SPARKLES (for enriched/park environments) ──
+  let sparkles='';
+  if(hasEnrich&&!isAlone){
+    const sparklePositions=[[0.15,0.25],[0.4,0.18],[0.65,0.22],[0.8,0.15],[0.3,0.35]];
+    sparklePositions.forEach(([sx,sy],i)=>{
+      const sX=cageX+cageW*sx;const sY=cageY+cageH*sy;
+      sparkles+=`<g class="sparkle" style="animation-delay:${i*0.7}s">
+        <circle cx="${sX}" cy="${sY}" r="1.5" fill="#FDE68A" opacity="0.5"/>
+        <line x1="${sX-3}" y1="${sY}" x2="${sX+3}" y2="${sY}" stroke="#FDE68A" stroke-width="0.5" opacity="0.4"/>
+        <line x1="${sX}" y1="${sY-3}" x2="${sX}" y2="${sY+3}" stroke="#FDE68A" stroke-width="0.5" opacity="0.4"/>
+      </g>`;
+    });
+  }
+
+  // ── RATS ──
+  let ratsSVG='';
+  const ratFloorY=floorY-floorH+6;
+  if(isAlone){
+    // Single rat near morphine or exploring based on dependence
+    const rx=highDep?mbx-25:cageX+cageW*0.35;
+    const ry=ratFloorY;
+    ratsSVG+=drawRat(rx,ry,highDep?'agitated':'idle',1.0,'mainRat',highDep,false);
+  } else {
+    // Main rat (exploring, away from morphine)
+    ratsSVG+=drawRat(cageX+cageW*0.2,ratFloorY-2,'explore',1.0,'mainRat',false,true);
+    // Social rats in various poses
+    const socialPositions=[
+      [0.12,0,'idle',0.85,false],[0.3,-5,'explore',0.8,true],
+      [0.42,2,'idle',0.9,false],[0.52,-3,'explore',0.75,true],
+      [0.18,8,'idle',0.7,false],[0.48,6,'idle',0.8,false],
+      [0.35,10,'explore',0.7,true]
+    ];
+    socialPositions.forEach(([px,oy,pose,sc,flip],i)=>{
+      ratsSVG+=drawRat(cageX+cageW*px,ratFloorY+oy,pose,sc,`rat${i}`,false,flip);
+    });
+  }
+
+  // ── LABELS ──
+  let labels='';
+  // Isolation label
+  if(isAlone){
+    const lx=cageX+cageW/2;const ly=cageY-12;
+    labels+=`<rect x="${lx-45}" y="${ly-12}" width="90" height="18" rx="9" fill="#FEE2E2" stroke="#FECACA" stroke-width="1"/>
+      <text x="${lx}" y="${ly+1}" text-anchor="middle" style="font-size:12px;font-weight:800;fill:#DC2626;letter-spacing:1.5px">ISOLATION</text>`;
+  } else {
+    const lx=cageX+cageW/2;const ly=cageY-12;
+    labels+=`<rect x="${lx-50}" y="${ly-12}" width="100" height="18" rx="9" fill="#DCFCE7" stroke="#BBF7D0" stroke-width="1"/>
+      <text x="${lx}" y="${ly+1}" text-anchor="middle" style="font-size:11px;font-weight:800;fill:#16A34A;letter-spacing:1px">SOCIAL GROUP</text>`;
+  }
+  // Environment label
+  const envX=cageX+cageW/2;const envY=floorY+14;
+  const envText=isLarge?'RAT PARK':isMed?'MEDIUM ENCLOSURE':'SMALL CAGE';
+  const envColor=isLarge?'#16A34A':isMed?'#D97706':'#64748B';
+  labels+=`<rect x="${envX-55}" y="${envY-10}" width="110" height="16" rx="8" fill="white" opacity="0.8" stroke="${envColor}" stroke-width="1"/>
+    <text x="${envX}" y="${envY+2}" text-anchor="middle" style="font-size:9px;font-weight:700;fill:${envColor};letter-spacing:0.8px">ENVIRONMENT: ${envText}</text>`;
+
+  // Same rat label (round 6)
+  if(opts.sameRatLabel){
+    const srlY=h-12;
+    labels+=`<g class="same-rat-label ${opts.showSameRat?'visible':''}">
+      <rect x="${w/2-130}" y="${srlY-14}" width="260" height="22" rx="11" fill="white" opacity="0.9" stroke="#3B82F6" stroke-width="1.5"/>
+      <text x="${w/2}" y="${srlY+1}" text-anchor="middle" style="font-size:13px;font-weight:700;fill:#2563EB">Same rat. New environment. Different choice.</text>
+    </g>`;
+  }
+
+  svg.innerHTML=svgContent+enrichSVG+sparkles+ratsSVG+labels;
+  arena.appendChild(svg);
+
+  // Animate enrichment entry
+  if(opts.animate&&hasEnrich){
+    const items=arena.querySelectorAll('.enrichment-item');
+    items.forEach((item,i)=>{
+      safeTimeout(()=>{item.classList.add('visible');item.style.transform=''},400+i*350);
+    });
+  }
+}
+
+function drawRat(x,y,pose,scale,id,nearMorphine,flipX){
+  const fl=flipX?-1:1;
+  const animClass=pose==='agitated'?'rat-agitated':pose==='explore'?'rat-explore':'rat-breathe';
+  // Build a detailed rat SVG group
+  return `<g id="${id}" transform="translate(${x},${y}) scale(${scale*fl},${scale})" class="${animClass}" style="transform-origin:${x}px ${y}px">
+    <!-- Shadow -->
+    <ellipse cx="0" cy="8" rx="16" ry="4" fill="#000" opacity="0.06"/>
+    <!-- Body -->
+    <ellipse cx="2" cy="0" rx="16" ry="10" fill="#A1887F"/>
+    <!-- Belly -->
+    <ellipse cx="3" cy="2" rx="13" ry="7" fill="#D7CCC8"/>
+    <!-- Fur texture lines -->
+    <path d="M-8,-4 Q-4,-6 0,-4" stroke="#8D6E63" stroke-width="0.5" fill="none" opacity="0.3"/>
+    <path d="M-5,-2 Q0,-5 5,-2" stroke="#8D6E63" stroke-width="0.4" fill="none" opacity="0.25"/>
+    <path d="M2,-6 Q6,-8 10,-5" stroke="#8D6E63" stroke-width="0.4" fill="none" opacity="0.2"/>
+    <!-- Head -->
+    <ellipse cx="-14" cy="-3" rx="8" ry="7" fill="#A1887F"/>
+    <ellipse cx="-14" cy="-2" rx="6.5" ry="5.5" fill="#BCAAA4"/>
+    <!-- Snout -->
+    <ellipse cx="-21" cy="-1" rx="4" ry="3" fill="#BCAAA4"/>
+    <ellipse cx="-24" cy="-1" rx="2" ry="1.5" fill="#F48FB1" opacity="0.7"/>
+    <!-- Nose -->
+    <ellipse cx="-24.5" cy="-1" rx="1.2" ry="1" fill="#6D4C41"/>
+    <!-- Eye -->
+    <circle cx="-17" cy="-5" r="2.2" fill="#3E2723"/>
+    <circle cx="-17.5" cy="-5.5" r="0.8" fill="white" opacity="0.7"/>
+    <!-- Ears -->
+    <ellipse cx="-11" cy="-9" rx="4.5" ry="5" fill="#A1887F"/>
+    <ellipse cx="-11" cy="-9" rx="3" ry="3.5" fill="#F8BBD0" opacity="0.4"/>
+    <ellipse cx="-7" cy="-8" rx="4" ry="4.5" fill="#A1887F"/>
+    <ellipse cx="-7" cy="-8" rx="2.5" ry="3" fill="#F8BBD0" opacity="0.4"/>
+    <!-- Whiskers -->
+    <line x1="-22" y1="-3" x2="-30" y2="-5" stroke="#8D6E63" stroke-width="0.5" opacity="0.5"/>
+    <line x1="-22" y1="-1" x2="-30" y2="-1" stroke="#8D6E63" stroke-width="0.5" opacity="0.5"/>
+    <line x1="-22" y1="1" x2="-29" y2="3" stroke="#8D6E63" stroke-width="0.5" opacity="0.5"/>
+    <!-- Front paws -->
+    <ellipse cx="-8" cy="8" rx="3" ry="2" fill="#BCAAA4"/>
+    <ellipse cx="-4" cy="9" rx="3" ry="2" fill="#BCAAA4"/>
+    <!-- Hind paws -->
+    <ellipse cx="12" cy="8" rx="3.5" ry="2.5" fill="#BCAAA4"/>
+    <ellipse cx="16" cy="7" rx="3" ry="2" fill="#BCAAA4"/>
+    <!-- Tail -->
+    <path d="M17,0 Q22,-2 26,${pose==='agitated'?'-6':'2'} Q29,${pose==='agitated'?'-8':'5'} 32,${pose==='agitated'?'-5':'3'}" stroke="#A1887F" stroke-width="2" fill="none" stroke-linecap="round"/>
+    ${nearMorphine?`<!-- Stress marks -->
+    <line x1="-10" y1="-14" x2="-8" y2="-17" stroke="#EF4444" stroke-width="1" opacity="0.5"/>
+    <line x1="-6" y1="-14" x2="-5" y2="-17" stroke="#EF4444" stroke-width="1" opacity="0.5"/>
+    <line x1="-3" y1="-13" x2="-2" y2="-16" stroke="#EF4444" stroke-width="1" opacity="0.5"/>`:''}
+  </g>`;
+}
+
+// ===== CONTROL PANEL LOGIC =====
+function setupControls(round){
+  const r=ROUNDS[round];
+  // Reset selections to baseline for isolation
+  GS.vars={social:'alone',space:'small',enrich:'none'};
+  GS.varChanged=false;
+
+  // Lock/unlock groups
+  const ctrlSocial=document.getElementById('ctrlSocial');
+  const ctrlSpace=document.getElementById('ctrlSpace');
+  const ctrlEnrich=document.getElementById('ctrlEnrich');
+  const groups={social:ctrlSocial,space:ctrlSpace,enrich:ctrlEnrich};
+
+  // Reset all to locked
+  Object.values(groups).forEach(g=>{g.classList.add('locked');g.classList.remove('active-ctrl')});
+  // Unlock active
+  if(r.activeVar==='social'){groups.social.classList.remove('locked');groups.social.classList.add('active-ctrl')}
+  else if(r.activeVar==='space'){groups.space.classList.remove('locked');groups.space.classList.add('active-ctrl')}
+  else if(r.activeVar==='enrich'){groups.enrich.classList.remove('locked');groups.enrich.classList.add('active-ctrl')}
+  else if(r.activeVar==='multi_social_enrich'){
+    groups.social.classList.remove('locked');groups.social.classList.add('active-ctrl');
+    groups.enrich.classList.remove('locked');groups.enrich.classList.add('active-ctrl');
+  }
+  else if(r.activeVar==='binary_switch'){
+    // Special: hide normal controls, show binary switch
+    document.getElementById('controlPanel').innerHTML=buildBinarySwitchHTML();
+    return;
+  }
+
+  // Lock icons
+  Object.entries(groups).forEach(([k,g])=>{
+    const icon=g.querySelector('.lock-icon');
+    icon.textContent=g.classList.contains('locked')?'🔒':'';
+  });
+
+  // Set selectors visual state
+  document.querySelectorAll('.sel-btn').forEach(btn=>{
+    btn.classList.remove('selected');
+    const v=btn.dataset.var==='social'?'social':btn.dataset.var==='space'?'space':'enrich';
+    if(btn.dataset.val===GS.vars[v]){btn.classList.add('selected')}
+  });
+
+  // Run button
+  const runBtn=document.getElementById('runBtn');
+  runBtn.classList.add('disabled');runBtn.classList.remove('ready');
+  document.getElementById('runMsg').textContent=r.guidedInstruction||'Change the active variable, then press RUN.';
+}
+
+function buildBinarySwitchHTML(){
+  return `<div class="ctrl-header">ENVIRONMENT TYPE</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:20px">
+      <div class="binary-switch" id="binarySwitch">
+        <span class="switch-label active-label" id="switchLabelIso">ISOLATION</span>
+        <div class="switch-track" id="switchTrack"><div class="switch-thumb"></div></div>
+        <span class="switch-label" id="switchLabelPark">RAT PARK</span>
+      </div>
+      <div style="font-size:12px;color:var(--textLight);text-align:center">Flip the switch to transform the environment</div>
+    </div>
+    <button id="runBtn" class="disabled" style="width:100%;padding:14px;font-size:16px;font-weight:700;color:var(--white);border-radius:var(--radiusSm);margin-top:auto;min-height:52px;transition:all .3s;cursor:pointer">RUN EXPERIMENT</button>
+    <div class="run-msg" id="runMsg">Flip the switch first</div>`;
+}
+
+// ===== SELECTOR CLICK HANDLERS =====
+document.addEventListener('click',function(e){
+  if(GS.processing)return;
+  const btn=e.target.closest('.sel-btn');
+  if(btn&&!btn.closest('.locked')){
+    const varName=btn.dataset.var==='social'?'social':btn.dataset.var==='space'?'space':'enrich';
+    const val=btn.dataset.val;
+    if(GS.vars[varName]!==val){
+      GS.vars[varName]=val;
+      GS.varChanged=true;
+      // Update visual
+      btn.closest('.selector-row').querySelectorAll('.sel-btn').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+      // Enable run
+      const runBtn=document.getElementById('runBtn');
+      if(GS.varChanged){runBtn.classList.remove('disabled');runBtn.classList.add('ready')}
+    }
+  }
+  // Binary switch
+  if(e.target.closest('#switchTrack')||e.target.closest('.switch-thumb')){
+    const track=document.getElementById('switchTrack');
+    if(!track)return;
+    const isOn=track.classList.toggle('on');
+    document.getElementById('switchLabelIso').classList.toggle('active-label',!isOn);
+    document.getElementById('switchLabelPark').classList.toggle('active-label',isOn);
+    GS.varChanged=isOn;
+    const runBtn=document.getElementById('runBtn');
+    if(isOn){runBtn.classList.remove('disabled');runBtn.classList.add('ready')}
+    else{runBtn.classList.add('disabled');runBtn.classList.remove('ready')}
+  }
+  // Run button
+  if(e.target.closest('#runBtn')&&!e.target.closest('#runBtn').classList.contains('disabled')){
+    if(GS.processing)return;
+    if(!GS.varChanged){
+      const rb=document.getElementById('runBtn');
+      rb.style.animation='none';void rb.offsetWidth;rb.style.animation='';
+      document.getElementById('runMsg').textContent='Change the slider first — a scientist has to change something before running the test.';
+      return;
+    }
+    GS.processing=true;
+    e.target.closest('#runBtn').classList.add('disabled');
+    e.target.closest('#runBtn').classList.remove('ready');
+    startWatchPhase();
+  }
+});
+
+// ===== ROUND FLOW =====
+function startRound(idx){
+  if(idx>=ROUNDS.length){showReceipt();return}
+  bumpGen();// invalidate stale safeTimeout callbacks from prior round
+  const preservedResets=GS.currentRound===idx?GS.resets:0;
+  GS.currentRound=idx;
+  GS.phase='change';GS.wrongCount=0;GS.consecutiveFastWrongs=0;GS.hintsUsed=0;GS.resets=preservedResets;
+  GS.processing=false;GS.predictionChoice=null;GS.predictionCorrect=null;GS.varChanged=false;
+  GS.roundStartTime=Date.now();
+  closeAllOverlays();clearIZ();hideFocus();hideSnapshot();
+  updateHUD();
+  const r=ROUNDS[idx];
+
+  // Restore normal control panel if needed
+  if(r.activeVar!=='binary_switch'&&!document.querySelector('#ctrlSocial')){
+    document.getElementById('controlPanel').innerHTML=`
+      <div class="ctrl-header">VARIABLE <span class="badge">CONTROL</span></div>
+      <div class="ctrl-group" id="ctrlSocial"><div class="ctrl-label">SOCIAL ACCESS <span class="lock-icon"></span></div><div class="selector-row"><button class="sel-btn" data-var="social" data-val="alone">Alone</button><button class="sel-btn" data-var="social" data-val="8rats">With 8 Rats</button></div></div>
+      <div class="ctrl-group" id="ctrlSpace"><div class="ctrl-label">SPACE SIZE <span class="lock-icon"></span></div><div class="selector-row"><button class="sel-btn" data-var="space" data-val="small">Small Cage</button><button class="sel-btn" data-var="space" data-val="medium">Medium</button><button class="sel-btn" data-var="space" data-val="large">Large Park</button></div></div>
+      <div class="ctrl-group" id="ctrlEnrich"><div class="ctrl-label">ENRICHMENT <span class="lock-icon"></span></div><div class="selector-row"><button class="sel-btn" data-var="enrich" data-val="none">None</button><button class="sel-btn" data-var="enrich" data-val="some">Some</button><button class="sel-btn" data-var="enrich" data-val="full">Full</button></div></div>
+      <button id="runBtn" class="disabled">RUN EXPERIMENT</button>
+      <div class="run-msg" id="runMsg"></div>`;
+  }
+
+  setupControls(idx);
+
+  // For guided rounds where the target matches the default, pre-set varChanged
+  // Round 1: guided to "Alone" but default is already alone
+  if(r.guidedTarget&&GS.vars[r.guidedTarget.var]===r.guidedTarget.val){
+    GS.varChanged=true;
+    const runBtn=document.getElementById('runBtn');
+    if(runBtn){runBtn.classList.remove('disabled');runBtn.classList.add('ready')}
+  }
+
+  // Build initial arena (isolation baseline)
+  // Each round starts from isolation baseline; meter at 85 (except R1 starts at 0)
+  if(r.activeVar==='binary_switch'){
+    buildArena('alone','small','none',85,{sameRatLabel:true});
+    updateMeter(85,false);
+  } else {
+    const baselineMeter=idx===0?0:85;
+    buildArena('alone','small','none',baselineMeter,{});
+    updateMeter(baselineMeter,false);
+  }
+
+  // Show focus prompt
+  setFocus(r.focusPrompt);
+
+  // If predict round, show prediction first
+  if(r.predict){
+    showPredictPhase();
+  } else {
+    // Show guided instruction if applicable
+    if(r.guidedInstruction){
+      showGuidedMessage(r.guidedInstruction);
+    }
+    // Phase is CHANGE — waiting for student to set variable and press RUN
+    const iz=document.getElementById('izPrompt');
+    if(r.guidedInstruction){
+      iz.textContent=r.guidedInstruction;
+    } else if(idx===2){
+      // Round 3: suggest Large Park
+      iz.textContent='Try setting Space Size to Large Park. Then press RUN EXPERIMENT.';
+    } else {
+      iz.textContent='Adjust the active variable and press RUN EXPERIMENT.';
+    }
+  }
+
+  // Enable reset level button
+  document.getElementById('resetLevelBtn').classList.remove('disabled');
+}
+
+function showPredictPhase(){
+  const r=ROUNDS[GS.currentRound];
+  GS.phase='predict';
+  clearIZ();
+  const iz=document.getElementById('izPrompt');
+  iz.textContent=r.predictText;
+  const opts=document.getElementById('izOptions');
+  const cardA=document.createElement('div');cardA.className='opt-card';cardA.textContent='A: '+r.predictA.text;cardA.dataset.choice='a';
+  const cardB=document.createElement('div');cardB.className='opt-card';cardB.textContent='B: '+r.predictB.text;cardB.dataset.choice='b';
+  opts.appendChild(cardA);opts.appendChild(cardB);
+
+  const acts=document.getElementById('izActions');
+  const lockBtn=document.createElement('button');lockBtn.className='action-btn lock-in-btn disabled';lockBtn.textContent='Lock In Prediction';lockBtn.id='predictLockBtn';
+  acts.appendChild(lockBtn);
+
+  let selected=null;
+  [cardA,cardB].forEach(c=>{
+    c.addEventListener('click',()=>{
+      if(GS.processing)return;
+      [cardA,cardB].forEach(x=>x.classList.remove('selected'));
+      c.classList.add('selected');selected=c.dataset.choice;
+      lockBtn.classList.remove('disabled');
+    });
+  });
+  lockBtn.addEventListener('click',()=>{
+    if(!selected||GS.processing)return;
+    GS.processing=true;
+    GS.predictionChoice=selected;
+    const isCorrect=(selected==='a'&&r.predictA.correct)||(selected==='b'&&r.predictB.correct);
+    GS.predictionCorrect=isCorrect;
+    // Lock cards
+    [cardA,cardB].forEach(c=>{c.style.pointerEvents='none';c.style.opacity=c.dataset.choice===selected?'1':'.4'});
+    lockBtn.remove();
+    // Transition to CHANGE
+    safeTimeout(()=>{
+      GS.processing=false;
+      GS.phase='change';
+      clearIZ();
+      // Provide specific guidance for what to set
+      if(r.activeVar==='enrich'){
+        document.getElementById('izPrompt').textContent='Set Enrichment to Full. Then press RUN EXPERIMENT.';
+      } else if(r.activeVar==='multi_social_enrich'){
+        document.getElementById('izPrompt').textContent='Set Social Access to With 8 Rats and Enrichment to Full. Then press RUN.';
+        showMultiVarChecklist();
+      } else {
+        document.getElementById('izPrompt').textContent='Now adjust the variable(s) and press RUN EXPERIMENT.';
+      }
+    },800);
+  });
+}
+
+function showMultiVarChecklist(){
+  // Show checklist above run button
+  const runMsg=document.getElementById('runMsg');
+  runMsg.innerHTML='<span id="checkSocial" style="color:#94A3B8">&#9744; Set Social Access</span> &nbsp; <span id="checkEnrich" style="color:#94A3B8">&#9744; Set Enrichment</span>';
+  // Track via polling (simple and reliable)
+  GS._multiCheckInterval=safeInterval(()=>{
+    const socialSet=GS.vars.social!=='alone';
+    const enrichSet=GS.vars.enrich!=='none';
+    const cs=document.getElementById('checkSocial');
+    const ce=document.getElementById('checkEnrich');
+    if(cs){cs.innerHTML=socialSet?'&#9745; Set Social Access':'&#9744; Set Social Access';cs.style.color=socialSet?'var(--accent2)':'#94A3B8'}
+    if(ce){ce.innerHTML=enrichSet?'&#9745; Set Enrichment':'&#9744; Set Enrichment';ce.style.color=enrichSet?'var(--accent2)':'#94A3B8'}
+    const runBtn=document.getElementById('runBtn');
+    if(socialSet&&enrichSet){
+      GS.varChanged=true;
+      if(runBtn){runBtn.classList.remove('disabled');runBtn.classList.add('ready')}
+    } else {
+      GS.varChanged=false;
+      if(runBtn){runBtn.classList.add('disabled');runBtn.classList.remove('ready')}
+    }
+  },200);
+}
+
+function showGuidedMessage(text){
+  const iz=document.getElementById('izOptions');
+  const msg=document.createElement('div');msg.className='guided-msg';msg.textContent=text;
+  iz.appendChild(msg);
+}
+
+// ===== WATCH PHASE =====
+function startWatchPhase(){
+  const r=ROUNDS[GS.currentRound];
+  GS.phase='watch';
+  clearIZ();
+  document.getElementById('izPrompt').textContent='Observe the experiment...';
+  if(GS._multiCheckInterval){clearInterval(GS._multiCheckInterval);GS._multiCheckInterval=null}
+
+  // Enforce expected variable settings for each round so arena matches data
+  const roundIdx=GS.currentRound;
+  if(roundIdx===0){GS.vars.social='alone';GS.vars.space='small';GS.vars.enrich='none'}
+  else if(roundIdx===1){GS.vars.social='8rats';GS.vars.space='small';GS.vars.enrich='none'}
+  else if(roundIdx===2){GS.vars.social='alone';GS.vars.space='large';GS.vars.enrich='none'}
+  else if(roundIdx===3){GS.vars.social='alone';GS.vars.space='small';GS.vars.enrich='full'}
+  else if(roundIdx===4){GS.vars.social='8rats';GS.vars.space='small';GS.vars.enrich='full'}
+
+  // Build arena with the enforced state
+  let social=GS.vars.social,space=GS.vars.space,enrich=GS.vars.enrich;
+  if(r.activeVar==='binary_switch'){social='8rats';space='large';enrich='full'}
+  const animate=true;
+  const showSameRat=r.activeVar==='binary_switch';
+  buildArena(social,space,enrich,r.meterTarget,{animate,sameRatLabel:showSameRat});
+
+  // Animate meter to target
+  safeTimeout(()=>updateMeter(r.meterTarget,true),500);
+
+  // Show same-rat label for R6
+  if(r.activeVar==='binary_switch'){
+    safeTimeout(()=>{
+      const lbl=document.querySelector('.same-rat-label');
+      if(lbl)lbl.classList.add('visible');
+    },r.watchDuration-2000);
+  }
+
+  // Show tap to continue after meter animation
+  const tapDelay=Math.max(r.watchDuration,4000);
+  safeTimeout(()=>{
+    if(GS.phase!=='watch')return;
+    const acts=document.getElementById('izActions');
+    const tapBtn=document.createElement('button');tapBtn.className='tap-continue';tapBtn.textContent='Tap to continue \u25B6';
+    tapBtn.addEventListener('click',()=>{
+      if(GS.processing)return;
+      GS.processing=true;
+      // Show prediction feedback if applicable
+      if(r.predict&&GS.predictionChoice!==null){
+        showPredictionFeedback(()=>{
+          GS.processing=false;
+          startRecordPhase();
+        });
+      } else {
+        GS.processing=false;
+        startRecordPhase();
+      }
+    });
+    acts.innerHTML='';acts.appendChild(tapBtn);
+    document.getElementById('izPrompt').textContent='';
+  },tapDelay);
+
+  // Safety timeout
+  safeTimeout(()=>{
+    if(GS.phase==='watch'){
+      GS.processing=false;
+      if(r.predict&&GS.predictionChoice!==null){
+        showPredictionFeedback(()=>startRecordPhase());
+      } else startRecordPhase();
+    }
+  },tapDelay+8000);
+}
+
+function showPredictionFeedback(cb){
+  const r=ROUNDS[GS.currentRound];
+  clearIZ();
+  const iz=document.getElementById('izPrompt');
+  iz.textContent=GS.predictionCorrect?r.predictFeedbackCorrect:r.predictFeedbackWrong;
+  iz.style.color=GS.predictionCorrect?'var(--correct)':'#F59E0B';
+  safeTimeout(()=>{iz.style.color='';cb()},3500);
+}
+
+// ===== RECORD PHASE =====
+function startRecordPhase(){
+  const r=ROUNDS[GS.currentRound];
+  GS.phase='record';
+  clearIZ();
+  showSnapshot(r.meterTarget);
+
+  const hasError=!!r.recordError;
+  const row=addDataRow(r.num,r.varLabel,r.settingLabel,r.meterTarget,hasError,hasError?r.recordError.shown:r.meterTarget);
+  GS.roundData.push({round:r.num,var:r.varLabel,setting:r.settingLabel,level:r.meterTarget});
+
+  document.getElementById('izPrompt').textContent='Check your data. Does everything match the meter?';
+  if(hasError){
+    document.getElementById('izPrompt').textContent+=' If something looks wrong, tap the incorrect cell to fix it.';
+  }
+
+  const acts=document.getElementById('izActions');
+  const confirmBtn=document.createElement('button');confirmBtn.className='action-btn confirm-btn';confirmBtn.textContent='Confirm';
+  acts.appendChild(confirmBtn);
+
+  let errorFixed=false;
+  let confirmStartTime=Date.now();
+
+  // Error cell click handler
+  if(hasError){
+    const errorCell=row.querySelector('.error-cell');
+    if(errorCell){
+      errorCell.addEventListener('click',()=>{
+        if(errorFixed||GS.processing)return;
+        // Show correction options
+        const izOpts=document.getElementById('izOptions');
+        izOpts.innerHTML='';
+        r.recordError.options.forEach(opt=>{
+          const btn=document.createElement('button');
+          btn.className='corr-btn';btn.textContent=opt;
+          btn.addEventListener('click',()=>{
+            if(opt===r.recordError.correct){
+              errorFixed=true;
+              errorCell.textContent=r.recordError.correct;
+              errorCell.classList.remove('error-cell');
+              errorCell.classList.add('corrected-cell');
+              btn.classList.add('correct-corr');
+              izOpts.innerHTML='<div class="record-check">Nice catch! The meter showed '+r.meterTarget+', not '+r.recordError.shown+'.</div>';
+            } else {
+              btn.style.opacity='.4';btn.style.pointerEvents='none';
+            }
+          });
+          izOpts.appendChild(btn);
+        });
+      });
+    }
+  }
+
+  confirmBtn.addEventListener('click',()=>{
+    if(GS.processing)return;
+    // Fast confirm check
+    if(Date.now()-confirmStartTime<1500){
+      row.style.animation='cellGlow 1s 2';
+      safeTimeout(()=>{row.style.animation=''},2000);
+      return;
+    }
+    // If error not fixed
+    if(hasError&&!errorFixed){
+      document.getElementById('izPrompt').textContent='Hold on — compare the Morphine Level in your table to the meter reading on the right. Do they match?';
+      const errorCell=row.querySelector('.error-cell');
+      if(errorCell)errorCell.classList.add('glow-cell');
+      document.getElementById('meterSnapshot').style.border='3px solid var(--gold)';
+      safeTimeout(()=>{
+        if(errorCell)errorCell.classList.remove('glow-cell');
+        document.getElementById('meterSnapshot').style.border='';
+      },3000);
+      confirmStartTime=Date.now();// Reset timer for second chance
+      return;
+    }
+    GS.processing=true;
+    safeTimeout(()=>{GS.processing=false;startProvePhase()},300);
+  });
+}
+
+// ===== PROVE PHASE =====
+function startProvePhase(){
+  const r=ROUNDS[GS.currentRound];
+  GS.phase='prove';
+  GS.wrongCount=0;GS.phaseStartTime=Date.now();GS.consecutiveFastWrongs=0;
+  clearIZ();
+  hideSnapshot();
+
+  const mechanic=r.proveMechanic;
+
+  if(mechanic==='coach-click'||mechanic==='pick-match'||mechanic==='claim-builder'){
+    renderMCProve(r);
+  } else if(mechanic==='hotspot'){
+    renderHotspotProve(r);
+  } else if(mechanic==='what-comes-next'){
+    renderWCNProve(r);
+  }
+}
+
+// ===== MC-STYLE PROVE (Coach-Click, Pick-Match, Claim Builder) =====
+function renderMCProve(r){
+  const iz=document.getElementById('izPrompt');
+  iz.textContent=r.provePrompt;
+  const opts=document.getElementById('izOptions');
+  const acts=document.getElementById('izActions');
+
+  r.proveOptions.forEach(opt=>{
+    const card=document.createElement('div');card.className='opt-card';card.textContent=opt.text;card.dataset.id=opt.id;
+    opts.appendChild(card);
+  });
+
+  const lockBtn=document.createElement('button');lockBtn.className='action-btn lock-in-btn disabled';lockBtn.textContent='Lock In';
+  acts.appendChild(lockBtn);
+
+  window._mcSelectedId=null;
+  opts.querySelectorAll('.opt-card').forEach(card=>{
+    card.addEventListener('click',()=>{
+      if(GS.processing||card.classList.contains('dimmed')||card.classList.contains('eliminated')||card.classList.contains('wrong-card'))return;
+      opts.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      window._mcSelectedId=card.dataset.id;
+      lockBtn.classList.remove('disabled');
+    });
+  });
+
+  lockBtn.addEventListener('click',()=>{
+    const sel=window._mcSelectedId;
+    if(!sel||GS.processing||lockBtn.classList.contains('disabled'))return;
+    GS.processing=true;
+    const timeTaken=Date.now()-GS.phaseStartTime;
+
+    if(sel===r.proveCorrect){
+      handleProveCorrect(opts,sel);
+    } else {
+      // Fast guess check
+      if(timeTaken<2000){
+        GS.consecutiveFastWrongs++;
+        if(GS.consecutiveFastWrongs>=2){
+          // Clean up selection state BEFORE the reset path
+          window._mcSelectedId=null;
+          opts.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));
+          lockBtn.classList.add('disabled');
+          showAntiGuessScreen('The data table has the answer — take a look before you pick.',5,()=>{
+            GS.consecutiveFastWrongs=0;GS.processing=false;
+            resetCurrentLevel();
+          });
+          return;
+        }
+      }
+      handleProveWrong(opts,acts,sel,r,lockBtn);
+    }
+  });
+}
+
+function handleProveCorrect(containerEl,selectedId){
+  // Try to highlight correct card if present
+  try{
+    const card=containerEl?containerEl.querySelector(`[data-id="${selectedId}"]`):null;
+    if(card)card.classList.add('correct-card');
+  }catch(e){}
+  playCorrectSound();
+
+  const score=calcRoundScore(GS.hintsUsed,GS.resets);
+  GS.roundScores[GS.currentRound]=score;
+  GS.roundTimes[GS.currentRound]=Math.round((Date.now()-GS.roundStartTime)/1000);
+  GS.totalScore=calcOverall();
+  updateHUD();
+
+  // Flash green on progress segment
+  const segs=document.querySelectorAll('.progress-seg');
+  if(segs[GS.currentRound])segs[GS.currentRound].classList.add('done');
+
+  // Affirmation on first try
+  const isFirstTry=GS.hintsUsed===0&&GS.resets===0;
+
+  safeTimeout(()=>{
+    GS.processing=false;
+    // Check milestones
+    const completed=GS.currentRound+1;
+    if(completed===4&&!GS.requiredCompleteShown){
+      GS.requiredCompleteShown=true;
+      showRequiredComplete();
+    } else if(completed===6&&!GS.bonusCompleteShown){
+      GS.bonusCompleteShown=true;
+      showBonusComplete();
+    } else if(completed%2===0&&completed<6){
+      showCelebration(isFirstTry);
+    } else if(isFirstTry){
+      showMiniAffirmation();
+      safeTimeout(()=>startRound(GS.currentRound+1),1800);
+    } else {
+      startRound(GS.currentRound+1);
+    }
+  },800);
+}
+
+function handleProveWrong(optsEl,actsEl,selectedId,r,lockBtn){
+  GS.wrongCount++;
+  const wrongId=selectedId;// capture before any clearing
+  const card=optsEl.querySelector(`[data-id="${wrongId}"]`);
+  if(card){card.classList.add('wrong-card');rawTimeout(()=>card.classList.remove('wrong-card'),500)}
+  playWrongSound();
+
+  // Dim the wrong option
+  if(card)card.classList.add('dimmed');
+
+  // Show coaching
+  const feedback=r.wrongFeedback[wrongId]||{text:'That\'s not quite right. Try again.',highlight:''};
+  const coaching=document.createElement('div');coaching.className='coaching-bar';
+  coaching.textContent=feedback.text;
+  actsEl.innerHTML='';actsEl.appendChild(coaching);
+
+  // Highlight arena element
+  highlightArenaElement(feedback.highlight);
+
+  // Check if 3 resets already used — if so, auto-advance instead of Try Again
+  if(GS.resets>=3){
+    safeTimeout(()=>{
+      GS.processing=false;
+      GS.roundScores[GS.currentRound]=50;
+      GS.totalScore=calcOverall();
+      showAdvanceMessage();
+    },1200);
+    return;
+  }
+
+  // Try again button
+  const tryBtn=document.createElement('button');tryBtn.className='action-btn try-again-btn';tryBtn.textContent='Try Again';
+  safeTimeout(()=>{
+    actsEl.appendChild(tryBtn);
+    GS.processing=false;
+
+    tryBtn.addEventListener('click',()=>{
+      if(GS.processing)return;
+      coaching.remove();tryBtn.remove();
+      // Clear selection state — both visual and logical via shared holder
+      window._mcSelectedId=null;
+      optsEl.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));
+      // Re-add the Lock In button
+      lockBtn.classList.add('disabled');
+      actsEl.appendChild(lockBtn);
+      GS.phaseStartTime=Date.now();
+
+      // Show hints based on wrong count
+      if(GS.wrongCount===1&&GS.hintsUsed===0){showHint(1)}
+      else if(GS.wrongCount===2&&GS.hintsUsed<=1){showHint(2)}
+      else if(GS.wrongCount>=3&&GS.hintsUsed<=2){showStepByStep()}
+    });
+  },600);
+}
+
+function highlightArenaElement(type){
+  // Simple highlight effects
+  try{
+    if(type==='meter'){
+      const mv=document.getElementById('meterValue');
+      if(mv){mv.style.textShadow='0 0 10px var(--gold)';safeTimeout(()=>mv.style.textShadow='',3000)}
+    }
+    if(type==='dataRows12'||type==='dataRows23'||type==='dataRows34'||type==='dataRows25'){
+      const rows=document.querySelectorAll('#dataBody tr');
+      rows.forEach(r=>r.classList.add('highlight-row'));
+      safeTimeout(()=>rows.forEach(r=>r.classList.remove('highlight-row')),3000);
+    }
+    if(type==='switch'){
+      const sw=document.getElementById('switchTrack');
+      if(sw){sw.style.boxShadow='0 0 12px var(--gold)';safeTimeout(()=>sw.style.boxShadow='',3000)}
+    }
+  }catch(e){}
+}
+
+// ===== HOTSPOT PROVE =====
+function renderHotspotProve(r){
+  const iz=document.getElementById('izPrompt');
+  iz.textContent=r.provePrompt;
+  const acts=document.getElementById('izActions');
+  // Make data table rows clickable
+  const rows=document.querySelectorAll('#dataBody tr');
+  let wrongRows=new Set();
+
+  function handleRowClick(tr){
+    if(GS.processing)return;
+    GS.processing=true;
+    const rowRound=parseInt(tr.dataset.round);
+
+    if(rowRound===2){// Correct
+      tr.classList.add('hs-correct');
+      rows.forEach(r2=>r2.classList.remove('hotspot-row'));
+      // Show comparison label
+      const iz2=document.getElementById('izOptions');
+      iz2.innerHTML='<div style="font-size:13px;color:var(--accent2);font-weight:600;text-align:center;padding:8px">Social contact: 85 \u2192 15 = dropped 70 points. Space: 85 \u2192 65 = dropped 20 points. Social contact had a bigger effect.</div>';
+      handleProveCorrect(document.getElementById('izOptions'),'correct');
+    } else {
+      GS.wrongCount++;
+      tr.classList.add('hs-wrong');
+      wrongRows.add(rowRound);
+      safeTimeout(()=>{tr.classList.remove('hs-wrong');tr.style.opacity='0.4';tr.style.pointerEvents='none'},800);
+      playWrongSound();
+
+      // Check reset safety valve
+      if(GS.resets>=3){
+        safeTimeout(()=>{
+          GS.processing=false;
+          GS.roundScores[GS.currentRound]=50;GS.totalScore=calcOverall();
+          showAdvanceMessage();
+        },1200);
+        return;
+      }
+
+      const key=rowRound===3?'row3':'row1';
+      const feedback=r.wrongFeedback[key]||{text:'Try a different row.'};
+      acts.innerHTML='';
+      const coaching=document.createElement('div');coaching.className='coaching-bar';coaching.textContent=feedback.text;
+      acts.appendChild(coaching);
+
+      // Highlight relevant rows
+      rows.forEach(r2=>{if(parseInt(r2.dataset.round)===2||parseInt(r2.dataset.round)===3)r2.classList.add('hs-highlight')});
+      safeTimeout(()=>rows.forEach(r2=>r2.classList.remove('hs-highlight')),3000);
+
+      // Show Try Again button
+      const tryBtn=document.createElement('button');tryBtn.className='action-btn try-again-btn';tryBtn.textContent='Try Again';
+      safeTimeout(()=>{
+        acts.appendChild(tryBtn);
+        GS.processing=false;
+        tryBtn.addEventListener('click',()=>{
+          coaching.remove();tryBtn.remove();
+          GS.phaseStartTime=Date.now();
+          if(GS.wrongCount===1)showHint(1);
+          else if(GS.wrongCount===2)showHint(2);
+          else if(GS.wrongCount>=3)showStepByStep();
+        });
+      },800);
+    }
+  }
+
+  rows.forEach(tr=>{
+    tr.classList.add('hotspot-row');
+    tr.addEventListener('click',()=>handleRowClick(tr));
+  });
+}
+
+// ===== WHAT COMES NEXT PROVE =====
+function renderWCNProve(r){
+  const iz=document.getElementById('izPrompt');
+  iz.textContent=r.provePrompt;
+  const opts=document.getElementById('izOptions');
+
+  // Show the filled first slot
+  opts.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:400px">
+    <div class="seq-slot filled"><span class="seq-rank">1</span>Social Access — 85 → 15</div>
+    <div class="seq-slot" id="slot2"><span class="seq-rank">2</span><span id="slot2text">?</span></div>
+    <div class="seq-slot" id="slot3"><span class="seq-rank">3</span><span id="slot3text">?</span></div>
+  </div>`;
+
+  // Option cards
+  const cardContainer=document.createElement('div');cardContainer.style.cssText='display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px';
+  r.proveOptions.forEach(opt=>{
+    const card=document.createElement('div');card.className='opt-card';card.textContent=opt.text;card.dataset.id=opt.id;
+    cardContainer.appendChild(card);
+  });
+  opts.appendChild(cardContainer);
+
+  const acts=document.getElementById('izActions');
+  const lockBtn=document.createElement('button');lockBtn.className='action-btn lock-in-btn disabled';lockBtn.textContent='Lock In';
+  acts.appendChild(lockBtn);
+
+  let selected=null;
+  cardContainer.querySelectorAll('.opt-card').forEach(card=>{
+    card.addEventListener('click',()=>{
+      if(GS.processing||card.classList.contains('dimmed'))return;
+      cardContainer.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');selected=card.dataset.id;
+      // Preview in slot 2
+      document.getElementById('slot2text').textContent=card.textContent;
+      lockBtn.classList.remove('disabled');
+    });
+  });
+
+  lockBtn.addEventListener('click',()=>{
+    if(!selected||GS.processing||lockBtn.classList.contains('disabled'))return;
+    GS.processing=true;
+
+    if(selected===r.proveCorrect){
+      // Fill slots
+      document.getElementById('slot2').classList.add('filled');
+      document.getElementById('slot2text').textContent='Enrichment — 85 → 58';
+      document.getElementById('slot3').classList.add('filled');
+      document.getElementById('slot3text').textContent='Space Size — 85 → 65';
+      cardContainer.querySelectorAll('.opt-card').forEach(c=>{c.style.pointerEvents='none';c.style.opacity=c.dataset.id===selected?'1':'.4'});
+      handleProveCorrect(opts,'correct');
+    } else {
+      GS.wrongCount++;
+      const wrongId=selected;// capture BEFORE any clearing
+      const card=cardContainer.querySelector(`[data-id="${wrongId}"]`);
+      if(card){card.classList.add('wrong-card');rawTimeout(()=>card.classList.remove('wrong-card'),500);card.classList.add('dimmed')}
+      playWrongSound();
+
+      // Check reset safety valve
+      if(GS.resets>=3){
+        safeTimeout(()=>{
+          GS.processing=false;
+          GS.roundScores[GS.currentRound]=50;GS.totalScore=calcOverall();
+          GS.roundTimes[GS.currentRound]=Math.round((Date.now()-GS.roundStartTime)/1000);
+          showAdvanceMessage();
+        },1200);
+        return;
+      }
+
+      const feedback=r.wrongFeedback[wrongId]||{text:'Try again.'};
+      acts.innerHTML='';
+      const coaching=document.createElement('div');coaching.className='coaching-bar';coaching.textContent=feedback.text;
+      acts.appendChild(coaching);
+
+      highlightArenaElement('dataRows34');
+
+      const tryBtn=document.createElement('button');tryBtn.className='action-btn try-again-btn';tryBtn.textContent='Try Again';
+      safeTimeout(()=>{
+        acts.appendChild(tryBtn);GS.processing=false;
+        tryBtn.addEventListener('click',()=>{
+          if(GS.processing)return;
+          coaching.remove();tryBtn.remove();
+          // Clear ALL selection state
+          selected=null;
+          cardContainer.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));
+          document.getElementById('slot2text').textContent='?';
+          lockBtn.classList.add('disabled');
+          acts.appendChild(lockBtn);
+          GS.phaseStartTime=Date.now();
+          if(GS.wrongCount===1&&GS.hintsUsed===0){showHint(1)}
+          else if(GS.wrongCount===2&&GS.hintsUsed<=1){showHint(2)}
+          else if(GS.wrongCount>=3&&GS.hintsUsed<=2){showStepByStep()}
+        });
+      },600);
+    }
+  });
+}
+
+// ===== HINTS =====
+function showHint(level){
+  const r=ROUNDS[GS.currentRound];
+  GS.hintsUsed=Math.max(GS.hintsUsed,level);
+  const iz=document.getElementById('izOptions');
+
+  if(level===1&&r.hintLadder.hint1){
+    const bar=document.createElement('div');bar.className='coaching-bar';bar.textContent=r.hintLadder.hint1.text;
+    iz.prepend(bar);
+    safeTimeout(()=>{if(bar.parentNode)bar.remove()},6000);
+  }
+  if(level===2&&r.hintLadder.hint2){
+    const bar=document.createElement('div');bar.className='coaching-bar hint2';bar.textContent=r.hintLadder.hint2.text;
+    iz.prepend(bar);
+    // Eliminate option if specified
+    if(r.hintLadder.hint2.eliminate){
+      const toElim=iz.querySelector(`[data-id="${r.hintLadder.hint2.eliminate}"]`);
+      if(toElim)toElim.classList.add('eliminated');
+    }
+    safeTimeout(()=>{if(bar.parentNode)bar.remove()},6000);
+  }
+}
+
+function showStepByStep(){
+  const r=ROUNDS[GS.currentRound];
+  GS.hintsUsed=3;
+  if(!r.hintLadder.stepByStep)return;
+  const panels=r.hintLadder.stepByStep;
+  let idx=0;
+
+  const overlay=document.createElement('div');overlay.className='overlay';
+  overlay.innerHTML=`<div class="overlay-bg"></div><div class="overlay-content">
+    <h3>Step-by-Step</h3>
+    <div class="sbs-panel" id="sbsPanel">${escHtml(panels[0])}</div>
+    <div class="sbs-dots" id="sbsDots"></div>
+    <div class="panel-nav"><button class="action-btn lock-in-btn" id="sbsNext">Next</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  const updateDots=()=>{
+    const dots=overlay.querySelector('#sbsDots');
+    dots.innerHTML='';
+    panels.forEach((_,i)=>{const d=document.createElement('div');d.className='sbs-dot'+(i===idx?' active':'');dots.appendChild(d)});
+  };
+  updateDots();
+
+  overlay.querySelector('#sbsNext').addEventListener('click',()=>{
+    idx++;
+    if(idx>=panels.length){
+      overlay.remove();
+      return;
+    }
+    overlay.querySelector('#sbsPanel').textContent=panels[idx];
+    updateDots();
+    if(idx===panels.length-1)overlay.querySelector('#sbsNext').textContent='Got It';
+  });
+}
+
+// ===== ANTI-GUESS SCREEN =====
+function showAntiGuessScreen(msg,seconds,cb){
+  const screen=document.createElement('div');screen.className='ag-screen';
+  screen.innerHTML=`<div class="ag-box"><p>${escHtml(msg)}</p><div class="ag-timer" id="agTimer">${seconds}s</div></div>`;
+  document.body.appendChild(screen);
+  let remaining=seconds;
+  const iv=safeInterval(()=>{
+    remaining--;
+    const t=screen.querySelector('#agTimer');if(t)t.textContent=remaining+'s';
+    if(remaining<=0){clearInterval(iv);screen.remove();if(cb)cb()}
+  },1000);
+}
+
+// ===== CELEBRATIONS =====
+function showCelebration(isFirstTry){
+  closeAllOverlays();
+  const overlay=document.getElementById('celebOverlay');
+  overlay.style.display='flex';
+  document.getElementById('celebText').textContent='Nice work!';
+  document.getElementById('celebSub').textContent=`Round ${GS.currentRound+1} complete`;
+  document.getElementById('affirmText').textContent=isFirstTry?getAffirmation():'';
+  launchParticles(12,['#3B82F6','#10B981','#8B5CF6','#F59E0B']);
+  playCorrectSound();
+  safeTimeout(()=>{overlay.style.display='none';startRound(GS.currentRound+1)},2500);
+}
+
+function showMiniAffirmation(){
+  const overlay=document.getElementById('celebOverlay');
+  overlay.style.display='flex';
+  document.getElementById('celebText').textContent='';
+  document.getElementById('celebSub').textContent='';
+  document.getElementById('affirmText').textContent=getAffirmation();
+  safeTimeout(()=>{overlay.style.display='none'},1500);
+}
+
+function showRequiredComplete(){
+  closeAllOverlays();
+  launchParticles(15,['#22C55E','#3B82F6','#F59E0B','#8B5CF6']);
+  const overlay=document.createElement('div');overlay.className='choice-overlay';
+  overlay.innerHTML=`<div class="overlay-bg"></div><div class="choice-box">
+    <h3>You did it!</h3>
+    <p>${escHtml(getAffirmation())}</p>
+    <p>All required rounds complete. Want to try 2 bonus rounds?</p>
+    <div class="choice-btns">
+      <button id="keepGoingBtn" style="background:var(--accent2);color:white">Keep Going</button>
+      <button id="seeScoreBtn" style="background:var(--accent1);color:white">See Score</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#keepGoingBtn').addEventListener('click',()=>{overlay.remove();startRound(GS.currentRound+1)});
+  overlay.querySelector('#seeScoreBtn').addEventListener('click',()=>{overlay.remove();showReceipt()});
+}
+
+function showBonusComplete(){
+  closeAllOverlays();
+  launchParticles(15,['#FFD700','#22C55E','#8B5CF6','#3B82F6']);
+  const overlay=document.getElementById('celebOverlay');
+  overlay.style.display='flex';
+  document.getElementById('celebText').textContent='BONUS COMPLETE!';
+  document.getElementById('celebSub').textContent=getAffirmation();
+  document.getElementById('affirmText').textContent='';
+  safeTimeout(()=>{overlay.style.display='none';showReceipt()},3000);
+}
+
+function showAdvanceMessage(){
+  closeAllOverlays();clearIZ();
+  document.getElementById('izPrompt').textContent='Let\'s move on — you\'ll see this idea again.';
+  GS.roundScores[GS.currentRound]=50;
+  GS.roundTimes[GS.currentRound]=Math.round((Date.now()-GS.roundStartTime)/1000);
+  GS.totalScore=calcOverall();
+  safeTimeout(()=>startRound(GS.currentRound+1),2000);
+}
+
+// ===== RESET LEVEL =====
+function resetCurrentLevel(){
+  bumpGen();// invalidate stale safeTimeout callbacks
+  GS.resets++;
+  GS.processing=false;
+  closeAllOverlays();
+  if(GS._multiCheckInterval){clearInterval(GS._multiCheckInterval);GS._multiCheckInterval=null}
+  // Remove current round's data row
+  const body=document.getElementById('dataBody');
+  const rows=body.querySelectorAll('tr');
+  if(rows.length>0){
+    const last=rows[rows.length-1];
+    if(parseInt(last.dataset.round)===ROUNDS[GS.currentRound].num)last.remove();
+  }
+  startRound(GS.currentRound);
+}
+
+// ===== RECEIPT =====
+function showReceipt(){
+  if(GS.receiptRendered)return;
+  GS.receiptRendered=true;
+  clearAllTimers();
+  closeAllOverlays();
+  showScreen('receiptScreen');
+  document.getElementById('resetLevelBtn').classList.add('disabled');
+
+  const overall=calcOverall();
+  const pctClass=overall>=85?'green':overall>=70?'yellow':'red';
+  const label=overall>=85?'Mastery':overall>=70?'Approaching Mastery':'Needs More Practice';
+  const totalTime=Math.round((Date.now()-GS.gameStartTime)/1000);
+
+  let rowsHTML='';
+  ROUNDS.forEach((r,i)=>{
+    const score=GS.roundScores[i]||0;
+    const sc=score>=85?'score-green':score>=70?'score-yellow':'score-red';
+    const bonus=r.required?'':'bonus-row';
+    const star=r.required?'':'&#11088; ';
+    const time=GS.roundTimes[i]>0?formatTime(GS.roundTimes[i]):'--';
+    rowsHTML+=`<tr class="${bonus}"><td>${star}${r.num}</td><td style="font-size:12px;text-align:left">${escHtml(r.name)}</td><td class="${sc}">${score>0?score+'%':'--'}</td><td>${score>0?'1':'--'}</td><td>${time}</td></tr>`;
+  });
+
+  const reqDone=ROUNDS.filter((r,i)=>r.required&&GS.roundScores[i]>0).length===4;
+  const allDone=GS.roundScores.filter(s=>s>0).length===6;
+  const status=allDone?'All Complete (Bonus!)':reqDone?'Required Complete':'In Progress';
+
+  document.getElementById('receiptScreen').innerHTML=`<div class="receipt-box">
+    <div class="receipt-header">
+      <h2>${escHtml(GS.teacherName)}'s Simulations</h2>
+      <h3>Addiction &amp; The Rat Park Experiment — Wednesday Score Report</h3>
+    </div>
+    <div class="receipt-name-row">
+      <label style="font-weight:600;font-size:14px">Student:</label>
+      <input type="text" id="receiptNameInput" value="${escHtml(GS.studentName)}" maxlength="40">
+      <button id="lockNameBtn">Lock</button>
+    </div>
+    <div class="receipt-grade">
+      <div class="receipt-pct ${pctClass}">${overall}%</div>
+      <div class="receipt-label">${label}</div>
+    </div>
+    <table class="receipt-table">
+      <thead><tr><th>#</th><th>Round</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead>
+      <tbody>${rowsHTML}</tbody>
+    </table>
+    <div style="text-align:center;font-size:13px;color:var(--textLight)">Total Time: ${formatTime(totalTime)} &nbsp; Status: ${status}</div>
+    <div class="receipt-footer">
+      <p>Take a screenshot and upload to Google Classroom</p>
+      <div class="receipt-actions">
+        <button class="action-btn lock-in-btn" onclick="window.print()">Print</button>
+        <button class="action-btn" style="background:#F1F5F9;color:var(--text);border:2px solid #CBD5E1" id="startOverBtn">Start Over</button>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('lockNameBtn').addEventListener('click',()=>{
+    const inp=document.getElementById('receiptNameInput');
+    inp.disabled=true;inp.style.background='#F1F5F9';
+    document.getElementById('lockNameBtn').textContent='Locked';
+    document.getElementById('lockNameBtn').disabled=true;
+  });
+
+  document.getElementById('startOverBtn').addEventListener('click',()=>{
+    if(confirm('Start over? This will reset all your progress.')){
+      location.reload();
+    }
+  });
+}
+
+function formatTime(s){const m=Math.floor(s/60);const sec=s%60;return m+':'+(sec<10?'0':'')+sec}
+
+// ===== VOCAB BUTTON =====
+document.getElementById('vocabBtn').addEventListener('click',()=>{document.getElementById('vocabOverlay').style.display='flex'});
+document.getElementById('vocabClose').addEventListener('click',()=>{document.getElementById('vocabOverlay').style.display='none'});
+document.getElementById('vocabCloseBtn').addEventListener('click',()=>{document.getElementById('vocabOverlay').style.display='none'});
+
+// ===== HINT BUTTON =====
+document.getElementById('hintBtn').addEventListener('click',()=>{
+  if(GS.phase!=='prove')return;
+  if(GS.hintsUsed<1)showHint(1);
+  else if(GS.hintsUsed<2)showHint(2);
+  else showStepByStep();
+});
+
+// ===== RESET LEVEL BUTTON =====
+document.getElementById('resetLevelBtn').addEventListener('click',()=>{
+  // Always force-clear processing — if a callback chain crashed, processing might be stuck true
+  GS.processing=false;
+  resetCurrentLevel();
+});
+
+// ===== START =====
+document.getElementById('startBtn').addEventListener('click',()=>{
+  const name=document.getElementById('studentNameInput').value.trim();
+  if(!name){document.getElementById('studentNameInput').style.borderColor='#EF4444';return}
+  GS.studentName=name;
+  const tName=document.getElementById('teacherNameInput').value.trim();
+  if(tName)GS.teacherName=tName;
+  GS.roundScores=new Array(ROUNDS.length).fill(0);
+  GS.roundTimes=new Array(ROUNDS.length).fill(0);
+  GS.gameStartTime=Date.now();
+  showScreen('gameScreen');
+  startRound(0);
+});
+
+// ===== KEYBOARD ACCESSIBILITY =====
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'){
+    const focused=document.activeElement;
+    if(focused&&focused.classList.contains('opt-card'))focused.click();
+    if(focused&&focused.tagName==='BUTTON')focused.click();
+  }
+});
+</script>
+</body>
+</html>
