@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulation — Mass Extinction Cascade</title>
+<style>
+:root{
+--bg1:#1A1A2E;--bg2:#16213E;--accent:#00D4FF;--yellow:#FFD93D;--red:#FF4757;
+--green:#2ED573;--text:#E8E8E8;--textDim:#8899AA;--panel:#0F1629;--panelBorder:#1E3050;
+--card:#162040;--cardHover:#1E2D55;--overlay:rgba(10,12,30,0.92);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);height:100vh;overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none;}
+#welcomeScreen{position:fixed;inset:0;background:var(--overlay);z-index:9999;display:flex;align-items:center;justify-content:center;overflow-y:auto;}
+.welcome-box{background:linear-gradient(145deg,#1a2240,#0f1629);border:2px solid var(--accent);border-radius:16px;padding:36px;max-width:440px;width:90%;text-align:center;box-shadow:0 0 60px rgba(0,212,255,0.12),0 0 120px rgba(0,50,100,0.08);position:relative;overflow:hidden;}
+.welcome-box::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:conic-gradient(from 0deg,transparent,rgba(0,212,255,0.03),transparent,rgba(255,217,61,0.02),transparent);animation:welcomeSpin 20s linear infinite;pointer-events:none;z-index:0;}
+.welcome-box h1{font-size:22px;color:var(--accent);margin-bottom:4px;position:relative;z-index:1;text-shadow:0 0 20px rgba(0,212,255,0.2);}
+.welcome-box h2{font-size:14px;color:var(--yellow);margin-bottom:24px;font-weight:400;position:relative;z-index:1;line-height:1.4;}
+.welcome-box label{display:block;text-align:left;font-size:13px;color:var(--textDim);margin:12px 0 4px;position:relative;z-index:1;}
+.welcome-box input{width:100%;padding:12px;border-radius:8px;border:1px solid var(--panelBorder);background:var(--bg1);color:var(--text);font-size:16px;outline:none;position:relative;z-index:1;}
+.welcome-box input:focus{border-color:var(--accent);}
+#startBtn{margin-top:20px;padding:14px 32px;font-size:18px;font-weight:700;border:none;border-radius:10px;background:linear-gradient(135deg,var(--accent),#0090B0);color:#fff;cursor:pointer;width:100%;min-height:48px;transition:transform .15s;position:relative;z-index:1;}
+#startBtn:active{transform:scale(0.97);}
+
+#app{display:flex;flex-direction:column;height:100vh;}
+#topBar{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:linear-gradient(90deg,#0D1220,#162040,#0D1220);border-bottom:1px solid rgba(0,212,255,0.15);min-height:46px;flex-shrink:0;position:relative;}
+#topBar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.3),transparent);}
+.badge{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:15px;color:var(--accent);text-shadow:0 0 10px rgba(0,212,255,0.15);}
+.badge .icon{font-size:18px;}
+#levelName{color:var(--yellow);font-size:14px;margin-left:8px;font-weight:400;}
+#hudRight{display:flex;align-items:center;gap:14px;font-size:13px;}
+#evidenceCount{color:var(--yellow);font-weight:800;font-size:15px;text-shadow:0 0 8px rgba(255,217,61,0.15);letter-spacing:0.3px;}
+#scoreDisplay{color:rgba(120,140,170,0.7);font-size:12px;font-weight:600;}
+#progressWrap{display:flex;gap:4px;align-items:center;}
+.progDot{width:20px;height:9px;border-radius:5px;background:rgba(30,48,80,0.6);transition:all .3s;border:1px solid rgba(40,60,100,0.3);}
+.progDot.done{background:var(--green);border-color:var(--green);box-shadow:0 0 4px rgba(46,213,115,0.3);}
+.progDot.current{background:var(--accent);border-color:var(--accent);animation:dotPulse 1.2s infinite;box-shadow:0 0 6px rgba(0,212,255,0.3);}
+.progDot.bonus{border:1px dashed var(--yellow);background:transparent;}
+.progDot.bonus.done{background:var(--yellow);border-color:var(--yellow);border-style:solid;box-shadow:0 0 4px rgba(255,217,61,0.3);}
+
+#arenaWrap{flex:1;display:flex;overflow:hidden;position:relative;min-height:0;background:radial-gradient(ellipse at 30% 40%,rgba(0,30,80,0.08),transparent 60%);}
+#arena{flex:1;display:flex;position:relative;overflow:hidden;}
+#evidenceBoard{width:38%;min-width:200px;padding:12px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--panelBorder);overflow-y:auto;background:linear-gradient(145deg,rgba(25,18,12,0.8),rgba(20,14,8,0.6));position:relative;}
+#evidenceBoard::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(80,60,40,0.03) 3px,rgba(80,60,40,0.03) 4px);pointer-events:none;}
+.eb-title{font-size:11px;color:var(--yellow);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(255,217,61,0.15);font-weight:700;}
+.ev-slot{border:2px dashed rgba(80,60,40,0.5);border-radius:10px;padding:10px;min-height:72px;display:flex;align-items:center;gap:10px;transition:all .5s;background:rgba(30,22,16,0.4);position:relative;}
+.ev-slot.filled{border-color:var(--green);border-style:solid;background:linear-gradient(135deg,rgba(46,213,115,0.08),rgba(46,213,115,0.02));box-shadow:0 0 10px rgba(46,213,115,0.08);}
+.ev-slot.active{border-color:var(--accent);animation:slotPulse 1.5s infinite;background:rgba(0,212,255,0.04);}
+.ev-slot .ev-num{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;background:rgba(60,45,30,0.6);color:rgba(140,120,90,0.7);border:1px solid rgba(80,60,40,0.4);position:relative;}
+.ev-slot .ev-num::before{content:'';position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:radial-gradient(circle,#aa4444,#882222);border:1px solid #993333;box-shadow:0 1px 2px rgba(0,0,0,0.4);}
+.ev-slot.filled .ev-num{background:rgba(46,213,115,0.2);color:var(--green);border-color:rgba(46,213,115,0.4);}
+.ev-slot.filled .ev-num::before{background:radial-gradient(circle,#44aa44,#228822);border-color:#339933;}
+.ev-slot .ev-label{font-size:11px;color:rgba(140,120,90,0.6);font-style:italic;}
+.ev-slot.filled .ev-label{color:var(--text);font-style:normal;font-weight:600;font-size:12px;}
+
+#cascadePanel{flex:1;padding:10px 8px;display:flex;flex-direction:column;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,rgba(0,30,60,0.3),transparent);}
+#cascadeModel{flex:1;position:relative;display:flex;flex-direction:column;justify-content:center;gap:0;}
+.cascade-step{display:flex;align-items:center;gap:8px;margin:2px 0;padding:7px 10px;border-radius:10px;border:2px dashed rgba(30,60,100,0.5);background:linear-gradient(135deg,rgba(20,30,55,0.6),rgba(15,22,40,0.4));transition:all .6s;position:relative;backdrop-filter:none;}
+.cascade-step.proven{border-color:var(--green);border-style:solid;background:linear-gradient(135deg,rgba(46,213,115,0.12),rgba(46,213,115,0.04));box-shadow:0 0 8px rgba(46,213,115,0.1);}
+.cascade-step .step-icon{font-size:20px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(0,20,40,0.5);border-radius:8px;border:1px solid rgba(60,80,120,0.3);}
+.cascade-step.proven .step-icon{background:rgba(46,213,115,0.1);border-color:rgba(46,213,115,0.3);}
+.cascade-step .step-label{font-size:12px;font-weight:700;color:rgba(120,140,170,0.8);transition:color .5s;letter-spacing:0.3px;}
+.cascade-step.proven .step-label{color:var(--green);}
+.cascade-arrow{text-align:center;color:rgba(40,60,90,0.6);font-size:11px;line-height:1;transition:color .5s;padding:1px 0;letter-spacing:1px;}
+.cascade-arrow.active{color:var(--accent);}
+.cascade-arrow.proven{color:var(--green);}
+.attach-point{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:2px solid var(--accent);background:transparent;transition:all .4s;}
+.attach-point.connected{background:var(--green);border-color:var(--green);box-shadow:0 0 8px rgba(46,213,115,0.4);}
+.attach-point.pulsing{animation:attachPulse 1.5s infinite;}
+.proven-stamp{position:absolute;right:34px;top:50%;transform:translateY(-50%);font-size:8px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:1.5px;opacity:0;transition:opacity .5s;}
+.cascade-step.proven .proven-stamp{opacity:1;}
+
+#conclusionMeter{position:absolute;right:8px;top:10%;height:80%;width:16px;background:linear-gradient(180deg,rgba(20,30,50,0.8),rgba(15,22,40,0.6));border-radius:8px;overflow:hidden;border:1px solid rgba(40,60,90,0.4);}
+#meterFill{position:absolute;bottom:0;width:100%;background:linear-gradient(to top,var(--green),#00D4FF,var(--accent));border-radius:8px;transition:height .8s ease;height:0;box-shadow:0 0 10px rgba(0,212,255,0.3);}
+#meterLabel{position:absolute;right:28px;top:50%;transform:translateY(-50%) rotate(-90deg);font-size:8px;color:rgba(100,130,170,0.6);letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;font-weight:700;}
+
+#evidenceDisplay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:85%;max-width:400px;opacity:0;transition:opacity .6s;pointer-events:none;}
+#evidenceDisplay.visible{opacity:1;pointer-events:auto;}
+
+#focusBanner{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(255,217,61,0.1),rgba(255,217,61,0.05));border:1px solid rgba(255,217,61,0.25);border-radius:10px;padding:10px 18px;font-size:13px;color:var(--yellow);max-width:90%;text-align:center;opacity:0;transition:opacity .5s;z-index:5;pointer-events:none;box-shadow:0 0 20px rgba(255,217,61,0.05);backdrop-filter:none;}
+#focusBanner.visible{opacity:1;}
+
+#interactionZone{min-height:140px;max-height:40vh;border-top:2px solid rgba(0,212,255,0.12);padding:14px;display:flex;flex-direction:column;align-items:center;overflow-y:auto;background:linear-gradient(180deg,rgba(15,22,41,0.95),rgba(10,12,25,0.98));flex-shrink:0;position:relative;}
+#interactionZone::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.25),transparent);}
+#phaseLabel{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--accent);margin-bottom:6px;font-weight:700;text-shadow:0 0 8px rgba(0,212,255,0.2);}
+#promptText{font-size:15px;text-align:center;margin-bottom:10px;max-width:600px;line-height:1.4;color:var(--text);}
+#optionsRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;width:100%;}
+.opt-card{padding:12px 18px;border-radius:12px;border:2px solid rgba(40,60,100,0.5);background:linear-gradient(145deg,rgba(22,32,64,0.8),rgba(15,22,45,0.6));cursor:pointer;min-height:48px;min-width:120px;max-width:280px;flex:1;text-align:center;font-size:14px;transition:all .2s;display:flex;align-items:center;justify-content:center;line-height:1.3;position:relative;overflow:hidden;}
+.opt-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,212,255,0.02),transparent);pointer-events:none;transition:opacity .2s;opacity:0;}
+.opt-card:hover,.opt-card:focus{border-color:var(--accent);background:linear-gradient(145deg,rgba(0,50,100,0.3),rgba(15,25,50,0.6));}
+.opt-card:hover::before{opacity:1;}
+.opt-card.selected{border-color:var(--accent);background:linear-gradient(145deg,rgba(0,100,150,0.2),rgba(0,50,80,0.15));box-shadow:0 0 15px rgba(0,212,255,0.15);}
+.opt-card.correct{border-color:var(--green);background:linear-gradient(145deg,rgba(46,213,115,0.15),rgba(46,213,115,0.05));color:var(--green);box-shadow:0 0 15px rgba(46,213,115,0.2);}
+.opt-card.wrong{border-color:var(--red);background:linear-gradient(145deg,rgba(255,71,87,0.15),rgba(255,71,87,0.05));color:var(--red);}
+.opt-card.dimmed{opacity:0.3;pointer-events:none;text-decoration:line-through;}
+.opt-card.eliminated{opacity:0.25;pointer-events:none;position:relative;}
+.opt-card.eliminated::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,71,87,0.08) 4px,rgba(255,71,87,0.08) 8px);border-radius:10px;}
+.opt-card.l1-glow{box-shadow:0 0 16px rgba(0,212,255,0.2);border-color:rgba(0,212,255,0.4);}
+#lockInBtn{padding:12px 36px;font-size:16px;font-weight:700;border:none;border-radius:12px;background:linear-gradient(135deg,#0090B0,var(--accent),#0090B0);background-size:200% 100%;color:#fff;cursor:pointer;min-height:48px;display:none;transition:transform .15s,opacity .3s,box-shadow .3s;opacity:0.4;pointer-events:none;letter-spacing:0.5px;}
+#lockInBtn.ready{opacity:1;pointer-events:auto;box-shadow:0 0 20px rgba(0,212,255,0.2);}
+#lockInBtn:active{transform:scale(0.97);}
+
+#coachingBar{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(255,217,61,0.1),rgba(255,180,40,0.06));border:1px solid rgba(255,217,61,0.25);border-radius:12px;padding:14px 22px;max-width:90%;width:520px;text-align:center;font-size:14px;color:var(--yellow);z-index:100;display:none;line-height:1.4;box-shadow:0 4px 20px rgba(0,0,0,0.4),0 0 15px rgba(255,217,61,0.05);}
+#tryAgainBtn{display:inline-block;margin-top:10px;padding:10px 32px;border-radius:10px;border:2px solid var(--green);background:linear-gradient(135deg,rgba(46,213,115,0.15),rgba(46,213,115,0.05));color:var(--green);font-size:15px;font-weight:700;cursor:pointer;min-height:48px;transition:all .2s;box-shadow:0 0 10px rgba(46,213,115,0.1);}
+#tryAgainBtn:hover{background:linear-gradient(135deg,rgba(46,213,115,0.25),rgba(46,213,115,0.1));}
+#tryAgainBtn:active{transform:scale(0.97);}
+
+#hotspotPrompt{font-size:14px;color:var(--yellow);text-align:center;padding:8px;display:none;}
+
+#bottomBar{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:linear-gradient(90deg,#0D1220,#14203a,#0D1220);border-top:1px solid rgba(0,212,255,0.1);min-height:44px;flex-shrink:0;position:relative;}
+#bottomBar::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.2),transparent);}
+.bb-btn{padding:6px 14px;border-radius:8px;border:1px solid rgba(40,60,100,0.5);background:linear-gradient(135deg,rgba(20,30,55,0.5),rgba(15,22,40,0.3));color:var(--textDim);font-size:13px;cursor:pointer;min-height:36px;transition:all .2s;}
+.bb-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px rgba(0,212,255,0.1);}
+#levelProgress{font-size:13px;color:rgba(100,130,170,0.6);letter-spacing:0.5px;}
+#resetLevelBtn{border-color:rgba(255,71,87,0.3);color:rgba(255,71,87,0.7);}
+#resetLevelBtn:hover{border-color:var(--red);color:var(--red);}
+#resetLevelBtn:disabled{opacity:0.2;pointer-events:none;}
+
+#vocabPanel{position:fixed;right:0;top:0;bottom:0;width:300px;max-width:85vw;background:linear-gradient(180deg,#0f1629,#0a0f1e);border-left:2px solid rgba(0,212,255,0.3);z-index:500;transform:translateX(100%);transition:transform .3s;padding:18px;overflow-y:auto;box-shadow:-10px 0 30px rgba(0,0,0,0.4);}
+#vocabPanel.open{transform:translateX(0);}
+.vocab-close{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--accent);font-size:20px;cursor:pointer;}
+.vocab-item{margin-bottom:14px;padding:12px;border-radius:10px;background:linear-gradient(135deg,rgba(20,30,55,0.6),rgba(15,22,40,0.4));border:1px solid rgba(40,60,100,0.3);transition:border-color .3s;}
+.vocab-item:hover{border-color:rgba(0,212,255,0.3);}
+.vocab-term{font-weight:800;font-size:15px;color:var(--accent);margin-bottom:5px;letter-spacing:0.5px;}
+.vocab-def{font-size:13px;color:rgba(180,190,210,0.8);line-height:1.5;}
+
+#hintOverlay{position:fixed;inset:0;background:var(--overlay);z-index:600;display:none;align-items:center;justify-content:center;}
+#hintOverlay.visible{display:flex;}
+.hint-box{background:var(--panel);border:2px solid var(--yellow);border-radius:14px;padding:24px;max-width:450px;width:90%;text-align:center;}
+.hint-box h3{color:var(--yellow);margin-bottom:12px;font-size:16px;}
+.hint-box p{font-size:14px;line-height:1.5;margin-bottom:16px;}
+.hint-box .panel-nav{display:flex;gap:8px;justify-content:center;}
+.hint-btn{padding:10px 24px;border-radius:8px;border:1px solid var(--yellow);background:rgba(255,217,61,0.1);color:var(--yellow);font-size:14px;cursor:pointer;min-height:44px;}
+
+#celebrationOverlay{position:fixed;inset:0;z-index:800;display:none;align-items:center;justify-content:center;pointer-events:none;background:radial-gradient(circle at 50% 50%,rgba(255,217,61,0.06),transparent 70%);}
+#celebrationOverlay.visible{display:flex;}
+.celeb-content{text-align:center;animation:celebPop .4s ease;}
+.celeb-msg{font-size:30px;font-weight:800;color:var(--yellow);text-shadow:0 0 30px rgba(255,217,61,0.4),0 2px 4px rgba(0,0,0,0.5);margin-bottom:8px;letter-spacing:1px;}
+.celeb-sub{font-size:18px;color:var(--text);text-shadow:0 1px 3px rgba(0,0,0,0.5);}
+.celeb-affirmation{font-size:22px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,0.5),0 0 20px rgba(0,212,255,0.2);margin-top:10px;opacity:0;animation:affirmFade 2.2s .3s forwards;}
+
+#reqCompleteOverlay{position:fixed;inset:0;background:var(--overlay);z-index:850;display:none;align-items:center;justify-content:center;}
+#reqCompleteOverlay.visible{display:flex;}
+.req-box{background:var(--panel);border:2px solid var(--green);border-radius:16px;padding:32px;max-width:400px;width:90%;text-align:center;}
+.req-box h2{color:var(--green);font-size:24px;margin-bottom:8px;}
+.req-box p{margin-bottom:20px;font-size:15px;}
+.req-box .btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.req-btn{padding:12px 24px;border-radius:10px;border:none;font-size:16px;font-weight:700;cursor:pointer;min-height:48px;}
+.req-btn.primary{background:linear-gradient(135deg,var(--accent),#0090B0);color:#fff;}
+.req-btn.secondary{background:var(--card);border:2px solid var(--accent);color:var(--accent);}
+
+#receiptScreen{position:fixed;inset:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));z-index:900;display:none;overflow-y:auto;padding:20px;}
+#receiptScreen.visible{display:block;}
+.receipt-inner{max-width:600px;margin:0 auto;background:var(--panel);border:2px solid var(--accent);border-radius:16px;padding:24px;box-shadow:0 0 40px rgba(0,212,255,0.1);}
+.receipt-header{text-align:center;margin-bottom:16px;}
+.receipt-header h1{font-size:20px;color:var(--accent);}
+.receipt-header h2{font-size:14px;color:var(--yellow);font-weight:400;}
+.receipt-name{display:flex;gap:8px;align-items:center;margin-bottom:16px;}
+.receipt-name input{flex:1;padding:10px;border-radius:8px;border:1px solid var(--panelBorder);background:var(--bg1);color:var(--text);font-size:15px;}
+.receipt-name button{padding:10px 16px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:13px;}
+.receipt-grade{text-align:center;margin:16px 0;padding:16px;border-radius:12px;background:rgba(30,48,80,0.4);}
+.receipt-pct{font-size:48px;font-weight:700;}
+.receipt-label{font-size:14px;margin-top:4px;}
+.receipt-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px;}
+.receipt-table th{background:rgba(0,212,255,0.1);padding:8px;text-align:left;border-bottom:2px solid var(--panelBorder);}
+.receipt-table td{padding:8px;border-bottom:1px solid rgba(30,48,80,0.5);}
+.receipt-table tr:nth-child(even) td{background:rgba(30,48,80,0.2);}
+.receipt-table .bonus-row td{border-left:3px solid var(--yellow);}
+.receipt-total{text-align:center;margin:12px 0;font-size:14px;color:var(--textDim);}
+.receipt-upload{text-align:center;padding:12px;background:rgba(255,217,61,0.08);border-radius:8px;margin:12px 0;font-size:14px;color:var(--yellow);}
+.receipt-actions{display:flex;gap:10px;justify-content:center;margin-top:12px;}
+.receipt-btn{padding:10px 20px;border-radius:8px;border:1px solid var(--panelBorder);background:var(--card);color:var(--text);cursor:pointer;font-size:14px;min-height:44px;}
+.receipt-btn.print{border-color:var(--accent);color:var(--accent);}
+
+#particleLayer{position:fixed;inset:0;pointer-events:none;z-index:700;overflow:hidden;}
+.particle{position:absolute;width:8px;height:8px;border-radius:50%;display:none;will-change:transform,opacity;}
+
+#antiGuessOverlay{position:fixed;inset:0;background:var(--overlay);z-index:650;display:none;align-items:center;justify-content:center;}
+#antiGuessOverlay.visible{display:flex;}
+.ag-box{background:var(--panel);border:2px solid var(--yellow);border-radius:14px;padding:24px;max-width:400px;width:90%;text-align:center;}
+.ag-box p{font-size:15px;line-height:1.5;margin-bottom:12px;}
+
+@keyframes dotPulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+@keyframes welcomeSpin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+@keyframes slotPulse{0%,100%{border-color:var(--accent);box-shadow:0 0 8px rgba(0,212,255,0.2);}50%{border-color:rgba(0,212,255,0.4);box-shadow:none;}}
+@keyframes attachPulse{0%,100%{box-shadow:0 0 4px var(--accent);}50%{box-shadow:0 0 12px var(--accent);}}
+@keyframes celebPop{0%{transform:scale(0.5);opacity:0;}100%{transform:scale(1);opacity:1;}}
+@keyframes affirmFade{0%{opacity:0;transform:translateY(8px);}30%{opacity:1;transform:translateY(0);}80%{opacity:1;}100%{opacity:0;}}
+@keyframes flashGreen{0%{box-shadow:0 0 0 rgba(46,213,115,0);}50%{box-shadow:0 0 20px rgba(46,213,115,0.5);}100%{box-shadow:0 0 0 rgba(46,213,115,0);}}
+@keyframes flashRed{0%{box-shadow:0 0 0 rgba(255,71,87,0);}50%{box-shadow:0 0 20px rgba(255,71,87,0.5);}100%{box-shadow:0 0 0 rgba(255,71,87,0);}}
+@keyframes yellowPulse{0%,100%{box-shadow:0 0 6px rgba(255,217,61,0.3);}50%{box-shadow:0 0 16px rgba(255,217,61,0.6);}}
+@keyframes slideUp{0%{transform:translateY(20px);opacity:0;}100%{transform:translateY(0);opacity:1;}}
+@keyframes fadeIn{0%{opacity:0;}100%{opacity:1;}}
+@keyframes gentlePulse{0%,100%{opacity:0.7;}50%{opacity:1;}}
+
+.flash-green{animation:flashGreen .6s ease;}
+.flash-red{animation:flashRed .5s ease;}
+.yellow-pulse{animation:yellowPulse 1.5s infinite;}
+.slide-up{animation:slideUp .4s ease;}
+.fade-in{animation:fadeIn .5s ease;}
+.gentle-pulse{animation:gentlePulse 1.5s infinite;}
+
+@media print{
+#app,#bottomBar,#topBar,.receipt-actions,#vocabPanel,#particleLayer,#celebrationOverlay,#coachingBar{display:none!important;}
+#receiptScreen{position:static!important;padding:10px!important;}
+.receipt-inner{box-shadow:none!important;border:2px solid #333!important;}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+@media(max-width:600px){
+#arena{flex-direction:column;}
+#evidenceBoard{width:100%;min-width:0;max-height:30vh;border-right:none;border-bottom:1px solid var(--panelBorder);}
+#cascadePanel{min-height:200px;}
+.opt-card{min-width:100px;font-size:13px;padding:10px;}
+}
+</style>
+</head>
+<body>
+<div id="welcomeScreen">
+<div class="welcome-box">
+<h1>Mr. Jawad's Simulations</h1>
+<h2>Mass Extinction Cascade — The Evidence That Proved It</h2>
+<label for="studentNameInput">Your Name</label>
+<input type="text" id="studentNameInput" placeholder="Enter your name" autocomplete="off">
+<label for="teacherNameInput">Teacher Name (optional)</label>
+<input type="text" id="teacherNameInput" placeholder="Mr. Jawad" autocomplete="off">
+<button id="startBtn">Start Investigation</button>
+</div>
+</div>
+
+<div id="app" style="display:none;">
+<div id="topBar">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<span class="badge"><span class="icon">&#128269;</span> <span id="levelBadge">Evidence #1</span></span>
+<span id="levelName">The Crater</span>
+</div>
+<div id="hudRight">
+<span id="evidenceCount">Evidence: 0 of 3</span>
+<span id="scoreDisplay">Score: 0</span>
+<div id="progressWrap"></div>
+</div>
+</div>
+
+<div id="arenaWrap">
+<div id="arena">
+<div id="evidenceBoard">
+<div class="eb-title">Evidence Collected</div>
+<div class="ev-slot" id="evSlot0"><div class="ev-num">1</div><div class="ev-label">Not yet found</div></div>
+<div class="ev-slot" id="evSlot1"><div class="ev-num">2</div><div class="ev-label">Not yet found</div></div>
+<div class="ev-slot" id="evSlot2"><div class="ev-num">3</div><div class="ev-label">Not yet found</div></div>
+</div>
+<div id="cascadePanel">
+<div id="cascadeModel"></div>
+<div id="conclusionMeter"><div id="meterFill"></div></div>
+<span id="meterLabel">Conclusion</span>
+</div>
+</div>
+<div id="focusBanner"></div>
+<div id="evidenceDisplay"></div>
+</div>
+
+<div id="interactionZone">
+<div id="phaseLabel"></div>
+<div id="promptText"></div>
+<div id="optionsRow"></div>
+<div id="hotspotPrompt"></div>
+<button id="lockInBtn">Lock In</button>
+</div>
+
+<div id="bottomBar">
+<div style="display:flex;gap:6px;">
+<button class="bb-btn" id="vocabBtn">&#128214; Vocab</button>
+<button class="bb-btn" id="hintBtn">&#128161; Hint</button>
+</div>
+<span id="levelProgress">Evidence 1 of 6</span>
+<div style="display:flex;gap:6px;">
+<button class="bb-btn" id="resetLevelBtn">Reset Level</button>
+<button class="bb-btn" id="newRunBtn">New Run</button>
+</div>
+</div>
+</div>
+
+<div id="vocabPanel">
+<button class="vocab-close" id="vocabClose">&#10005;</button>
+<h3 style="color:var(--accent);margin-bottom:16px;font-size:16px;">Key Vocabulary</h3>
+<div class="vocab-item"><div class="vocab-term">Impact Event</div><div class="vocab-def">Powerful collision that changes Earth</div></div>
+<div class="vocab-item"><div class="vocab-term">Debris Cloud</div><div class="vocab-def">Dust and rock blocking sunlight</div></div>
+<div class="vocab-item"><div class="vocab-term">Food Chain</div><div class="vocab-def">Connected feeding relationships in ecosystems</div></div>
+<div class="vocab-item"><div class="vocab-term">Chain Reaction</div><div class="vocab-def">Each change causing the next</div></div>
+</div>
+
+<div id="hintOverlay"><div class="hint-box" id="hintBox"></div></div>
+<div id="celebrationOverlay"><div class="celeb-content" id="celebContent"></div></div>
+<div id="reqCompleteOverlay"><div class="req-box" id="reqBox"></div></div>
+<div id="receiptScreen"><div class="receipt-inner" id="receiptInner"></div></div>
+<div id="coachingBar"><span id="coachText"></span><br><button id="tryAgainBtn">Try Again</button></div>
+<div id="antiGuessOverlay"><div class="ag-box" id="agBox"></div></div>
+<div id="particleLayer"></div>
+
+<script>
+"use strict";
+/* === UTILITIES === */
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function $(id){return document.getElementById(id);}
+function closeAllOverlays(){[$('coachingBar'),$('antiGuessOverlay'),$('hintOverlay'),$('celebrationOverlay'),$('reqCompleteOverlay')].forEach(el=>{if(el){el.style.display='none';el.classList.remove('visible');}});}
+const timers=[];
+function safeTimeout(fn,ms){const id=setTimeout(()=>{const i=timers.indexOf(id);if(i>-1)timers.splice(i,1);try{fn();}catch(e){console.error('safeTimeout error',e);}},ms);timers.push(id);return id;}
+function clearAllTimers(){timers.forEach(t=>clearTimeout(t));timers.length=0;}
+let arenaGen=0;
+function arenaTimeout(fn,ms){const gen=arenaGen;return safeTimeout(()=>{if(gen===arenaGen)fn();},ms);}
+let processing=false;
+function guardReset(){processing=false;}
+
+/* === AUDIO (lazy) === */
+let audioCtx=null;
+function getAudioCtx(){if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return audioCtx;}
+function playTone(freq,dur){try{const ctx=getAudioCtx();if(!ctx)return;const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;g.gain.value=0.1;o.start();g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);o.stop(ctx.currentTime+dur);}catch(e){}}
+function playCorrect(){playTone(523,.08);safeTimeout(()=>playTone(659,.08),80);safeTimeout(()=>playTone(784,.15),160);}
+function playWrong(){playTone(200,.15);}
+
+/* === SPEECH (lazy) === */
+let speechReady=false,resumeInt=null;
+function initSpeech(){speechReady=typeof speechSynthesis!=='undefined';}
+function speak(text,cb){
+if(!speechReady){if(cb)safeTimeout(cb,1500);return;}
+try{
+speechSynthesis.cancel();
+const u=new SpeechSynthesisUtterance(text);u.rate=0.85;
+if(resumeInt)clearInterval(resumeInt);
+resumeInt=setInterval(()=>{try{if(speechSynthesis.speaking)speechSynthesis.resume();}catch(e){}},10000);
+const timeout=safeTimeout(()=>{try{speechSynthesis.cancel();}catch(e){}clearInterval(resumeInt);if(cb)cb();},Math.max(text.length*80,5000));
+u.onend=()=>{clearTimeout(timeout);clearInterval(resumeInt);if(cb)cb();};
+u.onerror=()=>{clearTimeout(timeout);clearInterval(resumeInt);if(cb)cb();};
+speechSynthesis.speak(u);
+}catch(e){if(cb)safeTimeout(cb,500);}
+}
+
+/* === PARTICLES === */
+const POOL_SIZE=15,pool=[];
+(function initParticles(){const layer=$('particleLayer');for(let i=0;i<POOL_SIZE;i++){const p=document.createElement('div');p.className='particle';p.style.display='none';layer.appendChild(p);pool.push(p);}})();
+let poolIdx=0;
+function fireParticle(x,y,color){
+const p=pool[poolIdx%POOL_SIZE];poolIdx++;
+p.style.display='block';p.style.left=x+'px';p.style.top=y+'px';p.style.background=color||'var(--yellow)';
+p.style.transform='translate(0,0) scale(1)';p.style.opacity='1';
+const dx=(Math.random()-0.5)*120,dy=-(Math.random()*80+20);
+p.style.transition='all .8s ease-out';
+requestAnimationFrame(()=>{p.style.transform=`translate(${dx}px,${dy}px) scale(0)`;p.style.opacity='0';});
+safeTimeout(()=>{p.style.display='none';},900);
+}
+function burst(x,y,n,color){for(let i=0;i<Math.min(n,POOL_SIZE);i++)safeTimeout(()=>fireParticle(x+Math.random()*40-20,y+Math.random()*40-20,color),i*40);}
+
+/* === AFFIRMATIONS === */
+let teacherName='Mr. Jawad',studentName='';
+const affirmations=[
+n=>`${n} is proud of you!`,n=>`${n} knew you could do it!`,
+n=>`That's the kind of thinking ${n} loves to see!`,n=>`${n} says: you're getting it!`,
+n=>`Strong work — ${n} sees your effort!`,n=>`${n} is impressed right now!`,
+n=>`You're showing ${n} what you can do!`,n=>`${n} says: keep that energy!`
+];
+let lastAffIdx=-1;
+function getAffirmation(){let idx;do{idx=Math.floor(Math.random()*affirmations.length);}while(idx===lastAffIdx&&affirmations.length>1);lastAffIdx=idx;return affirmations[idx](teacherName);}
+
+/* === GAME STATE === */
+const GS={
+levels:[],currentLevel:0,totalScore:0,evidenceConnected:0,
+requiredCompleteShown:false,bonusCompleteShown:false,receiptRendered:false,
+startTime:0,levelStartTime:0
+};
+
+/* === CASCADE MODEL === */
+const CASCADE_STEPS=[
+{icon:'&#9728;&#65039;',label:'Impact Event',key:'impact'},
+{icon:'&#9729;&#65039;',label:'Debris Cloud',key:'debris'},
+{icon:'&#128262;',label:'Blocked Sunlight',key:'blocked'},
+{icon:'&#127793;',label:'Plant Death',key:'plants'},
+{icon:'&#129430;',label:'Herbivore Death',key:'herbivores'},
+{icon:'&#129422;',label:'Predator Death',key:'predators'}
+];
+const ATTACH_MAP={0:0,1:1,2:3}; // evidence index -> cascade step index (impact, debris, plants/food chain)
+// Actually: evidence 0=impact(step0), evidence 1=debris(step1), evidence 2=food chain(step3=plant death area)
+// Let me use step indices: 0=impact, 1=debris, 3=plants (food chain starts here)
+
+function buildCascadeModel(){
+const cm=$('cascadeModel');cm.innerHTML='';
+CASCADE_STEPS.forEach((s,i)=>{
+const step=document.createElement('div');step.className='cascade-step';step.id='cStep'+i;
+step.innerHTML=`<span class="step-icon">${s.icon}</span><span class="step-label">${s.label}</span><span class="proven-stamp">PROVEN</span>`;
+// Add attachment point for evidence-receiving steps
+if(i===0||i===1||i===3){
+const ap=document.createElement('div');ap.className='attach-point pulsing';ap.id='attach'+(i===0?0:i===1?1:2);
+step.appendChild(ap);
+}
+cm.appendChild(step);
+if(i<CASCADE_STEPS.length-1){
+const arrow=document.createElement('div');arrow.className='cascade-arrow';arrow.id='cArrow'+i;
+arrow.textContent='\u2193 caused \u2193';
+cm.appendChild(arrow);
+}
+});
+}
+function proveStep(stepIdx){
+const step=$('cStep'+stepIdx);if(step)step.classList.add('proven');
+// Prove connected arrows
+if(stepIdx>0){const arr=$('cArrow'+(stepIdx-1));if(arr)arr.classList.add('proven');}
+if(stepIdx<CASCADE_STEPS.length-1){const arr=$('cArrow'+stepIdx);if(arr)arr.classList.add('active');}
+}
+function connectEvidence(evIdx){
+const attachId='attach'+evIdx;const ap=$(attachId);
+// Prevent double-counting if evidence already connected (e.g. level reset after DO correct)
+if(ap&&ap.classList.contains('connected'))return;
+if(ap){ap.classList.remove('pulsing');ap.classList.add('connected');}
+const stepMap=[0,1,3];
+proveStep(stepMap[evIdx]);
+// Also prove downstream for evidence 2 (food chain = steps 3,4,5)
+if(evIdx===2){proveStep(4);proveStep(5);}
+GS.evidenceConnected=Math.min(3,GS.evidenceConnected+1);
+updateEvCount();
+$('meterFill').style.height=(GS.evidenceConnected/3*100)+'%';
+// Fill evidence slot
+const slot=$('evSlot'+evIdx);
+if(slot){slot.classList.add('filled');slot.querySelector('.ev-label').textContent=['Chicxulub Crater','Iridium Clay Layer','Population Graph'][evIdx];}
+}
+function updateEvCount(){$('evidenceCount').textContent='Evidence: '+GS.evidenceConnected+' of 3';}
+
+/* === LEVEL DATA === */
+const LEVELS=[
+{
+num:1,name:"The Crater",phase:"Observe",required:true,
+mechanic:"coach-click",evidenceIdx:0,
+focusPrompt:"Watch the crater image — look at its shape and size to figure out what hit Earth.",
+watchDuration:12000,minWatch:8000,
+doPrompt:"What does this crater prove happened to Earth?",
+doOptions:[
+{id:'A',text:'A massive impact event struck Earth',correct:true},
+{id:'B',text:'An earthquake split the ground open'},
+{id:'C',text:'A volcano erupted underground'}
+],
+doWrongFeedback:{
+B:"Earthquakes make jagged cracks, not perfect circles — look at the crater's round shape.",
+C:"Volcanic craters are much smaller — this one is 180 km across. What hits hard enough to make that?"
+},
+proveQuestion:"What does the crater's shape tell us about the impact event?",
+proveOptions:[
+{id:'A',text:'The impact was slow and gradual'},
+{id:'B',text:'The impact was sudden and powerful',correct:true},
+{id:'C',text:'The impact only affected one small area'}
+],
+proveWrongFeedback:{
+A:"Slow events don't create perfect circular craters — this was an instant collision.",
+C:"The crater is 180 km across — that's not small. One impact, massive effect."
+},
+hints:{
+hint1:{text:"Look at the crater image on the evidence board — focus on its circular shape and the '180 km' label.",dimOption:null},
+hint2:{text:"Earthquakes make jagged lines. Volcanoes make small holes. What makes a huge perfect circle?",dimOption:'B'},
+stepByStep:[
+{text:"Look at the crater shape. It is a perfect circle."},
+{text:"Only a high-speed collision makes a circle this large — 180 km."},
+{text:"This crater proves a massive impact event struck Earth. Tap the correct answer."}
+]
+},
+proveHints:{
+hint1:{text:"A circle 180 km wide was made by something fast and powerful, not slow and gentle.",dimOption:null},
+hint2:{text:"Think about the size — 180 km. That rules out 'small area.' Was it slow or sudden?",dimOption:'A'},
+stepByStep:[
+{text:"The crater is perfectly circular and 180 km wide."},
+{text:"Only an extremely powerful, sudden impact creates this shape and size."},
+{text:"The impact was sudden and powerful. Tap the correct answer."}
+]
+}
+},
+{
+num:2,name:"The Iridium Fingerprint",phase:"Observe",required:true,
+mechanic:"hotspot",evidenceIdx:1,
+focusPrompt:"Watch the rock layers — find the thin dark line that the asteroid left behind.",
+watchDuration:11000,minWatch:8000,
+doPrompt:"Tap where the asteroid left its evidence in the rocks.",
+hotspotRegions:[
+{id:'top-limestone',label:'Top Limestone',y:0,h:20},
+{id:'clay-layer',label:'Dark Clay Layer',y:38,h:8,correct:true},
+{id:'mid-limestone',label:'Middle Limestone',y:20,h:18},
+{id:'lower-shale',label:'Lower Shale',y:46,h:24},
+{id:'bedrock',label:'Bottom Bedrock',y:70,h:30}
+],
+hotspotWrongFeedback:{
+'top-limestone':"That's regular limestone — look for something thinner and darker between the layers.",
+'mid-limestone':"Close — look between the limestone layers for a thin dark line.",
+'lower-shale':"That's shale — the asteroid evidence is a thin clay line, not a thick rock layer.",
+'bedrock':"That's ancient bedrock — the asteroid evidence is higher up, between the limestone layers."
+},
+proveQuestion:"Why does iridium in the clay prove a debris cloud?",
+proveOptions:[
+{id:'A',text:'Iridium is common in Earth\'s soil'},
+{id:'B',text:'Iridium dissolves in ocean water'},
+{id:'C',text:'Iridium is rare on Earth but common in asteroids',correct:true}
+],
+proveWrongFeedback:{
+A:"If iridium were common on Earth, finding it wouldn't prove anything special — but it's extremely rare here.",
+B:"Dissolving in water wouldn't spread it into a rock layer worldwide — it came from above, in the debris cloud."
+},
+hints:{
+hint1:{text:"Look at the rock strata on the evidence board — find the thin dark line between the limestone layers. Read its label."},
+hint2:{text:"The label says iridium is 'rare on Earth, common in asteroids.' Only one layer has that label."},
+stepByStep:[
+{text:"The dark clay line sits between two limestone layers. It is very thin."},
+{text:"This clay contains iridium — an element from asteroids, not from Earth."},
+{text:"Asteroid dust spread around the world as a debris cloud and settled into this layer. Tap it."}
+]
+},
+proveHints:{
+hint1:{text:"Read the label on the dark clay layer — what does it say about iridium?",dimOption:null},
+hint2:{text:"Iridium is extremely rare on Earth's surface. So where did it come from?",dimOption:'A'},
+stepByStep:[
+{text:"Iridium is rare on Earth but common in asteroids."},
+{text:"A thin layer of iridium spread across the whole Earth means asteroid dust fell everywhere."},
+{text:"Iridium in the clay proves a debris cloud spread globally. Tap the correct answer."}
+]
+}
+},
+// Level 3-6 data filled via staged injection
+{num:3,name:"Population Collapse",phase:"Analyze",required:true,mechanic:"pick-match",evidenceIdx:2,
+focusPrompt:"Watch the graph lines — notice which organisms die FIRST and which die LAST.",
+watchDuration:12000,minWatch:8000,
+doPrompt:"Which chain reaction step does this population crash prove?",
+doOptions:[
+{id:'A',text:'The debris cloud blocked all sunlight'},
+{id:'B',text:'The impact event destroyed all land'},
+{id:'C',text:'The food chain collapsed in sequence',correct:true}
+],
+doWrongFeedback:{
+A:"The debris cloud blocking sunlight is a separate step — this graph shows POPULATIONS dying. Which step is about organisms dying?",
+B:"The impact event is one moment — this graph shows organisms declining over time in a specific order. What has an order like that?"
+},
+proveQuestion:"Why did predators die AFTER herbivores on the graph?",
+proveOptions:[
+{id:'A',text:'Predators depend on herbivores for food',correct:true},
+{id:'B',text:'Predators were hit by a second asteroid'},
+{id:'C',text:'Predators cannot survive cold temperatures'}
+],
+proveWrongFeedback:{
+B:"There was only one asteroid — the graph shows a chain reaction, not two separate events. Think about what predators eat.",
+C:"Cold weather alone doesn't explain why predators died AFTER herbivores. What do predators need from herbivores?"
+},
+hints:{
+hint1:{text:"Look at the population graph — which colored line drops first? Green is plants, brown is herbivores, red is predators.",dimOption:null},
+hint2:{text:"The graph shows populations dying in ORDER: plants, then herbivores, then predators. That order matches one specific cascade step.",dimOption:'B'},
+stepByStep:[
+{text:"Plants die first (green line drops). Then herbivores die (brown drops). Then predators die (red drops)."},
+{text:"This order matches the food chain — plants feed herbivores, herbivores feed predators."},
+{text:"The population crash proves the food chain collapsed in sequence. Tap the correct answer."}
+]
+},
+proveHints:{
+hint1:{text:"Look at the graph — predators died AFTER herbivores. What do predators eat?",dimOption:null},
+hint2:{text:"If herbivores die, predators lose their food source. That explains the order.",dimOption:'B'},
+stepByStep:[
+{text:"Herbivores eat plants. Predators eat herbivores."},
+{text:"When herbivores ran out of food, they died. Then predators had nothing to eat."},
+{text:"Predators depend on herbivores for food. Tap the correct answer."}
+]
+}
+},
+{num:4,name:"Connecting the Chain",phase:"Conclude",required:true,mechanic:"what-comes-next",evidenceIdx:-1,
+focusPrompt:"All three clues are matched — now watch the arrows show how each step CAUSED the next.",
+watchDuration:11000,minWatch:8000,
+doPrompt:"Complete the evidence chain: Crater proves impact. Iridium proves debris cloud. What's next?",
+doOptions:[
+{id:'A',text:'Sunlight returned to normal'},
+{id:'B',text:'Another asteroid struck Earth'},
+{id:'C',text:'Population crash proves food chain collapsed',correct:true}
+],
+doWrongFeedback:{
+A:"The chain reaction didn't stop — sunlight was BLOCKED, not restored. What happened to the organisms?",
+B:"There was only one asteroid. The chain reaction continued through the food chain. What does the population graph prove?"
+},
+proveQuestion:"What makes these three pieces of evidence a chain reaction?",
+proveOptions:[
+{id:'A',text:'They all happened at different times in history'},
+{id:'B',text:'Each one proves a step that caused the next step',correct:true},
+{id:'C',text:'They were all found by the same scientist'}
+],
+proveWrongFeedback:{
+A:"They all happened at the SAME time — 66 million years ago. The key is that one step CAUSED the next.",
+C:"Different scientists found different evidence. What matters is that the steps are CONNECTED — each one caused the next."
+},
+hints:{
+hint1:{text:"Look at the cascade model — follow the arrows from left to right. Each arrow means 'caused.' What comes after the debris cloud evidence?",dimOption:null},
+hint2:{text:"The crater proves impact event happened. The iridium proves debris cloud spread. The population graph proves ___.",dimOption:'A'},
+stepByStep:[
+{text:"Crater proves impact event (proven). Iridium proves debris cloud (proven). What's the third step?"},
+{text:"The population graph shows plants, herbivores, and predators dying in order — that's the food chain collapsing."},
+{text:"Population crash proves the food chain collapsed. Tap the answer that completes the chain."}
+]
+},
+proveHints:{
+hint1:{text:"Look at the cascade model — the arrows connect every step. What word appears on every arrow?",dimOption:null},
+hint2:{text:"The arrows say 'caused.' Each step CAUSED the next. That's the key connection.",dimOption:'A'},
+stepByStep:[
+{text:"Impact event caused debris cloud. Debris cloud caused blocked sunlight."},
+{text:"Blocked sunlight caused plant death. Plant death caused herbivore death. Each step caused the next."},
+{text:"Each piece of evidence proves a step that caused the next step. Tap the correct answer."}
+]
+}
+},
+{num:5,name:"Strongest Clue",phase:"Extend",required:false,mechanic:"claim-builder",evidenceIdx:-1,
+focusPrompt:"Watch each evidence card highlight — which one shows that life died in a specific ORDER?",
+watchDuration:12000,minWatch:9000,
+doPrompt:"Which evidence BEST proves the chain reaction killed life in ORDER?",
+doOptions:[
+{id:'A',text:'Chicxulub crater — shows a massive circular formation'},
+{id:'B',text:'Population crash graph — shows three lines declining at the same boundary',correct:true},
+{id:'C',text:'Iridium clay layer — shows a rare element in rock layers worldwide'}
+],
+doWrongFeedback:{
+A:"The crater shows WHERE the asteroid hit — but does a circular shape tell you which organisms died first?",
+C:"The iridium shows the dust SPREAD everywhere — but does a chemical spike tell you the ORDER that life died?"
+},
+proveQuestion:"Why is the population graph the strongest proof of the chain reaction's ORDER?",
+proveOptions:[
+{id:'A',text:'It shows organisms dying in food chain sequence',correct:true},
+{id:'B',text:'It was collected closer to the crater than other evidence'},
+{id:'C',text:'It contains more iridium than the clay layer'}
+],
+proveWrongFeedback:{
+B:"Being close to the crater doesn't tell you WHICH organisms died first — the graph is special because it shows the SEQUENCE: plants, then herbivores, then predators.",
+C:"Iridium amount tells you how much debris fell, not the ORDER that life died. Only the population graph shows plants dying before herbivores before predators."
+},
+hints:{
+hint1:{text:"Look at the 'Shows:' labels under each evidence card — one shows something happening in a SEQUENCE. Which one?",dimOption:null},
+hint2:{text:"The crater shows a shape. The iridium shows a chemical. Only one evidence type shows things happening one after another in a specific order.",dimOption:'A'},
+stepByStep:[
+{text:"The crater shows WHERE the asteroid hit. That's important, but a shape doesn't show which organisms died first."},
+{text:"The iridium shows the dust SPREAD. That's important, but a chemical in the rock doesn't show order either."},
+{text:"The population graph shows plants died first, then herbivores, then predators — that's the food chain order. Tap it."}
+]
+},
+proveHints:{
+hint1:{text:"What does the population graph show that neither the crater nor the iridium shows? Think about the three lines dropping in order.",dimOption:null},
+hint2:{text:"Proximity to the crater and iridium amounts don't show ORDER. Only one piece of evidence shows a sequence.",dimOption:'C'},
+stepByStep:[
+{text:"The crater proves impact. The iridium proves debris spread. Neither shows the ORDER organisms died."},
+{text:"The population graph shows plants dying first, then herbivores, then predators — a clear sequence."},
+{text:"It shows organisms dying in food chain sequence. Tap the correct answer."}
+]
+}
+},
+{num:6,name:"The Smaller Asteroid",phase:"Extend",required:false,mechanic:"pick-match",evidenceIdx:-1,
+focusPrompt:"Watch what happens when the debris cloud is thinner — does the food chain still collapse completely?",
+watchDuration:12000,minWatch:8000,
+doPrompt:"If the debris cloud were thinner, what would the evidence look like?",
+doOptions:[
+{id:'A',text:'Same iridium spike, same population crash'},
+{id:'B',text:'Smaller iridium spike, gradual population decline',correct:true},
+{id:'C',text:'No iridium at all, no population change'}
+],
+doWrongFeedback:{
+A:"A thinner debris cloud means LESS asteroid dust — so the iridium layer would be thinner too. Look at how the evidence changed on screen.",
+C:"A thinner cloud still has SOME asteroid dust — it doesn't disappear entirely. The effects would be smaller, not zero."
+},
+proveQuestion:"What would scientists find differently in the rocks from a smaller asteroid?",
+proveOptions:[
+{id:'A',text:'More iridium because smaller asteroids contain more metal'},
+{id:'B',text:'No difference — all asteroids leave the same evidence'},
+{id:'C',text:'Less iridium in the clay and a smaller population decline',correct:true}
+],
+proveWrongFeedback:{
+A:"Smaller asteroid = less material launched into the atmosphere = less iridium in the clay layer, not more.",
+B:"Smaller impact = thinner debris cloud = less evidence. The screen showed everything REDUCED, not the same."
+},
+hints:{
+hint1:{text:"Look at the modified cascade model — the debris cloud is thinner now. Compare the iridium layer and population graph to what you saw in earlier levels.",dimOption:null},
+hint2:{text:"Option A says 'same' evidence — but the screen clearly shows everything got smaller. Option C says 'no iridium at all' — but a thinner cloud still has SOME dust.",dimOption:'C'},
+stepByStep:[
+{text:"Thinner debris cloud = less asteroid dust in the atmosphere."},
+{text:"Less dust means a smaller iridium spike in the rocks and a gradual population decline instead of a crash."},
+{text:"A smaller asteroid leaves smaller evidence — less iridium, gradual decline. Tap the matching answer."}
+]
+},
+proveHints:{
+hint1:{text:"The screen showed that a thinner debris cloud changes the evidence — less dust, less iridium, smaller decline.",dimOption:null},
+hint2:{text:"More iridium from a smaller asteroid doesn't make sense. And 'no difference' contradicts what you just saw.",dimOption:'A'},
+stepByStep:[
+{text:"Smaller asteroid = less material = thinner debris cloud."},
+{text:"Thinner cloud = less iridium settling into rocks, and a gradual decline instead of a crash."},
+{text:"Scientists would find less iridium and a smaller population decline. Tap the correct answer."}
+]
+}
+}
+];
+
+/* === LEVEL STATE === */
+let curPhase='', curSelected=null, wrongCount=0, levelResets=0, hintTier=0;
+let phaseStartTime=0, consecutiveFastWrongs=0, sameWrongCount={};
+let doCompleted=false, proveCompleted=false;
+let watchTimeout=null, tapAdvanceReady=false;
+
+/* Initialize level tracking */
+function initLevelTracking(){
+GS.levels=LEVELS.map(l=>({
+num:l.num,name:l.name,required:l.required,completed:false,
+score:0,attempts:0,hintsUsed:0,resets:0,timeSeconds:0
+}));
+}
+
+/* === HUD UPDATES === */
+function updateHUD(){
+const l=LEVELS[GS.currentLevel];
+$('levelBadge').textContent='Evidence #'+l.num;
+$('levelName').textContent=l.name;
+$('scoreDisplay').textContent='Score: '+GS.totalScore;
+$('levelProgress').textContent='Evidence '+l.num+' of 6';
+// Progress dots
+const pw=$('progressWrap');pw.innerHTML='';
+LEVELS.forEach((lv,i)=>{
+const d=document.createElement('div');d.className='progDot';
+if(!lv.required)d.classList.add('bonus');
+if(GS.levels[i].completed)d.classList.add('done');
+if(i===GS.currentLevel)d.classList.add('current');
+pw.appendChild(d);
+});
+updateEvCount();
+}
+
+/* === ARENA RENDERING === */
+function clearArena(){
+const ed=$('evidenceDisplay');ed.innerHTML='';ed.classList.remove('visible');
+$('focusBanner').classList.remove('visible');$('focusBanner').textContent='';
+}
+
+function drawCraterEvidence(){
+return `<svg viewBox="0 0 340 290" style="width:100%;max-width:340px;margin:0 auto;display:block;">
+<defs>
+<radialGradient id="crG" cx="50%" cy="48%" r="48%"><stop offset="0%" stop-color="#0a0500"/><stop offset="15%" stop-color="#1a0800"/><stop offset="30%" stop-color="#3d1e08"/><stop offset="50%" stop-color="#5a3818"/><stop offset="70%" stop-color="#6b5535"/><stop offset="85%" stop-color="#4a6a3a"/><stop offset="100%" stop-color="#2a4a2a"/></radialGradient>
+<radialGradient id="crHeat" cx="50%" cy="48%" r="45%"><stop offset="0%" stop-color="#ff4400" stop-opacity="0.25"/><stop offset="35%" stop-color="#ff8800" stop-opacity="0.1"/><stop offset="100%" stop-color="#00ff88" stop-opacity="0"/></radialGradient>
+<linearGradient id="scanBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0a1a0a"/><stop offset="100%" stop-color="#0d200d"/></linearGradient>
+<pattern id="gridPat" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0L0 0 0 20" fill="none" stroke="#1a3a1a" stroke-width="0.3"/></pattern>
+</defs>
+<!-- Background -->
+<rect width="340" height="290" fill="url(#scanBg)" rx="10"/>
+<rect width="340" height="290" fill="url(#gridPat)" rx="10" opacity="0.5"/>
+<!-- Scan frame -->
+<rect x="4" y="4" width="332" height="282" fill="none" stroke="#2a5a2a" stroke-width="1.5" rx="8"/>
+<rect x="8" y="8" width="324" height="274" fill="none" stroke="#1a3a1a" stroke-width="0.5" rx="6"/>
+<!-- HUD text -->
+<text x="20" y="24" fill="#4a8a4a" font-size="9" font-family="monospace" letter-spacing="1">GRAVITY ANOMALY SONAR</text>
+<text x="320" y="24" fill="#4a8a4a" font-size="8" font-family="monospace" text-anchor="end">CLASSIFIED</text>
+<text x="170" y="40" fill="#6aba6a" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">CHICXULUB IMPACT STRUCTURE</text>
+<!-- Yucatan coastline outline -->
+<path d="M80,80 Q100,75 130,78 Q160,72 190,76 Q220,70 250,78 Q270,82 280,95 Q275,120 265,140 Q250,155 235,158" fill="none" stroke="#3a7a5a" stroke-width="1" stroke-dasharray="4,2" opacity="0.6"/>
+<text x="260" y="82" fill="#3a6a4a" font-size="7" font-family="monospace">COAST</text>
+<!-- Outer rim -->
+<ellipse cx="170" cy="155" rx="130" ry="100" fill="url(#crG)" stroke="#5a8a5a" stroke-width="0.8" opacity="0.85"/>
+<!-- Topographic contour rings -->
+<ellipse cx="170" cy="155" rx="120" ry="92" fill="none" stroke="#3a7a3a" stroke-width="0.5" opacity="0.4"/>
+<ellipse cx="170" cy="155" rx="105" ry="80" fill="none" stroke="#4a8a4a" stroke-width="0.6" opacity="0.4"/>
+<ellipse cx="170" cy="155" rx="88" ry="67" fill="none" stroke="#5a9a5a" stroke-width="0.5" opacity="0.4"/>
+<!-- Peak ring structure -->
+<ellipse cx="170" cy="155" rx="70" ry="54" fill="none" stroke="#8aba6a" stroke-width="1.2" stroke-dasharray="6,3" opacity="0.7"/>
+<text x="252" y="120" fill="#8aba6a" font-size="7" font-family="monospace">PEAK RING</text>
+<line x1="242" y1="121" x2="225" y2="130" stroke="#8aba6a" stroke-width="0.5" opacity="0.5"/>
+<!-- Inner basin -->
+<ellipse cx="170" cy="155" rx="45" ry="34" fill="none" stroke="#aaca8a" stroke-width="0.8" opacity="0.5"/>
+<!-- Central uplift zone -->
+<ellipse cx="170" cy="155" rx="22" ry="17" fill="#1a0800" stroke="#cc8844" stroke-width="1.2" opacity="0.8"/>
+<circle cx="170" cy="155" r="6" fill="#dd6622" opacity="0.7"/>
+<circle cx="170" cy="155" r="2.5" fill="#ffaa44"/>
+<!-- Heat overlay -->
+<ellipse cx="170" cy="155" rx="100" ry="78" fill="url(#crHeat)"/>
+<!-- Diameter measurement line -->
+<line x1="38" y1="155" x2="160" y2="155" stroke="var(--yellow)" stroke-width="0.8" stroke-dasharray="3,2" opacity="0.7"/>
+<line x1="180" y1="155" x2="302" y2="155" stroke="var(--yellow)" stroke-width="0.8" stroke-dasharray="3,2" opacity="0.7"/>
+<line x1="38" y1="148" x2="38" y2="162" stroke="var(--yellow)" stroke-width="0.8"/>
+<line x1="302" y1="148" x2="302" y2="162" stroke="var(--yellow)" stroke-width="0.8"/>
+<!-- Scale + labels -->
+<rect x="20" y="258" width="100" height="3" fill="#6aba6a" rx="1"/>
+<text x="70" y="255" fill="#6aba6a" font-size="8" text-anchor="middle" font-family="monospace">50 km</text>
+<text x="170" y="270" fill="var(--yellow)" font-size="14" text-anchor="middle" font-weight="bold" font-family="monospace" id="craterSizeLabel">~ 180 km across</text>
+<text x="170" y="284" fill="#6a9a7a" font-size="9" text-anchor="middle" font-family="monospace">Buried under Yucatan Peninsula | 66 million years</text>
+<!-- Corner brackets -->
+<path d="M15,15 L15,35" stroke="#4a8a4a" stroke-width="1.5" fill="none"/><path d="M15,15 L35,15" stroke="#4a8a4a" stroke-width="1.5" fill="none"/>
+<path d="M325,15 L325,35" stroke="#4a8a4a" stroke-width="1.5" fill="none"/><path d="M325,15 L305,15" stroke="#4a8a4a" stroke-width="1.5" fill="none"/>
+<path d="M15,275 L15,255" stroke="#4a8a4a" stroke-width="1.5" fill="none"/><path d="M15,275 L35,275" stroke="#4a8a4a" stroke-width="1.5" fill="none"/>
+<path d="M325,275 L325,255" stroke="#4a8a4a" stroke-width="1.5" fill="none"/><path d="M325,275 L305,275" stroke="#4a8a4a" stroke-width="1.5" fill="none"/>
+</svg>`;
+}
+
+function drawStrataEvidence(){
+return `<svg viewBox="0 0 340 310" style="width:100%;max-width:340px;margin:0 auto;display:block;" id="strataSvg">
+<defs>
+<pattern id="limePat" width="12" height="12" patternUnits="userSpaceOnUse">
+<rect width="12" height="12" fill="#d4c9a8"/>
+<circle cx="3" cy="4" r="1.2" fill="#c4b898" opacity="0.5"/><circle cx="9" cy="9" r="0.8" fill="#baa878" opacity="0.4"/>
+<circle cx="7" cy="2" r="0.6" fill="#c8b888" opacity="0.3"/>
+</pattern>
+<pattern id="limePat2" width="14" height="14" patternUnits="userSpaceOnUse">
+<rect width="14" height="14" fill="#ccc098"/>
+<circle cx="4" cy="6" r="1" fill="#b8a878" opacity="0.5"/><circle cx="11" cy="3" r="1.3" fill="#c0b088" opacity="0.4"/>
+<path d="M2,11 Q4,10 6,12" fill="none" stroke="#b0a070" stroke-width="0.4" opacity="0.3"/>
+</pattern>
+<pattern id="shalePat" width="16" height="6" patternUnits="userSpaceOnUse">
+<rect width="16" height="6" fill="#7a756a"/>
+<line x1="0" y1="1.5" x2="16" y2="1.5" stroke="#6a655a" stroke-width="0.4"/>
+<line x1="0" y1="4" x2="12" y2="4" stroke="#6a655a" stroke-width="0.3"/>
+<line x1="4" y1="5.5" x2="16" y2="5.5" stroke="#706558" stroke-width="0.3"/>
+</pattern>
+<pattern id="bedrockPat" width="20" height="20" patternUnits="userSpaceOnUse">
+<rect width="20" height="20" fill="#3a3530"/>
+<path d="M0,10 Q5,8 10,12 Q15,9 20,11" fill="none" stroke="#4a4540" stroke-width="0.5"/>
+<path d="M2,18 Q8,16 14,19" fill="none" stroke="#45403a" stroke-width="0.4"/>
+<circle cx="16" cy="5" r="1.5" fill="#444038" opacity="0.4"/>
+</pattern>
+<linearGradient id="clayGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1a1408"/><stop offset="30%" stop-color="#221a0c"/><stop offset="50%" stop-color="#1a1408"/><stop offset="70%" stop-color="#201810"/><stop offset="100%" stop-color="#1a1408"/></linearGradient>
+<linearGradient id="strataBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1a28"/><stop offset="100%" stop-color="#12121e"/></linearGradient>
+</defs>
+<!-- Background frame -->
+<rect width="340" height="310" fill="url(#strataBg)" rx="10"/>
+<rect x="4" y="4" width="332" height="302" fill="none" stroke="#2a2a40" stroke-width="1" rx="8"/>
+<text x="170" y="22" fill="#7a8aaa" font-size="10" text-anchor="middle" font-family="monospace" letter-spacing="1">ROCK STRATA CROSS-SECTION</text>
+<!-- Depth scale left side -->
+<line x1="18" y1="35" x2="18" y2="270" stroke="#4a5a6a" stroke-width="1"/>
+<text x="14" y="50" fill="#5a6a7a" font-size="6" text-anchor="end" font-family="monospace">0m</text>
+<line x1="15" y1="48" x2="21" y2="48" stroke="#4a5a6a" stroke-width="0.5"/>
+<text x="14" y="95" fill="#5a6a7a" font-size="6" text-anchor="end" font-family="monospace">5m</text>
+<line x1="15" y1="93" x2="21" y2="93" stroke="#4a5a6a" stroke-width="0.5"/>
+<text x="14" y="145" fill="#5a6a7a" font-size="6" text-anchor="end" font-family="monospace">10m</text>
+<line x1="15" y1="143" x2="21" y2="143" stroke="#4a5a6a" stroke-width="0.5"/>
+<text x="14" y="200" fill="#5a6a7a" font-size="6" text-anchor="end" font-family="monospace">15m</text>
+<line x1="15" y1="198" x2="21" y2="198" stroke="#4a5a6a" stroke-width="0.5"/>
+<text x="14" y="260" fill="#5a6a7a" font-size="6" text-anchor="end" font-family="monospace">20m</text>
+<line x1="15" y1="258" x2="21" y2="258" stroke="#4a5a6a" stroke-width="0.5"/>
+<!-- Surface with grass -->
+<rect x="25" y="32" width="290" height="8" fill="#3a5a2a"/>
+<path d="M30,32 L33,26 L36,32 M50,32 L52,27 L54,32 M70,32 L73,25 L76,32 M100,32 L102,28 L104,32 M140,32 L143,26 L146,32 M200,32 L202,27 L204,32 M260,32 L262,26 L264,32 M290,32 L293,28 L296,32" fill="none" stroke="#4a7a3a" stroke-width="1"/>
+<!-- Top Limestone with fossils -->
+<rect x="25" y="40" width="290" height="65" fill="url(#limePat)" stroke="#b0a888" stroke-width="0.8"/>
+<!-- Fossil ammonite -->
+<g transform="translate(80,62)" opacity="0.4"><path d="M0,0 A6,6 0 1,1 0.1,0 M0,0 A4,4 0 1,1 0.1,0 M0,0 A2,2 0 1,1 0.1,0" fill="none" stroke="#a09070" stroke-width="0.6"/></g>
+<!-- Fossil shell -->
+<g transform="translate(180,75)" opacity="0.35"><ellipse cx="0" cy="0" rx="5" ry="3" fill="none" stroke="#a09070" stroke-width="0.5"/><line x1="-4" y1="0" x2="4" y2="0" stroke="#a09070" stroke-width="0.3"/></g>
+<!-- Fossil shell 2 -->
+<g transform="translate(250,55)" opacity="0.3"><path d="M-4,2 Q0,-3 4,2" fill="none" stroke="#a09070" stroke-width="0.5"/><path d="M-3,1 Q0,-1 3,1" fill="none" stroke="#a09070" stroke-width="0.3"/></g>
+<text x="325" y="75" fill="#8a8a7a" font-size="8" text-anchor="end" font-family="sans-serif">Limestone</text>
+<!-- Middle Limestone -->
+<rect x="25" y="105" width="290" height="28" fill="url(#limePat2)" stroke="#b0a888" stroke-width="0.8"/>
+<g transform="translate(140,118)" opacity="0.3"><ellipse cx="0" cy="0" rx="4" ry="2.5" fill="none" stroke="#a09070" stroke-width="0.5"/></g>
+<text x="325" y="123" fill="#8a8a7a" font-size="8" text-anchor="end" font-family="sans-serif">Limestone</text>
+<!-- === DARK CLAY LAYER (THE TARGET) === -->
+<rect x="25" y="133" width="290" height="14" fill="url(#clayGrad)" stroke="#333" stroke-width="0.8" id="clayLayer"/>
+<!-- Tiny iridium crystal specks -->
+<circle cx="50" cy="139" r="0.8" fill="#aaa" opacity="0.5"/><circle cx="90" cy="141" r="0.6" fill="#ccc" opacity="0.4"/>
+<circle cx="130" cy="138" r="0.7" fill="#bbb" opacity="0.5"/><circle cx="175" cy="140" r="0.9" fill="#aaa" opacity="0.4"/>
+<circle cx="210" cy="139" r="0.5" fill="#ddd" opacity="0.5"/><circle cx="260" cy="141" r="0.7" fill="#bbb" opacity="0.4"/>
+<circle cx="290" cy="138" r="0.6" fill="#ccc" opacity="0.5"/>
+<!-- Clay layer labels (hidden initially, revealed in WATCH) -->
+<rect x="120" y="126" width="120" height="24" rx="4" fill="rgba(10,10,20,0.85)" stroke="var(--yellow)" stroke-width="0.8" id="clayPointer" style="opacity:0"/>
+<text x="180" y="136" fill="var(--yellow)" font-size="9" text-anchor="middle" font-weight="bold" id="clayLabel" style="opacity:0" font-family="sans-serif">66-million-year boundary</text>
+<text x="180" y="146" fill="var(--yellow)" font-size="7" text-anchor="middle" style="opacity:0" class="clay-sub-label">&#9650; this dark line</text>
+<text x="170" y="160" fill="var(--accent)" font-size="9" text-anchor="middle" id="iridiumLabel" style="opacity:0" font-weight="bold">Iridium spike — rare on Earth, common in asteroids</text>
+<!-- Lower Shale -->
+<rect x="25" y="147" width="290" height="70" fill="url(#shalePat)" stroke="#5a554a" stroke-width="0.8"/>
+<text x="325" y="185" fill="#8a8a7a" font-size="8" text-anchor="end" font-family="sans-serif">Shale</text>
+<!-- Bedrock with fracture lines -->
+<rect x="25" y="217" width="290" height="60" fill="url(#bedrockPat)" stroke="#4a4540" stroke-width="0.8"/>
+<path d="M60,230 L75,245 L72,260" fill="none" stroke="#504a44" stroke-width="0.5" opacity="0.4"/>
+<path d="M200,222 L210,238 L205,255" fill="none" stroke="#504a44" stroke-width="0.5" opacity="0.4"/>
+<text x="325" y="250" fill="#8a8a7a" font-size="8" text-anchor="end" font-family="sans-serif">Bedrock</text>
+<!-- === TRANSPARENT TOUCH-TARGET OVERLAYS (min 48px each) === -->
+<rect x="25" y="40" width="290" height="55" fill="transparent" class="strata-region" data-region="top-limestone" style="cursor:pointer"/>
+<rect x="25" y="95" width="290" height="48" fill="transparent" class="strata-region" data-region="mid-limestone" style="cursor:pointer"/>
+<rect x="25" y="117" width="290" height="48" fill="transparent" class="strata-region" data-region="clay-layer" style="cursor:pointer"/>
+<rect x="25" y="155" width="290" height="62" fill="transparent" class="strata-region" data-region="lower-shale" style="cursor:pointer"/>
+<rect x="25" y="217" width="290" height="60" fill="transparent" class="strata-region" data-region="bedrock" style="cursor:pointer"/>
+<!-- Location label -->
+<text x="170" y="295" fill="#5a6a8a" font-size="8" text-anchor="middle" font-family="monospace">Gubbio, Italy — Where the Alvarezes found the first clue</text>
+</svg>`;
+}
+
+function drawPopGraphEvidence(){
+return `<svg viewBox="0 0 360 260" style="width:100%;max-width:360px;margin:0 auto;display:block;" id="popGraphSvg">
+<defs>
+<linearGradient id="pgBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1a28"/><stop offset="100%" stop-color="#12121e"/></linearGradient>
+<linearGradient id="extinctZone" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="rgba(255,71,87,0)" /><stop offset="30%" stop-color="rgba(255,71,87,0.08)"/><stop offset="100%" stop-color="rgba(255,71,87,0.03)"/></linearGradient>
+<linearGradient id="plantFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4ade80" stop-opacity="0.2"/><stop offset="100%" stop-color="#4ade80" stop-opacity="0.02"/></linearGradient>
+</defs>
+<!-- Background -->
+<rect width="360" height="260" fill="url(#pgBg)" rx="10"/>
+<rect x="4" y="4" width="352" height="252" fill="none" stroke="#2a2a40" stroke-width="1" rx="8"/>
+<text x="180" y="22" fill="#7a8aaa" font-size="10" text-anchor="middle" font-family="monospace" letter-spacing="1">SPECIES POPULATION OVER TIME</text>
+<!-- Grid lines -->
+<g opacity="0.15" stroke="#5566aa" stroke-width="0.5">
+<line x1="55" y1="50" x2="330" y2="50"/><line x1="55" y1="80" x2="330" y2="80"/>
+<line x1="55" y1="110" x2="330" y2="110"/><line x1="55" y1="140" x2="330" y2="140"/>
+<line x1="55" y1="170" x2="330" y2="170"/>
+<line x1="90" y1="35" x2="90" y2="200"/><line x1="140" y1="35" x2="140" y2="200"/>
+<line x1="195" y1="35" x2="195" y2="200"/><line x1="245" y1="35" x2="245" y2="200"/>
+<line x1="300" y1="35" x2="300" y2="200"/>
+</g>
+<!-- Axes -->
+<line x1="55" y1="35" x2="55" y2="205" stroke="#6677aa" stroke-width="1.5"/>
+<line x1="55" y1="205" x2="335" y2="205" stroke="#6677aa" stroke-width="1.5"/>
+<!-- Y-axis labels -->
+<text x="48" y="54" fill="#5a6a8a" font-size="7" text-anchor="end" font-family="monospace">High</text>
+<text x="48" y="114" fill="#5a6a8a" font-size="7" text-anchor="end" font-family="monospace">Med</text>
+<text x="48" y="174" fill="#5a6a8a" font-size="7" text-anchor="end" font-family="monospace">Low</text>
+<text x="48" y="204" fill="#5a6a8a" font-size="7" text-anchor="end" font-family="monospace">0</text>
+<text x="24" y="125" fill="#5a6a8a" font-size="8" text-anchor="middle" font-family="monospace" transform="rotate(-90,24,125)">Population</text>
+<!-- X-axis labels -->
+<text x="80" y="218" fill="#5a6a8a" font-size="7" text-anchor="middle" font-family="monospace">70 mya</text>
+<text x="140" y="218" fill="#5a6a8a" font-size="7" text-anchor="middle" font-family="monospace">68</text>
+<text x="195" y="218" fill="var(--yellow)" font-size="8" text-anchor="middle" font-family="monospace" font-weight="bold">66 mya</text>
+<text x="245" y="218" fill="#5a6a8a" font-size="7" text-anchor="middle" font-family="monospace">64</text>
+<text x="310" y="218" fill="#5a6a8a" font-size="7" text-anchor="middle" font-family="monospace">62</text>
+<text x="195" y="230" fill="#6677aa" font-size="8" text-anchor="middle" font-family="monospace">Millions of Years Ago</text>
+<!-- Extinction event zone -->
+<rect x="195" y="35" width="140" height="170" fill="url(#extinctZone)"/>
+<line x1="195" y1="35" x2="195" y2="205" stroke="var(--yellow)" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.6"/>
+<text x="198" y="44" fill="var(--yellow)" font-size="7" font-family="monospace" opacity="0.7">IMPACT</text>
+<!-- Graph lines (pre-collapse - will be animated) -->
+<polyline id="plantLine" points="65,60 100,57 140,55 180,53 195,53" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline id="herbLine" points="65,80 100,77 140,75 180,73 195,73" fill="none" stroke="#c4955c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline id="predLine" points="65,105 100,102 140,100 180,98 195,98" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<!-- Data point markers (pre-collapse only) -->
+<g fill="#4ade80"><circle cx="65" cy="60" r="2.5"/><circle cx="140" cy="55" r="2.5"/><circle cx="195" cy="53" r="2.5"/></g>
+<g fill="#c4955c"><circle cx="65" cy="80" r="2.5"/><circle cx="140" cy="75" r="2.5"/><circle cx="195" cy="73" r="2.5"/></g>
+<g fill="#ef4444"><circle cx="65" cy="105" r="2.5"/><circle cx="140" cy="100" r="2.5"/><circle cx="195" cy="98" r="2.5"/></g>
+<!-- Legend with organism silhouettes -->
+<g transform="translate(70,240)">
+<rect x="-5" y="-8" width="230" height="14" rx="4" fill="rgba(30,48,80,0.4)"/>
+<!-- Plant icon -->
+<path d="M0,0 L0,-5 M-2,-3 L0,-5 L2,-3" fill="none" stroke="#4ade80" stroke-width="1.2"/>
+<text x="6" y="1" fill="#4ade80" font-size="9" font-weight="600">Plants</text>
+<!-- Herbivore icon -->
+<g transform="translate(70,0)"><path d="M-3,2 L0,-4 L3,2 Z" fill="none" stroke="#c4955c" stroke-width="1"/><circle cx="0" cy="-5" r="1.5" fill="none" stroke="#c4955c" stroke-width="0.8"/></g>
+<text x="76" y="1" fill="#c4955c" font-size="9" font-weight="600">Herbivores</text>
+<!-- Predator icon -->
+<g transform="translate(160,0)"><path d="M-4,0 L0,-4 L4,0 L2,2 L-2,2 Z" fill="none" stroke="#ef4444" stroke-width="1"/></g>
+<text x="168" y="1" fill="#ef4444" font-size="9" font-weight="600">Predators</text>
+</g>
+</svg>`;
+}
+
+function animatePopGraphDrop(){
+const pl=$('plantLine'),hl=$('herbLine'),pr=$('predLine');
+if(!pl)return;
+// Plants drop first - sharp crash
+arenaTimeout(()=>{if(pl)pl.setAttribute('points','65,60 100,57 140,55 180,53 195,53 215,140 245,178 280,185 320,188');},500);
+// Herbivores drop second - delayed crash
+arenaTimeout(()=>{if(hl)hl.setAttribute('points','65,80 100,77 140,75 180,73 195,73 215,85 245,162 280,182 320,190');},1500);
+// Predators drop last - most delayed
+arenaTimeout(()=>{if(pr)pr.setAttribute('points','65,105 100,102 140,100 180,98 195,98 215,102 245,120 280,178 320,192');},2500);
+}
+
+/* === WATCH PHASE === */
+function runWatch(levelIdx){
+curPhase='watch';processing=true;
+const L=LEVELS[levelIdx];
+closeAllOverlays();clearArena();
+const ed=$('evidenceDisplay');
+const fb=$('focusBanner');
+fb.textContent=L.focusPrompt;fb.classList.add('visible');
+
+$('phaseLabel').textContent='WATCH';
+$('promptText').textContent='Observe the evidence carefully...';
+$('optionsRow').innerHTML='';
+$('lockInBtn').style.display='none';
+$('hotspotPrompt').style.display='none';
+
+// Level-specific arena
+if(levelIdx===0) runWatchL1(ed,L);
+else if(levelIdx===1) runWatchL2(ed,L);
+else if(levelIdx===2) runWatchL3(ed,L);
+else if(levelIdx===3) runWatchL4(ed,L);
+else if(levelIdx===4) runWatchL5(ed,L);
+else if(levelIdx===5) runWatchL6(ed,L);
+
+// Tap to advance after min watch
+tapAdvanceReady=false;
+arenaTimeout(()=>{tapAdvanceReady=true;$('promptText').textContent='Tap anywhere to continue, or wait...';},L.minWatch);
+// Auto-advance
+watchTimeout=arenaTimeout(()=>{endWatch(levelIdx);},L.watchDuration);
+}
+
+function endWatch(levelIdx){
+if(curPhase!=='watch')return;
+tapAdvanceReady=false;
+$('focusBanner').classList.remove('visible');
+// Coaching beat for level 1
+if(levelIdx===0){
+$('promptText').textContent='Did you see the circular shape? Now show me what it proves.';
+arenaTimeout(()=>startDO(levelIdx),2000);
+}else{
+startDO(levelIdx);
+}
+}
+
+// Click anywhere to advance watch
+document.addEventListener('click',function(e){
+if(curPhase==='watch'&&tapAdvanceReady&&!e.target.closest('#bottomBar')&&!e.target.closest('#vocabPanel')){
+if(watchTimeout){clearTimeout(watchTimeout);const i=timers.indexOf(watchTimeout);if(i>-1)timers.splice(i,1);}
+endWatch(GS.currentLevel);
+}
+},{passive:true});
+
+function runWatchL1(ed,L){
+// Orientation: pulse cascade steps
+const steps=document.querySelectorAll('.cascade-step');
+steps.forEach((s,i)=>{arenaTimeout(()=>{s.classList.add('gentle-pulse');arenaTimeout(()=>s.classList.remove('gentle-pulse'),800);},i*700);});
+// Show crater after orientation
+arenaTimeout(()=>{
+ed.innerHTML=drawCraterEvidence();ed.classList.add('visible');
+ed.classList.add('fade-in');
+// Highlight attachment point
+const ap=$('attach0');if(ap)ap.classList.add('pulsing');
+// Mark slot active
+$('evSlot0').classList.add('active');
+},5000);
+}
+
+function runWatchL2(ed,L){
+// Beat 1: Show strata with no labels
+ed.innerHTML=drawStrataEvidence();ed.classList.add('visible');
+// Beat 2: Spotlight clay layer
+arenaTimeout(()=>{
+const clay=$('clayLayer');if(clay){clay.style.stroke='var(--yellow)';clay.style.strokeWidth='2.5';}
+const cl=$('clayLabel');if(cl)cl.style.opacity='1';
+const cp=$('clayPointer');if(cp)cp.style.opacity='1';
+// Also show sub-label
+document.querySelectorAll('.clay-sub-label').forEach(el=>el.style.opacity='1');
+},3000);
+// Beat 3: Show iridium label
+arenaTimeout(()=>{
+const il=$('iridiumLabel');if(il)il.style.opacity='1';
+const ap=$('attach1');if(ap)ap.classList.add('pulsing');
+$('evSlot1').classList.add('active');
+},7000);
+}
+
+function runWatchL3(ed,L){
+ed.innerHTML=drawPopGraphEvidence();ed.classList.add('visible');
+arenaTimeout(()=>animatePopGraphDrop(),4000);
+arenaTimeout(()=>{
+const ap=$('attach2');if(ap)ap.classList.add('pulsing');
+$('evSlot2').classList.add('active');
+},8000);
+}
+
+function runWatchL4(ed,L){
+// All 3 evidence cards attached. Animate full chain with "caused" labels
+const steps=document.querySelectorAll('.cascade-step');
+steps.forEach(s=>s.classList.add('proven'));
+const arrows=document.querySelectorAll('.cascade-arrow');
+arrows.forEach((a,i)=>{
+a.classList.add('proven');a.style.color='var(--panelBorder)';
+arenaTimeout(()=>{
+a.style.color='var(--green)';
+a.innerHTML='\u2193 caused \u2193';
+a.style.transition='color 0.5s';
+},i*1500+500);
+});
+// Show synthesis text in evidence display
+arenaTimeout(()=>{
+ed.innerHTML=`<div style="text-align:center;padding:18px;background:linear-gradient(135deg,rgba(46,213,115,0.08),rgba(0,212,255,0.04));border:1px solid rgba(46,213,115,0.25);border-radius:12px;box-shadow:0 0 20px rgba(46,213,115,0.05);">
+<div style="font-size:12px;color:var(--green);font-weight:800;margin-bottom:10px;letter-spacing:2px;text-transform:uppercase;">Full Chain Reaction Sequence</div>
+<div style="font-size:12px;color:var(--text);line-height:2.2;">
+<span style="padding:3px 8px;background:rgba(0,212,255,0.1);border-radius:4px;border:1px solid rgba(0,212,255,0.2);">Impact Event</span>
+<span style="color:var(--green);margin:0 4px;">\u2192 caused \u2192</span>
+<span style="padding:3px 8px;background:rgba(255,217,61,0.08);border-radius:4px;border:1px solid rgba(255,217,61,0.15);">Debris Cloud</span>
+<span style="color:var(--green);margin:0 4px;">\u2192 caused \u2192</span>
+<span style="padding:3px 8px;background:rgba(100,120,160,0.1);border-radius:4px;border:1px solid rgba(100,120,160,0.2);">Blocked Sunlight</span><br>
+<span style="color:var(--green);margin:0 4px;">\u2192 caused \u2192</span>
+<span style="padding:3px 8px;background:rgba(74,222,128,0.08);border-radius:4px;border:1px solid rgba(74,222,128,0.15);">Plant Death</span>
+<span style="color:var(--green);margin:0 4px;">\u2192 caused \u2192</span>
+<span style="padding:3px 8px;background:rgba(196,149,92,0.1);border-radius:4px;border:1px solid rgba(196,149,92,0.15);">Herbivore Death</span>
+<span style="color:var(--green);margin:0 4px;">\u2192 caused \u2192</span>
+<span style="padding:3px 8px;background:rgba(239,68,68,0.08);border-radius:4px;border:1px solid rgba(239,68,68,0.15);">Predator Death</span>
+</div></div>`;
+ed.classList.add('visible');
+},6000);
+}
+
+function runWatchL5(ed,L){
+// Three evidence cards highlight one at a time with neutral annotations + mini thumbnails
+const cards=[
+{name:'Chicxulub Crater',note:'Shows: a massive circular formation, 180 km across',color:'var(--accent)',
+thumb:`<svg viewBox="0 0 60 40" style="width:60px;height:40px;flex-shrink:0;"><rect width="60" height="40" fill="#0a1a0a" rx="4"/><ellipse cx="30" cy="22" rx="22" ry="15" fill="#3a2a15" opacity="0.7"/><ellipse cx="30" cy="22" rx="14" ry="10" fill="none" stroke="#6a8a5a" stroke-width="0.8" stroke-dasharray="2,1"/><ellipse cx="30" cy="22" rx="6" ry="4" fill="#1a0800" stroke="#a96" stroke-width="0.5"/><circle cx="30" cy="22" r="2" fill="#c84"/></svg>`},
+{name:'Iridium Clay Layer',note:'Shows: a rare element found in rock layers worldwide',color:'var(--yellow)',
+thumb:`<svg viewBox="0 0 60 40" style="width:60px;height:40px;flex-shrink:0;"><rect width="60" height="40" fill="#1a1a28" rx="4"/><rect x="4" y="4" width="52" height="10" fill="#d4c9a8" rx="1"/><rect x="4" y="14" width="52" height="4" fill="#1a1408" stroke="#FFD93D" stroke-width="0.5"/><rect x="4" y="18" width="52" height="8" fill="#d4c9a8" rx="1"/><rect x="4" y="26" width="52" height="10" fill="#7a756a" rx="1"/><circle cx="15" cy="16" r="0.8" fill="#ddd" opacity="0.6"/><circle cx="30" cy="15" r="0.6" fill="#ccc" opacity="0.5"/><circle cx="45" cy="16" r="0.7" fill="#ddd" opacity="0.6"/></svg>`},
+{name:'Population Crash Graph',note:'Shows: three population lines declining at the same time boundary',color:'var(--red)',
+thumb:`<svg viewBox="0 0 60 40" style="width:60px;height:40px;flex-shrink:0;"><rect width="60" height="40" fill="#1a1a28" rx="4"/><line x1="10" y1="6" x2="10" y2="35" stroke="#445" stroke-width="0.8"/><line x1="10" y1="35" x2="55" y2="35" stroke="#445" stroke-width="0.8"/><polyline points="12,12 22,11 30,10 32,10 38,28 48,32 54,33" fill="none" stroke="#4ade80" stroke-width="1.2"/><polyline points="12,16 22,15 30,14 32,14 40,18 48,30 54,33" fill="none" stroke="#c4955c" stroke-width="1.2"/><polyline points="12,22 22,21 30,20 32,20 40,21 50,29 54,33" fill="none" stroke="#ef4444" stroke-width="1.2"/><line x1="32" y1="6" x2="32" y2="35" stroke="#FFD93D" stroke-width="0.5" stroke-dasharray="1,1"/></svg>`}
+];
+ed.innerHTML=`<div id="l5Cards" style="display:flex;flex-direction:column;gap:10px;padding:8px;"></div>`;
+ed.classList.add('visible');
+const container=$('l5Cards');
+// Title
+const title=document.createElement('div');
+title.style.cssText='text-align:center;font-size:12px;color:var(--yellow);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;';
+title.textContent='BONUS: Evidence Evaluation';
+container.appendChild(title);
+cards.forEach((c,i)=>{
+const div=document.createElement('div');
+div.id='l5card'+i;
+div.style.cssText='display:flex;align-items:center;gap:10px;padding:10px;border:2px solid rgba(30,60,100,0.4);border-radius:10px;background:linear-gradient(135deg,rgba(20,30,55,0.5),rgba(15,22,40,0.3));opacity:0.35;transition:all 0.5s;';
+div.innerHTML=`${c.thumb}<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13px;color:${c.color};">${c.name}</div>
+<div style="font-size:11px;color:var(--textDim);margin-top:3px;line-height:1.3;" class="l5note">${c.note}</div></div>`;
+container.appendChild(div);
+// Highlight each card in sequence
+arenaTimeout(()=>{
+div.style.opacity='1';div.style.borderColor=c.color;div.style.boxShadow='0 0 12px '+c.color.replace('var(--','rgba(').replace(')',',0.15)');
+// For population graph card, replay the graph drop animation text
+if(i===2){
+const noteEl=div.querySelector('.l5note');
+if(noteEl)noteEl.innerHTML=c.note+'<br><span style="color:var(--green);font-size:10px;font-weight:600;">Plants drop first \u2192 Herbivores drop \u2192 Predators drop last</span>';
+}
+arenaTimeout(()=>{div.style.borderColor='rgba(30,60,100,0.4)';div.style.boxShadow='none';},2500);
+},i*3000+500);
+});
+// Pulse chain reaction arrows after all cards
+arenaTimeout(()=>{
+document.querySelectorAll('.cascade-arrow').forEach(a=>{a.classList.add('active');});
+arenaTimeout(()=>document.querySelectorAll('.cascade-arrow').forEach(a=>a.classList.remove('active')),1500);
+},9500);
+}
+
+function runWatchL6(ed,L){
+// Hypothetical: thinner debris cloud scenario with split comparison
+ed.innerHTML=`<div style="padding:8px;">
+<div style="text-align:center;color:var(--yellow);font-size:13px;font-weight:700;margin-bottom:6px;letter-spacing:1px;text-transform:uppercase;">Hypothetical Scenario</div>
+<div style="text-align:center;color:var(--text);font-size:14px;margin-bottom:12px;">What if the debris cloud had been thinner?</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;" id="l6Compare">
+<div id="l6Original" style="flex:1;min-width:140px;max-width:190px;padding:10px;border:2px solid rgba(60,30,30,0.5);border-radius:10px;background:linear-gradient(145deg,rgba(40,15,15,0.3),rgba(20,10,10,0.2));opacity:0.3;transition:all 0.8s;">
+<div style="font-size:10px;color:var(--red);text-align:center;margin-bottom:6px;font-weight:700;letter-spacing:1px;">ACTUAL IMPACT</div>
+<!-- Thick debris cloud bar -->
+<div style="position:relative;height:28px;margin-bottom:4px;">
+<svg viewBox="0 0 160 28" style="width:100%;height:28px;">
+<rect width="160" height="28" fill="#0a0a10" rx="4"/>
+<ellipse cx="80" cy="14" rx="70" ry="12" fill="#1a1408" opacity="0.9"/>
+<ellipse cx="60" cy="12" rx="30" ry="8" fill="#2a1c0a" opacity="0.6"/>
+<ellipse cx="100" cy="16" rx="25" ry="7" fill="#2a1c0a" opacity="0.5"/>
+<circle cx="40" cy="10" r="2" fill="#555" opacity="0.3"/><circle cx="90" cy="8" r="1.5" fill="#666" opacity="0.3"/><circle cx="120" cy="14" r="1.8" fill="#555" opacity="0.3"/>
+<text x="80" y="26" fill="#aa6644" font-size="6" text-anchor="middle" font-family="monospace">THICK DEBRIS CLOUD</text>
+</svg>
+</div>
+<!-- Original crash graph -->
+<svg viewBox="0 0 160 70" style="width:100%;">
+<rect width="160" height="70" fill="#0a0a14" rx="4"/>
+<line x1="15" y1="8" x2="15" y2="60" stroke="#334" stroke-width="0.8"/>
+<line x1="15" y1="60" x2="150" y2="60" stroke="#334" stroke-width="0.8"/>
+<line x1="75" y1="8" x2="75" y2="60" stroke="var(--yellow)" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.4"/>
+<polyline points="20,18 40,16 65,15 75,15 90,50 115,56 140,58" fill="none" stroke="#4ade80" stroke-width="1.8"/>
+<polyline points="20,24 40,22 65,20 75,20 95,28 115,54 140,57" fill="none" stroke="#c4955c" stroke-width="1.8"/>
+<polyline points="20,32 40,30 65,28 75,28 95,30 120,50 140,56" fill="none" stroke="#ef4444" stroke-width="1.8"/>
+<text x="80" y="68" fill="var(--red)" font-size="7" text-anchor="middle" font-weight="bold">MASS EXTINCTION</text>
+</svg>
+</div>
+<div style="display:flex;align-items:center;color:var(--accent);font-size:18px;font-weight:700;padding:0 4px;" id="l6Arrow">\u2192</div>
+<div id="l6Modified" style="flex:1;min-width:140px;max-width:190px;padding:10px;border:2px solid rgba(30,60,100,0.4);border-radius:10px;background:linear-gradient(145deg,rgba(15,25,50,0.3),rgba(10,18,35,0.2));opacity:0.3;transition:all 0.8s;">
+<div style="font-size:10px;color:var(--accent);text-align:center;margin-bottom:6px;font-weight:700;letter-spacing:1px;">SMALLER ASTEROID</div>
+<!-- Thin debris cloud bar -->
+<div style="position:relative;height:28px;margin-bottom:4px;">
+<svg viewBox="0 0 160 28" style="width:100%;height:28px;">
+<rect width="160" height="28" fill="#0a0a10" rx="4"/>
+<ellipse cx="80" cy="14" rx="55" ry="5" fill="#1a1408" opacity="0.4"/>
+<ellipse cx="70" cy="13" rx="20" ry="3" fill="#2a1c0a" opacity="0.3"/>
+<text x="80" y="26" fill="#6688aa" font-size="6" text-anchor="middle" font-family="monospace">THIN DEBRIS CLOUD</text>
+</svg>
+</div>
+<!-- Modified decline graph -->
+<svg viewBox="0 0 160 70" style="width:100%;">
+<rect width="160" height="70" fill="#0a0a14" rx="4"/>
+<line x1="15" y1="8" x2="15" y2="60" stroke="#334" stroke-width="0.8"/>
+<line x1="15" y1="60" x2="150" y2="60" stroke="#334" stroke-width="0.8"/>
+<line x1="75" y1="8" x2="75" y2="60" stroke="var(--yellow)" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.4"/>
+<polyline points="20,18 40,16 65,15 75,15 90,30 115,38 140,42" fill="none" stroke="#4ade80" stroke-width="1.8"/>
+<polyline points="20,24 40,22 65,20 75,20 90,28 115,36 140,40" fill="none" stroke="#c4955c" stroke-width="1.8"/>
+<polyline points="20,32 40,30 65,28 75,28 90,32 115,35 140,38" fill="none" stroke="#ef4444" stroke-width="1.8"/>
+<text x="80" y="68" fill="var(--accent)" font-size="7" text-anchor="middle" font-weight="bold">GRADUAL DECLINE</text>
+</svg>
+</div>
+</div>
+</div>`;
+ed.classList.add('visible');
+// Animate the comparison panels appearing
+arenaTimeout(()=>{$('l6Original').style.opacity='1';},2000);
+arenaTimeout(()=>{
+const arr=$('l6Arrow');if(arr)arr.style.color='var(--yellow)';
+$('l6Modified').style.opacity='1';
+},5000);
+// Highlight the key differences
+arenaTimeout(()=>{
+$('l6Original').style.borderColor='var(--red)';$('l6Original').style.boxShadow='0 0 12px rgba(255,71,87,0.15)';
+$('l6Modified').style.borderColor='var(--accent)';$('l6Modified').style.boxShadow='0 0 12px rgba(0,212,255,0.15)';
+},8000);
+}
+
+/* === DO PHASE === */
+function startDO(levelIdx){
+curPhase='do';processing=false;
+doCompleted=false;curSelected=null;wrongCount=0;hintTier=0;
+consecutiveFastWrongs=0;sameWrongCount={};
+phaseStartTime=Date.now();
+const L=LEVELS[levelIdx];
+$('phaseLabel').textContent='YOUR TURN';
+const gen=arenaGen;
+
+if(L.mechanic==='hotspot'){
+runHotspot(levelIdx);return;
+}
+
+// Mechanic-specific context above prompt
+let contextHtml='';
+if(L.mechanic==='what-comes-next'){
+contextHtml=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:8px;padding:8px;background:rgba(0,212,255,0.06);border:1px solid var(--panelBorder);border-radius:8px;font-size:13px;">
+<span style="color:var(--green);">Crater proves impact event &#10003;</span>
+<span style="color:var(--accent);">\u2192</span>
+<span style="color:var(--green);">Iridium proves debris cloud &#10003;</span>
+<span style="color:var(--accent);">\u2192</span>
+<span style="color:var(--yellow);font-weight:700;border:1px dashed var(--yellow);padding:2px 8px;border-radius:4px;">???</span>
+</div>`;
+}else if(L.mechanic==='claim-builder'){
+contextHtml=`<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:8px;">
+<div style="padding:6px 10px;border-radius:6px;background:rgba(0,212,255,0.08);border:1px solid var(--panelBorder);font-size:11px;">
+<span style="color:var(--accent);font-weight:700;">Crater</span><br><span style="color:var(--textDim);">Shows: circular formation</span>
+</div>
+<div style="padding:6px 10px;border-radius:6px;background:rgba(255,217,61,0.08);border:1px solid var(--panelBorder);font-size:11px;">
+<span style="color:var(--yellow);font-weight:700;">Iridium Layer</span><br><span style="color:var(--textDim);">Shows: rare element worldwide</span>
+</div>
+<div style="padding:6px 10px;border-radius:6px;background:rgba(255,71,87,0.08);border:1px solid var(--panelBorder);font-size:11px;">
+<span style="color:var(--red);font-weight:700;">Pop. Graph</span><br><span style="color:var(--textDim);">Shows: 3 lines declining</span>
+</div>
+</div>`;
+}
+
+$('promptText').innerHTML=contextHtml+'<div>'+esc(L.doPrompt)+'</div>';
+const row=$('optionsRow');row.innerHTML='';
+L.doOptions.forEach(opt=>{
+const card=document.createElement('div');card.className='opt-card';card.dataset.id=opt.id;
+card.textContent=opt.text;
+// Level 1 guided glow on correct
+if(levelIdx===0&&opt.correct)card.classList.add('l1-glow');
+card.addEventListener('click',()=>{
+if(processing||doCompleted||curPhase!=='do'||arenaGen!==gen)return;
+if(card.classList.contains('dimmed')||card.classList.contains('eliminated')||card.classList.contains('correct'))return;
+selectOption(card,row);
+});
+row.appendChild(card);
+});
+$('lockInBtn').style.display='inline-block';$('lockInBtn').classList.remove('ready');
+$('lockInBtn').textContent='Lock In';
+$('hotspotPrompt').style.display='none';
+}
+
+function selectOption(card,row){
+row.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));
+if(!card.classList.contains('dimmed')&&!card.classList.contains('eliminated')){
+card.classList.add('selected');curSelected=card.dataset.id;
+$('lockInBtn').classList.add('ready');
+}
+}
+
+/* Lock In handler */
+$('lockInBtn').addEventListener('click',function(){
+if(processing||!curSelected)return;
+if(curPhase==='do')submitDO();
+else if(curPhase==='prove')submitProve();
+});
+
+/* Cleanup helper - clears ALL wrong-answer state (call BEFORE early returns) */
+function clearDoSelectionState(card){
+if(card){card.classList.remove('selected','wrong');if(!card.classList.contains('correct')&&!card.classList.contains('eliminated'))card.classList.add('dimmed');}
+// Clear ALL .selected classes defensively
+document.querySelectorAll('#optionsRow .opt-card.selected').forEach(c=>c.classList.remove('selected'));
+curSelected=null;
+$('lockInBtn').classList.remove('ready');
+}
+
+function submitDO(){
+if(processing)return;processing=true;
+const L=LEVELS[GS.currentLevel];
+const elapsed=Date.now()-phaseStartTime;
+const chosen=curSelected;
+const correct=L.doOptions.find(o=>o.correct);
+
+GS.levels[GS.currentLevel].attempts++;
+
+if(chosen===correct.id){
+// CORRECT
+playCorrect();
+const card=document.querySelector(`#optionsRow .opt-card[data-id="${chosen}"]`);
+if(card){card.classList.remove('selected');card.classList.add('correct');}
+doCompleted=true;
+$('lockInBtn').style.display='none';
+// Connect evidence if applicable
+if(L.evidenceIdx>=0&&L.evidenceIdx<3){
+connectEvidence(L.evidenceIdx);
+const rect=$('evidenceDisplay').getBoundingClientRect();
+burst(rect.left+rect.width/2,rect.top+rect.height/2,8,'var(--green)');
+}
+// Level-specific correct visuals
+if(GS.currentLevel===3){
+// L4: Chain Reaction Proven banner
+const ed=$('evidenceDisplay');
+if(ed.classList.contains('visible')){
+const banner=document.createElement('div');
+banner.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(46,213,115,0.15);border:2px solid var(--green);border-radius:10px;padding:12px 20px;font-size:16px;font-weight:700;color:var(--green);text-align:center;z-index:10;';
+banner.textContent='CHAIN REACTION PROVEN';
+ed.style.position='relative';ed.appendChild(banner);
+const rect2=banner.getBoundingClientRect();
+burst(rect2.left+rect2.width/2,rect2.top,6,'var(--green)');
+}
+// All cascade steps glow green
+document.querySelectorAll('.cascade-step').forEach(s=>{s.classList.add('proven');s.classList.add('flash-green');});
+}else if(GS.currentLevel===4){
+// L5: Population graph enlarges with gold banner
+const l5card=$('l5card2');
+if(l5card){l5card.style.borderColor='var(--green)';l5card.style.background='rgba(46,213,115,0.1)';}
+}
+const score=calcScore();
+GS.levels[GS.currentLevel].score=score;
+arenaTimeout(()=>{processing=false;startProve(GS.currentLevel);},1200);
+}else{
+// WRONG - capture wrong ID and card BEFORE any cleanup
+const wrongId=chosen;
+const card=document.querySelector(`#optionsRow .opt-card[data-id="${wrongId}"]`);
+playWrong();wrongCount++;
+if(card){card.classList.add('wrong');safeTimeout(()=>card.classList.remove('wrong'),500);}
+// Lookup feedback BEFORE clearing curSelected
+const fb=L.doWrongFeedback[wrongId]||"Look at the evidence in the arena — the answer is on screen.";
+// Fast guess check - MUST clean state before early return
+if(elapsed<2000){consecutiveFastWrongs++;
+if(consecutiveFastWrongs>=2){
+clearDoSelectionState(card);
+processing=false;
+showAntiGuess(L);return;
+}
+}else{consecutiveFastWrongs=0;}
+// Same wrong check - MUST clean state before early return
+sameWrongCount[wrongId]=(sameWrongCount[wrongId]||0)+1;
+if(sameWrongCount[wrongId]>=2&&wrongCount>=3){
+levelResets++;GS.levels[GS.currentLevel].resets=levelResets;
+clearDoSelectionState(card);
+processing=false;
+if(levelResets>=3){autoAdvance();return;}
+showAntiGuess(L);return;
+}
+// Normal coaching path
+highlightArenaForLevel(GS.currentLevel);
+showCoaching(fb,()=>{
+if(card&&!card.classList.contains('eliminated'))card.classList.add('dimmed');
+if(card)card.classList.remove('selected');
+curSelected=null;$('lockInBtn').classList.remove('ready');processing=false;
+if(wrongCount===1)autoHint(1);
+else if(wrongCount===2)autoHint(2);
+else if(wrongCount>=3)autoHint(3);
+});
+}
+}
+
+function runHotspot(levelIdx){
+const L=LEVELS[levelIdx];
+$('promptText').textContent=L.doPrompt;
+$('optionsRow').innerHTML='';
+$('lockInBtn').style.display='none';
+$('hotspotPrompt').style.display='block';
+$('hotspotPrompt').textContent='Tap on the correct layer in the rock diagram above.';
+phaseStartTime=Date.now();
+wrongCount=0;hintTier=0;consecutiveFastWrongs=0;sameWrongCount={};
+const gen=arenaGen;
+// Make strata clickable
+const ed=$('evidenceDisplay');
+const svgEl=ed.querySelector('svg');
+if(!svgEl)return;
+const regions=svgEl.querySelectorAll('.strata-region');
+regions.forEach(r=>{
+r.style.cursor='pointer';
+r.addEventListener('click',function handler(e){
+if(processing||doCompleted||arenaGen!==gen)return;
+processing=true;
+const rid=r.dataset.region;
+const correct=L.hotspotRegions.find(h=>h.correct);
+GS.levels[GS.currentLevel].attempts++;
+if(rid===correct.id){
+playCorrect();
+// Highlight the VISUAL clay layer, not the transparent overlay
+const clayVis=$('clayLayer');if(clayVis){clayVis.style.stroke='var(--green)';clayVis.style.strokeWidth='3';}
+doCompleted=true;
+$('hotspotPrompt').style.display='none';
+if(L.evidenceIdx>=0&&L.evidenceIdx<3)connectEvidence(L.evidenceIdx);
+const rect=r.getBoundingClientRect();
+burst(rect.left+rect.width/2,rect.top+rect.height/2,8,'var(--green)');
+const score=calcScore();GS.levels[GS.currentLevel].score=score;
+arenaTimeout(()=>{processing=false;startProve(GS.currentLevel);},1200);
+}else{
+playWrong();wrongCount++;
+r.style.stroke='var(--red)';r.style.strokeWidth='2';
+safeTimeout(()=>{r.style.stroke='';r.style.strokeWidth='';},500);
+const elapsed=Date.now()-phaseStartTime;
+if(elapsed<2000){consecutiveFastWrongs++;if(consecutiveFastWrongs>=2){showAntiGuess(L);return;}}
+sameWrongCount[rid]=(sameWrongCount[rid]||0)+1;
+const showStepHint=wrongCount>=3;
+if(wrongCount>=3){
+levelResets++;GS.levels[GS.currentLevel].resets=levelResets;
+if(levelResets>=3){autoAdvance();return;}
+// Glow the VISUAL clay layer as hint
+const clayVis=$('clayLayer');
+if(clayVis){clayVis.style.stroke='var(--yellow)';clayVis.style.strokeWidth='3';}
+// Reset for fresh attempt set (matches non-hotspot anti-guess behavior)
+wrongCount=0;sameWrongCount={};consecutiveFastWrongs=0;
+}
+const fb=L.hotspotWrongFeedback[rid]||"That's not the right layer — look for a thin dark line.";
+showCoaching(fb,()=>{curSelected=null;processing=false;
+if(showStepHint)autoHint(3);
+else if(wrongCount===1)autoHint(1);
+else if(wrongCount===2)autoHint(2);
+});
+}
+},{once:false});
+});
+}
+
+/* === PROVE PHASE === */
+function startProve(levelIdx){
+curPhase='prove';processing=false;
+proveCompleted=false;curSelected=null;
+wrongCount=0;hintTier=0;consecutiveFastWrongs=0;sameWrongCount={};
+phaseStartTime=Date.now();
+const L=LEVELS[levelIdx];
+const gen=arenaGen;
+$('phaseLabel').textContent='PROVE IT';
+$('promptText').textContent=L.proveQuestion;
+$('hotspotPrompt').style.display='none';
+const row=$('optionsRow');row.innerHTML='';
+L.proveOptions.forEach(opt=>{
+const card=document.createElement('div');card.className='opt-card';card.dataset.id=opt.id;
+card.textContent=opt.text;
+card.addEventListener('click',()=>{
+if(processing||proveCompleted||curPhase!=='prove'||arenaGen!==gen)return;
+if(card.classList.contains('dimmed')||card.classList.contains('eliminated')||card.classList.contains('correct'))return;
+selectOption(card,row);
+});
+row.appendChild(card);
+});
+$('lockInBtn').style.display='inline-block';$('lockInBtn').classList.remove('ready');
+$('lockInBtn').textContent='Lock In';
+}
+
+function submitProve(){
+if(processing)return;processing=true;
+const L=LEVELS[GS.currentLevel];
+const chosen=curSelected;
+const correct=L.proveOptions.find(o=>o.correct);
+GS.levels[GS.currentLevel].attempts++;
+
+if(chosen===correct.id){
+playCorrect();
+const card=document.querySelector(`#optionsRow .opt-card[data-id="${chosen}"]`);
+if(card){card.classList.remove('selected');card.classList.add('correct');}
+proveCompleted=true;
+$('lockInBtn').style.display='none';
+completeLevel();
+}else{
+// WRONG - capture wrong ID and feedback BEFORE any cleanup
+const wrongId=chosen;
+const card=document.querySelector(`#optionsRow .opt-card[data-id="${wrongId}"]`);
+playWrong();wrongCount++;
+if(card){card.classList.add('wrong');safeTimeout(()=>{card.classList.remove('wrong');card.classList.add('eliminated');},500);}
+const fb=L.proveWrongFeedback[wrongId]||"Look at the evidence again — the answer is visible.";
+const elapsed=Date.now()-phaseStartTime;
+// Fast-guess gate - MUST clean state before early return
+if(elapsed<2000){consecutiveFastWrongs++;
+if(consecutiveFastWrongs>=2){
+clearDoSelectionState(card);
+processing=false;
+showAntiGuessProve(L);return;
+}
+}
+highlightArenaForLevel(GS.currentLevel);
+showCoaching(fb,()=>{
+if(card)card.classList.remove('selected');
+curSelected=null;$('lockInBtn').classList.remove('ready');processing=false;
+if(wrongCount===1)autoHintProve(1);
+else if(wrongCount===2)autoHintProve(2);
+else if(wrongCount>=3)autoHintProve(3);
+});
+}
+}
+
+/* === SCORING === */
+function calcScore(){
+const ls=GS.levels[GS.currentLevel];
+if(ls.resets>=1)return 50;
+if(ls.hintsUsed>=3)return 60;
+if(ls.hintsUsed===2)return 70;
+if(ls.hintsUsed===1)return 85;
+return 100;
+}
+
+/* === HINTS === */
+function autoHint(tier){
+const L=LEVELS[GS.currentLevel];
+GS.levels[GS.currentLevel].hintsUsed=Math.max(GS.levels[GS.currentLevel].hintsUsed,tier);
+if(tier===1){showHintBar(L.hints.hint1.text);if(L.hints.hint1.dimOption)dimOption(L.hints.hint1.dimOption);}
+else if(tier===2){showHintBar(L.hints.hint2.text);if(L.hints.hint2&&L.hints.hint2.dimOption)dimOption(L.hints.hint2.dimOption);}
+else if(tier>=3)showStepByStep(L.hints.stepByStep);
+}
+function autoHintProve(tier){
+const L=LEVELS[GS.currentLevel];
+GS.levels[GS.currentLevel].hintsUsed=Math.max(GS.levels[GS.currentLevel].hintsUsed,tier);
+const ph=L.proveHints||L.hints;
+if(tier===1){showHintBar(ph.hint1.text);if(ph.hint1.dimOption)dimOptionProve(ph.hint1.dimOption);}
+else if(tier===2){showHintBar(ph.hint2.text);if(ph.hint2&&ph.hint2.dimOption)dimOptionProve(ph.hint2.dimOption);}
+else if(tier>=3)showStepByStep(ph.stepByStep);
+}
+function dimOption(id){
+const card=document.querySelector(`#optionsRow .opt-card[data-id="${id}"]`);
+if(card&&!card.classList.contains('eliminated'))card.classList.add('dimmed');
+}
+function dimOptionProve(id){dimOption(id);}
+
+function showHintBar(text){
+$('coachingBar').style.display='none'; // close first
+const hb=$('coachingBar');
+$('coachText').textContent=text;
+$('tryAgainBtn').style.display='none';
+hb.style.display='block';hb.classList.add('slide-up');
+safeTimeout(()=>{hb.style.display='none';},4000);
+}
+
+$('hintBtn').addEventListener('click',function(){
+if(curPhase==='do'){
+const tier=GS.levels[GS.currentLevel].hintsUsed+1;
+autoHint(Math.min(tier,3));
+}else if(curPhase==='prove'){
+const tier=GS.levels[GS.currentLevel].hintsUsed+1;
+autoHintProve(Math.min(tier,3));
+}
+});
+
+function showStepByStep(panels){
+const box=$('hintBox');
+let idx=0;
+function renderPanel(){
+box.innerHTML=`<h3>Step ${idx+1} of ${panels.length}</h3><p>${esc(panels[idx].text)}</p>
+<div class="panel-nav">${idx<panels.length-1?'<button class="hint-btn" id="hintNext">Next</button>':'<button class="hint-btn" id="hintDone">Got It</button>'}</div>`;
+const next=$('hintNext');if(next)next.addEventListener('click',()=>{idx++;renderPanel();});
+const done=$('hintDone');if(done)done.addEventListener('click',()=>{$('hintOverlay').classList.remove('visible');$('hintOverlay').style.display='none';});
+}
+renderPanel();
+$('hintOverlay').style.display='flex';$('hintOverlay').classList.add('visible');
+}
+
+/* === COACHING BAR === */
+function showCoaching(text,onRetry){
+closeAllOverlays();
+const cb=$('coachingBar');
+$('coachText').textContent=text;
+$('tryAgainBtn').style.display='inline-block';
+cb.style.display='block';
+// Use onclick (not addEventListener) so repeated calls don't stack handlers
+$('tryAgainBtn').onclick=function(){
+$('tryAgainBtn').onclick=null;
+cb.style.display='none';
+if(onRetry)onRetry();
+};
+}
+
+/* === ANTI-GUESSING === */
+function showAntiGuess(L){
+closeAllOverlays();
+const box=$('agBox');
+box.innerHTML=`<p>Check the evidence one more time — the answer is on screen.</p>`;
+$('antiGuessOverlay').style.display='flex';$('antiGuessOverlay').classList.add('visible');
+// Use arenaTimeout so a level reset invalidates this stale callback
+arenaTimeout(()=>{
+$('antiGuessOverlay').classList.remove('visible');$('antiGuessOverlay').style.display='none';
+consecutiveFastWrongs=0;
+sameWrongCount={};
+// Invalidate stale hotspot listeners before restarting DO
+arenaGen++;
+processing=false;
+startDO(GS.currentLevel);
+},5000);
+}
+function showAntiGuessProve(L){
+closeAllOverlays();
+const box=$('agBox');
+box.innerHTML=`<p>Check the evidence one more time — the answer is on screen.</p>`;
+$('antiGuessOverlay').style.display='flex';$('antiGuessOverlay').classList.add('visible');
+arenaTimeout(()=>{
+$('antiGuessOverlay').classList.remove('visible');$('antiGuessOverlay').style.display='none';
+consecutiveFastWrongs=0;processing=false;
+// Re-enable Lock In ability for retry (curSelected was cleared in submitProve)
+$('lockInBtn').classList.remove('ready');
+},5000);
+}
+
+/* === ARENA HIGHLIGHT ON WRONG === */
+function highlightArenaForLevel(idx){
+try{
+if(idx===0){
+// L1: pulse crater circular outline
+const ed=$('evidenceDisplay');if(ed){const svg=ed.querySelector('svg');if(svg){const el=svg.querySelector('ellipse');if(el){el.style.stroke='var(--yellow)';el.style.strokeWidth='3';safeTimeout(()=>{el.style.stroke='#6b5';el.style.strokeWidth='1';},2000);}}}
+}else if(idx===1){
+// L2: pulse clay layer
+const clay=$('clayLayer');if(clay){clay.style.stroke='var(--yellow)';clay.style.strokeWidth='3';safeTimeout(()=>{clay.style.stroke='#444';clay.style.strokeWidth='1';},2000);}
+}else if(idx===2){
+// L3: pulse graph lines in sequence
+const pl=$('plantLine'),hl=$('herbLine'),pr=$('predLine');
+[pl,hl,pr].forEach((l,i)=>{if(l){safeTimeout(()=>{l.style.strokeWidth='4';safeTimeout(()=>{l.style.strokeWidth='2.5';},600);},i*400);}});
+}else if(idx===3){
+// L4: highlight first two chain steps
+const s0=$('cStep0'),s1=$('cStep1');
+[s0,s1].forEach(s=>{if(s){s.classList.add('yellow-pulse');safeTimeout(()=>s.classList.remove('yellow-pulse'),2000);}});
+}else if(idx===4){
+// L5: pulse population graph card
+const c2=$('l5card2');if(c2){c2.style.borderColor='var(--yellow)';safeTimeout(()=>{c2.style.borderColor='var(--panelBorder)';},2000);}
+}else if(idx===5){
+// L6: pulse both comparison panels
+const o=$('l6Original'),m=$('l6Modified');
+[o,m].forEach(el=>{if(el){el.style.borderColor='var(--yellow)';safeTimeout(()=>{el.style.borderColor='var(--panelBorder)';},2000);}});
+}
+}catch(e){console.error('highlightArena error',e);}
+}
+
+/* === AUTO ADVANCE (safety valve) === */
+function autoAdvance(){
+closeAllOverlays();processing=true;
+GS.levels[GS.currentLevel].score=50;
+showCoaching("Let's move on — you'll see this idea again.",()=>{
+if(LEVELS[GS.currentLevel].evidenceIdx>=0&&LEVELS[GS.currentLevel].evidenceIdx<3){
+connectEvidence(LEVELS[GS.currentLevel].evidenceIdx);
+}
+completeLevel();
+});
+}
+
+/* === LEVEL COMPLETE === */
+function completeLevel(){
+processing=true;
+const ls=GS.levels[GS.currentLevel];
+ls.completed=true;
+ls.timeSeconds=Math.round((Date.now()-GS.levelStartTime)/1000);
+ls.score=calcScore(); // Recalculate to include both DO and PROVE hint usage
+GS.totalScore=calcOverall();
+updateHUD();
+
+// Check milestones
+const completedCount=GS.levels.filter(l=>l.completed).length;
+const reqDone=GS.levels.filter((l,i)=>LEVELS[i].required&&l.completed).length;
+const allReqDone=reqDone>=4;
+const allDone=completedCount>=6;
+
+if(allDone&&!GS.bonusCompleteShown){
+GS.bonusCompleteShown=true;
+showCelebration('BONUS COMPLETE!','All evidence analyzed!',true,()=>showReceipt());
+}else if(allReqDone&&!GS.requiredCompleteShown){
+GS.requiredCompleteShown=true;
+showReqComplete();
+}else if(completedCount%2===0){
+showCelebration(completedCount<=3?completedCount+' clues found!':'Keep going!','',false,()=>advanceLevel());
+}else{
+arenaTimeout(()=>advanceLevel(),800);
+}
+}
+
+function calcOverall(){
+const reqScores=GS.levels.filter((l,i)=>LEVELS[i].required&&l.completed).map(l=>l.score);
+if(reqScores.length===0)return 0;
+const avg=reqScores.reduce((a,b)=>a+b,0)/reqScores.length;
+const bonusDone=GS.levels.filter((l,i)=>!LEVELS[i].required&&l.completed).length;
+return Math.min(100,Math.round(avg+bonusDone*5));
+}
+
+function advanceLevel(){
+processing=false;levelResets=0;
+if(GS.currentLevel<LEVELS.length-1){
+GS.currentLevel++;
+loadLevel(GS.currentLevel);
+}else{
+showReceipt();
+}
+}
+
+/* === CELEBRATIONS === */
+function showCelebration(msg,sub,big,cb){
+closeAllOverlays();
+const co=$('celebrationOverlay');
+const cc=$('celebContent');
+const isFirstTry=GS.levels[GS.currentLevel].score===100;
+const affirmHtml=isFirstTry?`<div class="celeb-affirmation">${esc(getAffirmation())}</div>`:'';
+cc.innerHTML=`<div class="celeb-msg">${esc(msg)}</div>${sub?'<div class="celeb-sub">'+esc(sub)+'</div>':''}${affirmHtml}`;
+co.style.display='flex';co.classList.add('visible');
+const rect=cc.getBoundingClientRect();
+burst(rect.left+rect.width/2,rect.top,big?12:6,'var(--yellow)');
+const dur=big?3000:2000;
+arenaTimeout(()=>{co.classList.remove('visible');co.style.display='none';if(cb)cb();},dur);
+}
+
+function showReqComplete(){
+closeAllOverlays();
+const box=$('reqBox');
+const isFirstTry=GS.levels[GS.currentLevel].score===100;
+box.innerHTML=`<h2>You did it!</h2><p>${isFirstTry?esc(getAffirmation()):'All required evidence analyzed!'}</p>
+<p>2 Bonus Levels remain — dare to try?</p>
+<div class="btn-row">
+<button class="req-btn primary" id="keepGoingBtn">Keep Going</button>
+<button class="req-btn secondary" id="seeScoreBtn">See Score</button>
+</div>`;
+$('reqCompleteOverlay').style.display='flex';$('reqCompleteOverlay').classList.add('visible');
+const rect=box.getBoundingClientRect();
+burst(rect.left+rect.width/2,rect.top,10,'var(--green)');
+
+safeTimeout(()=>{
+$('keepGoingBtn').addEventListener('click',()=>{
+$('reqCompleteOverlay').classList.remove('visible');$('reqCompleteOverlay').style.display='none';
+advanceLevel();
+});
+$('seeScoreBtn').addEventListener('click',()=>{
+$('reqCompleteOverlay').classList.remove('visible');$('reqCompleteOverlay').style.display='none';
+showReceipt();
+});
+},100);
+}
+
+/* === RECEIPT SCREEN === */
+function showReceipt(){
+if(GS.receiptRendered)return;GS.receiptRendered=true;
+closeAllOverlays();clearAllTimers();
+try{speechSynthesis.cancel();}catch(e){}
+$('app').style.display='none';
+const rs=$('receiptScreen');rs.classList.add('visible');
+const overall=calcOverall();
+const totalTime=Math.round((Date.now()-GS.startTime)/1000);
+let color=overall>=85?'var(--green)':overall>=70?'var(--yellow)':'var(--red)';
+let label=overall>=85?'MASTERY':overall>=70?'APPROACHING MASTERY':'NEEDS MORE PRACTICE';
+
+let rows='';
+GS.levels.forEach((l,i)=>{
+if(!l.completed)return;
+const isBonus=!LEVELS[i].required;
+const mins=Math.floor(l.timeSeconds/60);
+const secs=('0'+(l.timeSeconds%60)).slice(-2);
+const sc=l.score>=85?'var(--green)':l.score>=70?'var(--yellow)':'var(--red)';
+rows+=`<tr class="${isBonus?'bonus-row':''}"><td>${isBonus?'&#11088; ':''} ${l.num}</td><td>${esc(l.name)}</td><td style="color:${sc};font-weight:700">${l.score}%</td><td>${l.attempts}</td><td>${mins}:${secs}</td></tr>`;
+});
+const tmins=Math.floor(totalTime/60);const tsecs=('0'+(totalTime%60)).slice(-2);
+const status=GS.bonusCompleteShown?'All Complete (Bonus!)':GS.requiredCompleteShown?'Required Complete':'In Progress';
+
+$('receiptInner').innerHTML=`
+<div class="receipt-header"><h1 id="receiptTitle"></h1><h2>Mass Extinction Cascade — Tuesday Score Report</h2></div>
+<div class="receipt-name"><input type="text" id="receiptNameInput" value="${esc(studentName)}" placeholder="Your name"><button id="lockNameBtn">Lock</button></div>
+<div class="receipt-grade"><div class="receipt-pct" style="color:${color}">${overall}%</div><div class="receipt-label" style="color:${color}">${label}</div></div>
+<table class="receipt-table"><thead><tr><th>#</th><th>Evidence</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="receipt-total">Total Time: ${tmins}:${tsecs} &nbsp;|&nbsp; Status: ${status}</div>
+<div class="receipt-upload">&#128248; Take a screenshot and upload to Google Classroom</div>
+<div class="receipt-actions"><button class="receipt-btn print" id="printBtn">&#128424; Print</button><button class="receipt-btn" id="startOverBtn">Start Over</button></div>`;
+
+$('lockNameBtn').addEventListener('click',()=>{
+const inp=$('receiptNameInput');inp.disabled=true;$('lockNameBtn').textContent='Locked';$('lockNameBtn').disabled=true;
+});
+// Set dynamic teacher name in header
+$('receiptTitle').textContent=teacherName+"'s Simulations";
+$('printBtn').addEventListener('click',()=>{try{window.print();}catch(e){}});
+$('startOverBtn').addEventListener('click',()=>{
+if(confirm('Are you sure? This will erase all progress and start a new run.')){
+location.reload();
+}
+});
+}
+
+/* === LOAD LEVEL === */
+function loadLevel(idx){
+arenaGen++;
+clearAllTimers();closeAllOverlays();
+processing=false;doCompleted=false;proveCompleted=false;
+curSelected=null;wrongCount=0;hintTier=0;
+consecutiveFastWrongs=0;sameWrongCount={};
+GS.currentLevel=idx;GS.levelStartTime=Date.now();
+// Preserve levelResets across resets of same level, but reset for new level
+// (levelResets is managed externally)
+updateHUD();
+// Deactivate all evidence slots
+document.querySelectorAll('.ev-slot').forEach(s=>s.classList.remove('active'));
+// Level intro
+$('interactionZone').scrollTop=0;
+$('phaseLabel').textContent='';
+$('promptText').innerHTML=`<span style="color:var(--accent);font-size:18px;font-weight:700;">Evidence #${LEVELS[idx].num}: ${esc(LEVELS[idx].name)}</span>`;
+$('optionsRow').innerHTML='';
+$('lockInBtn').style.display='none';
+$('hotspotPrompt').style.display='none';
+$('resetLevelBtn').disabled=false;
+arenaTimeout(()=>runWatch(idx),1500);
+}
+
+/* === RESET LEVEL === */
+$('resetLevelBtn').addEventListener('click',function(){
+if(GS.levels[GS.currentLevel].completed){return;}
+levelResets++;GS.levels[GS.currentLevel].resets=levelResets;
+arenaGen++;clearAllTimers();closeAllOverlays();
+try{speechSynthesis.cancel();}catch(e){}
+processing=false;
+loadLevel(GS.currentLevel);
+});
+
+/* === NEW RUN === */
+$('newRunBtn').addEventListener('click',function(){
+if(confirm('Start completely over? All progress will be lost.')){location.reload();}
+});
+
+/* === VOCAB PANEL === */
+$('vocabBtn').addEventListener('click',()=>$('vocabPanel').classList.toggle('open'));
+$('vocabClose').addEventListener('click',()=>$('vocabPanel').classList.remove('open'));
+
+/* === WELCOME === */
+$('startBtn').addEventListener('click',function(){
+studentName=($('studentNameInput').value||'').trim();
+const tn=($('teacherNameInput').value||'').trim();
+if(tn)teacherName=tn;
+if(!studentName){$('studentNameInput').focus();$('studentNameInput').style.borderColor='var(--red)';return;}
+$('welcomeScreen').style.display='none';
+$('app').style.display='flex';
+initSpeech();initLevelTracking();buildCascadeModel();
+GS.startTime=Date.now();GS.currentLevel=0;levelResets=0;
+loadLevel(0);
+});
+
+/* === VISIBILITY HANDLER === */
+document.addEventListener('visibilitychange',()=>{
+if(document.hidden){try{speechSynthesis.cancel();}catch(e){} if(resumeInt)clearInterval(resumeInt);}
+});
+</script>
+</body>
+</html>

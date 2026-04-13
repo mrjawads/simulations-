@@ -1,0 +1,2125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mr. Jawad's Simulation — Mass Extinction Cascade</title>
+<style>
+:root {
+  --bg1: #FFF8F0; --bg2: #FFEFD5;
+  --accent1: #F59E0B; --accent2: #EF6C6C; --accent3: #2D8B4E;
+  --text: #2D2016; --textLight: #6B5B4A;
+  --correct: #22C55E; --wrong: #EF4444;
+  --hint1: #FFF9C4; --hint2: #FFE0B2;
+  --card: #FFFFFF; --cardBorder: #E8D5C0;
+  --shadow: rgba(80,50,20,0.12);
+  --topbar: #F59E0B;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:var(--text);}
+body{display:flex;flex-direction:column;height:100vh;}
+
+/* WELCOME SCREEN */
+#welcomeScreen{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#FFF8F0,#FFEFD5);display:flex;align-items:center;justify-content:center;overflow-y:auto;}
+.welcome-box{background:#fff;border-radius:20px;padding:40px 36px;max-width:440px;width:90%;box-shadow:0 8px 32px rgba(80,50,20,0.18);text-align:center;}
+.welcome-box h1{font-size:22px;color:var(--accent1);margin-bottom:4px;}
+.welcome-box h2{font-size:16px;color:var(--textLight);font-weight:400;margin-bottom:24px;}
+.welcome-box label{display:block;text-align:left;font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;margin-top:16px;}
+.welcome-box input{width:100%;padding:12px 14px;border:2px solid var(--cardBorder);border-radius:10px;font-size:16px;outline:none;transition:border .2s;}
+.welcome-box input:focus{border-color:var(--accent1);}
+#startBtn{margin-top:28px;width:100%;padding:16px;background:var(--accent1);color:#fff;border:none;border-radius:12px;font-size:18px;font-weight:700;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+#startBtn:hover{transform:scale(1.03);box-shadow:0 4px 16px rgba(245,158,11,0.4);}
+#startBtn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+
+/* TOP BAR */
+#topBar{background:var(--topbar);color:#fff;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;min-height:48px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+#topBar .level-badge{font-weight:700;font-size:15px;}
+#topBar .hud{display:flex;gap:16px;align-items:center;font-size:14px;font-weight:600;}
+.progress-bar-wrap{width:140px;height:10px;background:rgba(255,255,255,0.3);border-radius:5px;overflow:hidden;}
+.progress-bar-fill{height:100%;background:#fff;border-radius:5px;transition:width .5s ease;}
+.vocab-tracker{display:flex;gap:4px;}
+.vocab-dot{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,0.3);transition:background .5s,box-shadow .5s;}
+.vocab-dot.lit{background:#FFD700;box-shadow:0 0 6px #FFD700;}
+
+/* MAIN AREA */
+#mainArea{flex:1;display:flex;overflow:hidden;min-height:0;}
+#narrativePanel{width:40%;padding:16px 20px;overflow-y:auto;background:rgba(255,255,255,0.6);border-right:1px solid var(--cardBorder);display:flex;flex-direction:column;gap:10px;transition:opacity .3s;}
+#narrativePanel.dimmed{opacity:0.4;}
+#narrativeText{font-size:15px;line-height:1.7;min-height:60px;word-wrap:break-word;overflow-wrap:break-word;}
+#narrativeText .kw{font-weight:700;color:var(--accent1);}
+#readAloudBtn{align-self:flex-start;padding:8px 14px;background:var(--accent1);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;margin-top:4px;}
+#readAloudBtn.off{background:var(--cardBorder);color:var(--text);}
+
+#arenaPanel{width:60%;position:relative;overflow:hidden;background:#5C4E3E;}
+#arenaContent{position:absolute;top:0;left:0;right:0;bottom:0;}
+#focusBanner{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(245,158,11,0.92);color:#fff;padding:8px 18px;border-radius:10px;font-size:14px;font-weight:600;z-index:10;text-align:center;max-width:90%;opacity:0;transition:opacity .5s;pointer-events:none;}
+#focusBanner.visible{opacity:1;}
+#focusBanner.subtle{opacity:0.5;font-size:12px;top:4px;padding:4px 12px;}
+
+/* INTERACTION ZONE */
+#interactionZone{min-height:140px;max-height:40vh;border-top:2px solid var(--cardBorder);padding:14px 20px;overflow-y:auto;flex-shrink:0;background:#fff;word-wrap:break-word;overflow-wrap:break-word;}
+#phaseLabel{font-size:13px;font-weight:700;color:var(--accent1);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+#promptText{font-size:16px;font-weight:600;margin-bottom:12px;line-height:1.4;}
+#optionsRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.opt-card{min-height:48px;padding:12px 18px;border:2px solid var(--cardBorder);border-radius:12px;background:var(--card);font-size:15px;cursor:pointer;transition:all .2s;flex:1;min-width:120px;max-width:280px;text-align:center;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-tap-highlight-color:transparent;}
+.opt-card:hover:not(.disabled):not(.locked){border-color:var(--accent1);box-shadow:0 2px 8px var(--shadow);}
+.opt-card.selected{border-color:var(--accent1);background:#FFF3E0;box-shadow:0 0 0 3px rgba(245,158,11,0.25);}
+.opt-card.correct-reveal{border-color:var(--correct);background:#DCFCE7;box-shadow:0 0 12px rgba(34,197,94,0.4);}
+.opt-card.wrong-flash{border-color:var(--wrong);background:#FEE2E2;animation:wrongShake .5s;}
+.opt-card.dimmed{opacity:0.35;pointer-events:none;text-decoration:line-through;}
+.opt-card.disabled{opacity:0.4;pointer-events:none;}
+.opt-card.locked{pointer-events:none;border-color:var(--correct);background:#DCFCE7;}
+.opt-card.guided-glow{box-shadow:0 0 12px rgba(245,158,11,0.45);border-color:var(--accent1);}
+@keyframes wrongShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+#lockInBtn,#tryAgainBtn,.phase-btn{min-height:48px;padding:12px 28px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:10px;}
+#lockInBtn{background:var(--accent1);color:#fff;display:none;}
+#lockInBtn:disabled{opacity:0.4;cursor:not-allowed;}
+#lockInBtn:hover:not(:disabled){transform:scale(1.03);box-shadow:0 4px 12px rgba(245,158,11,0.4);}
+#tryAgainBtn{background:var(--accent3);color:#fff;display:none;font-size:17px;min-width:160px;}
+#tryAgainBtn:hover{transform:scale(1.03);box-shadow:0 4px 12px rgba(45,139,78,0.4);}
+.phase-btn{background:var(--accent1);color:#fff;}
+#coachingText{margin-top:8px;padding:10px 14px;background:#FFF9C4;border-left:4px solid var(--accent1);border-radius:0 8px 8px 0;font-size:14px;line-height:1.5;display:none;}
+
+/* BOTTOM BAR */
+#bottomBar{background:#FFF8F0;border-top:2px solid var(--cardBorder);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;min-height:48px;flex-shrink:0;}
+#bottomBar button{padding:8px 14px;border:2px solid var(--cardBorder);border-radius:8px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+#bottomBar button:hover{border-color:var(--accent1);background:#FFF3E0;}
+#bottomBar button:disabled{opacity:0.3;cursor:not-allowed;}
+.bottom-left,.bottom-right{display:flex;gap:8px;align-items:center;}
+.bottom-center{font-size:13px;color:var(--textLight);font-weight:600;}
+
+/* HINT BAR */
+#hintBar{position:fixed;bottom:50px;left:50%;transform:translateX(-50%);max-width:600px;width:90%;padding:14px 18px;border-radius:12px;z-index:100;display:none;font-size:14px;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,0.15);}
+#hintBar.h1{background:var(--hint1);border:2px solid #F59E0B;}
+#hintBar.h2{background:var(--hint2);border:2px solid #F97316;}
+#hintBar .hint-close{position:absolute;top:6px;right:10px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--textLight);}
+
+/* STEP BY STEP OVERLAY */
+#sbsOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center;}
+#sbsBox{background:#fff;border-radius:16px;padding:28px 24px;max-width:480px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.3);text-align:center;}
+#sbsBox .sbs-panel{font-size:16px;line-height:1.6;margin-bottom:16px;}
+#sbsBox .sbs-btn{padding:12px 24px;background:var(--accent1);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;}
+
+/* VOCAB PANEL */
+#vocabOverlay{position:fixed;top:0;right:-340px;width:320px;height:100%;background:#fff;z-index:300;box-shadow:-4px 0 20px rgba(0,0,0,0.15);transition:right .3s;padding:20px;overflow-y:auto;}
+#vocabOverlay.open{right:0;}
+#vocabOverlay h3{font-size:18px;margin-bottom:16px;color:var(--accent1);}
+.vocab-item{margin-bottom:14px;padding:10px 12px;background:var(--bg1);border-radius:10px;border-left:4px solid var(--accent1);}
+.vocab-item .v-term{font-weight:700;font-size:15px;margin-bottom:2px;}
+.vocab-item .v-def{font-size:13px;color:var(--textLight);}
+#vocabClose{position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;cursor:pointer;}
+
+/* CELEBRATION OVERLAY */
+#celebOverlay{position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);}
+#celebBox{background:#fff;border-radius:20px;padding:36px 28px;max-width:400px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.3);}
+#celebBox h2{font-size:24px;margin-bottom:8px;}
+#celebBox .celeb-msg{font-size:16px;color:var(--textLight);margin-bottom:6px;}
+#celebBox .affirm{font-size:20px;color:var(--accent1);font-weight:600;margin:10px 0;min-height:28px;}
+#celebBox .celeb-btns{display:flex;gap:10px;justify-content:center;margin-top:16px;}
+#celebBox .celeb-btns button{padding:12px 24px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;}
+
+/* CONFETTI */
+#particleLayer{position:fixed;inset:0;pointer-events:none;z-index:450;overflow:hidden;}
+.particle{position:absolute;width:10px;height:10px;border-radius:2px;display:none;will-change:transform,opacity;}
+@keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1;}100%{transform:translateY(100vh) rotate(720deg);opacity:0;}}
+
+/* RECEIPT SCREEN */
+#receiptScreen{position:fixed;inset:0;z-index:500;background:linear-gradient(135deg,var(--bg1),var(--bg2));display:none;overflow-y:auto;padding:20px;}
+.receipt-box{max-width:600px;margin:0 auto;background:#fff;border-radius:16px;padding:28px 24px;box-shadow:0 4px 24px var(--shadow);}
+.receipt-box h2{text-align:center;color:var(--accent1);font-size:20px;margin-bottom:4px;}
+.receipt-box .subtitle{text-align:center;color:var(--textLight);font-size:14px;margin-bottom:20px;}
+.receipt-name-row{display:flex;gap:8px;align-items:center;margin-bottom:20px;}
+.receipt-name-row input{flex:1;padding:10px 12px;border:2px solid var(--cardBorder);border-radius:8px;font-size:15px;}
+.receipt-name-row button{padding:10px 16px;background:var(--accent1);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;min-height:48px;}
+.receipt-name-row input:disabled{background:#f5f5f5;}
+.receipt-teacher-row{text-align:center;font-size:14px;color:var(--textLight);margin-bottom:16px;}
+.big-score{text-align:center;margin:16px 0;}
+.big-score .pct{font-size:52px;font-weight:800;display:block;}
+.big-score .label{font-size:16px;font-weight:600;}
+.pct.green{color:var(--correct);}
+.pct.yellow{color:#F59E0B;}
+.pct.red{color:var(--wrong);}
+.receipt-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+.receipt-table th{background:var(--accent1);color:#fff;padding:8px 10px;text-align:left;}
+.receipt-table td{padding:8px 10px;border-bottom:1px solid var(--cardBorder);}
+.receipt-table tr:nth-child(even){background:#FFF8F0;}
+.receipt-table .bonus-row td{font-style:italic;}
+.receipt-table .score-cell.s100{color:var(--correct);font-weight:700;}
+.receipt-table .score-cell.s85{color:var(--accent3);font-weight:700;}
+.receipt-table .score-cell.s70{color:var(--accent1);font-weight:700;}
+.receipt-table .score-cell.s60{color:#F97316;font-weight:700;}
+.receipt-table .score-cell.s50{color:var(--wrong);font-weight:700;}
+.receipt-footer{text-align:center;margin-top:16px;font-size:14px;}
+.receipt-btns{display:flex;gap:10px;justify-content:center;margin-top:16px;}
+.receipt-btns button{padding:12px 20px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;}
+
+/* CONFIRM DIALOG */
+#confirmOverlay{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;}
+#confirmBox{background:#fff;border-radius:16px;padding:28px;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
+#confirmBox p{font-size:16px;margin-bottom:20px;}
+#confirmBox .confirm-btns{display:flex;gap:10px;justify-content:center;}
+#confirmBox button{padding:12px 24px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;}
+
+/* ANTI-GUESSING COACHING */
+#agOverlay{position:fixed;inset:0;z-index:250;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;}
+#agBox{background:#FFF9C4;border-radius:16px;padding:28px;max-width:420px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
+#agBox p{font-size:16px;line-height:1.5;margin-bottom:8px;}
+#agCountdown{font-size:28px;font-weight:800;color:var(--accent1);}
+
+/* ARENA SVG ELEMENTS */
+.arena-label{position:absolute;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;color:#fff;pointer-events:none;opacity:0;transition:opacity .6s;white-space:nowrap;}
+.arena-label.visible{opacity:1;}
+.arena-label.impact{background:rgba(245,158,11,0.9);box-shadow:0 0 8px rgba(245,158,11,0.5);}
+.arena-label.debris{background:rgba(107,79,16,0.9);}
+.arena-label.food{background:rgba(45,139,78,0.9);}
+.arena-label.chain{background:rgba(239,68,68,0.9);}
+.health-bar{position:absolute;width:50px;height:6px;border-radius:3px;background:#333;overflow:hidden;}
+.health-bar-fill{height:100%;background:var(--correct);border-radius:3px;transition:width 1.5s ease;}
+.arena-arrow{position:absolute;pointer-events:none;opacity:0;transition:opacity .5s;}
+.arena-arrow.visible{opacity:1;}
+.arena-arrow.pulse-red{animation:pulseRed 1.5s ease infinite;}
+.arena-arrow.pulse-green{animation:pulseGreen 1s ease;}
+.arena-arrow.pulse-yellow{animation:pulseYellow 1.5s ease infinite;}
+@keyframes pulseRed{0%,100%{opacity:0.6;}50%{opacity:1;}}
+@keyframes pulseGreen{0%{opacity:0.5;}50%{opacity:1;}100%{opacity:0.8;}}
+@keyframes pulseYellow{0%,100%{opacity:0.5;}50%{opacity:1;}}
+.highlight-ring{position:absolute;border:3px solid var(--accent1);border-radius:50%;pointer-events:none;opacity:0;transition:opacity .5s;box-shadow:0 0 12px rgba(245,158,11,0.5);}
+.highlight-ring.visible{opacity:1;animation:ringPulse 1.5s ease infinite;}
+@keyframes ringPulse{0%,100%{transform:scale(1);opacity:0.7;}50%{transform:scale(1.08);opacity:1;}}
+.hotspot-zone{position:absolute;cursor:pointer;border-radius:8px;transition:background .2s;-webkit-tap-highlight-color:transparent;}
+.hotspot-zone:hover{background:rgba(245,158,11,0.1);}
+.hotspot-wrong{animation:hotspotWrong .5s;}
+@keyframes hotspotWrong{0%,100%{box-shadow:none;}50%{box-shadow:inset 0 0 20px rgba(239,68,68,0.4);}}
+.coaching-arrow{position:absolute;pointer-events:none;z-index:15;opacity:0;transition:opacity .4s;}
+.coaching-arrow.visible{opacity:1;}
+
+/* PRINT */
+@media print{
+  #topBar,#bottomBar,#interactionZone,#narrativePanel,#arenaPanel,.receipt-btns,#vocabOverlay,#confirmOverlay,#celebOverlay,#hintBar,#sbsOverlay,#agOverlay,#particleLayer{display:none!important;}
+  #receiptScreen{position:static!important;overflow:visible!important;}
+  .receipt-box{box-shadow:none!important;max-width:100%!important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--cardBorder);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div id="welcomeScreen">
+  <div class="welcome-box">
+    <h1>Mr. Jawad's Simulations</h1>
+    <h2>Mass Extinction Cascade</h2>
+    <label for="studentNameIn">Your Name</label>
+    <input type="text" id="studentNameIn" placeholder="Enter your first name" maxlength="40" autocomplete="off">
+    <label for="teacherNameIn">Teacher Name (optional)</label>
+    <input type="text" id="teacherNameIn" placeholder="Mr. Jawad" maxlength="40" autocomplete="off" value="">
+    <button id="startBtn" disabled>Start Simulation</button>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div id="topBar" style="display:none;">
+  <div class="level-badge" id="levelBadge">Level 1: The Worst Day Begins</div>
+  <div class="hud">
+    <div class="vocab-tracker" id="vocabTracker">
+      <div class="vocab-dot" data-term="0" title="Impact Event"></div>
+      <div class="vocab-dot" data-term="1" title="Debris Cloud"></div>
+      <div class="vocab-dot" data-term="2" title="Food Chain"></div>
+      <div class="vocab-dot" data-term="3" title="Chain Reaction"></div>
+    </div>
+    <span id="scoreDisplay">0</span>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- MAIN AREA -->
+<div id="mainArea" style="display:none;">
+  <div id="narrativePanel">
+    <div id="narrativeText"></div>
+    <button id="readAloudBtn">Read Aloud: ON</button>
+  </div>
+  <div id="arenaPanel">
+    <div id="focusBanner"></div>
+    <div id="arenaContent"></div>
+  </div>
+</div>
+
+<!-- INTERACTION ZONE -->
+<div id="interactionZone" style="display:none;">
+  <div id="phaseLabel"></div>
+  <div id="promptText"></div>
+  <div id="optionsRow"></div>
+  <button id="lockInBtn" onclick="handleLockIn()">Lock In</button>
+  <button id="tryAgainBtn" onclick="handleTryAgain()">Try Again</button>
+  <div id="coachingText"></div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div id="bottomBar" style="display:none;">
+  <div class="bottom-left">
+    <button onclick="toggleVocab()">Vocab</button>
+    <button id="hintBtn" onclick="requestHint()">Hint</button>
+  </div>
+  <div class="bottom-center" id="levelIndicator">Level 1 of 6</div>
+  <div class="bottom-right">
+    <button id="resetLevelBtn" onclick="resetCurrentLevel()">Reset Level</button>
+    <button onclick="confirmNewRun()">New Run</button>
+  </div>
+</div>
+
+<!-- HINT BAR -->
+<div id="hintBar"><button class="hint-close" onclick="closeHint()">&times;</button><span id="hintText"></span></div>
+
+<!-- STEP BY STEP -->
+<div id="sbsOverlay"><div id="sbsBox"><div class="sbs-panel" id="sbsPanel"></div><button class="sbs-btn" id="sbsBtn" onclick="advanceSBS()">Next</button></div></div>
+
+<!-- VOCAB -->
+<div id="vocabOverlay">
+  <button id="vocabClose" onclick="toggleVocab()">&times;</button>
+  <h3>Key Vocabulary</h3>
+  <div class="vocab-item"><div class="v-term">Impact Event</div><div class="v-def">Powerful collision that changes Earth</div></div>
+  <div class="vocab-item"><div class="v-term">Debris Cloud</div><div class="v-def">Dust and rock blocking sunlight</div></div>
+  <div class="vocab-item"><div class="v-term">Food Chain</div><div class="v-def">Connected feeding relationships in ecosystems</div></div>
+  <div class="vocab-item"><div class="v-term">Chain Reaction</div><div class="v-def">Each change causing the next</div></div>
+</div>
+
+<!-- CELEBRATION -->
+<div id="celebOverlay"><div id="celebBox"><h2 id="celebTitle"></h2><div class="celeb-msg" id="celebMsg"></div><div class="affirm" id="celebAffirm"></div><div class="celeb-btns" id="celebBtns"></div></div></div>
+
+<!-- CONFETTI -->
+<div id="particleLayer"></div>
+
+<!-- RECEIPT -->
+<div id="receiptScreen">
+  <div class="receipt-box">
+    <h2 id="receiptTitle">Mr. Jawad's Simulations</h2>
+    <div class="subtitle" id="receiptSubtitle">Mass Extinction Cascade — Monday Score Report</div>
+    <div class="receipt-name-row">
+      <input type="text" id="receiptName" placeholder="Your name" maxlength="40">
+      <button onclick="lockReceiptName()" id="receiptLockBtn">Lock</button>
+    </div>
+    <div class="receipt-teacher-row" id="receiptTeacher"></div>
+    <div class="big-score"><span class="pct" id="receiptPct">0%</span><span class="label" id="receiptLabel"></span></div>
+    <table class="receipt-table"><thead><tr><th>#</th><th>Level</th><th>Score</th><th>Tries</th><th>Time</th></tr></thead><tbody id="receiptBody"></tbody></table>
+    <div class="receipt-footer" id="receiptFooter"></div>
+    <div style="text-align:center;margin-top:12px;font-size:14px;color:var(--textLight);">Take a screenshot and upload to Google Classroom</div>
+    <div class="receipt-btns">
+      <button style="background:var(--accent1);color:#fff;" onclick="window.print()">Print</button>
+      <button style="background:var(--cardBorder);color:var(--text);" onclick="confirmNewRun()">Start Over</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div id="confirmOverlay"><div id="confirmBox"><p>Start over? All progress will be lost.</p><div class="confirm-btns"><button style="background:var(--wrong);color:#fff;" onclick="doNewRun()">Yes, Start Over</button><button style="background:var(--cardBorder);color:var(--text);" onclick="closeConfirm()">Cancel</button></div></div></div>
+
+<!-- ANTI-GUESSING -->
+<div id="agOverlay"><div id="agBox"><p id="agMsg"></p><div id="agCountdown">5</div></div></div>
+
+<script>
+// ===== SANITIZATION =====
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+// ===== STATE =====
+let studentName='', teacherName='Mr. Jawad', readAloudOn=true;
+let audioCtx=null;
+let currentLevel=0, currentPhase='', processing=false;
+let selectedOption=null, wrongCount=0, levelResets=0, hintLevel=0;
+let phaseStartTime=0, levelStartTime=0;
+let arenaGen=0, allTimers=[], allIntervals=[];
+let resumeInterval=null;
+let requiredCompleteShown=false, bonusCompleteShown=false, receiptRendered=false;
+let consecutiveFastWrongs=0;
+let sbsPanels=[], sbsIndex=0;
+let vocabLit=[false,false,false,false];
+let safetyValveUsed=false;
+let antiGuessInterval=null;
+
+const gameState={
+  levels:[],overallScore:0,totalTimeSeconds:0,requiredComplete:false,allComplete:false
+};
+
+// ===== AFFIRMATIONS =====
+let lastAffirmIdx=-1;
+function getAffirmation(){
+  const pool=[
+    `${esc(teacherName)} is proud of your careful thinking!`,
+    `${esc(teacherName)} knew you could figure that out!`,
+    `That's the kind of reasoning ${esc(teacherName)} loves to see!`,
+    `${esc(teacherName)} says: you're getting it!`,
+    `Strong scientific thinking — ${esc(teacherName)} sees your effort!`,
+    `${esc(teacherName)} is impressed right now!`,
+    `You're showing ${esc(teacherName)} what you can do!`,
+    `${esc(teacherName)} says: keep that focus!`
+  ];
+  let idx;
+  do{idx=Math.floor(Math.random()*pool.length);}while(idx===lastAffirmIdx&&pool.length>1);
+  lastAffirmIdx=idx;
+  return pool[idx];
+}
+
+// ===== SAFE HELPERS =====
+function safeTimeout(fn,ms){
+  const gen=arenaGen;
+  const id=setTimeout(()=>{if(arenaGen===gen)try{fn();}catch(e){console.error('safeTimeout err',e);}},ms);
+  allTimers.push(id);
+  return id;
+}
+function safeInterval(fn,ms){
+  const id=setInterval(()=>{try{fn();}catch(e){console.error('interval err',e);}},ms);
+  allIntervals.push(id);
+  return id;
+}
+function clearAllTimers(){
+  allTimers.forEach(t=>clearTimeout(t));
+  allIntervals.forEach(t=>clearInterval(t));
+  allTimers=[];allIntervals=[];
+  if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}
+}
+function getAudioContext(){
+  if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  return audioCtx;
+}
+function playTone(freq,dur){
+  try{
+    const ctx=getAudioContext();if(!ctx)return;
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=freq;o.type='sine';
+    g.gain.setValueAtTime(0.15,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    o.start();o.stop(ctx.currentTime+dur);
+  }catch(e){}
+}
+function playCorrect(){playTone(523,0.1);safeTimeout(()=>playTone(659,0.1),100);safeTimeout(()=>playTone(784,0.15),200);}
+function playWrong(){playTone(220,0.2);}
+
+// ===== SPEECH =====
+function speakText(text,onEnd){
+  if(!readAloudOn||typeof speechSynthesis==='undefined'){if(onEnd)safeTimeout(onEnd,500);return;}
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=0.85;u.pitch=1;
+    const est=Math.max(text.length*80,3000);
+    const timeout=safeTimeout(()=>{try{speechSynthesis.cancel();}catch(e){}if(onEnd)onEnd();},est+3000);
+    if(resumeInterval)clearInterval(resumeInterval);
+    resumeInterval=setInterval(()=>{try{if(speechSynthesis.speaking)speechSynthesis.resume();}catch(e){}},10000);
+    u.onend=()=>{clearTimeout(timeout);if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}if(onEnd)onEnd();};
+    u.onerror=()=>{clearTimeout(timeout);if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}if(onEnd)onEnd();};
+    speechSynthesis.speak(u);
+  }catch(e){if(onEnd)safeTimeout(onEnd,500);}
+}
+
+// ===== TYPEWRITER =====
+function typeWriter(el,html,speed,cb){
+  el.innerHTML='';
+  const temp=document.createElement('div');temp.innerHTML=html;
+  const fullText=temp.textContent;
+  let i=0;
+  const iv=safeInterval(()=>{
+    if(i>=fullText.length){clearInterval(iv);el.innerHTML=html;if(cb)cb();return;}
+    el.textContent+=fullText[i];i++;
+  },speed||30);
+}
+
+// ===== PARTICLE SYSTEM =====
+const PARTICLE_POOL=[];
+function initParticles(){
+  const layer=document.getElementById('particleLayer');
+  layer.innerHTML='';
+  PARTICLE_POOL.length=0;
+  particleIdx=0;
+  for(let i=0;i<15;i++){
+    const p=document.createElement('div');
+    p.className='particle';p.style.display='none';
+    layer.appendChild(p);PARTICLE_POOL.push(p);
+  }
+}
+let particleIdx=0;
+function fireConfetti(count){
+  const colors=['#F59E0B','#EF6C6C','#2D8B4E','#3B82F6','#FFD700','#FF6B35'];
+  const num=Math.min(count||15,15);
+  for(let i=0;i<num;i++){
+    const p=PARTICLE_POOL[particleIdx%15];particleIdx++;
+    p.style.display='block';
+    p.style.left=Math.random()*100+'%';
+    p.style.top='-10px';
+    p.style.width=(6+Math.random()*8)+'px';
+    p.style.height=(6+Math.random()*8)+'px';
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.animation=`confettiFall ${1.5+Math.random()*1.5}s ease forwards`;
+    p.style.animationDelay=(Math.random()*0.4)+'s';
+    const cleanup=()=>{p.style.display='none';p.style.animation='';};
+    p.addEventListener('animationend',cleanup,{once:true});
+    safeTimeout(cleanup,4000);
+  }
+}
+
+// ===== OVERLAY MANAGEMENT =====
+function closeAllOverlays(){
+  document.getElementById('hintBar').style.display='none';
+  document.getElementById('sbsOverlay').style.display='none';
+  document.getElementById('agOverlay').style.display='none';
+  document.getElementById('celebOverlay').style.display='none';
+  document.getElementById('confirmOverlay').style.display='none';
+  if(antiGuessInterval){clearInterval(antiGuessInterval);antiGuessInterval=null;}
+}
+
+// ===== LEVELS DATA =====
+const LEVELS=[
+  // LEVEL 1
+  {
+    num:1, name:'The Worst Day Begins', required:true,
+    focusPrompt:'Watch what happens when the asteroid hits Earth — look at what forms on the surface.',
+    watchText:'A massive rock from space slams into Earth. The <span class="kw">impact event</span> creates a crater 100 miles wide. Rock and dust explode upward into the atmosphere. This is the moment the <span class="kw">chain reaction</span> begins.',
+    watchPlain:'A massive rock from space slams into Earth. The impact event creates a crater 100 miles wide. Rock and dust explode upward into the atmosphere. This is the moment the chain reaction begins.',
+    watchDuration:12000,
+    vocabUnlock:[0],
+    doMechanic:'coach-click',
+    doPrompt:'What formed on Earth\'s surface after the asteroid hit?',
+    doOptions:['Debris cloud','Crater from the impact event','New mountain range'],
+    doCorrect:1,
+    doWrongFeedback:[
+      'The debris cloud forms above Earth, not on the surface — look lower.',
+      '',
+      'No mountains formed — look at the round shape on the surface.'
+    ],
+    guided:true,
+    guidedTip:'Look at the glowing area on the surface.',
+    proveQuestion:'What will the dust rising from the crater become?',
+    proveOptions:['A debris cloud that blocks sunlight','A new mountain range formed by the crash','Fresh soil for new plants to grow in'],
+    proveCorrect:0,
+    proveWrongFeedback:[
+      '',
+      'Mountains form slowly underground — this dust is rising UP into the sky. Watch where it goes.',
+      'This dust is flying into the atmosphere, not settling as soil. Look at where it\'s heading — up.'
+    ],
+    hintLadder:{
+      hint1:{text:'Look at the round glowing shape on Earth\'s surface — what appeared where the asteroid hit?',target:'crater'},
+      hint2:{text:'The debris cloud is in the sky, not on the surface — look at the round shape below.',dimOption:0},
+      stepByStep:[
+        {text:'The asteroid slammed into Earth\'s surface.',target:'trail'},
+        {text:'It left a round crater where it struck.',target:'crater'},
+        {text:'Tap the option that matches what formed on the surface.',target:'options'}
+      ]
+    }
+  },
+  // LEVEL 2
+  {
+    num:2, name:'The Sky Goes Dark', required:true,
+    focusPrompt:'Watch what rises from the crater and spreads — look at what happens to the sun\'s rays.',
+    watchText:'Dust and rock from the <span class="kw">impact event</span> keep rising. A thick <span class="kw">debris cloud</span> spreads across the entire sky. The cloud blocks sunlight from reaching Earth\'s surface. Below the cloud, the world goes dark.',
+    watchPlain:'Dust and rock from the impact event keep rising. A thick debris cloud spreads across the entire sky. The cloud blocks sunlight from reaching Earth\'s surface. Below the cloud, the world goes dark.',
+    watchDuration:15000,
+    vocabUnlock:[1],
+    doMechanic:'pick-match',
+    doPrompt:'What did the impact event launch into the sky?',
+    doOptions:['A debris cloud of dust and rock','A new layer of soil','More sunlight'],
+    doCorrect:0,
+    doWrongFeedback:[
+      '',
+      'Soil stays on the ground — look UP, at the dark layer above Earth.',
+      'Sunlight is getting blocked, not added — what\'s doing the blocking?'
+    ],
+    guided:false,
+    proveQuestion:'Why can\'t sunlight reach the surface anymore?',
+    proveOptions:['The sun turned off','The plants are absorbing all the light','The debris cloud is blocking it'],
+    proveCorrect:2,
+    proveWrongFeedback:[
+      'The sun is still shining — look at the rays. Something is blocking them before they reach the ground.',
+      'The plants are below the block — look at the dark layer between the sun and the surface.',
+      ''
+    ],
+    hintLadder:{
+      hint1:{text:'Look at the dark layer between the sun and the surface — what is blocking the rays?',target:'debris'},
+      hint2:{text:'The sun didn\'t turn off and the plants aren\'t blocking light. What layer appeared after the impact?',dimOption:0},
+      stepByStep:[
+        {text:'The impact event launched dust and rock upward.',target:'arrow-up'},
+        {text:'The dust formed a debris cloud that blocks sunlight.',target:'debris'},
+        {text:'Tap the option that names what\'s blocking the light.',target:'options'}
+      ]
+    }
+  },
+  // LEVEL 3
+  {
+    num:3, name:'Sunlight Disappears, Plants Die', required:true,
+    focusPrompt:'Watch the plants on the surface — look at their color and health bar when the debris cloud blocks all sunlight.',
+    watchText:'Without sunlight, plants cannot make food to survive. The <span class="kw">debris cloud</span> blocks every ray of light from the sun. Green plants wilt, turn gray, and die across Earth. The first link in the <span class="kw">food chain</span> is broken.',
+    watchPlain:'Without sunlight, plants cannot make food to survive. The debris cloud blocks every ray of light from the sun. Green plants wilt, turn gray, and die across Earth. The first link in the food chain is broken.',
+    watchDuration:14000,
+    vocabUnlock:[2],
+    doMechanic:'hotspot',
+    doPrompt:'Tap where sunlight gets blocked on the model.',
+    doZones:['sun','debris','surface'],
+    doCorrectZone:'debris',
+    doZoneFeedback:{
+      sun:'That\'s where light comes FROM — look lower, at where the light stops.',
+      surface:'That\'s where the plants are dying — look ABOVE them at what\'s blocking the light.'
+    },
+    proveQuestion:'Why did the plants die after the impact event?',
+    proveOptions:['The asteroid crushed all the plants directly','The debris cloud blocked their sunlight','Herbivores ate all the plants before dying'],
+    proveCorrect:1,
+    proveWrongFeedback:[
+      'The asteroid hit one spot — plants died everywhere. Look at what spread across the whole sky.',
+      '',
+      'Herbivores are still alive at this point — look at what happened to the sun\'s rays first.'
+    ],
+    hintLadder:{
+      hint1:{text:'Look at the dark band between the sun and the surface — that\'s where the light stops.',target:'debris'},
+      hint2:{text:'It\'s not at the top where the sun shines — the light starts there but gets stopped below.',dimZone:'sun'},
+      stepByStep:[
+        {text:'The impact event launched dust into the sky.',target:'arrow-up'},
+        {text:'The debris cloud blocked all sunlight.',target:'debris'},
+        {text:'Tap the layer that\'s blocking the light.',target:'debris-highlight'}
+      ]
+    }
+  },
+  // LEVEL 4
+  {
+    num:4, name:'The Food Chain Breaks', required:true,
+    focusPrompt:'Watch the health bars of the herbivores and predators — notice the ORDER they drop.',
+    watchText:'Herbivores depend on plants for food every day. With plants dead, herbivore health bars drop to zero. Predators that eat herbivores lose their food source next. The <span class="kw">chain reaction</span> moves through every link of the <span class="kw">food chain</span>.',
+    watchPlain:'Herbivores depend on plants for food every day. With plants dead, herbivore health bars drop to zero. Predators that eat herbivores lose their food source next. The chain reaction moves through every link of the food chain.',
+    watchDuration:16000,
+    vocabUnlock:[3],
+    doMechanic:'what-comes-next',
+    doPrompt:'Plants are dead. What happens next in the food chain?',
+    doSequence:['Impact event','Debris cloud','Sunlight blocked','Plants die'],
+    doOptions:['Predators die first','New plants grow immediately','Herbivores starve next'],
+    doCorrect:2,
+    doWrongFeedback:[
+      'Predators eat herbivores, not plants — which group loses food FIRST when plants die?',
+      'No sunlight means no new plants can grow — look at what eats plants.',
+      ''
+    ],
+    proveQuestion:'Why do predators die even though the asteroid didn\'t hit them?',
+    proveOptions:['The chain reaction removed their food source step by step','The debris cloud carried poison that killed them directly','They ran out of clean water and couldn\'t survive'],
+    proveCorrect:0,
+    proveWrongFeedback:[
+      '',
+      'The debris cloud blocked sunlight — it didn\'t carry poison. Follow the arrows: what broke the food chain?',
+      'Water isn\'t part of this chain reaction — look at the arrows connecting plants to herbivores to predators.'
+    ],
+    hintLadder:{
+      hint1:{text:'Look at the arrows connecting plants to herbivores to predators. Which group eats plants?',target:'plant-herb-arrow'},
+      hint2:{text:'It\'s not predators first — they don\'t eat plants directly.',dimOption:0},
+      stepByStep:[
+        {text:'Plants died because the debris cloud blocked sunlight.',target:'dead-plants'},
+        {text:'Herbivores eat plants — so herbivores starve next.',target:'plant-herb-arrow'},
+        {text:'Tap the option that shows the correct next step.',target:'options'}
+      ]
+    }
+  },
+  // LEVEL 5 (BONUS)
+  {
+    num:5, name:'The Evidence in the Rock', required:false,
+    focusPrompt:'Watch the glowing line inside the rock — look at what color it matches from Level 1.',
+    watchText:'A thin clay line glows inside ancient rock layers worldwide. Tests reveal iridium inside — a material from asteroids. This proves the <span class="kw">debris cloud</span> carried asteroid dust across every continent. Scientists Walter and Luis Alvarez found this clue in 1980.',
+    watchPlain:'A thin clay line glows inside ancient rock layers worldwide. Tests reveal iridium inside — a material from asteroids. This proves the debris cloud carried asteroid dust across every continent. Scientists Walter and Luis Alvarez found this clue in 1980.',
+    watchDuration:14000,
+    vocabUnlock:[],
+    doMechanic:'pick-match',
+    doPrompt:'What does the iridium in the clay layer prove?',
+    doOptions:['Volcanoes erupted everywhere','Asteroid debris spread across the whole planet','The food chain was healthy before the impact'],
+    doCorrect:1,
+    doWrongFeedback:[
+      'Iridium comes from asteroids, not volcanoes — look at what matches the asteroid\'s trail color.',
+      '',
+      'The clay doesn\'t tell us about the food chain — it tells us about what spread through the sky.'
+    ],
+    guided:false,
+    proveQuestion:'Why was the iridium clay found on every continent?',
+    proveOptions:['Every continent was hit by its own separate asteroid','Ocean currents carried the iridium to every coastline','The debris cloud spread asteroid dust globally'],
+    proveCorrect:2,
+    proveWrongFeedback:[
+      'There was only ONE impact event — look at the single crater on the model.',
+      'Iridium was found inland too, not just on coastlines. Look at what traveled through the atmosphere, not the ocean.',
+      ''
+    ],
+    hintLadder:{
+      hint1:{text:'Look at the dotted line connecting the clay layer to the debris cloud — what spread the iridium?',target:'clay-connection'},
+      hint2:{text:'One asteroid, one impact — there wasn\'t a separate asteroid for each continent.',dimOption:0},
+      stepByStep:[
+        {text:'The asteroid contained iridium.',target:'asteroid-trail'},
+        {text:'The debris cloud carried that iridium dust across the sky worldwide.',target:'debris'},
+        {text:'Tap the option that explains how iridium got everywhere.',target:'options'}
+      ]
+    }
+  },
+  // LEVEL 6 (BONUS)
+  {
+    num:6, name:'One Rock Changed Everything', required:false,
+    focusPrompt:'Watch the full chain reaction replay — notice which step is the biggest bottleneck in the chain.',
+    watchText:'The <span class="kw">impact event</span> launches debris into the atmosphere. The <span class="kw">debris cloud</span> blocks all sunlight from reaching Earth. Plants die, and the <span class="kw">food chain</span> collapses link by link. One event triggered an unstoppable <span class="kw">chain reaction</span> across the planet.',
+    watchPlain:'The impact event launches debris into the atmosphere. The debris cloud blocks all sunlight from reaching Earth. Plants die, and the food chain collapses link by link. One event triggered an unstoppable chain reaction across the planet.',
+    watchDuration:15000,
+    vocabUnlock:[],
+    doMechanic:'claim-builder',
+    doPrompt:'Complete the claim: why did the food chain collapse?',
+    doClaimStem:'The food chain collapsed because the debris cloud ___.',
+    doOptions:['blocked all sunlight, so plants died first','was caused by a massive asteroid','made predators lose their food source too quickly'],
+    doCorrect:0,
+    doWrongFeedback:[
+      '',
+      'That\'s true, but the claim asks what the DEBRIS CLOUD did to the food chain. Look at the first arrow below the cloud.',
+      'That\'s the last step — what did the debris cloud break FIRST? Look at the arrow right below the cloud layer.'
+    ],
+    guided:false,
+    proveQuestion:'Could anything in the food chain survive without sunlight?',
+    proveOptions:['Yes, predators can survive without sunlight reaching Earth','No, every food chain starts with plants that need sunlight','Yes, herbivores could switch to eating other food sources'],
+    proveCorrect:1,
+    proveWrongFeedback:[
+      'Predators don\'t eat sunlight — but they eat herbivores, who eat plants, who need sunlight. Follow the arrows backward from predators.',
+      '',
+      'What other food? All plant life died. Herbivores eat plants — follow the arrows from sunlight to plants to herbivores.'
+    ],
+    hintLadder:{
+      hint1:{text:'Look at the debris cloud — it spans the entire sky. What is the first thing below it that died?',target:'debris-to-plants'},
+      hint2:{text:'The claim is about what the debris cloud did to the food chain — not about the asteroid itself.',dimOption:1},
+      stepByStep:[
+        {text:'The debris cloud blocked sunlight everywhere.',target:'debris'},
+        {text:'Without sunlight, ALL plants died — not just some.',target:'dead-plants'},
+        {text:'That broke the food chain for everyone. Tap the evidence card about blocking sunlight.',target:'options'}
+      ]
+    }
+  }
+];
+
+// ===== WELCOME =====
+document.getElementById('studentNameIn').addEventListener('input',function(){
+  document.getElementById('startBtn').disabled=this.value.trim().length<1;
+});
+document.getElementById('studentNameIn').addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&this.value.trim().length>=1)document.getElementById('startBtn').click();
+});
+document.getElementById('teacherNameIn').addEventListener('keydown',function(e){
+  if(e.key==='Enter')document.getElementById('startBtn').click();
+});
+document.getElementById('startBtn').addEventListener('click',function(){
+  studentName=document.getElementById('studentNameIn').value.trim();
+  const tn=document.getElementById('teacherNameIn').value.trim();
+  teacherName=tn||'Mr. Jawad';
+  document.getElementById('welcomeScreen').style.display='none';
+  document.getElementById('topBar').style.display='flex';
+  document.getElementById('mainArea').style.display='flex';
+  document.getElementById('interactionZone').style.display='block';
+  document.getElementById('bottomBar').style.display='flex';
+  initGame();
+});
+
+// ===== READ ALOUD TOGGLE =====
+document.getElementById('readAloudBtn').addEventListener('click',function(){
+  readAloudOn=!readAloudOn;
+  this.textContent='Read Aloud: '+(readAloudOn?'ON':'OFF');
+  this.className=readAloudOn?'':'off';
+  if(!readAloudOn)try{speechSynthesis.cancel();}catch(e){}
+});
+
+// ===== INIT =====
+function initGame(){
+  initParticles();
+  gameState.levels=LEVELS.map(l=>({num:l.num,name:l.name,required:l.required,completed:false,score:0,attempts:0,hintsUsed:0,resets:0,timeSeconds:0}));
+  currentLevel=0;
+  requiredCompleteShown=false;bonusCompleteShown=false;receiptRendered=false;
+  document.getElementById('receiptScreen').style.display='none';
+  loadLevel(currentLevel);
+}
+
+// ===== LOAD LEVEL =====
+function loadLevel(idx){
+  if(idx>=LEVELS.length)return showReceipt();
+  currentLevel=idx;
+  arenaGen++;
+  clearAllTimers();
+  closeAllOverlays();
+  processing=false;
+  selectedOption=null;
+  wrongCount=0;
+  hintLevel=0;
+  levelResets=gameState.levels[idx].resets||0;
+  consecutiveFastWrongs=0;
+  hotspotWrongCount=0;
+  safetyValveUsed=false;
+
+  const lv=LEVELS[idx];
+  const gs=gameState.levels[idx];
+  levelStartTime=Date.now();
+
+  document.getElementById('levelBadge').textContent=(lv.required?'':'\\u2B50 ')+'Level '+lv.num+': '+lv.name;
+  document.getElementById('levelIndicator').textContent='Level '+lv.num+' of '+LEVELS.length;
+  document.getElementById('progressFill').style.width=((idx)/LEVELS.length*100)+'%';
+  updateScore();
+
+  // Reset level btn
+  document.getElementById('resetLevelBtn').disabled=false;
+
+  // Narrative
+  document.getElementById('narrativePanel').classList.remove('dimmed');
+  document.getElementById('narrativeText').innerHTML='';
+  document.getElementById('interactionZone').querySelector('#phaseLabel').textContent='';
+  document.getElementById('promptText').textContent='';
+  document.getElementById('optionsRow').innerHTML='';
+  document.getElementById('lockInBtn').style.display='none';
+  document.getElementById('tryAgainBtn').style.display='none';
+  document.getElementById('coachingText').style.display='none';
+
+  // Show level intro
+  showLevelIntro(lv,()=>startWatch(lv));
+}
+
+function showLevelIntro(lv,cb){
+  const iz=document.getElementById('interactionZone');
+  iz.querySelector('#phaseLabel').textContent=lv.required?'':'BONUS LEVEL';
+  document.getElementById('promptText').innerHTML='<div style="text-align:center;font-size:20px;font-weight:700;color:var(--accent1);">Level '+lv.num+': '+esc(lv.name)+'</div>';
+  document.getElementById('optionsRow').innerHTML='';
+  safeTimeout(cb,1500);
+}
+
+// ===== ARENA BUILDER =====
+function buildArena(level){
+  const arena=document.getElementById('arenaContent');
+  arena.innerHTML='';
+  const svgStr=`<svg id="arenaSVG" viewBox="0 0 500 400" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;">
+  <defs>
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop id="skyTop" offset="0%" stop-color="#60B5E8"/>
+      <stop id="skyBot" offset="100%" stop-color="#87CEEB"/>
+    </linearGradient>
+    <radialGradient id="sunBody">
+      <stop offset="0%" stop-color="#FFFDE7"/>
+      <stop offset="50%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FFA000"/>
+    </radialGradient>
+    <radialGradient id="craterGrad">
+      <stop offset="0%" stop-color="#1A0F05"/>
+      <stop offset="60%" stop-color="#3D2810"/>
+      <stop offset="100%" stop-color="#6B4F10"/>
+    </radialGradient>
+    <linearGradient id="debrisGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3A2A15" stop-opacity="0.55"/>
+      <stop offset="30%" stop-color="#2A1E0E" stop-opacity="0.92"/>
+      <stop offset="70%" stop-color="#2A1E0E" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#3A2A15" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6B8E23"/>
+      <stop offset="4%" stop-color="#8B7355"/>
+      <stop offset="30%" stop-color="#7A6548"/>
+      <stop offset="60%" stop-color="#6B5B4A"/>
+      <stop offset="100%" stop-color="#5C4E3E"/>
+    </linearGradient>
+    <linearGradient id="clayGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#DAA520"/>
+      <stop offset="25%" stop-color="#FFD700"/>
+      <stop offset="50%" stop-color="#FFEC8B"/>
+      <stop offset="75%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#DAA520"/>
+    </linearGradient>
+    <marker id="arrowHead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <path d="M0,0 L10,3.5 L0,7 L2,3.5 Z" fill="#F59E0B"/>
+    </marker>
+  </defs>
+
+  <!-- SKY -->
+  <rect id="skyRect" x="0" y="0" width="500" height="255" fill="url(#skyGrad)"/>
+  <!-- Wispy clouds -->
+  <ellipse cx="100" cy="35" rx="50" ry="10" fill="#fff" opacity="0.25" class="cloud"/>
+  <ellipse cx="80" cy="30" rx="35" ry="8" fill="#fff" opacity="0.2" class="cloud"/>
+  <ellipse cx="300" cy="50" rx="60" ry="12" fill="#fff" opacity="0.2" class="cloud"/>
+  <ellipse cx="320" cy="45" rx="40" ry="9" fill="#fff" opacity="0.15" class="cloud"/>
+
+  <!-- DISTANT MOUNTAINS -->
+  <path d="M0,240 L30,200 L60,215 L100,185 L140,210 L170,190 L210,220 L240,195 L280,210 L320,180 L360,205 L400,195 L430,215 L460,200 L500,230 L500,255 L0,255Z" fill="#6B7D5E" opacity="0.4"/>
+  <path d="M0,245 L50,220 L90,230 L130,210 L180,235 L220,215 L260,230 L310,205 L350,225 L390,215 L440,235 L500,220 L500,255 L0,255Z" fill="#7D8E6B" opacity="0.35"/>
+
+  <!-- GROUND / ROCK STRATA -->
+  <rect x="0" y="248" width="500" height="152" fill="url(#groundGrad)"/>
+  <!-- Surface grass tufts -->
+  <path d="M20,249 Q17,240 19,232 M20,249 Q21,238 23,230 M20,249 Q24,242 26,234" stroke="#4A7A2E" stroke-width="1.2" fill="none" class="grass"/>
+  <path d="M50,249 Q47,241 49,234 M50,249 Q52,239 54,232" stroke="#4A7A2E" stroke-width="1.1" fill="none" class="grass"/>
+  <path d="M95,249 Q92,240 94,233 M95,249 Q97,238 99,231" stroke="#4A7A2E" stroke-width="1.2" fill="none" class="grass"/>
+  <path d="M135,249 Q132,241 134,235 M135,249 Q137,240 139,233" stroke="#4A7A2E" stroke-width="1.1" fill="none" class="grass"/>
+  <path d="M175,249 Q172,240 174,233 M175,249 Q177,238 179,231" stroke="#4A7A2E" stroke-width="1.2" fill="none" class="grass"/>
+  <path d="M260,249 Q257,241 259,234 M260,249 Q262,239 264,232" stroke="#4A7A2E" stroke-width="1.1" fill="none" class="grass"/>
+  <path d="M310,249 Q307,240 309,233 M310,249 Q312,239 314,232" stroke="#4A7A2E" stroke-width="1.2" fill="none" class="grass"/>
+  <path d="M395,249 Q392,240 394,233 M395,249 Q397,238 399,231" stroke="#4A7A2E" stroke-width="1.1" fill="none" class="grass"/>
+  <path d="M450,249 Q447,241 449,234 M450,249 Q452,239 454,232" stroke="#4A7A2E" stroke-width="1.2" fill="none" class="grass"/>
+  <!-- Strata layers -->
+  <line x1="0" y1="280" x2="500" y2="280" stroke="#7A6040" stroke-width="1.5" opacity="0.5"/>
+  <rect x="0" y="280" width="500" height="18" fill="#8B7355" opacity="0.25"/>
+  <line x1="0" y1="298" x2="500" y2="298" stroke="#6B5030" stroke-width="1" opacity="0.4"/>
+  <rect x="0" y="298" width="500" height="15" fill="#7A6548" opacity="0.2"/>
+  <line x1="0" y1="313" x2="500" y2="313" stroke="#5C4028" stroke-width="1" opacity="0.4"/>
+  <rect x="0" y="313" width="500" height="20" fill="#6B5B4A" opacity="0.25"/>
+  <line x1="0" y1="333" x2="500" y2="333" stroke="#4A3820" stroke-width="1" opacity="0.35"/>
+  <rect x="0" y="333" width="500" height="20" fill="#5C4E3E" opacity="0.25"/>
+  <line x1="0" y1="353" x2="500" y2="353" stroke="#3D3018" stroke-width="1" opacity="0.3"/>
+  <!-- Small rocks/pebbles -->
+  <circle cx="60" cy="270" r="3" fill="#9E8E78" opacity="0.4"/>
+  <circle cx="180" cy="285" r="2" fill="#A08E75" opacity="0.35"/>
+  <circle cx="350" cy="265" r="2.5" fill="#9E8E78" opacity="0.3"/>
+  <circle cx="420" cy="290" r="3.5" fill="#A08E75" opacity="0.35"/>
+  <ellipse cx="140" cy="275" rx="4" ry="2" fill="#8E7E68" opacity="0.3"/>
+  <ellipse cx="300" cy="295" rx="3" ry="1.5" fill="#8E7E68" opacity="0.3"/>
+
+  <!-- SUN with glow -->
+  <circle cx="420" cy="40" r="50" fill="#FFD700" opacity="0.12" class="sun-glow"/>
+  <circle cx="420" cy="40" r="38" fill="#FFD700" opacity="0.08" class="sun-glow"/>
+  <circle cx="420" cy="40" r="26" fill="url(#sunBody)" id="sun"/>
+  <circle cx="420" cy="40" r="30" fill="none" stroke="#FFD700" stroke-width="1.5" opacity="0.35"/>
+  <!-- Sun rays (thick) -->
+  <line x1="420" y1="5" x2="420" y2="-8" stroke="#FFD700" stroke-width="3" stroke-linecap="round" opacity="0.8" class="sun-ray"/>
+  <line x1="445" y1="15" x2="458" y2="2" stroke="#FFD700" stroke-width="3" stroke-linecap="round" opacity="0.75" class="sun-ray"/>
+  <line x1="455" y1="40" x2="472" y2="40" stroke="#FFD700" stroke-width="3" stroke-linecap="round" opacity="0.8" class="sun-ray"/>
+  <line x1="445" y1="65" x2="458" y2="78" stroke="#FFD700" stroke-width="3" stroke-linecap="round" opacity="0.75" class="sun-ray"/>
+  <line x1="420" y1="75" x2="420" y2="88" stroke="#FFD700" stroke-width="3" stroke-linecap="round" opacity="0.8" class="sun-ray"/>
+  <line x1="395" y1="65" x2="382" y2="78" stroke="#FFD700" stroke-width="3" stroke-linecap="round" opacity="0.75" class="sun-ray"/>
+  <line x1="385" y1="40" x2="368" y2="40" stroke="#FFD700" stroke-width="3" stroke-linecap="round" opacity="0.8" class="sun-ray"/>
+  <line x1="395" y1="15" x2="382" y2="2" stroke="#FFD700" stroke-width="3" stroke-linecap="round" opacity="0.75" class="sun-ray"/>
+  <!-- Sun rays (thin, between) -->
+  <line x1="433" y1="10" x2="440" y2="0" stroke="#FFE066" stroke-width="1.5" stroke-linecap="round" opacity="0.5" class="sun-ray"/>
+  <line x1="452" y1="26" x2="464" y2="20" stroke="#FFE066" stroke-width="1.5" stroke-linecap="round" opacity="0.5" class="sun-ray"/>
+  <line x1="452" y1="54" x2="464" y2="60" stroke="#FFE066" stroke-width="1.5" stroke-linecap="round" opacity="0.5" class="sun-ray"/>
+  <line x1="433" y1="70" x2="440" y2="80" stroke="#FFE066" stroke-width="1.5" stroke-linecap="round" opacity="0.5" class="sun-ray"/>
+  <line x1="407" y1="70" x2="400" y2="80" stroke="#FFE066" stroke-width="1.5" stroke-linecap="round" opacity="0.5" class="sun-ray"/>
+  <line x1="388" y1="54" x2="376" y2="60" stroke="#FFE066" stroke-width="1.5" stroke-linecap="round" opacity="0.5" class="sun-ray"/>
+  <line x1="388" y1="26" x2="376" y2="20" stroke="#FFE066" stroke-width="1.5" stroke-linecap="round" opacity="0.5" class="sun-ray"/>
+  <line x1="407" y1="10" x2="400" y2="0" stroke="#FFE066" stroke-width="1.5" stroke-linecap="round" opacity="0.5" class="sun-ray"/>
+
+  <!-- LIGHT BEAMS -->
+  <line x1="350" y1="68" x2="50" y2="242" stroke="#FFD700" stroke-width="2.5" opacity="0.16" stroke-dasharray="6 4" class="light-beam" id="beam0"/>
+  <line x1="378" y1="68" x2="145" y2="242" stroke="#FFD700" stroke-width="2.2" opacity="0.14" stroke-dasharray="6 4" class="light-beam" id="beam1"/>
+  <line x1="406" y1="68" x2="240" y2="242" stroke="#FFD700" stroke-width="2" opacity="0.12" stroke-dasharray="6 4" class="light-beam" id="beam2"/>
+  <line x1="434" y1="68" x2="335" y2="242" stroke="#FFD700" stroke-width="1.8" opacity="0.11" stroke-dasharray="6 4" class="light-beam" id="beam3"/>
+  <line x1="462" y1="68" x2="430" y2="242" stroke="#FFD700" stroke-width="1.5" opacity="0.1" stroke-dasharray="6 4" class="light-beam" id="beam4"/>
+
+  <!-- PLANT 1: CYCAD at x=75 -->
+  <g id="plant0" transform="translate(75,244)">
+    <line x1="0" y1="0" x2="0" y2="-35" stroke="#5D7A3E" stroke-width="4" stroke-linecap="round" class="plant-stem"/>
+    <line x1="0" y1="0" x2="-2" y2="-20" stroke="#4A6830" stroke-width="3" class="plant-stem"/>
+    <path d="M0,-35 Q-14,-50 -28,-42" stroke="#2D8B4E" stroke-width="2" fill="none" class="plant-leaf"/>
+    <ellipse cx="-26" cy="-41" rx="7" ry="3" transform="rotate(-50 -26 -41)" fill="#34A853" class="plant-leaf"/>
+    <path d="M0,-35 Q-8,-52 -18,-48" stroke="#2D8B4E" stroke-width="2" fill="none" class="plant-leaf"/>
+    <ellipse cx="-17" cy="-47" rx="6" ry="2.5" transform="rotate(-40 -17 -47)" fill="#2D8B4E" class="plant-leaf"/>
+    <path d="M0,-35 Q0,-54 -4,-52" stroke="#3BA55D" stroke-width="1.5" fill="none" class="plant-leaf"/>
+    <ellipse cx="-3" cy="-51" rx="5" ry="2" transform="rotate(-10 -3 -51)" fill="#34A853" class="plant-leaf"/>
+    <path d="M0,-35 Q8,-52 18,-48" stroke="#2D8B4E" stroke-width="2" fill="none" class="plant-leaf"/>
+    <ellipse cx="17" cy="-47" rx="6" ry="2.5" transform="rotate(40 17 -47)" fill="#3BA55D" class="plant-leaf"/>
+    <path d="M0,-35 Q14,-50 28,-42" stroke="#2D8B4E" stroke-width="2" fill="none" class="plant-leaf"/>
+    <ellipse cx="26" cy="-41" rx="7" ry="3" transform="rotate(50 26 -41)" fill="#34A853" class="plant-leaf"/>
+    <path d="M0,-35 Q20,-44 30,-36" stroke="#228B3E" stroke-width="1.5" fill="none" class="plant-leaf"/>
+    <ellipse cx="28" cy="-36" rx="5" ry="2" transform="rotate(55 28 -36)" fill="#2D8B4E" class="plant-leaf"/>
+    <path d="M0,-35 Q-20,-44 -30,-36" stroke="#228B3E" stroke-width="1.5" fill="none" class="plant-leaf"/>
+    <ellipse cx="-28" cy="-36" rx="5" ry="2" transform="rotate(-55 -28 -36)" fill="#2D8B4E" class="plant-leaf"/>
+  </g>
+
+  <!-- PLANT 2: CONIFER at x=220 -->
+  <g id="plant1" transform="translate(220,244)">
+    <rect x="-4" y="-52" width="8" height="54" rx="2" fill="#6B4F10" class="plant-stem"/>
+    <rect x="-2" y="-50" width="4" height="50" rx="1" fill="#7A5A10" opacity="0.5" class="plant-stem"/>
+    <polygon points="0,-78 -24,-42 24,-42" fill="#228B3E" class="plant-leaf"/>
+    <polygon points="0,-72 -20,-46 20,-46" fill="#2D8B4E" class="plant-leaf"/>
+    <polygon points="0,-60 -28,-30 28,-30" fill="#1E7A34" class="plant-leaf"/>
+    <polygon points="0,-54 -24,-34 24,-34" fill="#2D8B4E" class="plant-leaf"/>
+    <polygon points="0,-44 -32,-18 32,-18" fill="#228B3E" class="plant-leaf"/>
+    <polygon points="0,-38 -28,-22 28,-22" fill="#34A853" class="plant-leaf"/>
+    <polygon points="0,-28 -34,-6 34,-6" fill="#1E7A34" class="plant-leaf"/>
+    <polygon points="0,-22 -30,-10 30,-10" fill="#2D8B4E" class="plant-leaf"/>
+    <line x1="0" y1="-30" x2="-16" y2="-22" stroke="#5A4010" stroke-width="1.5" class="plant-stem"/>
+    <line x1="0" y1="-30" x2="15" y2="-24" stroke="#5A4010" stroke-width="1.5" class="plant-stem"/>
+  </g>
+
+  <!-- PLANT 3: FERN CLUSTER at x=365 -->
+  <g id="plant2" transform="translate(365,244)">
+    <path d="M0,0 Q-8,-20 -15,-40" stroke="#3A7D44" stroke-width="2" fill="none" class="plant-stem"/>
+    <path d="M0,0 Q2,-22 5,-42" stroke="#3A7D44" stroke-width="2" fill="none" class="plant-stem"/>
+    <path d="M0,0 Q10,-18 20,-36" stroke="#3A7D44" stroke-width="2" fill="none" class="plant-stem"/>
+    <path d="M0,0 Q-14,-16 -24,-28" stroke="#3A7D44" stroke-width="1.5" fill="none" class="plant-stem"/>
+    <path d="M0,0 Q15,-14 26,-24" stroke="#3A7D44" stroke-width="1.5" fill="none" class="plant-stem"/>
+    <!-- Frond leaflets along each stem -->
+    <ellipse cx="-10" cy="-22" rx="5" ry="2" transform="rotate(-30 -10 -22)" fill="#2D8B4E" class="plant-leaf"/>
+    <ellipse cx="-5" cy="-14" rx="4" ry="1.8" transform="rotate(-20 -5 -14)" fill="#34A853" class="plant-leaf"/>
+    <ellipse cx="-14" cy="-34" rx="5" ry="2" transform="rotate(-40 -14 -34)" fill="#228B3E" class="plant-leaf"/>
+    <ellipse cx="3" cy="-22" rx="5" ry="2" transform="rotate(5 3 -22)" fill="#2D8B4E" class="plant-leaf"/>
+    <ellipse cx="6" cy="-34" rx="5" ry="2" transform="rotate(10 6 -34)" fill="#34A853" class="plant-leaf"/>
+    <ellipse cx="12" cy="-20" rx="4" ry="1.8" transform="rotate(30 12 -20)" fill="#2D8B4E" class="plant-leaf"/>
+    <ellipse cx="18" cy="-30" rx="5" ry="2" transform="rotate(35 18 -30)" fill="#228B3E" class="plant-leaf"/>
+    <ellipse cx="-18" cy="-18" rx="4" ry="1.8" transform="rotate(-45 -18 -18)" fill="#34A853" class="plant-leaf"/>
+    <ellipse cx="-22" cy="-24" rx="4" ry="1.8" transform="rotate(-50 -22 -24)" fill="#2D8B4E" class="plant-leaf"/>
+    <ellipse cx="22" cy="-18" rx="4" ry="1.8" transform="rotate(45 22 -18)" fill="#34A853" class="plant-leaf"/>
+    <ellipse cx="24" cy="-22" rx="4" ry="1.8" transform="rotate(50 24 -22)" fill="#2D8B4E" class="plant-leaf"/>
+    <!-- Curled fiddleheads -->
+    <path d="M-14,-40 Q-16,-44 -13,-46 Q-10,-44 -12,-42" stroke="#2D8B4E" stroke-width="1.2" fill="none" class="plant-leaf"/>
+    <path d="M6,-42 Q8,-46 5,-48 Q2,-46 4,-44" stroke="#34A853" stroke-width="1.2" fill="none" class="plant-leaf"/>
+  </g>
+
+  <!-- HERBIVORE: TRICERATOPS -->
+  <g id="herbivore" transform="translate(150,218)">
+    <!-- Tail -->
+    <path d="M20,2 Q32,0 38,5 Q42,8 40,12" stroke="#A67B5B" stroke-width="5" fill="none" stroke-linecap="round" class="herb-body"/>
+    <path d="M20,2 Q32,-1 38,4" stroke="#C8A57A" stroke-width="3" fill="none" stroke-linecap="round" class="herb-body"/>
+    <!-- Body -->
+    <ellipse cx="0" cy="5" rx="24" ry="14" fill="#B8956A" class="herb-body"/>
+    <ellipse cx="0" cy="3" rx="22" ry="12" fill="#C8A57A" class="herb-body"/>
+    <!-- Body plates/texture -->
+    <path d="M-8,-5 Q-5,-8 -2,-5" stroke="#A67B5B" stroke-width="0.8" fill="none"/>
+    <path d="M2,-4 Q5,-7 8,-4" stroke="#A67B5B" stroke-width="0.8" fill="none"/>
+    <path d="M10,-2 Q13,-5 16,-2" stroke="#A67B5B" stroke-width="0.8" fill="none"/>
+    <!-- Belly -->
+    <path d="M-16,12 Q0,18 16,12" stroke="#DBC09A" stroke-width="2" fill="none" opacity="0.5"/>
+    <!-- Legs -->
+    <rect x="-18" y="14" width="6" height="14" rx="2" fill="#8B6914" class="herb-body"/>
+    <rect x="-8" y="14" width="6" height="16" rx="2" fill="#9B7924" class="herb-body"/>
+    <rect x="6" y="14" width="6" height="16" rx="2" fill="#9B7924" class="herb-body"/>
+    <rect x="14" y="14" width="6" height="14" rx="2" fill="#8B6914" class="herb-body"/>
+    <!-- Feet -->
+    <ellipse cx="-15" cy="29" rx="4.5" ry="2.5" fill="#7A5A10"/>
+    <ellipse cx="-5" cy="31" rx="4.5" ry="2.5" fill="#7A5A10"/>
+    <ellipse cx="9" cy="31" rx="4.5" ry="2.5" fill="#7A5A10"/>
+    <ellipse cx="17" cy="29" rx="4.5" ry="2.5" fill="#7A5A10"/>
+    <!-- Neck -->
+    <path d="M-18,0 Q-26,-2 -30,-3" stroke="#C8A57A" stroke-width="9" fill="none" stroke-linecap="round" class="herb-body"/>
+    <!-- Frill (shield) -->
+    <path d="M-26,-12 Q-20,-24 -26,-20 Q-30,-26 -36,-18 Q-40,-22 -42,-14 Q-44,-6 -38,-2 Q-34,2 -28,0" fill="#D4A862" stroke="#B8956A" stroke-width="1.5" class="herb-body"/>
+    <circle cx="-34" cy="-12" r="2.5" fill="#C8956A" opacity="0.5"/>
+    <circle cx="-30" cy="-18" r="2" fill="#C8956A" opacity="0.4"/>
+    <circle cx="-38" cy="-8" r="1.5" fill="#C8956A" opacity="0.4"/>
+    <!-- Head -->
+    <ellipse cx="-30" cy="0" rx="11" ry="7.5" fill="#C8A57A" class="herb-body"/>
+    <!-- Beak -->
+    <path d="M-41,-2 L-45,1 L-40,4" fill="#8B6914" stroke="#6B4F10" stroke-width="0.5"/>
+    <!-- Eye -->
+    <circle cx="-34" cy="-2" r="2.8" fill="#2C1810"/>
+    <circle cx="-33.5" cy="-2.5" r="1.2" fill="#fff"/>
+    <!-- Horns -->
+    <line x1="-34" y1="-6" x2="-40" y2="-16" stroke="#F5E6C8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="-28" y1="-5" x2="-30" y2="-18" stroke="#F5E6C8" stroke-width="2.2" stroke-linecap="round"/>
+    <line x1="-40" y1="0" x2="-45" y2="-3" stroke="#F5E6C8" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- PREDATOR: T-REX -->
+  <g id="predator" transform="translate(330,210)">
+    <!-- Tail -->
+    <path d="M-15,8 Q-30,4 -42,10 Q-50,14 -55,10" stroke="#B83C2B" stroke-width="7" fill="none" stroke-linecap="round" class="pred-body"/>
+    <path d="M-15,8 Q-30,2 -42,7 Q-48,10 -53,8" stroke="#D04535" stroke-width="4" fill="none" stroke-linecap="round" class="pred-body"/>
+    <!-- Body -->
+    <ellipse cx="0" cy="8" rx="22" ry="16" fill="#C0392B" class="pred-body"/>
+    <ellipse cx="2" cy="6" rx="20" ry="14" fill="#D04535" class="pred-body"/>
+    <!-- Belly -->
+    <path d="M-15,18 Q0,24 15,18" stroke="#E8A090" stroke-width="3" fill="none" opacity="0.35"/>
+    <!-- Scales -->
+    <circle cx="-5" cy="3" r="1.2" fill="#A93226" opacity="0.3"/>
+    <circle cx="3" cy="1" r="1.2" fill="#A93226" opacity="0.25"/>
+    <circle cx="8" cy="5" r="1.4" fill="#A93226" opacity="0.2"/>
+    <circle cx="-10" cy="8" r="1" fill="#A93226" opacity="0.25"/>
+    <!-- Legs -->
+    <path d="M-8,20 L-11,38 L-16,40 L-6,40 L-3,38 L-5,20" fill="#A0301E" class="pred-body"/>
+    <path d="M8,20 L5,40 L0,42 L10,42 L13,40 L11,20" fill="#A0301E" class="pred-body"/>
+    <!-- Claws -->
+    <path d="M-16,40 L-19,39 M-11,40 L-14,41 M-6,40 L-9,41" stroke="#7A2015" stroke-width="1.5"/>
+    <path d="M0,42 L-3,41 M5,42 L2,43 M10,42 L7,43" stroke="#7A2015" stroke-width="1.5"/>
+    <!-- Neck -->
+    <path d="M16,0 Q22,-8 25,-14" stroke="#D04535" stroke-width="11" fill="none" stroke-linecap="round" class="pred-body"/>
+    <path d="M17,-1 Q22,-8 25,-13" stroke="#D84545" stroke-width="7" fill="none" stroke-linecap="round" class="pred-body"/>
+    <!-- Head -->
+    <ellipse cx="28" cy="-18" rx="17" ry="11" fill="#D04535" class="pred-body"/>
+    <ellipse cx="30" cy="-20" rx="15" ry="9" fill="#D84545" class="pred-body"/>
+    <!-- Jaw ridge -->
+    <path d="M20,-10 Q28,-6 42,-12" stroke="#A93226" stroke-width="1.5" fill="none"/>
+    <!-- Jaw -->
+    <path d="M36,-12 L50,-14 L48,-10 L36,-8" fill="#C0392B"/>
+    <path d="M36,-12 L50,-14" stroke="#A93226" stroke-width="1.5"/>
+    <!-- Teeth (upper) -->
+    <path d="M38,-12 L39,-10 M41,-13 L42,-11 M44,-13 L45,-11 M47,-14 L47,-12" stroke="#F5F5F0" stroke-width="1.2" stroke-linecap="round"/>
+    <!-- Teeth (lower) -->
+    <path d="M38,-8 L39,-10 M42,-8 L43,-10 M45,-9 L45,-11" stroke="#F5F5F0" stroke-width="1.2" stroke-linecap="round"/>
+    <!-- Eye -->
+    <circle cx="33" cy="-22" r="3.5" fill="#FFD700"/>
+    <circle cx="33.5" cy="-22" r="1.8" fill="#1A0A00"/>
+    <!-- Brow ridge -->
+    <path d="M29,-24 L34,-26 L37,-24" stroke="#A93226" stroke-width="1.5" fill="none"/>
+    <!-- Tiny arms -->
+    <path d="M14,-2 L18,-6 L20,-4" stroke="#C0392B" stroke-width="3" fill="none" stroke-linecap="round" class="pred-body"/>
+    <circle cx="20" cy="-4" r="1.8" fill="#A0301E"/>
+  </g>
+
+  <!-- FOOD CHAIN ARROWS -->
+  <path id="fcArrow1" d="M110,237 L130,230" stroke="#F59E0B" stroke-width="3.5" marker-end="url(#arrowHead)" opacity="0.8"/>
+  <path id="fcArrow2" d="M195,232 L305,225" stroke="#F59E0B" stroke-width="3.5" marker-end="url(#arrowHead)" opacity="0.8"/>
+
+  <!-- HEALTH BARS with labels -->
+  <g id="hbPlant" transform="translate(55,192)">
+    <rect width="50" height="7" rx="3" fill="#1A1A1A" opacity="0.5"/>
+    <rect id="hbPlantFill" width="50" height="7" rx="3" fill="#22C55E"/>
+    <text x="25" y="-3" text-anchor="middle" font-size="8" fill="#2D8B4E" font-weight="700" font-family="sans-serif">PLANTS</text>
+  </g>
+  <g id="hbHerb" transform="translate(125,192)">
+    <rect width="50" height="7" rx="3" fill="#1A1A1A" opacity="0.5"/>
+    <rect id="hbHerbFill" width="50" height="7" rx="3" fill="#22C55E"/>
+    <text x="25" y="-3" text-anchor="middle" font-size="7" fill="#A67B5B" font-weight="700" font-family="sans-serif">HERBIVORE</text>
+  </g>
+  <g id="hbPred" transform="translate(305,192)">
+    <rect width="50" height="7" rx="3" fill="#1A1A1A" opacity="0.5"/>
+    <rect id="hbPredFill" width="50" height="7" rx="3" fill="#22C55E"/>
+    <text x="25" y="-3" text-anchor="middle" font-size="7" fill="#C0392B" font-weight="700" font-family="sans-serif">PREDATOR</text>
+  </g>
+
+  <!-- DEBRIS CLOUD (initially invisible) -->
+  <g id="debrisCloud" opacity="0">
+    <rect x="0" y="74" width="500" height="55" fill="url(#debrisGrad)"/>
+    <!-- Dust wisps -->
+    <ellipse cx="80" cy="88" rx="42" ry="9" fill="#3A2A15" opacity="0.5"/>
+    <ellipse cx="200" cy="96" rx="55" ry="11" fill="#2E2010" opacity="0.55"/>
+    <ellipse cx="340" cy="85" rx="48" ry="10" fill="#3A2A15" opacity="0.5"/>
+    <ellipse cx="450" cy="100" rx="38" ry="8" fill="#2E2010" opacity="0.45"/>
+    <ellipse cx="140" cy="105" rx="30" ry="6" fill="#3A2A15" opacity="0.4"/>
+    <!-- Particle texture -->
+    <circle cx="25" cy="80" r="1.2" fill="#8B7355" opacity="0.3"/>
+    <circle cx="68" cy="92" r="0.9" fill="#8B7355" opacity="0.25"/>
+    <circle cx="110" cy="85" r="1.4" fill="#8B7355" opacity="0.3"/>
+    <circle cx="155" cy="100" r="1" fill="#8B7355" opacity="0.2"/>
+    <circle cx="195" cy="82" r="1.3" fill="#8B7355" opacity="0.25"/>
+    <circle cx="240" cy="95" r="0.8" fill="#8B7355" opacity="0.3"/>
+    <circle cx="280" cy="88" r="1.5" fill="#8B7355" opacity="0.2"/>
+    <circle cx="320" cy="102" r="1" fill="#8B7355" opacity="0.25"/>
+    <circle cx="360" cy="80" r="1.2" fill="#8B7355" opacity="0.3"/>
+    <circle cx="400" cy="95" r="0.9" fill="#8B7355" opacity="0.2"/>
+    <circle cx="440" cy="84" r="1.3" fill="#8B7355" opacity="0.25"/>
+    <circle cx="475" cy="98" r="1" fill="#8B7355" opacity="0.3"/>
+    <!-- Falling debris streaks -->
+    <line x1="120" y1="128" x2="118" y2="142" stroke="#5C4E3E" stroke-width="1" opacity="0.25"/>
+    <line x1="250" y1="126" x2="252" y2="140" stroke="#5C4E3E" stroke-width="1" opacity="0.2"/>
+    <line x1="380" y1="130" x2="378" y2="144" stroke="#5C4E3E" stroke-width="1" opacity="0.25"/>
+  </g>
+
+  <!-- CRATER (initially invisible) -->
+  <g id="crater" opacity="0">
+    <ellipse cx="250" cy="252" rx="55" ry="19" fill="none" stroke="#FF8C00" stroke-width="1" opacity="0.25"/>
+    <ellipse cx="250" cy="252" rx="48" ry="17" fill="#5C3D1E" opacity="0.5"/>
+    <!-- Ejecta rocks -->
+    <circle cx="200" cy="248" r="2" fill="#6B4F10" opacity="0.5"/>
+    <circle cx="210" cy="242" r="1.5" fill="#7A5A10" opacity="0.4"/>
+    <circle cx="295" cy="246" r="2.5" fill="#6B4F10" opacity="0.45"/>
+    <circle cx="288" cy="240" r="1.5" fill="#7A5A10" opacity="0.4"/>
+    <circle cx="240" cy="238" r="1.8" fill="#6B4F10" opacity="0.4"/>
+    <circle cx="265" cy="240" r="1.2" fill="#7A5A10" opacity="0.35"/>
+    <!-- Crater rim -->
+    <ellipse cx="250" cy="252" rx="42" ry="15" fill="#5C3D1E" stroke="#8B6914" stroke-width="2.5"/>
+    <!-- Inner crater -->
+    <ellipse cx="250" cy="252" rx="30" ry="11" fill="url(#craterGrad)"/>
+    <!-- Inner glow -->
+    <ellipse cx="250" cy="252" rx="18" ry="7" fill="#FF6B00" opacity="0.3"/>
+    <ellipse cx="250" cy="252" rx="10" ry="4" fill="#FFD700" opacity="0.15"/>
+    <!-- Crack lines -->
+    <line x1="250" y1="252" x2="192" y2="245" stroke="#FF6B00" stroke-width="1.2" opacity="0.4"/>
+    <line x1="250" y1="252" x2="198" y2="262" stroke="#FF6B00" stroke-width="1" opacity="0.35"/>
+    <line x1="250" y1="252" x2="306" y2="247" stroke="#FF6B00" stroke-width="1.2" opacity="0.4"/>
+    <line x1="250" y1="252" x2="300" y2="264" stroke="#FF6B00" stroke-width="1" opacity="0.35"/>
+    <line x1="250" y1="252" x2="245" y2="235" stroke="#FF6B00" stroke-width="1" opacity="0.35"/>
+    <line x1="250" y1="252" x2="258" y2="270" stroke="#FF6B00" stroke-width="1" opacity="0.3"/>
+  </g>
+
+  <!-- ASTEROID (initially invisible) -->
+  <g id="asteroid" opacity="0">
+    <circle cx="0" cy="0" r="22" fill="#FF8C00" opacity="0.1"/>
+    <path d="M-10,-8 L-4,-14 L6,-12 L12,-6 L10,2 L6,10 L-4,12 L-12,6 L-14,-2Z" fill="#8B6914" stroke="#6B4F10" stroke-width="1.5"/>
+    <circle cx="-2" cy="-4" r="3" fill="#6B4F10" opacity="0.5"/>
+    <circle cx="5" cy="3" r="2" fill="#7A5A10" opacity="0.4"/>
+    <circle cx="-6" cy="4" r="1.5" fill="#6B4F10" opacity="0.4"/>
+    <circle cx="14" cy="14" r="3.5" fill="#FF8C00" opacity="0.45"/>
+    <circle cx="20" cy="22" r="3" fill="#FFD700" opacity="0.35"/>
+    <circle cx="18" cy="28" r="2.5" fill="#FF6B00" opacity="0.25"/>
+    <circle cx="24" cy="32" r="2" fill="#FFA500" opacity="0.15"/>
+    <circle cx="10" cy="18" r="2" fill="#FFD700" opacity="0.3"/>
+  </g>
+
+  <!-- CLAY LAYER (Level 5+, initially invisible) -->
+  <g id="clayLayer" opacity="0">
+    <rect x="0" y="296" width="500" height="5" fill="url(#clayGrad)" rx="1"/>
+    <!-- Iridium sparkles -->
+    <circle cx="50" cy="298" r="1" fill="#FFFDE7" opacity="0.8"/>
+    <circle cx="130" cy="299" r="0.8" fill="#FFFDE7" opacity="0.7"/>
+    <circle cx="210" cy="298" r="1.2" fill="#FFD700" opacity="0.6"/>
+    <circle cx="290" cy="299" r="0.8" fill="#FFFDE7" opacity="0.8"/>
+    <circle cx="370" cy="298" r="1" fill="#FFD700" opacity="0.7"/>
+    <circle cx="440" cy="299" r="0.8" fill="#FFFDE7" opacity="0.6"/>
+    <!-- Connection line to debris cloud -->
+    <line id="clayConnection" x1="250" y1="296" x2="250" y2="129" stroke="#DAA520" stroke-width="1.5" stroke-dasharray="4 3" opacity="0"/>
+    <!-- Magnifying glass -->
+    <g id="magGlass" opacity="0" transform="translate(250,288)">
+      <circle cx="0" cy="0" r="10" fill="none" stroke="#DAA520" stroke-width="2"/>
+      <line x1="7" y1="7" x2="14" y2="14" stroke="#DAA520" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  </svg>`;
+
+  arena.innerHTML=svgStr;
+  applyArenaState(level);
+}
+
+function applyArenaState(upToLevel){
+  const skyTop=document.getElementById('skyTop');
+  const skyBot=document.getElementById('skyBot');
+  if(!skyTop)return;
+
+  const completedLevels=gameState.levels.filter(l=>l.completed).map(l=>l.num);
+
+  skyTop.setAttribute('stop-color','#60B5E8');
+  skyBot.setAttribute('stop-color','#87CEEB');
+
+  if(completedLevels.includes(1)||upToLevel>=1){
+    const crater=document.getElementById('crater');
+    if(crater)crater.setAttribute('opacity','1');
+  }
+  if(completedLevels.includes(2)||upToLevel>=2){
+    const dc=document.getElementById('debrisCloud');
+    if(dc)dc.setAttribute('opacity','1');
+    skyTop.setAttribute('stop-color','#4A4035');
+    skyBot.setAttribute('stop-color','#3D3428');
+    document.querySelectorAll('.sun-ray,.light-beam,.sun-glow,.cloud').forEach(el=>el.setAttribute('opacity','0.1'));
+  }
+  if(completedLevels.includes(3)||upToLevel>=3){
+    document.querySelectorAll('.sun-ray,.light-beam,.sun-glow,.cloud').forEach(el=>el.setAttribute('opacity','0'));
+    document.querySelectorAll('.plant-leaf').forEach(el=>el.setAttribute('fill','#888'));
+    document.querySelectorAll('.plant-stem').forEach(el=>{el.setAttribute('stroke','#777');el.setAttribute('fill','#777');});
+    document.querySelectorAll('.grass').forEach(el=>el.setAttribute('stroke','#777'));
+    const hbpf=document.getElementById('hbPlantFill');
+    if(hbpf)hbpf.setAttribute('width','0');
+  }
+  if(completedLevels.includes(4)||upToLevel>=4){
+    document.querySelectorAll('.herb-body').forEach(el=>{el.setAttribute('fill','#888');el.setAttribute('stroke','#777');});
+    document.querySelectorAll('.pred-body').forEach(el=>{el.setAttribute('fill','#888');el.setAttribute('stroke','#777');});
+    const hbhf=document.getElementById('hbHerbFill');
+    if(hbhf)hbhf.setAttribute('width','0');
+    const hbpf2=document.getElementById('hbPredFill');
+    if(hbpf2)hbpf2.setAttribute('width','0');
+  }
+  if(completedLevels.includes(5)||upToLevel>=5){
+    const clay=document.getElementById('clayLayer');
+    if(clay)clay.setAttribute('opacity','1');
+    const conn=document.getElementById('clayConnection');
+    if(conn)conn.setAttribute('opacity','0.6');
+    const mg=document.getElementById('magGlass');
+    if(mg)mg.setAttribute('opacity','1');
+  }
+}
+
+// ===== LABELS (HTML overlays) =====
+function showArenaLabel(id,text,cssClass,x,y){
+  let lbl=document.getElementById('lbl_'+id);
+  if(!lbl){
+    lbl=document.createElement('div');
+    lbl.id='lbl_'+id;
+    lbl.className='arena-label '+cssClass;
+    lbl.style.left=x+'%';lbl.style.top=y+'%';
+    lbl.textContent=text;
+    document.getElementById('arenaContent').appendChild(lbl);
+  }
+  safeTimeout(()=>{if(document.getElementById('lbl_'+id))lbl.classList.add('visible');},100);
+}
+
+// ===== FOCUS PROMPT =====
+function showFocusPrompt(text,cb){
+  const banner=document.getElementById('focusBanner');
+  banner.textContent=text;
+  banner.className='visible';
+  safeTimeout(()=>{banner.className='subtle';if(cb)cb();},3000);
+}
+
+// ===== WATCH PHASE =====
+function startWatch(lv){
+  currentPhase='watch';
+  processing=true;
+  phaseStartTime=Date.now();
+
+  buildArena(currentLevel);
+
+  showFocusPrompt(lv.focusPrompt,()=>{
+    // Typewriter + read aloud
+    const narEl=document.getElementById('narrativeText');
+    document.getElementById('interactionZone').querySelector('#phaseLabel').textContent='WATCH';
+    document.getElementById('promptText').textContent='Watch the arena...';
+    document.getElementById('optionsRow').innerHTML='';
+    document.getElementById('lockInBtn').style.display='none';
+
+    typeWriter(narEl,lv.watchText,40,()=>{
+      narEl.innerHTML=lv.watchText;
+    });
+
+    speakText(lv.watchPlain,null);
+
+    // Run arena animation for this level
+    runWatchAnimation(lv);
+
+    // Auto-advance after duration
+    safeTimeout(()=>{
+      lv.vocabUnlock.forEach(vi=>lightVocab(vi));
+      startDo(lv);
+    },lv.watchDuration);
+  });
+}
+
+function lightVocab(idx){
+  if(vocabLit[idx])return;
+  vocabLit[idx]=true;
+  const dot=document.querySelector(`.vocab-dot[data-term="${idx}"]`);
+  if(dot)dot.classList.add('lit');
+}
+
+// ===== WATCH ANIMATIONS =====
+function runWatchAnimation(lv){
+  const gen=arenaGen;
+  const check=()=>arenaGen===gen;
+
+  if(lv.num===1){
+    // Asteroid flies in, strikes, crater forms, dust starts rising
+    const ast=document.getElementById('asteroid');
+    if(!ast)return;
+    ast.setAttribute('opacity','1');
+    ast.setAttribute('transform','translate(60,30)');
+    // Animate asteroid to crater
+    let step=0;
+    const moveAst=safeInterval(()=>{
+      if(!check()){clearInterval(moveAst);return;}
+      step++;
+      const progress=Math.min(step/60,1);
+      const x=60+progress*190;
+      const y=30+progress*222;
+      ast.setAttribute('transform',`translate(${x},${y})`);
+      if(progress>=1){
+        clearInterval(moveAst);
+        ast.setAttribute('opacity','0');
+        // Show crater
+        const crater=document.getElementById('crater');
+        if(crater)crater.setAttribute('opacity','1');
+        showArenaLabel('impact','IMPACT EVENT','impact',38,60);
+        // Start dust particles rising (just opacity on debris cloud slowly)
+        let dustOp=0;
+        const dustRise=safeInterval(()=>{
+          if(!check()){clearInterval(dustRise);return;}
+          dustOp+=0.02;
+          const dc=document.getElementById('debrisCloud');
+          if(dc)dc.setAttribute('opacity',Math.min(dustOp,0.15));
+          if(dustOp>=0.15)clearInterval(dustRise);
+        },100);
+      }
+    },50);
+  }
+  else if(lv.num===2){
+    // Dust rises more, debris cloud fills, sun dims
+    let progress=0;
+    const anim=safeInterval(()=>{
+      if(!check()){clearInterval(anim);return;}
+      progress+=0.008;
+      const dc=document.getElementById('debrisCloud');
+      if(dc)dc.setAttribute('opacity',Math.min(progress*1.2,1));
+      // Dim sun rays
+      document.querySelectorAll('.sun-ray,.light-beam').forEach(el=>{
+        el.setAttribute('opacity',Math.max(1-progress*1.5,0.1));
+      });
+      // Darken sky
+      const skyTop=document.getElementById('skyTop');
+      const skyBot=document.getElementById('skyBot');
+      if(skyTop){
+        const r=Math.round(135-progress*60);
+        const g=Math.round(206-progress*120);
+        const b=Math.round(235-progress*100);
+        skyTop.setAttribute('stop-color',`rgb(${r},${g},${b})`);
+        skyBot.setAttribute('stop-color',`rgb(${Math.max(r-20,50)},${Math.max(g-20,40)},${Math.max(b-20,35)})`);
+      }
+      if(progress>=1){
+        clearInterval(anim);
+        showArenaLabel('debris','DEBRIS CLOUD','debris',35,20);
+      }
+    },80);
+  }
+  else if(lv.num===3){
+    animateLevel3(check);
+  }
+  else if(lv.num===4){
+    animateLevel4(check);
+  }
+  else if(lv.num===5){
+    animateLevel5(check);
+  }
+  else if(lv.num===6){
+    animateLevel6(check);
+  }
+}
+
+function animateLevel3(check){
+  // Sun rays fully gone, plants transition green→gray, health bar drains
+  document.querySelectorAll('.sun-ray,.light-beam').forEach(el=>el.setAttribute('opacity','0'));
+  let progress=0;
+  const anim=safeInterval(()=>{
+    if(!check()){clearInterval(anim);return;}
+    progress+=0.01;
+    // Plant color shift
+    const g=Math.round(139-progress*80);const r=Math.round(45+progress*90);const bl=Math.round(78-progress*30);
+    document.querySelectorAll('.plant-leaf').forEach(el=>{
+      el.setAttribute('fill',progress<0.5?`rgb(${r},${Math.max(g,80)},${bl})`:'#888');
+    });
+    document.querySelectorAll('.plant-stem').forEach(el=>{
+      el.setAttribute('stroke',progress<0.5?`rgb(${r-10},${Math.max(g-10,70)},${bl-10})`:'#777');
+    });
+    // Health bar
+    const hbpf=document.getElementById('hbPlantFill');
+    if(hbpf)hbpf.setAttribute('width',Math.max(40*(1-progress),0));
+    if(progress>=1){
+      clearInterval(anim);
+      showArenaLabel('food','FOOD CHAIN','food',20,54);
+    }
+  },80);
+}
+
+function animateLevel4(check){
+  // Herbivores then predators fade
+  let progress=0;
+  const anim=safeInterval(()=>{
+    if(!check()){clearInterval(anim);return;}
+    progress+=0.008;
+    if(progress<=0.5){
+      // Herbivores fading
+      const fade=progress*2;
+      document.querySelectorAll('.herb-body').forEach(el=>{
+        const r=Math.round(160-fade*40);const g=Math.round(120-fade*40);const b=Math.round(90-fade*20);
+        el.setAttribute('fill',`rgb(${r},${g},${b})`);
+      });
+      const hbhf=document.getElementById('hbHerbFill');
+      if(hbhf)hbhf.setAttribute('width',Math.max(40*(1-fade),0));
+    } else {
+      // Predators fading
+      const fade=(progress-0.5)*2;
+      document.querySelectorAll('.pred-body').forEach(el=>{
+        const r=Math.round(192-fade*60);const g=Math.round(57-fade*20);const b=Math.round(43-fade*10);
+        el.setAttribute('fill',`rgb(${r},${g},${b})`);
+      });
+      const hbpf=document.getElementById('hbPredFill');
+      if(hbpf)hbpf.setAttribute('width',Math.max(40*(1-fade),0));
+    }
+    if(progress>=1){
+      clearInterval(anim);
+      showArenaLabel('chain','CHAIN REACTION','chain',15,48);
+    }
+  },80);
+}
+
+function animateLevel5(check){
+  // Clay layer appears with gold glow, then connection line, then magnifying glass
+  let progress=0;
+  const anim=safeInterval(()=>{
+    if(!check()){clearInterval(anim);return;}
+    progress+=0.012;
+    const clay=document.getElementById('clayLayer');
+    if(clay)clay.setAttribute('opacity',Math.min(progress*1.5,1));
+    // Connection line appears at 40%
+    if(progress>0.4){
+      const conn=document.getElementById('clayConnection');
+      if(conn)conn.setAttribute('opacity',Math.min((progress-0.4)*2,0.6));
+    }
+    // Magnifying glass appears at 65%
+    if(progress>0.65){
+      const mg=document.getElementById('magGlass');
+      if(mg)mg.setAttribute('opacity',Math.min((progress-0.65)*3,1));
+    }
+    if(progress>=1)clearInterval(anim);
+  },80);
+}
+
+function animateLevel6(check){
+  // Full cascade replay: sequential label pulsing + arrow highlights
+  const labels=['impact','debris','food','chain'];
+  const arrowIds=['fcArrow1','fcArrow2'];
+  let step=0;
+  // First pulse each label sequentially
+  const stepAnim=safeInterval(()=>{
+    if(!check()){clearInterval(stepAnim);return;}
+    if(step<labels.length){
+      const lbl=document.getElementById('lbl_'+labels[step]);
+      if(lbl){lbl.style.transform='scale(1.2)';lbl.style.transition='transform 0.4s';
+        safeTimeout(()=>{if(lbl)lbl.style.transform='';},800);}
+      // Also pulse corresponding arrows
+      if(step>=2){
+        arrowIds.forEach(aid=>{
+          const a=document.getElementById(aid);
+          if(a){a.setAttribute('stroke','#FFD700');a.setAttribute('stroke-width','5');
+            safeTimeout(()=>{if(a){a.setAttribute('stroke','#F59E0B');a.setAttribute('stroke-width','3.5');}},600);}
+        });
+      }
+    }
+    step++;
+    if(step>labels.length+1)clearInterval(stepAnim);
+  },2500);
+}
+
+// ===== DO PHASE =====
+function startDo(lv){
+  currentPhase='do';
+  processing=false;
+  phaseStartTime=Date.now();
+  selectedOption=null;
+  wrongCount=0;
+  hintLevel=0;
+  consecutiveFastWrongs=0;
+
+  document.getElementById('narrativePanel').classList.add('dimmed');
+  document.getElementById('hintBtn').disabled=false;
+  const iz=document.getElementById('interactionZone');
+  iz.querySelector('#phaseLabel').textContent=currentLevel===0?'YOUR TURN':'DO';
+  document.getElementById('coachingText').style.display='none';
+  document.getElementById('tryAgainBtn').style.display='none';
+
+  if(currentLevel===0){
+    // Guided: show coaching arrow first
+    document.getElementById('promptText').innerHTML=esc(lv.guidedTip);
+    safeTimeout(()=>renderDoMechanic(lv),2000);
+  } else {
+    renderDoMechanic(lv);
+  }
+}
+
+function renderDoMechanic(lv){
+  document.getElementById('promptText').textContent=lv.doPrompt;
+  const row=document.getElementById('optionsRow');
+  row.innerHTML='';
+
+  if(lv.doMechanic==='hotspot'){
+    renderHotspot(lv);
+    return;
+  }
+
+  if(lv.doMechanic==='what-comes-next'&&lv.doSequence){
+    // Show sequence
+    let seqHTML='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;justify-content:center;">';
+    lv.doSequence.forEach((s,i)=>{
+      seqHTML+=`<span style="background:var(--accent1);color:#fff;padding:6px 10px;border-radius:8px;font-size:13px;font-weight:600;">${esc(s)}</span>`;
+      if(i<lv.doSequence.length-1)seqHTML+='<span style="font-size:18px;color:var(--accent1);">&#8594;</span>';
+    });
+    seqHTML+='<span style="font-size:18px;color:var(--accent1);">&#8594;</span><span style="background:#FFF9C4;padding:6px 10px;border-radius:8px;font-size:13px;font-weight:700;border:2px dashed var(--accent1);">???</span>';
+    seqHTML+='</div>';
+    const seqDiv=document.createElement('div');seqDiv.innerHTML=seqHTML;seqDiv.className='do-extra';
+    row.parentNode.insertBefore(seqDiv,row);
+  }
+
+  if(lv.doMechanic==='claim-builder'&&lv.doClaimStem){
+    const stemDiv=document.createElement('div');stemDiv.className='do-extra';
+    stemDiv.style.cssText='text-align:center;font-size:15px;font-weight:600;margin-bottom:10px;padding:10px;background:#FFF3E0;border-radius:8px;border-left:4px solid var(--accent1);';
+    stemDiv.textContent=lv.doClaimStem;
+    row.parentNode.insertBefore(stemDiv,row);
+  }
+
+  lv.doOptions.forEach((opt,i)=>{
+    const card=document.createElement('div');
+    card.className='opt-card';
+    card.dataset.idx=i;
+    card.textContent=opt;
+    if(currentLevel===0&&lv.guided&&i===lv.doCorrect){
+      card.classList.add('guided-glow');
+    }
+    card.addEventListener('click',function(){
+      if(processing)return;
+      if(this.classList.contains('dimmed')||this.classList.contains('locked')||this.classList.contains('correct-reveal')||this.classList.contains('disabled'))return;
+      document.querySelectorAll('#optionsRow .opt-card').forEach(c=>c.classList.remove('selected'));
+      this.classList.add('selected');
+      selectedOption=parseInt(this.dataset.idx);
+      document.getElementById('lockInBtn').disabled=false;
+    });
+    row.appendChild(card);
+  });
+
+  document.getElementById('lockInBtn').style.display='inline-block';
+  document.getElementById('lockInBtn').disabled=true;
+}
+
+function renderHotspot(lv){
+  document.getElementById('lockInBtn').style.display='none';
+  // Create hotspot zones on arena
+  const arena=document.getElementById('arenaContent');
+  // Sun zone (top area above debris)
+  const sunZone=document.createElement('div');
+  sunZone.className='hotspot-zone';
+  sunZone.style.cssText='left:0;top:0;width:100%;height:18%;';
+  sunZone.dataset.zone='sun';
+  sunZone.addEventListener('click',function(){handleHotspotClick('sun',lv);});
+  arena.appendChild(sunZone);
+  // Debris zone (middle band where cloud sits)
+  const debrisZone=document.createElement('div');
+  debrisZone.className='hotspot-zone';
+  debrisZone.style.cssText='left:0;top:18%;width:100%;height:18%;';
+  debrisZone.dataset.zone='debris';
+  debrisZone.addEventListener('click',function(){handleHotspotClick('debris',lv);});
+  arena.appendChild(debrisZone);
+  // Surface zone (ground and organisms)
+  const surfZone=document.createElement('div');
+  surfZone.className='hotspot-zone';
+  surfZone.style.cssText='left:0;top:50%;width:100%;height:50%;';
+  surfZone.dataset.zone='surface';
+  surfZone.addEventListener('click',function(){handleHotspotClick('surface',lv);});
+  arena.appendChild(surfZone);
+}
+
+let hotspotWrongCount=0;
+function handleHotspotClick(zone,lv){
+  if(processing)return;
+  const elapsed=Date.now()-phaseStartTime;
+
+  if(zone===lv.doCorrectZone){
+    processing=true;
+    hotspotWrongCount=0;
+    playCorrect();
+    // Green highlight on debris zone
+    const zoneEl=document.querySelector(`.hotspot-zone[data-zone="${zone}"]`);
+    if(zoneEl)zoneEl.style.background='rgba(34,197,94,0.3)';
+    showArenaLabel('debris-confirm','DEBRIS CLOUD','debris',35,20);
+    safeTimeout(()=>{
+      cleanupHotspots();
+
+      startProve(lv);
+    },1500);
+  } else {
+    hotspotWrongCount++;
+    wrongCount++;
+    checkFastGuess(elapsed);
+    playWrong();
+    const zoneEl=document.querySelector(`.hotspot-zone[data-zone="${zone}"]`);
+    if(zoneEl)zoneEl.classList.add('hotspot-wrong');
+    safeTimeout(()=>{if(zoneEl)zoneEl.classList.remove('hotspot-wrong');},500);
+    const fb=lv.doZoneFeedback[zone]||'Try a different area.';
+    showCoaching(fb);
+    handleHintAfterWrong(lv);
+
+    if(hotspotWrongCount>=3){
+      // Glow correct zone
+      const correctEl=document.querySelector(`.hotspot-zone[data-zone="${lv.doCorrectZone}"]`);
+      if(correctEl)correctEl.style.background='rgba(245,158,11,0.25)';
+    }
+    // Safety valve: after 5 wrong hotspot clicks, auto-advance
+    if(hotspotWrongCount>=5){
+      processing=true;
+      safetyValveUsed=true;
+      showCoaching('Let\'s move on — you\'ll see this idea again.');
+      safeTimeout(()=>{
+        cleanupHotspots();
+        startProve(lv);
+      },2000);
+    }
+  }
+}
+
+function cleanupHotspots(){
+  document.querySelectorAll('.hotspot-zone').forEach(el=>el.remove());
+}
+
+// ===== LOCK IN =====
+function handleLockIn(){
+  if(processing||selectedOption===null)return;
+  processing=true;
+  const lv=LEVELS[currentLevel];
+  const elapsed=Date.now()-phaseStartTime;
+
+  if(currentPhase==='do'){
+    if(selectedOption===lv.doCorrect){
+      // CORRECT
+      playCorrect();
+      markCorrect(selectedOption);
+      safeTimeout(()=>{
+  
+        startProve(lv);
+      },1200);
+    } else {
+      // WRONG
+      const wrongId=selectedOption; // CAPTURE before markWrong nulls it
+      wrongCount++;
+      checkFastGuess(elapsed);
+      playWrong();
+      markWrong(wrongId);
+      const fb=lv.doWrongFeedback[wrongId];
+      if(fb)showCoaching(fb);
+      handleHintAfterWrong(lv);
+      safeTimeout(()=>{processing=false;showTryAgain();},800);
+    }
+  } else if(currentPhase==='prove'){
+    if(selectedOption===lv.proveCorrect){
+      playCorrect();
+      markCorrect(selectedOption);
+      safeTimeout(()=>{
+        completeLevel(lv);
+      },1200);
+    } else {
+      const wrongId=selectedOption; // CAPTURE before markWrong nulls it
+      wrongCount++;
+      playWrong();
+      markWrong(wrongId);
+      const fb=lv.proveWrongFeedback[wrongId];
+      if(fb)showCoaching(fb);
+      // Dim wrong option
+      const card=document.querySelector(`#optionsRow .opt-card[data-idx="${wrongId}"]`);
+      if(card)card.classList.add('dimmed');
+      safeTimeout(()=>{processing=false;showTryAgain();},800);
+    }
+  }
+}
+
+function markCorrect(idx){
+  const card=document.querySelector(`#optionsRow .opt-card[data-idx="${idx}"]`);
+  if(card){card.classList.remove('selected');card.classList.add('correct-reveal','locked');}
+  document.getElementById('lockInBtn').style.display='none';
+  document.getElementById('tryAgainBtn').style.display='none';
+  document.getElementById('coachingText').style.display='none';
+  // Affirmation if first try
+  if(wrongCount===0&&hintLevel===0){
+    showBriefAffirmation();
+  }
+}
+function markWrong(idx){
+  const card=document.querySelector(`#optionsRow .opt-card[data-idx="${idx}"]`);
+  if(card){card.classList.remove('selected');card.classList.add('wrong-flash');}
+  selectedOption=null;
+  document.getElementById('lockInBtn').disabled=true;
+}
+
+function showTryAgain(){
+  document.getElementById('tryAgainBtn').style.display='inline-block';
+  document.getElementById('lockInBtn').style.display='none';
+}
+
+function handleTryAgain(){
+  if(processing)return;
+  document.getElementById('tryAgainBtn').style.display='none';
+  document.getElementById('coachingText').style.display='none';
+  document.getElementById('lockInBtn').style.display='inline-block';
+  document.getElementById('lockInBtn').disabled=true;
+  selectedOption=null;
+  processing=false;
+  // Remove wrong-flash so cards can re-animate on next wrong
+  document.querySelectorAll('#optionsRow .opt-card.wrong-flash').forEach(c=>c.classList.remove('wrong-flash'));
+
+  // Safety valve: if 3+ resets on this level, auto-advance with 50%
+  if(levelResets>=3){
+    processing=true;
+    safetyValveUsed=true;
+    showCoaching('Let\'s move on — you\'ll see this idea again.');
+    safeTimeout(()=>{
+      if(currentPhase==='do'){
+        startProve(LEVELS[currentLevel]);
+      } else {
+        completeLevel(LEVELS[currentLevel]);
+      }
+    },2000);
+    return;
+  }
+
+  // Never-stuck: if hint level is already at step-by-step (3) and 4+ total wrongs, auto-advance
+  const totalWrongs=wrongCount;
+  if(hintLevel>=3&&totalWrongs>=4){
+    processing=true;
+    safetyValveUsed=true;
+    showCoaching('Let\'s move on — you\'ll see this idea again.');
+    safeTimeout(()=>{
+      if(currentPhase==='do'){
+        startProve(LEVELS[currentLevel]);
+      } else {
+        completeLevel(LEVELS[currentLevel]);
+      }
+    },2000);
+    return;
+  }
+}
+
+// ===== COACHING =====
+function showCoaching(text){
+  const ct=document.getElementById('coachingText');
+  ct.textContent=text;
+  ct.style.display='block';
+}
+
+function showBriefAffirmation(){
+  const msg=getAffirmation();
+  const div=document.createElement('div');
+  div.style.cssText='text-align:center;font-size:18px;color:var(--accent1);font-weight:600;margin-top:6px;opacity:0;transition:opacity .5s;';
+  div.textContent=msg;
+  document.getElementById('interactionZone').appendChild(div);
+  safeTimeout(()=>{div.style.opacity='1';},50);
+  safeTimeout(()=>{div.style.opacity='0';safeTimeout(()=>{if(div.parentNode)div.parentNode.removeChild(div);},500);},2000);
+}
+
+// ===== FAST GUESS GATE =====
+function checkFastGuess(elapsed){
+  if(elapsed<2000){
+    consecutiveFastWrongs++;
+    if(consecutiveFastWrongs>=2){
+      showAntiGuessCoaching();
+      consecutiveFastWrongs=0;
+    }
+  } else {
+    consecutiveFastWrongs=0;
+  }
+}
+
+function showAntiGuessCoaching(){
+  closeAllOverlays();
+  const overlay=document.getElementById('agOverlay');
+  overlay.style.display='flex';
+  document.getElementById('agMsg').textContent='Watch this part again — it shows the answer.';
+  let count=5;
+  document.getElementById('agCountdown').textContent=count;
+  if(antiGuessInterval){clearInterval(antiGuessInterval);antiGuessInterval=null;}
+  antiGuessInterval=setInterval(()=>{
+    count--;
+    document.getElementById('agCountdown').textContent=count;
+    if(count<=0){
+      clearInterval(antiGuessInterval);
+      antiGuessInterval=null;
+      overlay.style.display='none';
+    }
+  },1000);
+}
+
+// ===== HINT SYSTEM =====
+function handleHintAfterWrong(lv){
+  if(wrongCount===1&&hintLevel<1)hintLevel=1;
+  else if(wrongCount===2&&hintLevel<2)hintLevel=2;
+  else if(wrongCount>=3&&hintLevel<3)hintLevel=3;
+}
+
+function requestHint(){
+  if(processing)return;
+  const lv=LEVELS[currentLevel];
+  if(!lv.hintLadder)return;
+
+  if(hintLevel<1)hintLevel=1;
+
+  if(hintLevel===1){
+    showHintBar(lv.hintLadder.hint1.text,1);
+    // Visual action on arena
+    highlightArenaElement(lv.hintLadder.hint1.target);
+  } else if(hintLevel===2){
+    showHintBar(lv.hintLadder.hint2.text,2);
+    // Dim one option
+    if(typeof lv.hintLadder.hint2.dimOption==='number'&&currentPhase==='do'&&lv.doMechanic!=='hotspot'){
+      const card=document.querySelector(`#optionsRow .opt-card[data-idx="${lv.hintLadder.hint2.dimOption}"]`);
+      if(card)card.classList.add('dimmed');
+    }
+    if(lv.hintLadder.hint2.dimZone&&currentPhase==='do'&&lv.doMechanic==='hotspot'){
+      const zone=document.querySelector(`.hotspot-zone[data-zone="${lv.hintLadder.hint2.dimZone}"]`);
+      if(zone){zone.style.opacity='0.2';zone.style.pointerEvents='none';}
+    }
+  } else if(hintLevel>=3){
+    showStepByStep(lv.hintLadder.stepByStep);
+  }
+}
+
+function showHintBar(text,level){
+  closeAllOverlays();
+  const bar=document.getElementById('hintBar');
+  bar.className=level===1?'h1':'h2';
+  document.getElementById('hintText').textContent=text;
+  bar.style.display='block';
+}
+function closeHint(){document.getElementById('hintBar').style.display='none';}
+
+function showStepByStep(panels){
+  closeAllOverlays();
+  sbsPanels=panels;sbsIndex=0;
+  document.getElementById('sbsOverlay').style.display='flex';
+  renderSBSPanel();
+}
+function renderSBSPanel(){
+  const panel=sbsPanels[sbsIndex];
+  document.getElementById('sbsPanel').textContent='Step '+(sbsIndex+1)+' of '+sbsPanels.length+': '+panel.text;
+  document.getElementById('sbsBtn').textContent=sbsIndex<sbsPanels.length-1?'Next':'Got It';
+  highlightArenaElement(panel.target);
+}
+function advanceSBS(){
+  sbsIndex++;
+  if(sbsIndex>=sbsPanels.length){
+    document.getElementById('sbsOverlay').style.display='none';
+  } else {
+    renderSBSPanel();
+  }
+}
+
+function highlightArenaElement(target){
+  // Simple pulse on relevant arena element based on target string
+  // This is a best-effort visual nudge
+  if(!target)return;
+  if(target==='crater'){
+    const c=document.getElementById('crater');
+    if(c){c.setAttribute('opacity','1');pulseElement(c);}
+  } else if(target==='debris'||target==='debris-highlight'){
+    const d=document.getElementById('debrisCloud');
+    if(d)pulseElement(d);
+  } else if(target==='dead-plants'){
+    for(let i=0;i<3;i++){const p=document.getElementById('plant'+i);if(p)pulseElement(p);}
+  } else if(target==='plant-herb-arrow'){
+    const a=document.getElementById('fcArrow1');
+    if(a)pulseElement(a);
+  }
+}
+
+function pulseElement(el){
+  const orig=el.getAttribute('opacity')||'1';
+  el.setAttribute('opacity','0.4');
+  safeTimeout(()=>el.setAttribute('opacity',orig),300);
+  safeTimeout(()=>el.setAttribute('opacity','0.4'),600);
+  safeTimeout(()=>el.setAttribute('opacity',orig),900);
+}
+
+// ===== PROVE PHASE =====
+function startProve(lv){
+  currentPhase='prove';
+  processing=false;
+  phaseStartTime=Date.now();
+  selectedOption=null;
+  wrongCount=0; // Reset for PROVE phase
+
+  document.getElementById('narrativePanel').classList.add('dimmed');
+  document.getElementById('hintBtn').disabled=true; // Hints are DO-phase only
+  const iz=document.getElementById('interactionZone');
+  iz.querySelector('#phaseLabel').textContent='PROVE';
+  document.getElementById('promptText').textContent=lv.proveQuestion;
+  document.getElementById('coachingText').style.display='none';
+  document.getElementById('tryAgainBtn').style.display='none';
+
+  // Clean up extra DO-phase elements (sequence bar, claim stem)
+  iz.querySelectorAll('.do-extra').forEach(el=>el.remove());
+
+  // Clean up hotspot zones
+  cleanupHotspots();
+
+  const row=document.getElementById('optionsRow');
+  row.innerHTML='';
+
+  lv.proveOptions.forEach((opt,i)=>{
+    const card=document.createElement('div');
+    card.className='opt-card';
+    card.dataset.idx=i;
+    card.textContent=opt;
+    card.addEventListener('click',function(){
+      if(processing)return;
+      if(this.classList.contains('dimmed')||this.classList.contains('locked')||this.classList.contains('correct-reveal')||this.classList.contains('disabled'))return;
+      document.querySelectorAll('#optionsRow .opt-card').forEach(c=>c.classList.remove('selected'));
+      this.classList.add('selected');
+      selectedOption=parseInt(this.dataset.idx);
+      document.getElementById('lockInBtn').disabled=false;
+    });
+    row.appendChild(card);
+  });
+
+  document.getElementById('lockInBtn').style.display='inline-block';
+  document.getElementById('lockInBtn').disabled=true;
+}
+
+// ===== SCORE =====
+// Score computed in completeLevel via computeLevelScore()
+
+function computeLevelScore(){
+  if(safetyValveUsed||levelResets>=3)return 50;
+  if(hintLevel>=3)return 60;
+  if(hintLevel===2)return 70;
+  if(hintLevel===1)return 85;
+  return 100;
+}
+
+function completeLevel(lv){
+  const gs=gameState.levels[currentLevel];
+  if(!gs.completed){
+    gs.completed=true;
+    gs.score=computeLevelScore();
+    gs.attempts=levelResets+1;
+    gs.hintsUsed=hintLevel;
+    gs.resets=levelResets;
+    gs.timeSeconds=Math.round((Date.now()-levelStartTime)/1000);
+  }
+
+  updateScore();
+  document.getElementById('progressFill').style.width=((currentLevel+1)/LEVELS.length*100)+'%';
+  document.getElementById('resetLevelBtn').disabled=true;
+
+  // Check milestones
+  const completedCount=gameState.levels.filter(l=>l.completed).length;
+  const requiredDone=gameState.levels.filter(l=>l.required&&l.completed).length;
+
+  if(requiredDone===4&&!requiredCompleteShown){
+    requiredCompleteShown=true;
+    showCelebration('You did it!','All required levels complete!',true,[
+      {text:'Keep Going',action:()=>{closeCeleb();safeTimeout(()=>loadLevel(currentLevel+1),300);}},
+      {text:'See My Score',action:()=>{closeCeleb();showReceipt();}}
+    ]);
+    return;
+  }
+
+  if(completedCount===6&&!bonusCompleteShown){
+    bonusCompleteShown=true;
+    showCelebration('BONUS COMPLETE!','You finished everything!',true,[]);
+    safeTimeout(()=>{closeCeleb();showReceipt();},3000);
+    return;
+  }
+
+  if(completedCount%2===0&&completedCount>0){
+    showCelebration('Nice!','Keep going!',false,[]);
+    safeTimeout(()=>{closeCeleb();loadLevel(currentLevel+1);},2000);
+  } else {
+    safeTimeout(()=>loadLevel(currentLevel+1),1000);
+  }
+}
+
+function updateScore(){
+  const reqLevels=gameState.levels.filter(l=>l.required&&l.completed);
+  const bonusLevels=gameState.levels.filter(l=>!l.required&&l.completed);
+  const baseScore=reqLevels.length?Math.round(reqLevels.reduce((s,l)=>s+l.score,0)/4):0;
+  const bonus=bonusLevels.length*5;
+  gameState.baseScore=baseScore;
+  gameState.overallScore=Math.min(110,baseScore+bonus);
+  document.getElementById('scoreDisplay').textContent=gameState.overallScore;
+}
+
+// ===== CELEBRATION =====
+function showCelebration(title,msg,withConfetti,buttons){
+  closeAllOverlays();
+  const overlay=document.getElementById('celebOverlay');
+  overlay.style.display='flex';
+  document.getElementById('celebTitle').textContent=title;
+  document.getElementById('celebMsg').textContent=msg;
+  document.getElementById('celebAffirm').textContent=getAffirmation();
+
+  const btnsDiv=document.getElementById('celebBtns');
+  btnsDiv.innerHTML='';
+  if(buttons&&buttons.length){
+    buttons.forEach(b=>{
+      const btn=document.createElement('button');
+      btn.textContent=b.text;
+      btn.style.background=b.text.includes('Score')?'var(--accent3)':'var(--accent1)';
+      btn.style.color='#fff';
+      btn.addEventListener('click',b.action);
+      btnsDiv.appendChild(btn);
+    });
+  }
+
+  if(withConfetti)fireConfetti(15);
+  else fireConfetti(8);
+
+  // Safety auto-dismiss
+  safeTimeout(()=>{
+    if(overlay.style.display==='flex'&&!buttons?.length){
+      closeCeleb();
+    }
+  },5000);
+}
+function closeCeleb(){document.getElementById('celebOverlay').style.display='none';}
+
+// ===== RECEIPT =====
+function showReceipt(){
+  if(receiptRendered)return;
+  receiptRendered=true;
+  clearAllTimers();
+  closeAllOverlays();
+
+  document.getElementById('topBar').style.display='none';
+  document.getElementById('mainArea').style.display='none';
+  document.getElementById('interactionZone').style.display='none';
+  document.getElementById('bottomBar').style.display='none';
+
+  document.getElementById('receiptScreen').style.display='block';
+  document.getElementById('receiptTitle').textContent=teacherName+"'s Simulations";
+  document.getElementById('receiptSubtitle').textContent='Mass Extinction Cascade — Monday Score Report';
+  document.getElementById('receiptName').value=studentName;
+  document.getElementById('receiptTeacher').textContent='Teacher: '+esc(teacherName);
+
+  updateScore();
+  const pct=gameState.overallScore;
+  const base=gameState.baseScore||0;
+  const pctEl=document.getElementById('receiptPct');
+  pctEl.textContent=pct+'%';
+  pctEl.className='pct '+(base>=85?'green':base>=70?'yellow':'red');
+  document.getElementById('receiptLabel').textContent=base>=85?'MASTERY':base>=70?'APPROACHING MASTERY':'NEEDS MORE PRACTICE';
+
+  const tbody=document.getElementById('receiptBody');
+  tbody.innerHTML='';
+  let totalTime=0;
+  gameState.levels.forEach(l=>{
+    totalTime+=l.timeSeconds||0;
+    const tr=document.createElement('tr');
+    if(!l.required)tr.className='bonus-row';
+    const scoreClass='score-cell s'+(l.score||0);
+    tr.innerHTML=`<td>${l.required?l.num:'\\u2B50 '+l.num}</td><td>${esc(l.name)}</td><td class="${scoreClass}">${l.completed?(l.score+'%'):'—'}</td><td>${l.completed?l.attempts:'—'}</td><td>${l.completed?formatTime(l.timeSeconds):'—'}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const allDone=gameState.levels.every(l=>l.completed);
+  const reqDone=gameState.levels.filter(l=>l.required).every(l=>l.completed);
+  document.getElementById('receiptFooter').innerHTML='Total Time: '+formatTime(totalTime)+' &nbsp; Status: '+(allDone?'All Complete (Bonus!)':reqDone?'Required Complete':'In Progress');
+}
+
+function formatTime(s){return Math.floor(s/60)+':'+(s%60<10?'0':'')+s%60;}
+
+function lockReceiptName(){
+  const inp=document.getElementById('receiptName');
+  inp.disabled=true;
+  document.getElementById('receiptLockBtn').disabled=true;
+  studentName=inp.value.trim()||studentName;
+}
+
+// ===== RESET & NEW RUN =====
+function resetCurrentLevel(){
+  if(gameState.levels[currentLevel].completed)return;
+  levelResets++;
+  gameState.levels[currentLevel].resets=levelResets;
+  arenaGen++;
+  clearAllTimers();
+  closeAllOverlays();
+  processing=false;
+  try{speechSynthesis.cancel();}catch(e){}
+  loadLevel(currentLevel);
+}
+
+function confirmNewRun(){
+  closeAllOverlays();
+  document.getElementById('confirmOverlay').style.display='flex';
+}
+function closeConfirm(){document.getElementById('confirmOverlay').style.display='none';}
+function doNewRun(){
+  closeConfirm();
+  arenaGen++;
+  clearAllTimers();
+  processing=false;
+  receiptRendered=false;requiredCompleteShown=false;bonusCompleteShown=false;
+  vocabLit=[false,false,false,false];
+  document.querySelectorAll('.vocab-dot').forEach(d=>d.classList.remove('lit'));
+  levelResets=0;
+  try{speechSynthesis.cancel();}catch(e){}
+
+  // Re-enable receipt inputs for next play
+  document.getElementById('receiptName').disabled=false;
+  document.getElementById('receiptLockBtn').disabled=false;
+
+  document.getElementById('receiptScreen').style.display='none';
+  document.getElementById('topBar').style.display='flex';
+  document.getElementById('mainArea').style.display='flex';
+  document.getElementById('interactionZone').style.display='block';
+  document.getElementById('bottomBar').style.display='flex';
+  initGame();
+}
+
+// ===== VOCAB TOGGLE =====
+function toggleVocab(){
+  document.getElementById('vocabOverlay').classList.toggle('open');
+}
+
+// ===== VISIBILITY CHANGE =====
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    allIntervals.forEach(id=>clearInterval(id));
+    if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}
+  }
+});
+</script>
+</body>
+</html>
