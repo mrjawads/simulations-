@@ -1,0 +1,3760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — The Science of Nicotine Addiction</title>
+<style>
+/* ============ THEME (Wednesday Lab — Clean Light) ============ */
+:root{
+  --bg1:#F0F4F8; --bg2:#E8EEF4;
+  --lab-blue:#3B82F6;
+  --lab-green:#10B981;
+  --lab-purple:#8B5CF6;
+  --amber:#F59E0B;
+  --red:#EF4444;
+  --text:#1F2937;
+  --text-mid:#4B5563;
+  --text-light:#6B7280;
+  --card:#FFFFFF;
+  --border:#D1D5DB;
+  --border-strong:#9CA3AF;
+  --hl-yellow:#FEF3C7;
+  --hint-orange:#FED7AA;
+  --locked-bg:#F3F4F6;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ width:100%; height:100%; overflow:hidden; }
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  color:var(--text);
+  background:linear-gradient(135deg,var(--bg1),var(--bg2));
+  font-size:16px;
+  -webkit-font-smoothing:antialiased;
+}
+
+button{ font-family:inherit; cursor:pointer; border:none; }
+button:disabled{ cursor:not-allowed; opacity:0.5; }
+
+/* ============ APP SHELL ============ */
+#app{ display:flex; flex-direction:column; width:100%; height:100vh; overflow:hidden; }
+
+/* ============ TOP BAR ============ */
+#topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 20px; background:white; border-bottom:3px solid var(--lab-blue);
+  box-shadow:0 2px 8px rgba(0,0,0,0.04);
+  min-height:56px;
+  flex-shrink:0;
+}
+.brand{ font-weight:700; color:var(--lab-blue); font-size:15px; letter-spacing:0.3px; }
+.round-badge{
+  display:inline-flex; align-items:center; gap:8px;
+  background:var(--lab-blue); color:white;
+  padding:6px 14px; border-radius:20px; font-weight:700; font-size:14px;
+}
+.phase-badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 14px; border-radius:20px; font-weight:700; font-size:13px;
+  background:var(--lab-purple); color:white;
+  letter-spacing:0.5px;
+  transition:all 0.3s;
+}
+.phase-badge.watch{ background:var(--amber); }
+.phase-badge.record{ background:var(--lab-green); }
+.phase-badge.prove{ background:var(--lab-blue); }
+.phase-badge.predict{ background:var(--lab-purple); }
+
+#scoreDisplay{ font-weight:700; color:var(--lab-blue); font-size:15px; }
+#progressBar{
+  width:140px; height:8px; background:#E5E7EB; border-radius:4px; overflow:hidden;
+}
+#progressFill{
+  height:100%; background:linear-gradient(90deg,var(--lab-blue),var(--lab-green));
+  width:0%; transition:width 0.5s;
+}
+
+/* ============ MAIN LAYOUT ============ */
+#main{
+  display:grid;
+  grid-template-columns:240px 1fr 260px;
+  gap:10px;
+  padding:10px;
+  flex:1;
+  min-height:0;
+  overflow:hidden;
+}
+
+.panel{
+  background:var(--card);
+  border-radius:10px;
+  padding:12px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.04);
+  overflow:auto;
+  min-height:0;
+}
+.panel h3{
+  font-size:13px; color:var(--text-mid); text-transform:uppercase;
+  letter-spacing:1px; margin-bottom:10px; font-weight:700;
+}
+
+/* ============ ARENA ============ */
+#arena{
+  position:relative;
+  background:
+    radial-gradient(ellipse at 30% 30%, #FBFCFE 0%, #F0F5FA 60%, #E8EEF4 100%);
+  border-radius:10px;
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.06),
+    inset 0 0 60px rgba(59,130,246,0.04);
+  overflow:hidden;
+  min-height:0;
+}
+#arenaContent{
+  position:absolute;
+  top:0; left:0; right:0; bottom:0;
+  overflow:hidden;
+}
+#arenaSvg{ width:100%; height:100%; }
+
+/* ============ GRAPHICS ANIMATIONS (Chromebook-safe CSS keyframes) ============ */
+@keyframes receptorPop{
+  0%   { transform:scale(0) rotate(-8deg); opacity:0; }
+  60%  { transform:scale(1.2) rotate(2deg); opacity:1; }
+  100% { transform:scale(1) rotate(0); opacity:1; }
+}
+@keyframes receptorGlow{
+  0%,100% { filter:brightness(1); }
+  50%     { filter:brightness(1.35); }
+}
+@keyframes moleculePulse{
+  0%,100% { transform:scale(1); }
+  50%     { transform:scale(1.18); }
+}
+@keyframes dopamineBloom{
+  0%   { transform:scale(0); opacity:0; }
+  40%  { transform:scale(1.25); opacity:1; }
+  100% { transform:scale(1); opacity:0.92; }
+}
+@keyframes nicotineFall{
+  0%   { transform:translateY(-30px); opacity:0; }
+  10%  { opacity:0.92; }
+  85%  { opacity:0.9; }
+  100% { transform:translateY(var(--fall-dist,220px)); opacity:0; }
+}
+@keyframes withdrawalPulse{
+  0%   { transform:scale(0); opacity:0; }
+  60%  { transform:scale(1.4); opacity:1; }
+  100% { transform:scale(1); opacity:0.95; }
+}
+@keyframes neuronBreathe{
+  0%,100% { opacity:1; }
+  50%     { opacity:0.94; }
+}
+@keyframes dayMarkerRing{
+  0%,100% { opacity:1; }
+  50%     { opacity:0.5; }
+}
+.receptor-dock{ transform-origin:center; }
+.receptor-dock.pop{ animation:receptorPop 0.55s cubic-bezier(0.34,1.56,0.64,1) both; }
+.receptor-dock.fresh{ animation:receptorPop 0.55s cubic-bezier(0.34,1.56,0.64,1) both, receptorGlow 1.2s ease-in-out 0.55s 1; }
+.dopamine-cluster{ transform-origin:center; animation:dopamineBloom 0.5s ease-out both; }
+.dopamine-cluster.pulsing{ animation:dopamineBloom 0.5s ease-out both, moleculePulse 1.4s ease-in-out 0.5s infinite; }
+.nicotine-mol{ transform-origin:center; animation:nicotineFall 1.7s ease-in both; }
+.withdrawal-dot{ transform-origin:center; transform-box:fill-box; animation:withdrawalPulse 0.45s cubic-bezier(0.34,1.56,0.64,1) both; }
+.neuron-body{ animation:neuronBreathe 4s ease-in-out infinite; }
+.day-marker-ring{ animation:dayMarkerRing 1.6s ease-in-out infinite; }
+
+#focusPromptBanner{
+  position:absolute;
+  top:12px; left:50%; transform:translateX(-50%);
+  background:rgba(59,130,246,0.95); color:white;
+  padding:10px 18px; border-radius:24px;
+  font-weight:600; font-size:14px;
+  box-shadow:0 4px 12px rgba(59,130,246,0.3);
+  z-index:5;
+  max-width:90%; text-align:center;
+  animation:focusFadeIn 0.4s ease-out;
+}
+#focusPromptBanner.subtle{
+  background:rgba(107,114,128,0.9); font-weight:500; font-size:12px;
+  top:8px; padding:6px 14px;
+}
+@keyframes focusFadeIn{ from{ opacity:0; transform:translate(-50%,-10px);} to{ opacity:1; transform:translate(-50%,0);} }
+
+/* ============ READOUT PANEL (inside arena, right edge) ============ */
+.readout-stack{
+  position:absolute;
+  top:50px; right:10px;
+  width:130px;
+  display:flex; flex-direction:column; gap:6px;
+  z-index:3;
+}
+.readout{
+  background:white; border:2px solid var(--border);
+  border-radius:10px; padding:8px 10px;
+  font-size:12px; color:var(--text-mid);
+  transition:all 0.3s;
+}
+.readout .label{ font-size:10px; text-transform:uppercase; letter-spacing:0.6px; font-weight:700; }
+.readout .value{ font-size:20px; font-weight:800; color:var(--text); margin-top:2px; }
+.readout.active{
+  border-color:var(--lab-blue); background:#EFF6FF; opacity:1;
+  box-shadow:0 0 0 3px rgba(59,130,246,0.15);
+}
+.readout.active .value{ color:var(--lab-blue); }
+.readout.dimmed{ opacity:0.3; }
+.readout.dimmed::after{
+  content:'🔒'; position:absolute; font-size:10px;
+}
+.readout.pulsing{ animation:readoutPulse 0.6s ease-in-out 2; }
+@keyframes readoutPulse{
+  0%,100%{ transform:scale(1);}
+  50%{ transform:scale(1.08); box-shadow:0 0 0 6px rgba(245,158,11,0.25);}
+}
+
+/* TOLERANCE meter bar */
+.tol-meter{
+  background:white; border:2px solid var(--border);
+  border-radius:10px; padding:8px 10px;
+  position:relative;
+}
+.tol-meter .label{ font-size:10px; text-transform:uppercase; letter-spacing:0.6px; font-weight:700; color:var(--text-mid); }
+.tol-bar-wrap{
+  width:100%; height:12px; background:#E5E7EB; border-radius:6px;
+  overflow:hidden; margin-top:6px; position:relative;
+}
+.tol-bar-fill{
+  height:100%; width:0%;
+  background:linear-gradient(90deg,var(--lab-green),var(--amber),var(--red));
+  transition:width 0.8s ease-out;
+}
+
+/* ============ VARIABLE CONTROLS (left panel) ============ */
+.control-group{
+  margin-bottom:14px;
+  padding:10px;
+  border:2px solid var(--border);
+  border-radius:8px;
+  background:#FAFBFC;
+  transition:all 0.3s;
+  position:relative;
+}
+.control-group.unlocked{
+  border-color:var(--lab-blue);
+  background:#EFF6FF;
+  box-shadow:0 0 0 3px rgba(59,130,246,0.15);
+}
+.control-group.unlocked.glow{ animation:ctrlGlow 1.2s ease-in-out infinite alternate; }
+@keyframes ctrlGlow{
+  from{ box-shadow:0 0 0 3px rgba(59,130,246,0.15);}
+  to{ box-shadow:0 0 0 6px rgba(59,130,246,0.35);}
+}
+.control-group.locked{
+  opacity:0.25;
+  pointer-events:none;
+}
+.control-group.locked::before{
+  content:'🔒 LOCKED THIS ROUND';
+  position:absolute; top:6px; right:8px;
+  font-size:9px; font-weight:700; color:var(--text-light);
+}
+.control-label{
+  font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.6px; color:var(--text-mid); margin-bottom:6px;
+  display:flex; align-items:center; gap:4px;
+}
+.control-value{
+  font-size:15px; font-weight:700; color:var(--lab-blue);
+  margin-bottom:8px;
+}
+.seg-btns{ display:flex; gap:4px; }
+.seg-btn{
+  flex:1; padding:10px 4px; font-size:12px; font-weight:700;
+  background:white; border:2px solid var(--border); border-radius:6px;
+  color:var(--text-mid); min-height:48px;
+  transition:all 0.2s;
+}
+.seg-btn:hover:not(:disabled){ border-color:var(--lab-blue); color:var(--lab-blue); }
+.seg-btn.active{
+  background:var(--lab-blue); border-color:var(--lab-blue); color:white;
+}
+.seg-btn.suggest{
+  animation:suggestPulse 1.4s ease-in-out infinite;
+}
+@keyframes suggestPulse{
+  0%,100%{ box-shadow:0 0 0 0 rgba(245,158,11,0);}
+  50%{ box-shadow:0 0 0 6px rgba(245,158,11,0.35);}
+}
+
+.run-btn{
+  width:100%; padding:14px;
+  background:linear-gradient(135deg,var(--lab-green),#059669);
+  color:white; font-weight:800; font-size:16px; letter-spacing:1px;
+  border-radius:10px; min-height:52px;
+  box-shadow:0 4px 10px rgba(16,185,129,0.3);
+  transition:transform 0.15s;
+}
+.run-btn:hover:not(:disabled){ transform:translateY(-2px); box-shadow:0 6px 14px rgba(16,185,129,0.4); }
+.run-btn:active{ transform:translateY(0); }
+
+.multi-banner{
+  padding:6px 10px; background:linear-gradient(135deg,var(--lab-purple),#7C3AED);
+  color:white; border-radius:8px; font-size:11px; font-weight:800;
+  letter-spacing:0.8px; text-align:center; margin-bottom:10px;
+}
+
+/* ============ DATA TABLE (right panel) ============ */
+#dataTable{
+  width:100%; border-collapse:collapse; font-size:11px;
+}
+#dataTable thead{
+  background:#F3F4F6; position:sticky; top:0;
+}
+#dataTable th{
+  padding:6px 4px; text-align:left;
+  font-size:10px; text-transform:uppercase; letter-spacing:0.4px;
+  color:var(--text-mid); font-weight:700;
+  border-bottom:2px solid var(--border);
+}
+#dataTable td{
+  padding:6px 4px; border-bottom:1px solid #F3F4F6;
+  color:var(--text);
+}
+#dataTable tr.current{
+  background:#FEF3C7;
+}
+#dataTable tr.current td{ font-weight:700; }
+#dataTable tr.filled td{ color:var(--text-mid); }
+.data-cell{ transition:background 0.4s; }
+.data-cell.filling{ background:#DBEAFE; animation:cellFlash 0.6s; }
+@keyframes cellFlash{ 0%{ background:#FEF3C7;} 100%{ background:transparent;} }
+.data-cell.wrong-val{
+  background:#FEE2E2; color:var(--red); font-weight:700;
+  cursor:pointer; border:2px solid var(--red); border-radius:4px;
+}
+
+/* ============ INTERACTION ZONE ============ */
+#izWrap{
+  background:var(--card);
+  border-top:2px solid var(--border);
+  padding:12px 20px;
+  flex-shrink:0;
+  min-height:130px;
+  max-height:32vh;
+  overflow:auto;
+}
+#izContent{ width:100%; max-width:900px; margin:0 auto; }
+.iz-prompt{
+  font-size:16px; font-weight:600; text-align:center;
+  margin-bottom:10px; color:var(--text);
+  line-height:1.4;
+}
+.iz-sub{
+  font-size:13px; text-align:center; color:var(--text-mid); margin-bottom:10px;
+}
+
+/* choice cards */
+.choice-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:10px; margin-bottom:10px;
+}
+.choice-card{
+  background:white; border:2px solid var(--border); border-radius:10px;
+  padding:14px 12px; font-size:14px; font-weight:600;
+  text-align:left; color:var(--text);
+  min-height:56px; min-width:180px;
+  transition:all 0.2s;
+  cursor:pointer;
+  position:relative;
+}
+.choice-card:hover:not(.disabled):not(.dimmed):not(.correct):not(.locked){
+  border-color:var(--lab-blue); transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(59,130,246,0.15);
+}
+.choice-card.selected{
+  border-color:var(--lab-blue); background:#EFF6FF;
+  box-shadow:0 0 0 3px rgba(59,130,246,0.25);
+}
+.choice-card.correct{
+  border-color:var(--lab-green); background:#D1FAE5;
+  color:#065F46;
+  animation:correctPulse 0.6s;
+  pointer-events:none;
+}
+@keyframes correctPulse{
+  0%{ transform:scale(1);}
+  50%{ transform:scale(1.04); box-shadow:0 0 0 8px rgba(16,185,129,0.3);}
+  100%{ transform:scale(1);}
+}
+.choice-card.wrong{
+  border-color:var(--red); background:#FEE2E2;
+  animation:wrongShake 0.5s;
+}
+@keyframes wrongShake{
+  0%,100%{ transform:translateX(0);}
+  25%{ transform:translateX(-6px);}
+  75%{ transform:translateX(6px);}
+}
+.choice-card.dimmed{
+  opacity:0.35; background:#F3F4F6;
+  border-color:var(--border);
+  pointer-events:none;
+  text-decoration:line-through;
+  text-decoration-color:var(--red);
+  text-decoration-thickness:2px;
+}
+.choice-card.disabled,.choice-card.locked{
+  pointer-events:none; opacity:0.5;
+}
+.choice-card .hint-glow{
+  position:absolute; inset:0; border-radius:10px;
+  box-shadow:0 0 0 0 rgba(245,158,11,0);
+  animation:hintGlow 2s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes hintGlow{
+  0%,100%{ box-shadow:0 0 0 0 rgba(245,158,11,0);}
+  50%{ box-shadow:0 0 0 6px rgba(245,158,11,0.4);}
+}
+
+.lockin-btn{
+  display:block; margin:6px auto 0;
+  padding:12px 36px;
+  background:linear-gradient(135deg,var(--lab-blue),#2563EB);
+  color:white; font-weight:800; font-size:15px; letter-spacing:1px;
+  border-radius:24px; min-height:48px; min-width:180px;
+  box-shadow:0 4px 10px rgba(59,130,246,0.3);
+  transition:transform 0.15s;
+}
+.lockin-btn:hover:not(:disabled){ transform:translateY(-2px); }
+.lockin-btn:disabled{ opacity:0.4; }
+
+.tryagain-btn{
+  display:block; margin:6px auto 0;
+  padding:10px 28px;
+  background:var(--amber); color:white;
+  font-weight:700; font-size:14px; letter-spacing:0.5px;
+  border-radius:20px; min-height:44px;
+  box-shadow:0 3px 8px rgba(245,158,11,0.3);
+}
+.tryagain-btn:hover{ transform:translateY(-1px); }
+
+/* Guided suggestion tooltip */
+.guide-tip{
+  background:#FEF3C7; border:2px solid var(--amber);
+  border-radius:8px; padding:8px 12px;
+  font-size:13px; color:#92400E; font-weight:600;
+  margin-bottom:10px; text-align:center;
+  display:flex; align-items:center; gap:8px; justify-content:center;
+}
+.guide-tip::before{ content:'💡'; font-size:16px; }
+
+/* Data verify (RECORD phase) */
+.record-row-preview{
+  background:#F0FDF4; border:2px solid var(--lab-green);
+  border-radius:10px; padding:12px 14px;
+  font-family:monospace; font-size:13px; color:var(--text);
+  margin-bottom:12px; overflow-x:auto;
+}
+.verify-btns{
+  display:flex; gap:10px; justify-content:center;
+}
+.verify-btn{
+  padding:12px 24px; border-radius:22px;
+  font-weight:700; font-size:14px; min-height:46px;
+  transition:transform 0.15s;
+}
+.verify-btn.ok{
+  background:var(--lab-green); color:white;
+}
+.verify-btn.fix{
+  background:var(--amber); color:white;
+}
+.verify-btn:hover{ transform:translateY(-2px); }
+.fix-picker{
+  display:flex; gap:8px; justify-content:center; margin-top:8px; flex-wrap:wrap;
+}
+.fix-option{
+  padding:10px 18px; background:white; border:2px solid var(--border);
+  border-radius:10px; font-weight:700; font-size:14px; min-height:44px;
+}
+.fix-option:hover{ border-color:var(--lab-blue); }
+
+/* Predict A/B */
+.predict-wrap{
+  display:grid; grid-template-columns:1fr 1fr; gap:12px;
+  max-width:700px; margin:0 auto 10px;
+}
+.predict-card{
+  padding:16px 14px; background:white; border:2px solid var(--border);
+  border-radius:12px; font-weight:600; font-size:14px;
+  min-height:70px; text-align:center;
+  display:flex; flex-direction:column; justify-content:center; gap:4px;
+  transition:all 0.2s;
+}
+.predict-card .ab{ color:var(--lab-purple); font-size:18px; font-weight:800; }
+.predict-card:hover:not(.selected){ border-color:var(--lab-purple); transform:translateY(-2px); }
+.predict-card.selected{
+  border-color:var(--lab-purple); background:#F5F3FF;
+  box-shadow:0 0 0 3px rgba(139,92,246,0.25);
+}
+.predict-card.was-correct{ border-color:var(--lab-green); background:#D1FAE5; }
+.predict-card.was-wrong{ border-color:var(--red); opacity:0.7; }
+
+/* ============ BOTTOM BAR ============ */
+#bottombar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 20px; background:white; border-top:2px solid var(--border);
+  flex-shrink:0; gap:10px; flex-wrap:wrap;
+}
+.nav-btn{
+  padding:10px 14px; border-radius:20px;
+  background:white; border:2px solid var(--border);
+  font-weight:700; font-size:13px; color:var(--text-mid);
+  min-height:48px; min-width:100px;
+  display:inline-flex; align-items:center; gap:6px;
+  transition:all 0.2s;
+}
+.nav-btn:hover{ border-color:var(--lab-blue); color:var(--lab-blue); }
+.round-count{ font-weight:700; color:var(--text-mid); font-size:13px; }
+
+/* ============ COACHING BAR ============ */
+.coaching-bar{
+  position:fixed; left:50%; bottom:20px; transform:translateX(-50%);
+  max-width:640px; width:90%;
+  background:var(--hl-yellow); border:2px solid var(--amber);
+  border-radius:14px; padding:12px 18px;
+  font-size:14px; color:#78350F; font-weight:600; line-height:1.4;
+  box-shadow:0 8px 24px rgba(0,0,0,0.12);
+  z-index:60;
+  display:flex; align-items:center; gap:10px;
+  animation:coachSlide 0.35s ease-out;
+}
+.coaching-bar.hint2{
+  background:var(--hint-orange); border-color:#EA580C; color:#7C2D12;
+}
+.coaching-bar::before{ content:'💡'; font-size:20px; flex-shrink:0; }
+.coaching-bar.hint2::before{ content:'🔍'; }
+@keyframes coachSlide{
+  from{ opacity:0; transform:translate(-50%,20px);}
+  to{ opacity:1; transform:translate(-50%,0);}
+}
+.coach-close{
+  margin-left:auto; background:transparent; font-size:20px; color:inherit;
+  width:28px; height:28px; border-radius:50%;
+}
+.coach-close:hover{ background:rgba(0,0,0,0.08); }
+
+/* ============ STEP-BY-STEP OVERLAY ============ */
+.sbs-modal{
+  position:fixed; inset:0;
+  background:rgba(17,24,39,0.72);
+  z-index:100;
+  display:flex; align-items:center; justify-content:center;
+  animation:fadeIn 0.3s;
+}
+@keyframes fadeIn{ from{ opacity:0;} to{ opacity:1;} }
+.sbs-panel{
+  background:white; border-radius:16px;
+  padding:28px 32px;
+  max-width:520px; width:90%;
+  box-shadow:0 20px 60px rgba(0,0,0,0.3);
+  text-align:center;
+}
+.sbs-panel h3{
+  color:var(--lab-purple); font-size:14px;
+  text-transform:uppercase; letter-spacing:1.5px;
+  margin-bottom:10px;
+}
+.sbs-panel p{ font-size:17px; line-height:1.5; color:var(--text); margin-bottom:20px; }
+.sbs-panel .step-dots{ display:flex; justify-content:center; gap:8px; margin-bottom:14px; }
+.step-dot{
+  width:10px; height:10px; border-radius:50%; background:#E5E7EB;
+}
+.step-dot.active{ background:var(--lab-purple); }
+.sbs-next{
+  padding:12px 32px; background:var(--lab-purple); color:white;
+  font-weight:700; font-size:15px; border-radius:22px;
+  min-height:46px;
+}
+
+/* ============ CELEBRATION ============ */
+#celebrateOverlay{
+  position:fixed; inset:0;
+  background:rgba(17,24,39,0.5);
+  z-index:90;
+  display:none;
+  align-items:center; justify-content:center;
+  pointer-events:none;
+}
+#celebrateOverlay.show{ display:flex; animation:fadeIn 0.25s; }
+.celebrate-card{
+  background:white; border-radius:18px; padding:36px 48px;
+  text-align:center;
+  box-shadow:0 24px 60px rgba(0,0,0,0.3);
+  animation:celebPop 0.5s cubic-bezier(.26,1.5,.5,1);
+}
+@keyframes celebPop{
+  from{ transform:scale(0.6); opacity:0;}
+  to{ transform:scale(1); opacity:1;}
+}
+.celebrate-title{
+  font-size:32px; font-weight:800; color:var(--lab-green);
+  margin-bottom:8px;
+}
+.celebrate-affirm{
+  font-size:16px; color:var(--text-mid); font-weight:600;
+}
+#confettiLayer{
+  position:fixed; inset:0; pointer-events:none; z-index:85;
+}
+.confetti-p{
+  position:absolute; width:10px; height:10px; border-radius:2px;
+  animation:confettiFall 1.8s ease-out forwards;
+}
+@keyframes confettiFall{
+  from{ transform:translateY(-20px) rotate(0); opacity:1;}
+  to{ transform:translateY(500px) rotate(720deg); opacity:0;}
+}
+
+.choice-overlay{
+  position:fixed; inset:0; background:rgba(17,24,39,0.72); z-index:100;
+  display:flex; align-items:center; justify-content:center;
+}
+.choice-overlay-card{
+  background:white; border-radius:18px; padding:30px 36px;
+  text-align:center; max-width:480px; width:90%;
+}
+.choice-overlay-card h2{ color:var(--lab-green); font-size:26px; margin-bottom:8px; }
+.choice-overlay-card .affirm{ color:var(--text-mid); font-size:15px; margin-bottom:20px; }
+.choice-overlay-card .btn-row{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+.choice-btn{
+  padding:12px 24px; border-radius:22px; font-weight:700; font-size:14px;
+  min-height:46px; min-width:140px;
+}
+.choice-btn.primary{ background:var(--lab-blue); color:white; }
+.choice-btn.secondary{ background:white; border:2px solid var(--lab-blue); color:var(--lab-blue); }
+
+/* ============ VOCAB PANEL ============ */
+#vocabPanel{
+  position:fixed; top:0; right:-360px; width:340px; height:100%;
+  background:white; box-shadow:-4px 0 16px rgba(0,0,0,0.1);
+  padding:20px; overflow-y:auto; z-index:80;
+  transition:right 0.3s;
+}
+#vocabPanel.open{ right:0; }
+#vocabPanel h3{ color:var(--lab-blue); margin-bottom:16px; font-size:18px; }
+.vocab-card{
+  background:#F9FAFB; border-radius:10px; padding:14px;
+  margin-bottom:10px; border-left:4px solid;
+}
+.vocab-card.receptor{ border-color:var(--lab-purple); }
+.vocab-card.dopamine{ border-color:var(--amber); }
+.vocab-card.tolerance{ border-color:var(--lab-green); }
+.vocab-card.withdrawal{ border-color:var(--red); }
+.vocab-card .term{
+  font-weight:800; font-size:14px; letter-spacing:0.5px;
+  margin-bottom:4px; display:flex; align-items:center; gap:6px;
+}
+.vocab-card .def{ font-size:13px; color:var(--text-mid); line-height:1.4; }
+.vocab-card.highlight{
+  background:#FEF3C7; animation:vocabFlash 1.5s ease-in-out 2;
+}
+@keyframes vocabFlash{ 0%,100%{ background:#FEF3C7;} 50%{ background:#FDE68A;} }
+.vocab-close{
+  position:absolute; top:12px; right:12px;
+  background:transparent; font-size:24px; color:var(--text-mid);
+  width:32px; height:32px; border-radius:50%;
+}
+
+/* ============ WELCOME SCREEN ============ */
+#welcomeScreen{
+  position:fixed; inset:0;
+  background:linear-gradient(135deg,var(--bg1),var(--bg2));
+  z-index:200;
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+}
+.welcome-card{
+  background:white; border-radius:20px; padding:40px 36px;
+  max-width:520px; width:100%;
+  box-shadow:0 20px 60px rgba(0,0,0,0.15);
+  text-align:center;
+}
+.welcome-card h1{
+  color:var(--lab-blue); font-size:26px; margin-bottom:6px;
+}
+.welcome-card h2{
+  color:var(--text-mid); font-size:15px; font-weight:600;
+  margin-bottom:24px;
+}
+.welcome-field{
+  display:block; width:100%; padding:12px 16px;
+  border:2px solid var(--border); border-radius:10px;
+  font-size:15px; margin-bottom:12px;
+  font-family:inherit;
+}
+.welcome-field:focus{ outline:none; border-color:var(--lab-blue); }
+.welcome-label{
+  display:block; text-align:left; font-size:12px; font-weight:700;
+  color:var(--text-mid); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;
+}
+.welcome-start{
+  width:100%; padding:14px;
+  background:linear-gradient(135deg,var(--lab-blue),#2563EB);
+  color:white; font-weight:800; font-size:16px; letter-spacing:1px;
+  border-radius:12px; min-height:52px; margin-top:12px;
+}
+.welcome-start:hover{ transform:translateY(-2px); }
+
+/* ============ RECEIPT SCREEN ============ */
+#receiptScreen{
+  position:fixed; inset:0;
+  background:linear-gradient(135deg,var(--bg1),var(--bg2));
+  z-index:150;
+  display:none;
+  overflow:auto;
+  padding:30px 20px;
+}
+#receiptScreen.show{ display:block; }
+.receipt-card{
+  background:white; border-radius:16px;
+  max-width:780px; margin:0 auto;
+  padding:34px 36px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.12);
+}
+#receiptTitle{
+  color:var(--lab-blue); font-size:22px; text-align:center; margin-bottom:6px;
+  font-weight:800;
+}
+.receipt-subtitle{
+  color:var(--text-mid); text-align:center; font-size:14px; margin-bottom:24px;
+}
+.receipt-name-row{
+  display:flex; gap:10px; align-items:center; margin-bottom:20px;
+}
+.receipt-name-row label{ font-weight:700; font-size:13px; color:var(--text-mid); }
+.receipt-name-row input{
+  flex:1; padding:10px 14px; border:2px solid var(--border); border-radius:8px;
+  font-size:15px; font-family:inherit;
+}
+.receipt-name-row input:disabled{ background:#F3F4F6; font-weight:700; }
+.receipt-lock-btn{
+  padding:10px 20px; background:var(--lab-blue); color:white;
+  font-weight:700; border-radius:8px; min-height:44px;
+}
+.grade-display{
+  text-align:center; margin:24px 0;
+}
+.grade-big{
+  display:inline-block;
+  font-size:62px; font-weight:900;
+  padding:12px 36px; border-radius:16px;
+  min-width:200px;
+}
+.grade-big.green{ background:#D1FAE5; color:#065F46; }
+.grade-big.yellow{ background:#FEF3C7; color:#92400E; }
+.grade-big.red{ background:#FEE2E2; color:#991B1B; }
+.grade-label{
+  font-size:14px; font-weight:700; color:var(--text-mid);
+  margin-top:8px; letter-spacing:1px;
+}
+.receipt-table{
+  width:100%; border-collapse:collapse; margin:20px 0;
+  font-size:13px;
+}
+.receipt-table th, .receipt-table td{
+  padding:8px 10px; text-align:left; border-bottom:1px solid #E5E7EB;
+}
+.receipt-table th{
+  background:#F3F4F6; font-size:11px; text-transform:uppercase;
+  letter-spacing:0.5px; color:var(--text-mid);
+}
+.receipt-table tr:nth-child(even){ background:#FAFBFC; }
+.receipt-table td.score-cell{ font-weight:700; }
+.receipt-table td.score-cell.green{ color:#065F46; }
+.receipt-table td.score-cell.yellow{ color:#92400E; }
+.receipt-table td.score-cell.red{ color:#991B1B; }
+.status-row{
+  padding:12px 16px; background:#F3F4F6; border-radius:10px;
+  margin:14px 0; font-size:14px; font-weight:600;
+}
+.upload-note{
+  padding:16px; background:#EFF6FF; border-left:4px solid var(--lab-blue);
+  border-radius:8px; font-size:14px; color:var(--text); margin:16px 0;
+  line-height:1.5;
+}
+.receipt-btn-row{
+  display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:20px;
+}
+.receipt-btn{
+  padding:12px 24px; border-radius:22px; font-weight:700;
+  min-height:46px; min-width:140px;
+}
+.receipt-btn.print{ background:var(--lab-blue); color:white; }
+.receipt-btn.startover{ background:white; border:2px solid var(--border); color:var(--text-mid); }
+
+/* Tolerance meter classes */
+.tol-bar-fill.low{ width:20%; }
+.tol-bar-fill.med{ width:55%; }
+.tol-bar-fill.high{ width:85%; }
+.tol-bar-fill.max{ width:100%; }
+
+/* Floating label */
+.float-label{
+  position:absolute; background:rgba(17,24,39,0.9); color:white;
+  padding:4px 10px; border-radius:12px;
+  font-size:11px; font-weight:700;
+  pointer-events:none;
+  animation:floatLabelIn 0.4s ease-out;
+  z-index:4;
+}
+.float-label.fade{ animation:floatLabelOut 1s 1.2s forwards; }
+@keyframes floatLabelIn{
+  from{ opacity:0; transform:translateY(10px);}
+  to{ opacity:1; transform:translateY(0);}
+}
+@keyframes floatLabelOut{
+  to{ opacity:0; }
+}
+
+/* Mini progress line (R1 Low->Medium) */
+.mini-progress{
+  position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+  background:rgba(255,255,255,0.95); border:2px solid var(--lab-blue);
+  border-radius:12px; padding:6px 14px;
+  font-size:13px; font-weight:700; color:var(--text);
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+  z-index:4;
+  animation:focusFadeIn 0.4s;
+}
+
+/* Arena banner (answer confirm) */
+.arena-banner{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:var(--lab-green); color:white;
+  padding:16px 28px; border-radius:14px;
+  font-size:18px; font-weight:800; letter-spacing:0.8px;
+  box-shadow:0 10px 30px rgba(16,185,129,0.4);
+  z-index:10;
+  text-align:center;
+  animation:bannerPop 0.4s cubic-bezier(.26,1.5,.5,1);
+}
+@keyframes bannerPop{
+  from{ transform:translate(-50%,-50%) scale(0.6); opacity:0;}
+  to{ transform:translate(-50%,-50%) scale(1); opacity:1;}
+}
+
+/* Readout-specific active styling */
+.readout.receptor-active{ border-color:var(--lab-purple); background:#F5F3FF; }
+.readout.receptor-active .value{ color:var(--lab-purple); }
+.readout.dopamine-active{ border-color:var(--amber); background:#FFFBEB; }
+.readout.dopamine-active .value{ color:var(--amber); }
+.readout.withdrawal-active{ border-color:var(--red); background:#FEF2F2; }
+.readout.withdrawal-active .value{ color:var(--red); }
+
+/* Active / pulsing / highlighted classes referenced by JS */
+.active{ /* general active */ }
+.highlighted{ box-shadow:0 0 0 4px rgba(245,158,11,0.5) !important; transition:box-shadow 0.3s; }
+.pulsing{ animation:genericPulse 1.2s ease-in-out infinite; }
+@keyframes genericPulse{
+  0%,100%{ transform:scale(1);}
+  50%{ transform:scale(1.04);}
+}
+.fading{ animation:fadeIn 0.4s; }
+.disabled{ pointer-events:none; opacity:0.5; }
+.locked{ pointer-events:none; opacity:0.3; }
+.coaching-visible{ display:block; }
+
+/* Evidence tags (R6 Claim Builder) */
+.evidence-tag{
+  display:inline-block;
+  background:#FEF3C7; border:2px solid #F59E0B; border-radius:10px;
+  padding:8px 14px; font-weight:600; font-size:13px; color:#78350F;
+  transition:box-shadow 0.2s, transform 0.2s;
+}
+.evidence-tag.pulsing{
+  box-shadow:0 0 0 4px rgba(245,158,11,0.35);
+  animation:evidenceTagPulse 1.2s ease-in-out infinite;
+}
+@keyframes evidenceTagPulse{
+  0%,100%{ box-shadow:0 0 0 4px rgba(245,158,11,0.35); transform:scale(1);}
+  50%    { box-shadow:0 0 0 8px rgba(245,158,11,0.15); transform:scale(1.03);}
+}
+
+/* Hotspot clickable regions (R4 hotspot mechanic) */
+.hotspot-zone{ cursor:pointer; transition:stroke 0.2s, stroke-width 0.2s; }
+.hotspot-zone:hover{ stroke:rgba(59,130,246,0.7) !important; }
+
+/* Retry nudge (shown after all wrong options dimmed) */
+.retry-nudge{
+  background:#FEF3C7; border-left:4px solid #F59E0B;
+  padding:10px 14px; border-radius:6px; margin-top:12px;
+  font-weight:600; color:#78350F;
+}
+
+@media print{
+  #topbar,#main,#izWrap,#bottombar,#vocabPanel,.coaching-bar,.sbs-modal,#celebrateOverlay,#confettiLayer,.receipt-btn-row{ display:none !important; }
+  #receiptScreen{ position:static; padding:0; }
+  .receipt-card{ box-shadow:none; max-width:100%; }
+  *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+
+/* Touchscreen fix: explicit tap response */
+@media (pointer:coarse){
+  .choice-card:active{ transform:scale(0.97); }
+  .seg-btn:active{ transform:scale(0.95); }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ WELCOME SCREEN ============ -->
+<div id="welcomeScreen">
+  <div class="welcome-card">
+    <h1>Mr. Jawad's Simulations</h1>
+    <h2>The Science of Nicotine Addiction — Wednesday Lab</h2>
+    <label class="welcome-label" for="studentNameInput">Your Name</label>
+    <input class="welcome-field" id="studentNameInput" type="text" placeholder="Type your name" maxlength="40">
+    <label class="welcome-label" for="teacherNameInput">Teacher Name (optional)</label>
+    <input class="welcome-field" id="teacherNameInput" type="text" placeholder="Your teacher" maxlength="40">
+    <button class="welcome-start" id="welcomeStartBtn">START LAB</button>
+  </div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div id="app" style="display:none;">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span class="brand" id="brandTitle">Mr. Jawad's Simulations</span>
+      <span class="round-badge" id="roundBadge">Round 1 of 6</span>
+      <span class="phase-badge change" id="phaseBadge">CHANGE</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span id="scoreDisplay">Score: 0</span>
+      <div id="progressBar"><div id="progressFill"></div></div>
+    </div>
+  </div>
+
+  <!-- MAIN LAYOUT -->
+  <div id="main">
+
+    <!-- LEFT: VARIABLE CONTROLS -->
+    <div class="panel" id="controlsPanel">
+      <div class="multi-banner" id="multiBanner" style="display:none;">BONUS: MULTI-VARIABLE</div>
+
+      <h3>Variables</h3>
+
+      <div class="control-group" id="doseGroup">
+        <div class="control-label">Dose</div>
+        <div class="control-value" id="doseValue">Low</div>
+        <div class="seg-btns">
+          <button class="seg-btn" data-var="dose" data-val="Low">Low</button>
+          <button class="seg-btn" data-var="dose" data-val="Medium">Medium</button>
+          <button class="seg-btn" data-var="dose" data-val="High">High</button>
+        </div>
+      </div>
+
+      <div class="control-group" id="freqGroup">
+        <div class="control-label">Frequency</div>
+        <div class="control-value" id="freqValue">Once</div>
+        <div class="seg-btns">
+          <button class="seg-btn" data-var="freq" data-val="Once">Once</button>
+          <button class="seg-btn" data-var="freq" data-val="Daily">Daily</button>
+          <button class="seg-btn" data-var="freq" data-val="Hourly">Hourly</button>
+        </div>
+      </div>
+
+      <div class="control-group" id="ageGroup">
+        <div class="control-label">Brain Age</div>
+        <div class="control-value" id="ageValue">Teen</div>
+        <div class="seg-btns">
+          <button class="seg-btn" data-var="age" data-val="Teen">Teen</button>
+          <button class="seg-btn" data-var="age" data-val="Adult">Adult</button>
+        </div>
+      </div>
+
+      <!-- Sub-control for R3 -->
+      <div class="control-group" id="durationGroup" style="display:none;">
+        <div class="control-label">Observation Window</div>
+        <div class="control-value" id="durationValue">7 days</div>
+        <div class="seg-btns">
+          <button class="seg-btn" data-var="dur" data-val="7">7 days</button>
+          <button class="seg-btn" data-var="dur" data-val="30">30 days</button>
+        </div>
+      </div>
+
+      <button class="run-btn" id="runBtn">▶ RUN</button>
+    </div>
+
+    <!-- CENTER: ARENA -->
+    <div id="arena">
+      <div id="arenaContent">
+        <!-- SVG synapse -->
+        <svg id="arenaSvg" viewBox="0 0 700 460" preserveAspectRatio="xMidYMid meet"></svg>
+
+        <!-- Focus prompt banner -->
+        <div id="focusPromptBanner" style="display:none;"></div>
+
+        <!-- Readout panel (right edge) -->
+        <div class="readout-stack" id="readoutStack">
+          <div class="readout dimmed" id="roReceptor">
+            <div class="label">Receptors</div>
+            <div class="value" id="roReceptorVal">0</div>
+          </div>
+          <div class="readout dimmed" id="roDopamine">
+            <div class="label">Dopamine</div>
+            <div class="value" id="roDopamineVal">0</div>
+          </div>
+          <div class="readout dimmed" id="roWithdrawal" style="display:none;">
+            <div class="label">Withdrawal</div>
+            <div class="value" id="roWithdrawalVal">0</div>
+          </div>
+          <div class="tol-meter" id="tolMeter" style="display:none;">
+            <div class="label">Tolerance</div>
+            <div class="tol-bar-wrap"><div class="tol-bar-fill" id="tolBarFill"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: DATA TABLE -->
+    <div class="panel">
+      <h3>Data Table</h3>
+      <table id="dataTable">
+        <thead>
+          <tr><th>#</th><th>Settings</th><th>Result</th></tr>
+        </thead>
+        <tbody id="dataTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- INTERACTION ZONE -->
+  <div id="izWrap">
+    <div id="izContent">
+      <!-- Populated by phase -->
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottombar">
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="nav-btn" id="vocabBtn">📖 Vocab</button>
+      <button class="nav-btn" id="hintBtn">💡 Hint</button>
+      <button class="nav-btn" id="resetLvlBtn">↺ Reset Round</button>
+    </div>
+    <span class="round-count" id="roundCount">Round 1 of 6</span>
+    <div>
+      <button class="nav-btn" id="newRunBtn">🔄 New Run</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VOCAB PANEL ============ -->
+<div id="vocabPanel">
+  <button class="vocab-close" id="vocabCloseBtn">×</button>
+  <h3>Key Vocabulary</h3>
+  <div class="vocab-card receptor" data-vocab="receptor">
+    <div class="term">🔒 RECEPTOR</div>
+    <div class="def">Lock on a brain cell. Purple docks on the neuron.</div>
+  </div>
+  <div class="vocab-card dopamine" data-vocab="dopamine">
+    <div class="term">⚡ DOPAMINE</div>
+    <div class="def">The brain's reward chemical. Yellow molecules in the synapse.</div>
+  </div>
+  <div class="vocab-card tolerance" data-vocab="tolerance">
+    <div class="term">📈 TOLERANCE</div>
+    <div class="def">Needing more for the same feeling. The tolerance meter fills as receptors multiply.</div>
+  </div>
+  <div class="vocab-card withdrawal" data-vocab="withdrawal">
+    <div class="term">😖 WITHDRAWAL</div>
+    <div class="def">Sick feeling without the drug. Red dots on the body map.</div>
+  </div>
+</div>
+
+<!-- ============ RECEIPT SCREEN ============ -->
+<div id="receiptScreen">
+  <div class="receipt-card">
+    <h1 id="receiptTitle">Mr. Jawad's Simulations</h1>
+    <div class="receipt-subtitle">The Science of Nicotine Addiction — Wednesday Score Report</div>
+
+    <div class="receipt-name-row">
+      <label>Student Name:</label>
+      <input type="text" id="receiptName" placeholder="Type your name">
+      <button class="receipt-lock-btn" id="receiptLockBtn">Lock</button>
+    </div>
+
+    <div class="grade-display">
+      <div class="grade-big" id="gradeBig">0%</div>
+      <div class="grade-label" id="gradeLabel">NEEDS MORE PRACTICE</div>
+    </div>
+
+    <table class="receipt-table">
+      <thead>
+        <tr><th>#</th><th>Round</th><th>Score</th><th>Attempts</th><th>Time</th></tr>
+      </thead>
+      <tbody id="receiptTableBody"></tbody>
+    </table>
+
+    <div class="status-row" id="statusRow">Status: In Progress</div>
+
+    <div class="upload-note">
+      📸 Take a screenshot of this report and upload it to Google Classroom.
+    </div>
+
+    <div class="receipt-btn-row">
+      <button class="receipt-btn print" id="printReceiptBtn">🖨️ Print</button>
+      <button class="receipt-btn startover" id="startOverBtn">Start Over</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confetti + celebrate layer -->
+<div id="confettiLayer"></div>
+<div id="celebrateOverlay">
+  <div class="celebrate-card">
+    <div class="celebrate-title" id="celebrateTitle">Nice Work!</div>
+    <div class="celebrate-affirm" id="celebrateAffirm"></div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================
+   GLOBAL STATE (GS) — single source of truth
+   ========================================================== */
+const GS = {
+  studentName: '',
+  teacherName: 'Mr. Jawad',
+  currentRound: 0,     // 0-indexed (0 = R1)
+  currentPhase: '',    // 'change','predict','watch','record','prove','complete'
+  score: 0,
+  arenaGen: 0,         // increments on reset/startRound — invalidates stale timeouts
+  processing: false,   // guards against double-taps on advancement
+  startTime: Date.now(),
+  rounds: [],          // filled from ROUND_DATA
+  vars: { dose:'Low', freq:'Once', age:'Teen', dur:'7' },
+  wrongCount: 0,       // per-round wrong counter
+  hintsUsed: 0,        // per-round hints counter
+  resets: 0,           // per-round resets
+  roundStartTime: 0,
+  phaseStartTime: 0,
+  consecutiveFastWrongs: 0,
+  predictChoice: null,
+  lastWrongId: null,
+  lastWrongCount: {},  // {optionId: count}
+  // One-shot flags
+  requiredCompleteShown: false,
+  bonusCompleteShown: false,
+  receiptRendered: false,
+  // Intervals / timeouts
+  intervalIds: [],
+  // Affirmations
+  lastAffirmIdx: -1,
+  // Current mechanic registry (assigned per round)
+  _doSubmitFn: null,
+};
+
+// Window-level selected id (prevents closure-local jam bug)
+window._doSelectedId = null;
+
+/* ==========================================================
+   AUDIO (lazy)
+   ========================================================== */
+let audioCtx = null;
+function getAudio(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ audioCtx = null; }
+  }
+  return audioCtx;
+}
+function playTone(freq, dur, type){
+  try{
+    const ac = getAudio(); if(!ac) return;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.15, ac.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + dur + 0.02);
+  }catch(e){}
+}
+function playCorrect(){ playTone(660,0.12,'sine'); setTimeout(()=>playTone(880,0.16,'sine'),110); }
+function playWrong(){ playTone(220,0.18,'sine'); }
+function playChime(){ playTone(523,0.14,'sine'); setTimeout(()=>playTone(659,0.14,'sine'),120); setTimeout(()=>playTone(784,0.2,'sine'),240); }
+
+/* ==========================================================
+   UTIL
+   ========================================================== */
+const $ = id => document.getElementById(id);
+function escHtml(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function safeCall(fn, msg){
+  try{ fn(); }catch(e){ console.error(msg||'err', e); }
+}
+// safeTimeout: only fires if arenaGen hasn't changed (round not reset/advanced)
+function safeTimeout(fn, ms){
+  const gen = GS.arenaGen;
+  const id = setTimeout(()=>{
+    if(GS.arenaGen !== gen) return;
+    try{ fn(); }catch(e){ console.error(e); }
+  }, ms);
+  return id;
+}
+function closeAllOverlays(){
+  document.querySelectorAll('.coaching-bar, .sbs-modal, .choice-overlay, .arena-banner').forEach(el => el.remove());
+  // Clear coaching countdown interval (ghost prevention)
+  if(GS._coachInterval){ clearInterval(GS._coachInterval); GS._coachInterval = null; }
+}
+function clearAllIntervals(){
+  GS.intervalIds.forEach(id => clearInterval(id));
+  GS.intervalIds = [];
+  if(GS._coachInterval){ clearInterval(GS._coachInterval); GS._coachInterval = null; }
+}
+
+/* ==========================================================
+   AFFIRMATIONS (teacher-name personalized)
+   ========================================================== */
+function getAffirm(){
+  const t = GS.teacherName || 'Your teacher';
+  const pool = [
+    `${t} is proud of you!`,
+    `${t} knew you could do it!`,
+    `That's the kind of thinking ${t} loves to see!`,
+    `${t} says: you're getting it!`,
+    `Strong work — ${t} sees your effort!`,
+    `${t} is impressed right now!`,
+    `You're showing ${t} what you can do!`,
+    `${t} says: keep that energy!`,
+  ];
+  let idx = Math.floor(Math.random() * pool.length);
+  if(idx === GS.lastAffirmIdx) idx = (idx + 1) % pool.length;
+  GS.lastAffirmIdx = idx;
+  return pool[idx];
+}
+
+/* ==========================================================
+   ROUND DATA
+   Each round is a data object. Engines read this.
+   ========================================================== */
+const ROUND_DATA = [
+  // ==================================================================
+  // ROUND 1 — Dose Discovery (Pick the Match)
+  // ==================================================================
+  {
+    num:1, name:'Dose Discovery', required:true, multiVar:false,
+    skill:'Identify cause (dose) and effect (receptor binding)',
+    focusPrompt:'Watch the purple receptor docks glow on the neuron when nicotine arrives.',
+    unlockedVars:['dose'],
+    lockedVars:['freq','age'],
+    initialVars:{ dose:'Low', freq:'Once', age:'Teen' },
+    suggestedVar:'dose', suggestedVal:'Medium',
+    guideTip:'Slide the dose from Low → Medium. Watch each setting do its thing.',
+    hasPredict:false,
+    activeReadout:'receptor',
+    showTolMeter:false,
+    showBodyMap:false,
+    watchDuration:6000,
+    watchSequence:'r1_dose_reveal',
+    recordMode:'trend', // 'trend' (one tap) or 'verify' (looks-right/fix-it)
+    recordRowBuild:(r)=>[
+      {label:'#', value:'1'},
+      {label:'Dose', value:'Low→Med'},
+      {label:'Bound', value:'15%→45%'}
+    ],
+    recordWrongValue:null,
+    recordCorrectValue:null,
+    recordPickerOpts:null,
+    recordCellIndex:null,
+    recordVerifyPrompt:'Watch the row fill in. Does it match what you just saw?',
+    proveType:'pick-match',
+    proveQuestion:'What happens to receptors when the dose goes up?',
+    proveOptions:[
+      { id:'A', text:'Fewer receptors bind' },
+      { id:'B', text:'More receptors bind' },
+      { id:'C', text:'No change' }
+    ],
+    correctAnswer:'B',
+    wrongFeedback:{
+      A:'Look at the RECEPTORS readout — it went UP (15 to 45), not down.',
+      C:'The readout went from 15 to 45 — that\'s not "no change".'
+    },
+    guidedHighlight:true, // R1 only — subtle glow on correct option
+    hintLadder:{
+      hint1:{ text:'Look at the RECEPTORS readout on the right — what did the number do from Low to Medium?', highlight:'readout-receptor' },
+      hint2:{ text:'Two options say fewer or none. The number went from 15 to 45 — so those two are out.', eliminate:['A','C'] },
+      stepByStep:[
+        { text:'Low dose = 15 receptors bound.' },
+        { text:'Medium dose = 45 receptors bound.' },
+        { text:'15 to 45 is UP. Which option matches? (tap B)' }
+      ]
+    }
+  },
+
+  // ==================================================================
+  // ROUND 2 — Frequency Ramp (Coach-Click)
+  // ==================================================================
+  {
+    num:2, name:'Frequency Ramp', required:true, multiVar:false,
+    skill:'Observe pattern (repeated exposure → multiplying receptors = TOLERANCE)',
+    focusPrompt:'Watch the receptor count on the neuron climb each day on the time strip.',
+    unlockedVars:['freq'],
+    lockedVars:['dose','age'],
+    initialVars:{ dose:'Medium', freq:'Once', age:'Teen' },
+    suggestedVar:'freq', suggestedVal:'Daily',
+    guideTip:'Set frequency to Daily. We will watch 7 days.',
+    hasPredict:false,
+    activeReadout:'receptor',
+    showTolMeter:true,
+    showBodyMap:false,
+    watchDuration:7000,
+    watchSequence:'r2_daily_ramp',
+    recordMode:'verify',
+    recordRowBuild:(r)=>[
+      {label:'#', value:'2'},
+      {label:'Freq', value:'Daily'},
+      {label:'D1→D7', value:'10 → [val]'}
+    ],
+    recordWrongValue:'12',
+    recordCorrectValue:'21',
+    recordPickerOpts:['12','18','21'],
+    recordCellIndex:2,
+    recordVerifyPrompt:'The data shows Day 7 receptors. Does this number look right?',
+    proveType:'coach-click',
+    proveQuestion:'What do you notice about the receptors over 7 days?',
+    proveOptions:[
+      { id:'A', text:'More receptors appear — this is TOLERANCE building' },
+      { id:'B', text:'Receptors disappear over time' },
+      { id:'C', text:'Receptors stay exactly the same' }
+    ],
+    correctAnswer:'A',
+    wrongFeedback:{
+      B:'Look at the neuron — are there fewer receptors or more?',
+      C:'Day 1 had 10. Day 7 had 21. That\'s not the same.'
+    },
+    coachClickHighlight:'neuron', // which arena element pulses
+    hintLadder:{
+      hint1:{ text:'Look at the neuron — count the receptors on Day 1 vs. Day 7. Which has more?', highlight:'neuron' },
+      hint2:{ text:'Two options say "disappear" or "same." The number went 10 to 21. Both are wrong.', eliminate:['B','C'] },
+      stepByStep:[
+        { text:'Day 1 = 10 receptors.' },
+        { text:'Day 7 = 21 receptors.' },
+        { text:'More receptors each day = TOLERANCE. (tap A)' }
+      ]
+    }
+  },
+
+  // ==================================================================
+  // ROUND 3 — Pattern Projection (What Comes Next) — TODO Stage 2
+  // ==================================================================
+  {
+    num:3, name:'Pattern Projection', required:true, multiVar:false,
+    skill:'pattern extrapolation',
+    focusPrompt:'Look at the receptor count graph — the line keeps climbing. Where does it land at Day 30?',
+    unlockedVars:['dur'], lockedVars:['dose','freq','age'],
+    initialVars:{ dose:'Medium', freq:'Daily', age:'Teen', dur:'7' },
+    suggestedVar:'dur', suggestedVal:'30',
+    guideTip:'Frequency stays Daily. Pull the timeline out to 30 days to see where the pattern goes.',
+    hasPredict:false,
+    activeReadout:'receptor',
+    showTolMeter:true, showBodyMap:false,
+    watchDuration:7000, watchSequence:'r3_extrapolate',
+    recordMode:'trend',
+    recordRowBuild:(r)=>[{label:'#',value:'3'},{label:'Window',value:'30 days'},{label:'D30',value:'85'}],
+    recordWrongValue:null, recordCorrectValue:null, recordPickerOpts:null, recordCellIndex:null,
+    recordVerifyPrompt:'Watch the row fill in. Does it match the graph line?',
+    proveType:'what-next',
+    proveQuestion:'The pattern keeps climbing. What does Day 30 look like?',
+    proveOptions:[
+      { id:'A', text:'About 25 receptors (barely any change)' },
+      { id:'B', text:'About 30 receptors (tiny bit more)' },
+      { id:'C', text:'About 85 receptors (big climb — strong TOLERANCE)' }
+    ],
+    correctAnswer:'C',
+    wrongFeedback:{
+      A:"Day 7 was already 21. Day 30 can't be smaller than that.",
+      B:'The jump from 10 to 21 was big. 21 to 30 in over three weeks is too small.'
+    },
+    whatNextSequence:['Day 1: 10','Day 7: 21','Day 30: ?'],
+    hintLadder:{
+      hint1:{ text:'Look at the graph at the top — the line goes up, up, up. Trace it to Day 30.', highlight:'graph' },
+      hint2:{ text:"Day 7 was already 21. Any answer smaller than 21 can't be right.", eliminate:['A'] },
+      stepByStep:[
+        {text:'Day 7 = 21 receptors. Day 14 = 40 receptors (about doubled).'},
+        {text:'Day 21 = 65 receptors. Day 30 has to be bigger than 65.'},
+        {text:'Which option is bigger than 65? Tap it.'}
+      ]
+    }
+  },
+
+  // ==================================================================
+  // ROUND 4 — Teen vs Adult (Hotspot, PREDICT) — TODO Stage 2
+  // ==================================================================
+  {
+    num:4, name:'Teen vs. Adult', required:true, multiVar:false,
+    skill:'brain-age comparison',
+    focusPrompt:'Watch both brains on screen — count the receptors that grow on each one.',
+    unlockedVars:['age'], lockedVars:['dose','freq'],
+    initialVars:{ dose:'Medium', freq:'Daily', age:'Teen' },
+    suggestedVar:'age', suggestedVal:'Teen',
+    guideTip:"We'll run the same Daily dosing on both brains, side by side, for 7 days.",
+    hasPredict:true,
+    predictPrompt:'If I run Daily dosing for 7 days on both brains, I think the Teen brain will build tolerance...',
+    predictOptions:[
+      { id:'A', text:'Faster than the Adult brain' },
+      { id:'B', text:'Slower than the Adult brain' }
+    ],
+    predictCorrect:'A',
+    activeReadout:'receptor',
+    showTolMeter:true, showBodyMap:false,
+    watchDuration:7000, watchSequence:'r4_teen_vs_adult',
+    recordMode:'trend',
+    recordRowBuild:(r)=>[{label:'#',value:'4'},{label:'Compare',value:'Teen|Adult'},{label:'D7',value:'21 | 12'}],
+    recordVerifyPrompt:'Watch the row fill in. Does it match what each brain showed?',
+    proveType:'hotspot',
+    proveQuestion:'Tap the brain that shows more TOLERANCE.',
+    proveOptions:[
+      { id:'A', text:'Adult brain' },
+      { id:'B', text:'Teen brain' },
+      { id:'C', text:'Synapse gap' }
+    ],
+    correctAnswer:'B',
+    wrongFeedback:{
+      A:'Look at the neurons — count the purple receptor docks on each. Which has more?',
+      C:"The synapse gap isn't a brain — tap one of the two neurons."
+    },
+    hintLadder:{
+      hint1:{ text:'Look at the neurons side by side — count the purple receptors on each one.', highlight:'both-neurons' },
+      hint2:{ text:'The Teen readout said 21. The Adult readout said 12. Which is more?', eliminate:['C'] },
+      stepByStep:[
+        {text:'Teen brain = 21 receptors.'},
+        {text:'Adult brain = 12 receptors.'},
+        {text:'More receptors = more TOLERANCE. Tap that one.'}
+      ]
+    }
+  },
+
+  // ==================================================================
+  // ROUND 5 — Dose x Frequency (Coach-Click, PREDICT, BONUS) — TODO Stage 2
+  // ==================================================================
+  {
+    num:5, name:'Dose × Frequency Combo', required:false, multiVar:true,
+    skill:'variable-attribution reasoning',
+    focusPrompt:"Watch Adam's body-map after the drug stops — red symptom dots appear where withdrawal hits hardest.",
+    unlockedVars:['dose','freq'], lockedVars:['age'],
+    initialVars:{ dose:'High', freq:'Hourly', age:'Teen' },
+    guideTip:'Turn dose up AND frequency up. See what stopping does after.',
+    hasPredict:true,
+    predictPrompt:'If I set High dose + Hourly frequency, then stop the drug, I think WITHDRAWAL will...',
+    predictOptions:[
+      { id:'A', text:'Be mild — not many receptors were affected' },
+      { id:'B', text:'Be intense — the brain is used to lots of nicotine now' }
+    ],
+    predictCorrect:'B',
+    activeReadout:'withdrawal',
+    showTolMeter:true, showBodyMap:true,
+    watchDuration:8000, watchSequence:'r5_combo_withdrawal',
+    recordMode:'verify',
+    recordRowBuild:(r)=>[{label:'#',value:'5'},{label:'Combo',value:'High+Hourly'},{label:'Withdraw',value:'[val]/10'}],
+    recordWrongValue:'2',
+    recordCorrectValue:'8',
+    recordPickerOpts:['2','5','8'],
+    recordCellIndex:2,
+    recordVerifyPrompt:"Look at Adam's body map — count the red dots. Does the row match?",
+    proveType:'coach-click',
+    proveQuestion:'Which change caused the intense WITHDRAWAL?',
+    proveOptions:[
+      { id:'A', text:'Both the high dose AND the hourly frequency — together they built up the tolerance' },
+      { id:'B', text:"Just the dose — the hourly timing didn't really change anything" },
+      { id:'C', text:"Just the frequency — the dose level didn't really matter" }
+    ],
+    correctAnswer:'A',
+    wrongFeedback:{
+      B:'Think back — when we ran Medium dose once (R1-style) before, did the body-map ever light up like this? The hourly schedule is doing real work.',
+      C:"If frequency was the only thing that mattered, Low + Hourly would also hit 8/10. It doesn't — dose is doing real work too."
+    },
+    coachClickHighlight:'body-map',
+    hintLadder:{
+      hint1:{ text:'Look at the highlighted controls at the bottom — which two did you change?', highlight:'controls' },
+      hint2:{ text:'Two options say "just" one thing mattered. But you moved both controls — and the body-map filled with red dots. One option includes both.', eliminate:['B','C'] },
+      stepByStep:[
+        {text:'You moved the dose AND the frequency.'},
+        {text:'The readout went all the way to 8/10 and the body-map filled with red dots.'},
+        {text:"Both changes stacked up to cause that. Tap the option that says 'both.'"}
+      ]
+    }
+  },
+
+  // ==================================================================
+  // ROUND 6 — Full Combo (Claim Builder, BONUS) — TODO Stage 2
+  // ==================================================================
+  {
+    num:6, name:'Full Combo — All Three', required:false, multiVar:true,
+    skill:'multi-variable synthesis',
+    focusPrompt:'Watch every part of the arena — neuron, synapse, body-map — as all three variables stack up.',
+    unlockedVars:['dose','freq','age'], lockedVars:[],
+    initialVars:{ dose:'High', freq:'Hourly', age:'Teen' },
+    guideTip:"Student's choice — go max on what hits teens hardest.",
+    hasPredict:false,
+    activeReadout:'withdrawal',
+    showTolMeter:true, showBodyMap:true,
+    watchDuration:8000, watchSequence:'r6_full_combo',
+    recordMode:'trend',
+    recordRowBuild:(r)=>[{label:'#',value:'6'},{label:'All 3',value:r.vars.age+'/'+r.vars.dose+'/'+r.vars.freq},{label:'W-I',value:'Max'}],
+    recordVerifyPrompt:'Watch the row fill in. Does it match the body-map?',
+    proveType:'claim-builder',
+    proveQuestion:'Which setup built the most TOLERANCE and caused the worst WITHDRAWAL?',
+    claimEvidence:[
+      'Most new receptors appeared on the neuron',
+      'Synapse emptied the most when the drug stopped',
+      'Body-map lit up with the most red dots'
+    ],
+    proveOptions:[
+      { id:'A', text:'Adult brain, low dose, once only' },
+      { id:'B', text:'Adult brain, medium dose, daily' },
+      { id:'C', text:'Teen brain, high dose, hourly' }
+    ],
+    correctAnswer:'C',
+    wrongFeedback:{
+      A:'The evidence says the MOST receptors appeared. Low dose + once barely builds any. Which setup would build the most?',
+      B:'Daily beats Once — but which setup had the MOST exposure of all? Check all three evidence tags together.'
+    },
+    correctBanner:'Yes — the teen brain got hit harder and got used to nicotine faster, so stopping it caused the worst withdrawal.',
+    hintLadder:{
+      hint1:{ text:'Read the three evidence tags — they describe what happened most, emptied most, lit up most. Which setup would cause all of that?', highlight:'evidence-tags' },
+      hint2:{ text:'More dose + more often + more vulnerable brain = the most of everything. Two options have "Adult" or "low dose" — those produce less of everything, not more.', eliminate:['A','B'] },
+      stepByStep:[
+        {text:'The evidence says MOST receptors, MOST emptying, MOST red dots.'},
+        {text:'MOST of everything = the biggest exposure = the most vulnerable brain with the strongest, most frequent dose.'},
+        {text:"One option matches 'biggest exposure.' Tap it."}
+      ]
+    }
+  }
+];
+
+/* ==========================================================
+   WELCOME
+   ========================================================== */
+$('welcomeStartBtn').addEventListener('click', () => {
+  const s = $('studentNameInput').value.trim();
+  const t = $('teacherNameInput').value.trim();
+  GS.studentName = s || 'Student';
+  GS.teacherName = t || 'Mr. Jawad';
+  $('brandTitle').textContent = escHtml(GS.teacherName) + "'s Simulations";
+  $('receiptTitle').textContent = escHtml(GS.teacherName) + "'s Simulations";
+  $('welcomeScreen').style.display = 'none';
+  $('app').style.display = 'flex';
+  GS.startTime = Date.now();
+  // Init rounds state
+  GS.rounds = ROUND_DATA.map(rd => ({
+    num:rd.num, name:rd.name, required:rd.required,
+    completed:false, score:0, attempts:0, hintsUsed:0, resets:0, timeSeconds:0
+  }));
+  startRound(0);
+});
+// Allow Enter in name field to start
+$('studentNameInput').addEventListener('keydown', e => { if(e.key==='Enter') $('welcomeStartBtn').click(); });
+$('teacherNameInput').addEventListener('keydown', e => { if(e.key==='Enter') $('welcomeStartBtn').click(); });
+
+/* ==========================================================
+   ROUND LIFECYCLE
+   ========================================================== */
+function startRound(idx){
+  GS.arenaGen++;           // invalidate stale timeouts
+  GS.processing = false;
+  closeAllOverlays();
+  GS.currentRound = idx;
+  GS.wrongCount = 0;
+  GS.hintsUsed = 0;
+  GS.resets = 0;
+  GS.consecutiveFastWrongs = 0;
+  GS.predictChoice = null;
+  GS.lastWrongId = null;
+  GS.lastWrongCount = {};
+  GS.roundStartTime = Date.now();
+  window._doSelectedId = null;
+
+  const r = ROUND_DATA[idx];
+
+  // Top bar
+  $('roundBadge').textContent = 'Round ' + r.num + ' of 6';
+  $('roundCount').textContent = 'Round ' + r.num + ' of 6';
+  updateScore();
+
+  // Multi-var banner
+  $('multiBanner').style.display = r.multiVar ? 'block' : 'none';
+
+  // Variables setup
+  GS.vars = Object.assign({}, r.initialVars);
+  applyVarUI();
+
+  // Control lock state
+  ['doseGroup','freqGroup','ageGroup','durationGroup'].forEach(gid => {
+    const g = $(gid);
+    g.classList.remove('unlocked','locked','glow');
+  });
+  // duration group visible only on R3
+  $('durationGroup').style.display = (r.num === 3) ? 'block' : 'none';
+
+  const varToGroup = { dose:'doseGroup', freq:'freqGroup', age:'ageGroup', dur:'durationGroup' };
+  r.unlockedVars.forEach(v => {
+    const gid = varToGroup[v];
+    if(gid) $(gid).classList.add('unlocked');
+  });
+  r.lockedVars.forEach(v => {
+    const gid = varToGroup[v];
+    if(gid) $(gid).classList.add('locked');
+  });
+  // If R3, dose/freq/age are all locked AND duration is unlocked
+  if(r.num === 3){
+    ['doseGroup','freqGroup','ageGroup'].forEach(gid => $(gid).classList.add('locked'));
+  }
+
+  // Glow on suggested control (rounds 1-2 only — guided)
+  if(r.num <= 2 && r.suggestedVar){
+    const gid = varToGroup[r.suggestedVar];
+    if(gid) $(gid).classList.add('glow');
+    // Highlight the suggested button
+    document.querySelectorAll(`.seg-btn[data-var="${r.suggestedVar}"]`).forEach(btn => {
+      if(btn.dataset.val === r.suggestedVal) btn.classList.add('suggest');
+      else btn.classList.remove('suggest');
+    });
+  } else {
+    document.querySelectorAll('.seg-btn.suggest').forEach(b => b.classList.remove('suggest'));
+  }
+
+  // Readout visibility
+  setupReadouts(r);
+
+  // Arena
+  renderArena(r);
+
+  // Focus prompt + CHANGE phase
+  showFocusPrompt(r.focusPrompt);
+
+  // Phase → CHANGE
+  setPhase('change');
+  renderChangePhase(r);
+}
+
+function applyVarUI(){
+  $('doseValue').textContent = GS.vars.dose;
+  $('freqValue').textContent = GS.vars.freq;
+  $('ageValue').textContent = GS.vars.age;
+  $('durationValue').textContent = GS.vars.dur + ' days';
+  document.querySelectorAll('.seg-btn').forEach(btn => {
+    const v = btn.dataset.var;
+    btn.classList.toggle('active', GS.vars[v] === btn.dataset.val);
+  });
+}
+
+function setupReadouts(r){
+  const rec = $('roReceptor'), dop = $('roDopamine'), wd = $('roWithdrawal'), tol = $('tolMeter');
+  // Reset
+  [rec,dop,wd].forEach(el => { el.classList.remove('active','dimmed','receptor-active','dopamine-active','withdrawal-active','pulsing'); });
+  rec.classList.add('dimmed');
+  dop.classList.add('dimmed');
+  wd.classList.add('dimmed');
+
+  // Hide withdrawal by default; show on rounds that use it
+  wd.style.display = r.showBodyMap ? 'block' : 'none';
+  // Tolerance meter
+  tol.style.display = r.showTolMeter ? 'block' : 'none';
+
+  // Activate one
+  if(r.activeReadout === 'receptor'){
+    rec.classList.remove('dimmed'); rec.classList.add('active','receptor-active');
+  } else if(r.activeReadout === 'dopamine'){
+    dop.classList.remove('dimmed'); dop.classList.add('active','dopamine-active');
+  } else if(r.activeReadout === 'withdrawal'){
+    wd.classList.remove('dimmed'); wd.classList.add('active','withdrawal-active');
+  }
+  // Reset values
+  $('roReceptorVal').textContent = '0';
+  $('roDopamineVal').textContent = '0';
+  $('roWithdrawalVal').textContent = '0';
+  $('tolBarFill').className = 'tol-bar-fill';
+}
+
+function setPhase(phase){
+  GS.currentPhase = phase;
+  GS.phaseStartTime = Date.now();
+  const badge = $('phaseBadge');
+  badge.className = 'phase-badge ' + phase;
+  badge.textContent = phase.toUpperCase();
+}
+
+/* ==========================================================
+   ARENA RENDERING (SVG)
+   ========================================================== */
+function renderArena(r){
+  const svg = $('arenaSvg');
+  // Clean existing dynamic elements (keep structure flexible)
+  svg.innerHTML = '';
+
+  // Background shimmer (subtle neuron membrane texture)
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML = `
+    <radialGradient id="neuronGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#FFFAF7"/>
+      <stop offset="50%" stop-color="#FCEDE4"/>
+      <stop offset="100%" stop-color="#F3CDBC"/>
+    </radialGradient>
+    <radialGradient id="neuronGradTeen" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#FFFAF7"/>
+      <stop offset="55%" stop-color="#FCEDE4"/>
+      <stop offset="100%" stop-color="#F3CDBC"/>
+    </radialGradient>
+    <radialGradient id="neuronGradAdult" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#FBF8FF"/>
+      <stop offset="55%" stop-color="#ECE4F5"/>
+      <stop offset="100%" stop-color="#C9B8E0"/>
+    </radialGradient>
+    <radialGradient id="nucleusGrad" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFE0D2"/>
+      <stop offset="100%" stop-color="#E89A7A" stop-opacity="0.55"/>
+    </radialGradient>
+    <linearGradient id="synapseGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#DBEAFE" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#EFF6FF" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#DBEAFE" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="receptorGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C4B5FD"/>
+      <stop offset="50%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#6D28D9"/>
+    </linearGradient>
+    <linearGradient id="receptorGradTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#DDD6FE"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <radialGradient id="nicotineGrad" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#93C5FD"/>
+      <stop offset="60%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </radialGradient>
+    <radialGradient id="dopamineGrad" cx="38%" cy="32%" r="70%">
+      <stop offset="0%" stop-color="#FEF3C7"/>
+      <stop offset="55%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </radialGradient>
+    <linearGradient id="skinGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FEE2CE"/>
+      <stop offset="100%" stop-color="#F2B994"/>
+    </linearGradient>
+    <linearGradient id="arenaFloor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F8FAFC" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#CBD5E1" stop-opacity="0.25"/>
+    </linearGradient>
+    <pattern id="gridDot" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="10" cy="10" r="0.8" fill="#9CA3AF" opacity="0.18"/>
+    </pattern>
+  `;
+  svg.appendChild(defs);
+
+  // Subtle dotted grid background (depth cue)
+  const bgGrid = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  bgGrid.setAttribute('x','0'); bgGrid.setAttribute('y','0');
+  bgGrid.setAttribute('width','700'); bgGrid.setAttribute('height','460');
+  bgGrid.setAttribute('fill','url(#gridDot)');
+  svg.appendChild(bgGrid);
+
+  if(r.num === 4){
+    // Split arena: two neurons
+    renderSplitNeurons(svg);
+  } else {
+    renderSingleSynapse(svg, r);
+  }
+
+  // Time strip (bottom) — shown on rounds that need it
+  if(r.num >= 2 && r.num !== 4){
+    renderTimeStrip(svg);
+  }
+
+  // Body map (Adam silhouette) on R5, R6
+  if(r.showBodyMap){
+    renderBodyMap(svg);
+  }
+
+  // Vocab labels (for R1 opening)
+  if(r.num === 1){
+    renderR1VocabAnchors(svg);
+  }
+}
+
+function renderSingleSynapse(svg, r){
+  const ns = 'http://www.w3.org/2000/svg';
+
+  // ========== PRE-SYNAPTIC NEURON (LEFT) ==========
+  const preNeuron = document.createElementNS(ns,'g');
+  preNeuron.setAttribute('id','preNeuronGroup');
+  preNeuron.innerHTML = `
+    <!-- Dendrite branches reaching left from the cell body -->
+    <g opacity="0.7" fill="none" stroke="#E89A7A" stroke-width="2.8" stroke-linecap="round">
+      <path d="M 95 140 Q 130 160 175 185" />
+      <path d="M 75 210 Q 120 215 180 225" />
+      <path d="M 90 295 Q 135 275 180 260" />
+      <path d="M 110 355 Q 145 330 185 305" />
+      <!-- sub-branch tendrils -->
+      <path d="M 95 140 L 65 120" stroke-width="1.8"/>
+      <path d="M 95 140 L 110 105" stroke-width="1.8"/>
+      <path d="M 75 210 L 45 205" stroke-width="1.8"/>
+      <path d="M 90 295 L 60 310" stroke-width="1.8"/>
+      <path d="M 110 355 L 90 385" stroke-width="1.8"/>
+    </g>
+    <!-- Shadow beneath the neuron -->
+    <ellipse cx="232" cy="365" rx="160" ry="18" fill="#1F2937" opacity="0.10"/>
+    <!-- Cell body -->
+    <ellipse cx="230" cy="230" rx="170" ry="130"
+             fill="url(#neuronGrad)" stroke="#B97A5E" stroke-width="2.5"
+             id="neuronBody" class="neuron-body"/>
+    <!-- Membrane highlight sheen (top-left) -->
+    <ellipse cx="180" cy="175" rx="75" ry="45" fill="white" opacity="0.35"/>
+    <!-- Nucleus -->
+    <circle cx="210" cy="225" r="38" fill="url(#nucleusGrad)" stroke="#C08060" stroke-width="1.5" opacity="0.7"/>
+    <circle cx="202" cy="218" r="8" fill="#8B4513" opacity="0.35"/>
+    <!-- Axon hillock (narrow tube exiting right toward synapse) -->
+    <path d="M 395 215 Q 410 220 415 230 Q 410 240 395 245 Z" fill="url(#neuronGrad)" stroke="#B97A5E" stroke-width="2"/>
+    <!-- Label OUTSIDE the body (below) -->
+    <text x="160" y="395" fill="#8B4513" font-size="11" font-weight="700" letter-spacing="1.5">PRE-SYNAPTIC NEURON</text>
+  `;
+  svg.appendChild(preNeuron);
+
+  // ========== SYNAPTIC CLEFT (CENTER) ==========
+  // Curved pre-synaptic terminal wall
+  const preTerm = document.createElementNS(ns,'path');
+  preTerm.setAttribute('d','M 415 130 Q 435 230 415 330 L 415 330 Q 422 230 422 230 Q 422 230 415 130 Z');
+  preTerm.setAttribute('fill','url(#neuronGrad)');
+  preTerm.setAttribute('stroke','#B97A5E');
+  preTerm.setAttribute('stroke-width','2');
+  preTerm.setAttribute('opacity','0.85');
+  svg.appendChild(preTerm);
+
+  // Synaptic cleft (the gap)
+  const gap = document.createElementNS(ns,'rect');
+  gap.setAttribute('x','418');
+  gap.setAttribute('y','130');
+  gap.setAttribute('width','62');
+  gap.setAttribute('height','200');
+  gap.setAttribute('rx','4');
+  gap.setAttribute('fill','url(#synapseGrad)');
+  gap.setAttribute('stroke','#93C5FD');
+  gap.setAttribute('stroke-width','1.5');
+  gap.setAttribute('stroke-dasharray','4 3');
+  gap.setAttribute('id','synapseGap');
+  svg.appendChild(gap);
+
+  const gapLabel = document.createElementNS(ns,'text');
+  gapLabel.setAttribute('x','449');
+  gapLabel.setAttribute('y','115');
+  gapLabel.setAttribute('text-anchor','middle');
+  gapLabel.setAttribute('fill','#1D4ED8');
+  gapLabel.setAttribute('font-size','10');
+  gapLabel.setAttribute('font-weight','700');
+  gapLabel.setAttribute('letter-spacing','1.5');
+  gapLabel.setAttribute('opacity','0.75');
+  gapLabel.textContent = 'SYNAPSE';
+  svg.appendChild(gapLabel);
+
+  // Receptor docks group (on pre-synaptic terminal, right-facing)
+  const receptorGroup = document.createElementNS(ns,'g');
+  receptorGroup.setAttribute('id','receptorGroup');
+  svg.appendChild(receptorGroup);
+
+  // ========== POST-SYNAPTIC CELL (RIGHT) ==========
+  const postCell = document.createElementNS(ns,'g');
+  postCell.setAttribute('id','postCellGroup');
+  postCell.innerHTML = `
+    <ellipse cx="586" cy="375" rx="60" ry="9" fill="#1F2937" opacity="0.10"/>
+    <ellipse cx="585" cy="230" rx="70" ry="115" fill="url(#neuronGrad)" stroke="#B97A5E" stroke-width="2"/>
+    <ellipse cx="560" cy="190" rx="28" ry="20" fill="white" opacity="0.28"/>
+    <circle cx="590" cy="235" r="18" fill="url(#nucleusGrad)" stroke="#C08060" stroke-width="1" opacity="0.6"/>
+    <!-- Dendrites exiting right -->
+    <g opacity="0.7" fill="none" stroke="#E89A7A" stroke-width="2" stroke-linecap="round">
+      <path d="M 648 175 Q 670 165 690 170"/>
+      <path d="M 652 230 Q 680 230 695 232"/>
+      <path d="M 648 290 Q 670 295 685 305"/>
+    </g>
+    <text x="585" y="362" text-anchor="middle" fill="#8B4513" font-size="10" font-weight="700" letter-spacing="1" opacity="0.75">POST-SYNAPTIC</text>
+  `;
+  svg.appendChild(postCell);
+
+  // Dopamine cluster group (inside synapse gap)
+  const dopGroup = document.createElementNS(ns,'g');
+  dopGroup.setAttribute('id','dopamineGroup');
+  svg.appendChild(dopGroup);
+
+  // Nicotine inflow group (falls from top of pre-neuron)
+  const nicGroup = document.createElementNS(ns,'g');
+  nicGroup.setAttribute('id','nicotineGroup');
+  svg.appendChild(nicGroup);
+
+  // Graph overlay (for R3)
+  if(r.num === 3){
+    const graphG = document.createElementNS(ns,'g');
+    graphG.setAttribute('id','graphOverlay');
+    svg.appendChild(graphG);
+  }
+
+  // Start with 0 bound (R1 starts empty; others populate via round logic)
+  drawReceptors(0, r.num === 1);
+}
+
+function drawReceptors(boundPct, isR1Initial){
+  const grp = $('arenaSvg').querySelector('#receptorGroup');
+  if(!grp) return;
+  const prevCount = grp.querySelectorAll('.receptor-dock').length;
+  grp.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+
+  // Receptor positions along the pre-synaptic terminal (right edge of pre-neuron, facing synapse)
+  // Terminal is at x=415-422, spanning y=130..330. Place receptors along this membrane.
+  const positions = [];
+  const ringCount = 22;
+  for(let i=0;i<ringCount;i++){
+    const t = i / (ringCount - 1); // 0..1
+    // Zigzag along the terminal for a natural look
+    const y = 135 + t * 190;
+    const x = 418 + (i % 2 === 0 ? -2 : 2);
+    positions.push({cx:x, cy:y});
+  }
+
+  const maxReceptors = 22;
+  const count = Math.round(maxReceptors * boundPct / 100);
+  const shown = positions.slice(0, Math.min(count, positions.length));
+
+  shown.forEach((p, i) => {
+    // Outer positioning wrapper (SVG transform — not CSS-animated)
+    const wrapper = document.createElementNS(ns,'g');
+    wrapper.setAttribute('transform',`translate(${p.cx},${p.cy})`);
+    // Inner animated group
+    const inner = document.createElementNS(ns,'g');
+    inner.setAttribute('class','receptor-dock');
+    inner.innerHTML = `
+      <line x1="0" y1="0" x2="8" y2="0" stroke="#6D28D9" stroke-width="2"/>
+      <path d="M 7 -6 Q 7 -7 9 -7 L 17 -5 Q 19 0 17 5 L 9 7 Q 7 7 7 6 Z"
+            fill="url(#receptorGrad)" stroke="#4C1D95" stroke-width="1"/>
+      <path d="M 9 -5 Q 14 -5 16 -3 L 15 -1 Q 12 -2 9 -3 Z"
+            fill="url(#receptorGradTop)" opacity="0.7"/>
+    `;
+    // Mark the newest receptor(s) as "fresh" for a glow cue
+    const isNew = i >= prevCount;
+    if(isNew){
+      inner.classList.add('fresh');
+    } else {
+      inner.classList.add('pop');
+    }
+    inner.style.animationDelay = `${Math.min(i * 35, 700)}ms`;
+    wrapper.appendChild(inner);
+    grp.appendChild(wrapper);
+  });
+}
+
+function renderR1VocabAnchors(svg){
+  const ns = 'http://www.w3.org/2000/svg';
+  const g = document.createElementNS(ns,'g');
+  g.setAttribute('id','r1VocabAnchors');
+  g.setAttribute('opacity','0');
+  g.innerHTML = `
+    <!-- RECEPTOR pointer: from label down to the terminal receptor area -->
+    <path d="M 330 160 Q 380 170 420 200" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-dasharray="4 3"/>
+    <rect x="210" y="132" width="140" height="38" rx="8" fill="#8B5CF6" stroke="#6D28D9" stroke-width="1.5"/>
+    <text x="280" y="150" text-anchor="middle" fill="white" font-size="11" font-weight="700" letter-spacing="0.5">RECEPTORS</text>
+    <text x="280" y="163" text-anchor="middle" fill="white" font-size="9">locks on the brain cell</text>
+
+    <!-- DOPAMINE pointer: from label up to the synapse -->
+    <path d="M 450 280 Q 430 300 410 320" fill="none" stroke="#F59E0B" stroke-width="2" stroke-dasharray="4 3"/>
+    <rect x="380" y="320" width="150" height="38" rx="8" fill="#F59E0B" stroke="#B45309" stroke-width="1.5"/>
+    <text x="455" y="338" text-anchor="middle" fill="white" font-size="11" font-weight="700" letter-spacing="0.5">DOPAMINE</text>
+    <text x="455" y="351" text-anchor="middle" fill="white" font-size="9">the reward chemical</text>
+  `;
+  svg.appendChild(g);
+  safeTimeout(() => { g.style.transition = 'opacity 0.4s'; g.setAttribute('opacity','1'); }, 100);
+  safeTimeout(() => { g.setAttribute('opacity','0.3'); }, 2200);
+}
+
+function renderTimeStrip(svg){
+  const ns = 'http://www.w3.org/2000/svg';
+  const g = document.createElementNS(ns,'g');
+  g.setAttribute('id','timeStrip');
+  // Track background panel
+  let ticks = '';
+  for(let i=0;i<=10;i++){
+    const x = 80 + (i/10) * 420;
+    ticks += `<line x1="${x}" y1="428" x2="${x}" y2="${i%2===0?438:434}" stroke="#9CA3AF" stroke-width="1.3"/>`;
+  }
+  g.innerHTML = `
+    <rect x="70" y="415" width="440" height="32" rx="6" fill="white" stroke="#D1D5DB" stroke-width="1.3" opacity="0.9"/>
+    <!-- Elapsed zone (blue wash behind marker) -->
+    <rect id="elapsedZone" x="80" y="425" width="0" height="10" rx="3" fill="url(#synapseGrad)" opacity="0.55"/>
+    <!-- Track baseline -->
+    <line x1="80" y1="430" x2="500" y2="430" stroke="#9CA3AF" stroke-width="1.5"/>
+    ${ticks}
+    <!-- End labels -->
+    <text x="80" y="413" text-anchor="middle" fill="#1F2937" font-size="10" font-weight="700">Day 1</text>
+    <text x="290" y="413" text-anchor="middle" fill="#4B5563" font-size="10" font-weight="700" id="timeStripMid">Day 4</text>
+    <text x="500" y="413" text-anchor="middle" fill="#1F2937" font-size="10" font-weight="700" id="timeStripEnd">Day 7</text>
+    <!-- Current day marker (ring + dot) -->
+    <circle cx="80" cy="430" r="8" fill="none" stroke="#3B82F6" stroke-width="2" id="timeMarkerRing" class="day-marker-ring"/>
+    <circle cx="80" cy="430" r="4" fill="#3B82F6" id="timeMarker"/>
+  `;
+  svg.appendChild(g);
+}
+
+function renderSplitNeurons(svg){
+  const ns = 'http://www.w3.org/2000/svg';
+
+  // Divider band
+  const divider = document.createElementNS(ns,'g');
+  divider.innerHTML = `
+    <line x1="335" y1="80" x2="335" y2="370" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="4 4"/>
+    <circle cx="335" cy="225" r="18" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+    <text x="335" y="230" text-anchor="middle" fill="#6B7280" font-size="12" font-weight="700">VS</text>
+  `;
+  svg.appendChild(divider);
+
+  // ===== TEEN (LEFT) =====
+  const teen = document.createElementNS(ns,'g');
+  teen.setAttribute('id','teenNeuron');
+  teen.innerHTML = `
+    <!-- External label panel -->
+    <rect x="100" y="70" width="140" height="28" rx="14" fill="#EF6C6C" stroke="#B91C1C" stroke-width="1.5"/>
+    <text x="170" y="89" text-anchor="middle" fill="white" font-size="13" font-weight="700" letter-spacing="1.5">TEEN BRAIN</text>
+    <!-- Dendrite branches on the left -->
+    <g opacity="0.7" fill="none" stroke="#E89A7A" stroke-width="2.2" stroke-linecap="round">
+      <path d="M 70 170 Q 110 180 145 195"/>
+      <path d="M 55 220 Q 100 225 140 225"/>
+      <path d="M 75 270 Q 115 255 145 250"/>
+    </g>
+    <!-- Shadow -->
+    <ellipse cx="172" cy="320" rx="108" ry="10" fill="#1F2937" opacity="0.10"/>
+    <!-- Cell body -->
+    <ellipse cx="170" cy="220" rx="108" ry="92" fill="url(#neuronGradTeen)" stroke="#B97A5E" stroke-width="2.5" class="neuron-body"/>
+    <!-- Sheen -->
+    <ellipse cx="140" cy="185" rx="45" ry="28" fill="white" opacity="0.35"/>
+    <!-- Nucleus -->
+    <circle cx="155" cy="218" r="24" fill="url(#nucleusGrad)" stroke="#C08060" stroke-width="1" opacity="0.7"/>
+    <!-- Axon hillock -->
+    <path d="M 275 210 Q 290 215 295 222 Q 290 230 275 233 Z" fill="url(#neuronGradTeen)" stroke="#B97A5E" stroke-width="1.5"/>
+    <!-- Receptor dock group -->
+    <g id="teenReceptorGroup"></g>
+    <!-- Footer caption -->
+    <text x="170" y="360" text-anchor="middle" fill="#1F2937" font-size="11" font-weight="700" letter-spacing="0.5">(still developing)</text>
+  `;
+  svg.appendChild(teen);
+
+  // ===== ADULT (RIGHT) =====
+  const adult = document.createElementNS(ns,'g');
+  adult.setAttribute('id','adultNeuron');
+  adult.innerHTML = `
+    <rect x="430" y="70" width="140" height="28" rx="14" fill="#6B7280" stroke="#374151" stroke-width="1.5"/>
+    <text x="500" y="89" text-anchor="middle" fill="white" font-size="13" font-weight="700" letter-spacing="1.5">ADULT BRAIN</text>
+    <g opacity="0.7" fill="none" stroke="#9B85C1" stroke-width="2.2" stroke-linecap="round">
+      <path d="M 400 170 Q 440 180 475 195"/>
+      <path d="M 385 220 Q 430 225 470 225"/>
+      <path d="M 405 270 Q 445 255 475 250"/>
+    </g>
+    <ellipse cx="502" cy="320" rx="108" ry="10" fill="#1F2937" opacity="0.10"/>
+    <ellipse cx="500" cy="220" rx="108" ry="92" fill="url(#neuronGradAdult)" stroke="#9B85C1" stroke-width="2.5" class="neuron-body"/>
+    <ellipse cx="470" cy="185" rx="45" ry="28" fill="white" opacity="0.35"/>
+    <circle cx="485" cy="218" r="24" fill="url(#nucleusGrad)" stroke="#C08060" stroke-width="1" opacity="0.55"/>
+    <path d="M 605 210 Q 620 215 625 222 Q 620 230 605 233 Z" fill="url(#neuronGradAdult)" stroke="#9B85C1" stroke-width="1.5"/>
+    <g id="adultReceptorGroup"></g>
+    <text x="500" y="360" text-anchor="middle" fill="#1F2937" font-size="11" font-weight="700" letter-spacing="0.5">(fully mature)</text>
+  `;
+  svg.appendChild(adult);
+}
+
+function drawSplitReceptors(teenCount, adultCount){
+  const ns = 'http://www.w3.org/2000/svg';
+  const teenG = $('arenaSvg').querySelector('#teenReceptorGroup');
+  const adultG = $('arenaSvg').querySelector('#adultReceptorGroup');
+  if(!teenG || !adultG) return;
+  const prevTeen = teenG.querySelectorAll('.receptor-dock').length;
+  const prevAdult = adultG.querySelectorAll('.receptor-dock').length;
+  teenG.innerHTML = ''; adultG.innerHTML = '';
+
+  // Place receptors along the right terminal membrane of each cell
+  function makePositions(cx, cy, rx, ry, n){
+    const arr = [];
+    const N = Math.min(n, 22);
+    for(let i=0;i<N;i++){
+      const t = i / Math.max(1, N-1);
+      const theta = -Math.PI*0.4 + t * Math.PI*0.8; // right-facing arc
+      const x = cx + Math.cos(theta)*rx*0.98;
+      const y = cy + Math.sin(theta)*ry*0.92;
+      arr.push({x, y, theta});
+    }
+    return arr;
+  }
+
+  function placeGroup(group, count, positions, prevCount){
+    positions.forEach((p, i) => {
+      // Outer positioning wrapper (SVG transform — not CSS-animated)
+      const wrapper = document.createElementNS(ns,'g');
+      const deg = (p.theta * 180 / Math.PI);
+      wrapper.setAttribute('transform',`translate(${p.x},${p.y}) rotate(${deg})`);
+      // Inner animated group (gets the CSS scale animation)
+      const inner = document.createElementNS(ns,'g');
+      inner.setAttribute('class','receptor-dock');
+      inner.innerHTML = `
+        <line x1="0" y1="0" x2="7" y2="0" stroke="#6D28D9" stroke-width="1.8"/>
+        <path d="M 6 -5 Q 6 -6 8 -6 L 15 -4 Q 17 0 15 4 L 8 6 Q 6 6 6 5 Z"
+              fill="url(#receptorGrad)" stroke="#4C1D95" stroke-width="1"/>
+        <path d="M 8 -4 Q 12 -4 14 -2 L 13 -1 Q 10 -2 8 -2 Z" fill="url(#receptorGradTop)" opacity="0.7"/>
+      `;
+      if(i >= prevCount){ inner.classList.add('fresh'); } else { inner.classList.add('pop'); }
+      inner.style.animationDelay = `${Math.min(i * 40, 700)}ms`;
+      wrapper.appendChild(inner);
+      group.appendChild(wrapper);
+    });
+  }
+
+  placeGroup(teenG, teenCount, makePositions(170, 220, 108, 92, teenCount), prevTeen);
+  placeGroup(adultG, adultCount, makePositions(500, 220, 108, 92, adultCount), prevAdult);
+}
+
+function renderBodyMap(svg){
+  const ns = 'http://www.w3.org/2000/svg';
+  const g = document.createElementNS(ns,'g');
+  g.setAttribute('id','bodyMap');
+  g.setAttribute('transform','translate(560,290)');
+  // Wider, anatomical figure with curved path for torso+head
+  g.innerHTML = `
+    <!-- Frame panel -->
+    <rect x="-8" y="-8" width="120" height="170" rx="12" fill="white" stroke="#D1D5DB" stroke-width="1.5"/>
+    <rect x="-8" y="-8" width="120" height="20" rx="12" fill="#EF4444" opacity="0.08"/>
+    <text x="52" y="5" text-anchor="middle" fill="#991B1B" font-size="10" font-weight="700" letter-spacing="1">ADAM · body map</text>
+    <!-- Shadow under figure -->
+    <ellipse cx="52" cy="152" rx="28" ry="4" fill="#1F2937" opacity="0.15"/>
+    <!-- Head -->
+    <circle cx="52" cy="32" r="13" fill="url(#skinGrad)" stroke="#D08865" stroke-width="1.5" id="bmHead"/>
+    <!-- Neck -->
+    <rect x="48" y="42" width="8" height="6" fill="url(#skinGrad)" stroke="#D08865" stroke-width="1"/>
+    <!-- Torso (trapezoidal shoulders to waist) -->
+    <path d="M 34 50 Q 52 46 70 50 L 68 95 Q 52 98 36 95 Z"
+          fill="url(#skinGrad)" stroke="#D08865" stroke-width="1.5" id="bmChest"/>
+    <!-- Arms -->
+    <path d="M 34 52 Q 22 55 20 75 Q 21 90 26 102 L 32 100 Q 29 88 30 76 Q 32 62 38 57 Z"
+          fill="url(#skinGrad)" stroke="#D08865" stroke-width="1.3" id="bmLArm"/>
+    <path d="M 70 52 Q 82 55 84 75 Q 83 90 78 102 L 72 100 Q 75 88 74 76 Q 72 62 66 57 Z"
+          fill="url(#skinGrad)" stroke="#D08865" stroke-width="1.3" id="bmRArm"/>
+    <!-- Lower body / pelvis -->
+    <path d="M 36 95 Q 52 99 68 95 L 66 106 Q 52 110 38 106 Z"
+          fill="url(#skinGrad)" stroke="#D08865" stroke-width="1.3"/>
+    <!-- Legs -->
+    <path d="M 38 106 L 42 108 Q 45 130 43 148 L 36 148 Q 34 128 36 108 Z"
+          fill="url(#skinGrad)" stroke="#D08865" stroke-width="1.3"/>
+    <path d="M 62 108 L 66 106 Q 68 128 66 148 L 60 148 Q 58 130 60 108 Z"
+          fill="url(#skinGrad)" stroke="#D08865" stroke-width="1.3"/>
+    <!-- Intensity legend -->
+    <g transform="translate(0, 158)">
+      <rect x="-8" y="-2" width="120" height="6" rx="3" fill="#FEE2E2"/>
+      <text x="52" y="3" text-anchor="middle" fill="#991B1B" font-size="7" font-weight="700">withdrawal intensity</text>
+    </g>
+    <g id="withdrawalDots"></g>
+  `;
+  svg.appendChild(g);
+}
+
+function addWithdrawalDots(intensity){
+  // intensity 0-10 (number of dots to show)
+  const g = $('arenaSvg').querySelector('#withdrawalDots');
+  if(!g) return;
+  g.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  // Anatomically-placed hot zones matching the new body silhouette
+  const dotPositions = [
+    {x:52,y:32,r:2.5,zone:'head'},   // head
+    {x:46,y:28,r:2,zone:'head'},
+    {x:58,y:30,r:2,zone:'head'},
+    {x:44,y:60,r:2.8,zone:'chest'},  // chest / torso
+    {x:60,y:62,r:2.8,zone:'chest'},
+    {x:52,y:74,r:2.5,zone:'chest'},
+    {x:40,y:82,r:2,zone:'chest'},
+    {x:64,y:80,r:2,zone:'chest'},
+    {x:26,y:78,r:2,zone:'arm'},      // arms
+    {x:78,y:78,r:2,zone:'arm'},
+  ];
+  const count = Math.min(Math.max(0, Math.round(intensity)), dotPositions.length);
+  for(let i=0;i<count;i++){
+    const p = dotPositions[i];
+    const c = document.createElementNS(ns,'circle');
+    c.setAttribute('cx', p.x);
+    c.setAttribute('cy', p.y);
+    c.setAttribute('r', p.r);
+    c.setAttribute('fill','#EF4444');
+    c.setAttribute('stroke','#991B1B');
+    c.setAttribute('stroke-width','0.5');
+    c.setAttribute('class','withdrawal-dot');
+    c.style.animationDelay = `${i * 85}ms`;
+    g.appendChild(c);
+  }
+}
+
+/* ==========================================================
+   FOCUS PROMPT
+   ========================================================== */
+function showFocusPrompt(text){
+  const banner = $('focusPromptBanner');
+  banner.textContent = text;
+  banner.classList.remove('subtle');
+  banner.style.display = 'block';
+  safeTimeout(() => {
+    banner.classList.add('subtle');
+  }, 3000);
+}
+
+/* ==========================================================
+   PHASE: CHANGE
+   ========================================================== */
+function renderChangePhase(r){
+  const iz = $('izContent');
+  iz.innerHTML = '';
+
+  // Guide tip (rounds 1-2 only — rich guidance)
+  if(r.num <= 2 && r.guideTip){
+    const tip = document.createElement('div');
+    tip.className = 'guide-tip';
+    tip.textContent = r.guideTip;
+    iz.appendChild(tip);
+  } else if (r.guideTip){
+    const tip = document.createElement('div');
+    tip.className = 'guide-tip';
+    tip.textContent = r.guideTip;
+    iz.appendChild(tip);
+  }
+
+  const prompt = document.createElement('div');
+  prompt.className = 'iz-prompt';
+  let msg = 'Adjust the variable to set up your experiment, then press RUN.';
+  if(r.num === 1) msg = 'Start at Low, then try Medium. Each press of RUN plays the next step.';
+  else if(r.num === 2) msg = 'Tap "Daily" to see what 7 days of use looks like. Then press RUN.';
+  else if(r.num === 3) msg = 'Dose and Frequency stay locked. Extend the observation window to 30 days.';
+  else if(r.num === 4) msg = 'Keep Teen brain selected (or pick Adult) to compare. Press RUN.';
+  else if(r.num === 5) msg = 'Turn BOTH dose and frequency up high. Then press RUN.';
+  else if(r.num === 6) msg = 'Your choice — set all three to see the full effect.';
+  prompt.textContent = msg;
+  iz.appendChild(prompt);
+
+  // Check: has the student changed a variable from initial?
+  // We don't gate RUN here; we redirect softly if they press without changing.
+}
+
+/* ==========================================================
+   VARIABLE CONTROL CLICK HANDLING
+   ========================================================== */
+document.querySelectorAll('.seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if(btn.closest('.locked')) return;
+    const v = btn.dataset.var;
+    const val = btn.dataset.val;
+    GS.vars[v] = val;
+    applyVarUI();
+    // Remove suggestion glow once they tap
+    btn.classList.remove('suggest');
+  });
+});
+
+/* ==========================================================
+   RUN BUTTON
+   ========================================================== */
+$('runBtn').addEventListener('click', () => {
+  if(GS.currentPhase !== 'change' && GS.currentPhase !== 'predict_done') return;
+  if(GS.processing) return;
+
+  const r = ROUND_DATA[GS.currentRound];
+
+  // Check if student hasn't changed unlocked variable from initial
+  let changed = false;
+  for(const v of r.unlockedVars){
+    if(GS.vars[v] !== r.initialVars[v]) { changed = true; break; }
+  }
+  // R1 special: the "change" is stepping to Medium or pressing through the guided Low->Medium — always allow
+  if(r.num === 1) changed = true;
+  // R6: student's choice — any setting is valid
+  if(r.num === 6) changed = true;
+
+  if(!changed){
+    // Soft redirect: pulse the unlocked control
+    const varToGroup = { dose:'doseGroup', freq:'freqGroup', age:'ageGroup', dur:'durationGroup' };
+    const first = r.unlockedVars[0];
+    const gid = varToGroup[first];
+    if(gid){
+      const g = $(gid);
+      g.classList.add('glow');
+      safeTimeout(()=> g.classList.remove('glow'), 2500);
+    }
+    showCoaching('Try moving this one first so we can see what happens.', 'hint1');
+    return;
+  }
+
+  // If this round has PREDICT and we haven't shown it yet → show PREDICT
+  if(r.hasPredict && GS.currentPhase === 'change'){
+    renderPredictPhase(r);
+    return;
+  }
+
+  // Else → WATCH
+  startWatchPhase(r);
+});
+
+/* ==========================================================
+   PHASE: PREDICT (R4, R5)
+   ========================================================== */
+function renderPredictPhase(r){
+  setPhase('predict');
+  closeAllOverlays();
+  const iz = $('izContent');
+  iz.innerHTML = '';
+  const prompt = document.createElement('div');
+  prompt.className = 'iz-prompt';
+  prompt.textContent = r.predictPrompt;
+  iz.appendChild(prompt);
+  const wrap = document.createElement('div');
+  wrap.className = 'predict-wrap';
+  r.predictOptions.forEach(opt => {
+    const card = document.createElement('div');
+    card.className = 'predict-card';
+    card.dataset.opt = opt.id;
+    card.innerHTML = `<span class="ab">${opt.id}</span><span>${escHtml(opt.text)}</span>`;
+    card.addEventListener('click', () => {
+      if(GS.processing) return;
+      document.querySelectorAll('.predict-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      GS.predictChoice = opt.id;
+      // After selection, prompt RUN
+      setPhase('predict_done');
+      // Show a small "Press RUN" prompt
+      const existingHint = iz.querySelector('.iz-sub');
+      if(!existingHint){
+        const sub = document.createElement('div');
+        sub.className = 'iz-sub';
+        sub.textContent = 'Prediction locked in. Press RUN to see what actually happens.';
+        sub.style.marginTop = '10px';
+        iz.appendChild(sub);
+      }
+    });
+    wrap.appendChild(card);
+  });
+  iz.appendChild(wrap);
+}
+
+/* ==========================================================
+   PHASE: WATCH — animations per round
+   ========================================================== */
+function startWatchPhase(r){
+  setPhase('watch');
+  closeAllOverlays();
+  const iz = $('izContent');
+  iz.innerHTML = '';
+  const prompt = document.createElement('div');
+  prompt.className = 'iz-prompt';
+  prompt.textContent = 'Watch the arena. The data will record automatically.';
+  iz.appendChild(prompt);
+
+  // Execute animation based on sequence
+  runWatchSequence(r);
+
+  // Safety timeout: auto-advance even if animation stalls
+  safeTimeout(() => {
+    if(GS.currentPhase === 'watch'){
+      startRecordPhase(r);
+    }
+  }, r.watchDuration + 1500);
+}
+
+function runWatchSequence(r){
+  switch(r.watchSequence){
+    case 'r1_dose_reveal': return runR1Watch(r);
+    case 'r2_daily_ramp': return runR2Watch(r);
+    case 'r3_extrapolate': return runR3Watch(r);
+    case 'r4_teen_vs_adult': return runR4Watch(r);
+    case 'r5_combo_withdrawal': return runR5Watch(r);
+    case 'r6_full_combo': return runR6Watch(r);
+    default:
+      // Fallback — just wait out the duration
+      safeTimeout(() => startRecordPhase(r), r.watchDuration);
+  }
+}
+
+// ---- R1: Low dose reveal (0→15), Medium dose reveal (15→45), hold with progress line ----
+function runR1Watch(r){
+  // Phase 1: vocab anchor — already rendered in renderArena for R1 (fades out by 1.8s)
+  // Phase 2 (1.5s – 3s): Low dose — nicotine arrives, ~15% receptors bind
+  safeTimeout(() => {
+    streamNicotine(6, 1500); // 6 particles over 1.5s
+    animateCountUp('roReceptorVal', 0, 15, 1200);
+    drawReceptors(15, false); // 15% bound
+    spawnDopamine(3);
+  }, 1500);
+
+  // Phase 3 (3s – 4.5s): Medium dose — stream thickens, climb to 45%
+  safeTimeout(() => {
+    streamNicotine(10, 1500);
+    animateCountUp('roReceptorVal', 15, 45, 1200);
+    drawReceptors(45, false);
+    spawnDopamine(5);
+  }, 3000);
+
+  // Phase 4 (4.5s – 6s): Hold with mini progress line
+  safeTimeout(() => {
+    showMiniProgress('Low: 15 → Medium: 45');
+  }, 4500);
+
+  // Advance to RECORD
+  safeTimeout(() => startRecordPhase(r), 6000);
+}
+
+// ---- R2: Daily ramp — day ticks, receptor count climbs ----
+function runR2Watch(r){
+  const days = [1,3,5,7];
+  const counts = [10,15,18,21];
+  let step = 0;
+  // Set TOLERANCE meter (starts empty)
+  $('tolBarFill').className = 'tol-bar-fill';
+  // Initial receptor draw
+  drawReceptors( (counts[0] / 22) * 100, false);
+  $('roReceptorVal').textContent = counts[0];
+  advanceTimeMarker(days[0]);
+
+  function nextDay(){
+    step++;
+    if(step >= days.length) return;
+    advanceTimeMarker(days[step]);
+    animateCountUp('roReceptorVal', counts[step-1], counts[step], 700);
+    drawReceptors( (counts[step] / 22) * 100, false );
+    streamNicotine(5, 800);
+    spawnDopamine(2);
+    // Update tolerance meter
+    const pct = counts[step] / 22;
+    if(pct >= 0.85) $('tolBarFill').className = 'tol-bar-fill max';
+    else if(pct >= 0.5) $('tolBarFill').className = 'tol-bar-fill med';
+    else if(pct > 0.2) $('tolBarFill').className = 'tol-bar-fill low';
+  }
+  safeTimeout(nextDay, 1500);
+  safeTimeout(nextDay, 3200);
+  safeTimeout(nextDay, 4900);
+  safeTimeout(() => startRecordPhase(r), 7000);
+}
+
+// ---- R3, R4, R5, R6: placeholder that just runs time & advances; Stage 2 will refine ----
+function runR3Watch(r){
+  // Draws graph across 30 days; count climbs 21 → 85
+  drawR3Graph();
+  $('roReceptorVal').textContent = '21';
+  safeTimeout(() => animateCountUp('roReceptorVal', 21, 40, 1200), 1000);
+  safeTimeout(() => animateCountUp('roReceptorVal', 40, 65, 1200), 2800);
+  safeTimeout(() => animateCountUp('roReceptorVal', 65, 85, 1200), 4600);
+  safeTimeout(() => drawReceptors(95, false), 5800);
+  // Tolerance meter climbs to max
+  safeTimeout(()=> $('tolBarFill').className = 'tol-bar-fill low', 1000);
+  safeTimeout(()=> $('tolBarFill').className = 'tol-bar-fill med', 2800);
+  safeTimeout(()=> $('tolBarFill').className = 'tol-bar-fill high', 4600);
+  safeTimeout(()=> $('tolBarFill').className = 'tol-bar-fill max', 5800);
+  safeTimeout(() => startRecordPhase(r), 7000);
+}
+
+function runR4Watch(r){
+  // Teen alone (0-3s): receptors grow to 21
+  $('roReceptorVal').textContent = '0';
+  animateCountUp('roReceptorVal', 0, 21, 2500);
+  // Fade adult to 20%
+  const adult = $('arenaSvg').querySelector('#adultNeuron');
+  if(adult){ adult.style.transition = 'opacity 0.3s'; adult.style.opacity = '0.2'; }
+  drawSplitReceptors(21, 0);
+  safeTimeout(()=> $('tolBarFill').className = 'tol-bar-fill high', 2000);
+
+  // Swap to adult (3s-6s)
+  safeTimeout(() => {
+    if(adult){ adult.style.opacity = '1'; }
+    const teen = $('arenaSvg').querySelector('#teenNeuron');
+    if(teen){ teen.style.transition = 'opacity 0.3s'; teen.style.opacity = '0.2'; }
+    const readout = $('roReceptor');
+    const label = readout.querySelector('.label');
+    if(label) label.textContent = 'Adult TOL';
+    animateCountUp('roReceptorVal', 0, 12, 2500);
+    drawSplitReceptors(21, 12);
+    $('tolBarFill').className = 'tol-bar-fill low';
+  }, 3000);
+
+  // Side by side hold (6s-7s)
+  safeTimeout(() => {
+    const teen = $('arenaSvg').querySelector('#teenNeuron');
+    if(teen){ teen.style.opacity = '1'; }
+    const label = $('roReceptor').querySelector('.label');
+    if(label) label.textContent = 'Receptors';
+    $('roReceptorVal').textContent = '21 vs 12';
+    $('tolBarFill').className = 'tol-bar-fill high';
+  }, 6000);
+
+  safeTimeout(() => startRecordPhase(r), 7000);
+}
+
+function runR5Watch(r){
+  // Heavy flood → receptors multiply → synapse fills → drug stops → synapse empties → body map lights red
+  streamNicotine(12, 2000);
+  drawReceptors(80, false);
+  spawnDopamine(8);
+  safeTimeout(()=> $('tolBarFill').className = 'tol-bar-fill max', 1500);
+  // Drug stops
+  safeTimeout(() => {
+    clearNicotine();
+    clearDopamine();
+    animateCountUp('roWithdrawalVal', 0, 8, 2500);
+    addWithdrawalDots(8);
+  }, 4500);
+  safeTimeout(() => startRecordPhase(r), 8000);
+}
+
+function runR6Watch(r){
+  // Full cascade based on student choices
+  const heavy = (GS.vars.dose === 'High' && GS.vars.freq === 'Hourly' && GS.vars.age === 'Teen');
+  const medium = (GS.vars.dose === 'Medium' || GS.vars.freq === 'Daily');
+  streamNicotine(heavy ? 14 : 8, 2000);
+  drawReceptors(heavy ? 95 : 60, false);
+  spawnDopamine(heavy ? 10 : 5);
+  safeTimeout(()=> $('tolBarFill').className = heavy ? 'tol-bar-fill max' : 'tol-bar-fill high', 1500);
+  safeTimeout(() => {
+    clearNicotine();
+    clearDopamine();
+    const wd = heavy ? 10 : (medium ? 6 : 3);
+    animateCountUp('roWithdrawalVal', 0, wd, 2500);
+    addWithdrawalDots(wd);
+  }, 4500);
+  safeTimeout(() => startRecordPhase(r), 8000);
+}
+
+// ---- Animation helpers ----
+function animateCountUp(elId, from, to, dur){
+  const el = $(elId); if(!el) return;
+  const steps = 20;
+  const delta = (to - from) / steps;
+  let i = 0;
+  const gen = GS.arenaGen;
+  const timer = setInterval(() => {
+    if(GS.arenaGen !== gen){ clearInterval(timer); return; }
+    i++;
+    if(i >= steps){
+      clearInterval(timer);
+      el.textContent = Math.round(to);
+      return;
+    }
+    el.textContent = Math.round(from + delta * i);
+  }, dur / steps);
+  GS.intervalIds.push(timer);
+}
+
+function streamNicotine(count, dur){
+  const ns = 'http://www.w3.org/2000/svg';
+  const g = $('arenaSvg').querySelector('#nicotineGroup');
+  if(!g) return;
+  // cap particles
+  count = Math.min(count, 14);
+  for(let i=0;i<count;i++){
+    safeTimeout(() => {
+      const startX = 150 + Math.random()*200;
+      const startY = 60 + Math.random()*15;
+      const fallDist = 180 + Math.random()*70;
+      // Outer positioning group (SVG transform attribute — not animated)
+      const wrapper = document.createElementNS(ns,'g');
+      wrapper.setAttribute('transform',`translate(${startX},${startY})`);
+      // Inner group does the CSS fall animation (so outer translate survives)
+      const mol = document.createElementNS(ns,'g');
+      mol.setAttribute('class','nicotine-mol');
+      mol.style.setProperty('--fall-dist', fallDist + 'px');
+      mol.innerHTML = `
+        <polygon points="5.5,0 2.75,4.76 -2.75,4.76 -5.5,0 -2.75,-4.76 2.75,-4.76"
+                 fill="url(#nicotineGrad)" stroke="#1E40AF" stroke-width="0.8"/>
+        <circle cx="0" cy="0" r="1.8" fill="#DBEAFE" opacity="0.9"/>
+        <circle cx="-1.5" cy="-1.5" r="0.8" fill="white" opacity="0.8"/>
+      `;
+      wrapper.appendChild(mol);
+      g.appendChild(wrapper);
+      // Remove after animation completes (1.7s + small buffer)
+      safeTimeout(() => { if(wrapper.parentNode) wrapper.remove(); }, 1900);
+    }, (i/count) * dur);
+  }
+}
+function clearNicotine(){
+  const g = $('arenaSvg').querySelector('#nicotineGroup');
+  if(g) g.innerHTML = '';
+}
+
+function spawnDopamine(count){
+  const ns = 'http://www.w3.org/2000/svg';
+  const g = $('arenaSvg').querySelector('#dopamineGroup');
+  if(!g) return;
+  count = Math.min(count, 12);
+  for(let i=0;i<count;i++){
+    safeTimeout(() => {
+      const cx = 428 + Math.random()*42;
+      const cy = 150 + Math.random()*160;
+      // Outer positioning group
+      const wrapper = document.createElementNS(ns,'g');
+      wrapper.setAttribute('transform',`translate(${cx},${cy})`);
+      // Inner animated group
+      const cluster = document.createElementNS(ns,'g');
+      cluster.setAttribute('class','dopamine-cluster pulsing');
+      cluster.style.animationDelay = `${i * 50}ms`;
+      cluster.innerHTML = `
+        <circle cx="0" cy="0" r="4.5" fill="url(#dopamineGrad)" stroke="#92400E" stroke-width="0.8"/>
+        <circle cx="4" cy="-3" r="2" fill="url(#dopamineGrad)" stroke="#92400E" stroke-width="0.6" opacity="0.9"/>
+        <circle cx="-3.5" cy="3.2" r="1.8" fill="url(#dopamineGrad)" stroke="#92400E" stroke-width="0.6" opacity="0.85"/>
+        <circle cx="-1" cy="-1" r="1" fill="#FEF3C7" opacity="0.9"/>
+      `;
+      wrapper.appendChild(cluster);
+      g.appendChild(wrapper);
+    }, i * 110);
+  }
+}
+function clearDopamine(){
+  const g = $('arenaSvg').querySelector('#dopamineGroup');
+  if(!g) return;
+  Array.from(g.children).forEach((c,i) => {
+    safeTimeout(()=>{
+      c.style.transition='opacity 0.4s';
+      c.style.opacity='0';
+      safeTimeout(()=> { if(c.parentNode) c.remove(); }, 450);
+    }, i*40);
+  });
+}
+
+function advanceTimeMarker(day){
+  const marker = $('arenaSvg').querySelector('#timeMarker');
+  const ring = $('arenaSvg').querySelector('#timeMarkerRing');
+  const elapsed = $('arenaSvg').querySelector('#elapsedZone');
+  if(!marker) return;
+  // days 1..30 mapped to x 80..500
+  const x = 80 + ((day - 1) / 29) * 420;
+  marker.style.transition = 'cx 0.6s ease-out';
+  marker.setAttribute('cx', x);
+  if(ring){
+    ring.style.transition = 'cx 0.6s ease-out';
+    ring.setAttribute('cx', x);
+  }
+  if(elapsed){
+    elapsed.style.transition = 'width 0.6s ease-out';
+    elapsed.setAttribute('width', Math.max(0, x - 80));
+  }
+  const midT = $('arenaSvg').querySelector('#timeStripMid');
+  if(midT) midT.textContent = 'Day ' + Math.round(day * 0.5 + 0.5);
+}
+
+function drawR3Graph(){
+  const ns = 'http://www.w3.org/2000/svg';
+  const g = $('arenaSvg').querySelector('#graphOverlay');
+  if(!g) return;
+  g.innerHTML = '';
+  // Larger graph: 240 wide x 140 tall, positioned top-left
+  // Plot area: x 45..225 (180px), y 108..22 (86px)
+  // Gridlines at receptor y-levels (0, 25, 50, 75, 100)
+  let gridLines = '';
+  [0, 25, 50, 75].forEach(v => {
+    const y = 108 - (v / 100) * 86;
+    gridLines += `<line x1="45" y1="${y}" x2="225" y2="${y}" stroke="#E5E7EB" stroke-width="0.8" stroke-dasharray="2 2"/>`;
+    gridLines += `<text x="40" y="${y+3}" text-anchor="end" fill="#9CA3AF" font-size="8">${v}</text>`;
+  });
+  let dayTicks = '';
+  [1,7,14,21,30].forEach(d => {
+    const x = 45 + ((d - 1) / 29) * 180;
+    dayTicks += `<line x1="${x}" y1="108" x2="${x}" y2="112" stroke="#9CA3AF" stroke-width="1"/>`;
+    dayTicks += `<text x="${x}" y="122" text-anchor="middle" fill="#6B7280" font-size="8" font-weight="600">D${d}</text>`;
+  });
+  g.innerHTML = `
+    <!-- Frame -->
+    <rect x="15" y="10" width="230" height="125" rx="6" fill="white" stroke="#9CA3AF" stroke-width="1.3"/>
+    <rect x="15" y="10" width="230" height="15" rx="6" fill="#3B82F6" opacity="0.08"/>
+    <text x="130" y="21" text-anchor="middle" fill="#1D4ED8" font-size="10" font-weight="700" letter-spacing="0.8">RECEPTORS vs DAYS</text>
+    <!-- Y-axis + X-axis -->
+    <line x1="45" y1="22" x2="45" y2="108" stroke="#6B7280" stroke-width="1.2"/>
+    <line x1="45" y1="108" x2="225" y2="108" stroke="#6B7280" stroke-width="1.2"/>
+    <!-- Grid + labels -->
+    ${gridLines}
+    ${dayTicks}
+    <!-- Area fill under the curve -->
+    <polygon id="r3area" fill="#3B82F6" opacity="0.15" points="" />
+    <!-- Line -->
+    <polyline id="r3line" fill="none" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="" />
+    <!-- Dots layer -->
+    <g id="r3dots"></g>
+  `;
+  const pts = [
+    {day:1, ct:10, t:200},
+    {day:7, ct:21, t:1000},
+    {day:14, ct:40, t:2500},
+    {day:21, ct:65, t:4000},
+    {day:30, ct:85, t:5500}
+  ];
+  function xy(p){
+    const x = 45 + ((p.day - 1) / 29) * 180;
+    const y = 108 - (p.ct / 100) * 86;
+    return {x, y};
+  }
+  let polyPts = '';
+  pts.forEach((p, i) => {
+    safeTimeout(() => {
+      const {x,y} = xy(p);
+      polyPts += `${x.toFixed(1)},${y.toFixed(1)} `;
+      const line = $('arenaSvg').querySelector('#r3line');
+      const area = $('arenaSvg').querySelector('#r3area');
+      if(line) line.setAttribute('points', polyPts);
+      if(area){
+        // Close the polygon down to the baseline
+        const firstPt = xy(pts[0]);
+        const lastX = x;
+        area.setAttribute('points',
+          `${firstPt.x},108 ${polyPts}${lastX},108`
+        );
+      }
+      const dots = $('arenaSvg').querySelector('#r3dots');
+      if(dots){
+        // White halo
+        const halo = document.createElementNS(ns,'circle');
+        halo.setAttribute('cx', x); halo.setAttribute('cy', y); halo.setAttribute('r', 5);
+        halo.setAttribute('fill', 'white'); halo.setAttribute('stroke', '#3B82F6'); halo.setAttribute('stroke-width', '1.2');
+        dots.appendChild(halo);
+        // Inner dot
+        const c = document.createElementNS(ns,'circle');
+        c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 2.8);
+        c.setAttribute('fill', '#1D4ED8');
+        dots.appendChild(c);
+        // Value label above
+        const lbl = document.createElementNS(ns,'text');
+        lbl.setAttribute('x', x); lbl.setAttribute('y', y - 9);
+        lbl.setAttribute('text-anchor','middle');
+        lbl.setAttribute('fill', '#1F2937');
+        lbl.setAttribute('font-size','9');
+        lbl.setAttribute('font-weight','700');
+        lbl.textContent = p.ct;
+        dots.appendChild(lbl);
+      }
+    }, p.t);
+  });
+}
+
+function showMiniProgress(text){
+  let existing = $('arena').querySelector('.mini-progress');
+  if(existing) existing.remove();
+  const div = document.createElement('div');
+  div.className = 'mini-progress';
+  div.textContent = text;
+  $('arenaContent').appendChild(div);
+}
+
+/* ==========================================================
+   PHASE: RECORD
+   ========================================================== */
+function startRecordPhase(r){
+  setPhase('record');
+  closeAllOverlays();
+  const iz = $('izContent');
+  iz.innerHTML = '';
+
+  // Build the data row into the table first (with the value being verified)
+  addDataTableRow(r);
+
+  const prompt = document.createElement('div');
+  prompt.className = 'iz-prompt';
+  prompt.textContent = r.recordVerifyPrompt || 'Check the data table — does it match what you saw?';
+  iz.appendChild(prompt);
+
+  // Preview the row inline (focus)
+  const preview = document.createElement('div');
+  preview.className = 'record-row-preview';
+  const cols = buildRecordCols(r);
+  preview.textContent = cols.map(c => `${c.label}: ${c.value}`).join('   |   ');
+  iz.appendChild(preview);
+
+  if(r.recordMode === 'trend'){
+    // Single "THAT MATCHES" button
+    const btn = document.createElement('button');
+    btn.className = 'verify-btn ok';
+    btn.style.display = 'block';
+    btn.style.margin = '6px auto';
+    btn.textContent = '✓ THAT MATCHES';
+    btn.addEventListener('click', () => {
+      if(GS.processing) return;
+      // Lock in row, advance to PROVE
+      finalizeDataRow(r, true);
+      startProvePhase(r);
+    });
+    iz.appendChild(btn);
+  } else if(r.recordMode === 'verify'){
+    // LOOKS RIGHT / FIX IT
+    const row = document.createElement('div');
+    row.className = 'verify-btns';
+    const okBtn = document.createElement('button');
+    okBtn.className = 'verify-btn ok';
+    okBtn.textContent = '✓ LOOKS RIGHT';
+    okBtn.addEventListener('click', () => {
+      if(GS.processing) return;
+      // Student approved the wrong value — brief coaching, then let them try fix-it
+      showCoaching(`Check the [${buildRecordCols(r)[r.recordCellIndex].label}] cell again — does that number match what you saw?`, 'hint1');
+      // After a beat, reveal FIX IT picker
+      safeTimeout(() => openFixItPicker(r), 1200);
+    });
+    const fixBtn = document.createElement('button');
+    fixBtn.className = 'verify-btn fix';
+    fixBtn.textContent = '✗ FIX IT';
+    fixBtn.addEventListener('click', () => {
+      if(GS.processing) return;
+      openFixItPicker(r);
+    });
+    row.appendChild(okBtn);
+    row.appendChild(fixBtn);
+    iz.appendChild(row);
+  }
+}
+
+function openFixItPicker(r){
+  const iz = $('izContent');
+  // Remove any existing fix picker
+  const existing = iz.querySelector('.fix-picker');
+  if(existing) existing.remove();
+  const pickerWrap = document.createElement('div');
+  pickerWrap.className = 'fix-picker';
+  pickerWrap.innerHTML = `<div style="width:100%; text-align:center; font-size:13px; color:var(--text-mid); margin-bottom:4px;">Pick the correct value:</div>`;
+  r.recordPickerOpts.forEach(opt => {
+    const b = document.createElement('button');
+    b.className = 'fix-option';
+    b.textContent = opt;
+    b.addEventListener('click', () => {
+      if(GS.processing) return;
+      if(opt === r.recordCorrectValue){
+        // Correct fix
+        finalizeDataRow(r, false);
+        pickerWrap.remove();
+        // Brief positive feedback
+        showArenaBanner('DATA CORRECTED');
+        safeTimeout(() => startProvePhase(r), 1200);
+      } else {
+        showCoaching('Look at the readout panel on the right — what number does it show right now?', 'hint1');
+      }
+    });
+    pickerWrap.appendChild(b);
+  });
+  iz.appendChild(pickerWrap);
+}
+
+function buildRecordCols(r){
+  // Resolve any dynamic values
+  const cols = r.recordRowBuild({vars: GS.vars});
+  // If verify mode, substitute the wrong value into the right cell
+  if(r.recordMode === 'verify' && r.recordCellIndex != null){
+    // The row has a placeholder like 'D1→D7 | 10 → [val]'; we inject wrong value
+    const targetCol = cols[r.recordCellIndex];
+    if(targetCol && typeof targetCol.value === 'string' && targetCol.value.indexOf('[val]') !== -1){
+      // not yet finalized — replace [val] with wrong
+      targetCol.value = targetCol.value.replace('[val]', r.recordWrongValue);
+    }
+  }
+  return cols;
+}
+
+function addDataTableRow(r){
+  const tbody = $('dataTableBody');
+  const cols = buildRecordCols(r);
+  // Remove existing current row if any
+  const existingCurrent = tbody.querySelector('tr.current');
+  if(existingCurrent) existingCurrent.remove();
+  const tr = document.createElement('tr');
+  tr.className = 'current';
+  tr.innerHTML = `
+    <td>${escHtml(cols[0].value)}</td>
+    <td>${escHtml(cols[1].value)}</td>
+    <td class="data-cell${r.recordMode==='verify'?' wrong-val':''}">${escHtml(cols[2].value)}</td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelectorAll('.data-cell').forEach(c => c.classList.add('filling'));
+}
+
+function finalizeDataRow(r, wasAutoConfirm){
+  const tbody = $('dataTableBody');
+  const tr = tbody.querySelector('tr.current');
+  if(!tr) return;
+  tr.classList.remove('current');
+  tr.classList.add('filled');
+  // Fix wrong cell display if fix-it flow was used
+  if(r.recordMode === 'verify' && !wasAutoConfirm){
+    const cell = tr.children[2];
+    if(cell){
+      cell.classList.remove('wrong-val');
+      // Replace the text's wrong value segment with the correct one
+      cell.textContent = cell.textContent.replace(r.recordWrongValue, r.recordCorrectValue);
+    }
+  } else if(r.recordMode === 'verify' && wasAutoConfirm){
+    // Student tapped LOOKS RIGHT on wrong data — still fix it silently for data integrity when they move on
+    const cell = tr.children[2];
+    if(cell){ cell.classList.remove('wrong-val'); }
+  }
+}
+
+/* ==========================================================
+   PHASE: PROVE (mechanic dispatcher)
+   ========================================================== */
+function startProvePhase(r){
+  setPhase('prove');
+  closeAllOverlays();
+  GS.phaseStartTime = Date.now();
+  window._doSelectedId = null;
+  switch(r.proveType){
+    case 'pick-match': return renderPickMatch(r);
+    case 'coach-click': return renderCoachClick(r);
+    case 'what-next': return renderWhatNext(r);
+    case 'hotspot': return renderHotspot(r);
+    case 'claim-builder': return renderClaimBuilder(r);
+  }
+}
+
+/* ==========================================================
+   MECHANIC: Pick the Match
+   ========================================================== */
+function renderPickMatch(r){
+  const iz = $('izContent');
+  iz.innerHTML = '';
+  const q = document.createElement('div'); q.className = 'iz-prompt'; q.textContent = r.proveQuestion;
+  iz.appendChild(q);
+
+  const grid = document.createElement('div');
+  grid.className = 'choice-grid';
+  r.proveOptions.forEach(opt => {
+    const card = document.createElement('div');
+    card.className = 'choice-card';
+    card.dataset.id = opt.id;
+    card.innerHTML = `<strong>${opt.id}.</strong> ${escHtml(opt.text)}`;
+    // R1 only: subtly highlight correct option
+    if(r.guidedHighlight && opt.id === r.correctAnswer){
+      const glow = document.createElement('span');
+      glow.className = 'hint-glow';
+      card.appendChild(glow);
+    }
+    card.addEventListener('click', () => {
+      if(GS.processing) return;
+      if(card.classList.contains('disabled') || card.classList.contains('locked') ||
+         card.classList.contains('correct') || card.classList.contains('dimmed')) return;
+      document.querySelectorAll('.choice-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      window._doSelectedId = opt.id;
+      $('lockInBtn').disabled = false;
+    });
+    grid.appendChild(card);
+  });
+  iz.appendChild(grid);
+
+  // Lock In button — use iz.appendChild directly (NOT querySelector('#izContent').appendChild)
+  const lockBtn = document.createElement('button');
+  lockBtn.id = 'lockInBtn';
+  lockBtn.className = 'lockin-btn';
+  lockBtn.textContent = 'LOCK IN';
+  lockBtn.disabled = true;
+  lockBtn.addEventListener('click', () => submitProve(r));
+  iz.appendChild(lockBtn);
+}
+
+/* ==========================================================
+   MECHANIC: Coach-Click
+   (Same submit as pick-match, but with arena highlight)
+   ========================================================== */
+function renderCoachClick(r){
+  // Highlight arena element to draw eye
+  if(r.coachClickHighlight === 'neuron'){
+    const neuron = $('arenaSvg').querySelector('#neuronBody');
+    if(neuron){ neuron.setAttribute('stroke','#F59E0B'); neuron.setAttribute('stroke-width','5'); }
+    const rg = $('arenaSvg').querySelector('#receptorGroup');
+    if(rg){ rg.classList.add('pulsing'); }
+  } else if(r.coachClickHighlight === 'body-map'){
+    const bm = $('arenaSvg').querySelector('#bodyMap');
+    if(bm){ bm.classList.add('pulsing'); }
+  }
+  renderPickMatch(r);
+}
+
+/* ==========================================================
+   MECHANIC: What Comes Next
+   ========================================================== */
+function renderWhatNext(r){
+  const iz = $('izContent');
+  iz.innerHTML = '';
+  // Sequence display
+  if(r.whatNextSequence){
+    const seq = document.createElement('div');
+    seq.style.cssText = 'display:flex; gap:8px; justify-content:center; margin-bottom:12px; flex-wrap:wrap;';
+    r.whatNextSequence.forEach(step => {
+      const chip = document.createElement('span');
+      chip.style.cssText = 'background:#EFF6FF; border:2px solid #3B82F6; border-radius:10px; padding:8px 14px; font-weight:700; font-size:14px; color:#1E40AF;';
+      chip.textContent = step;
+      seq.appendChild(chip);
+    });
+    iz.appendChild(seq);
+  }
+  const q = document.createElement('div'); q.className = 'iz-prompt'; q.textContent = r.proveQuestion;
+  iz.appendChild(q);
+  const grid = document.createElement('div');
+  grid.className = 'choice-grid';
+  r.proveOptions.forEach(opt => {
+    const card = document.createElement('div');
+    card.className = 'choice-card';
+    card.dataset.id = opt.id;
+    card.innerHTML = `<strong>${opt.id}.</strong> ${escHtml(opt.text)}`;
+    card.addEventListener('click', () => {
+      if(GS.processing) return;
+      if(card.classList.contains('disabled') || card.classList.contains('locked') ||
+         card.classList.contains('correct') || card.classList.contains('dimmed')) return;
+      document.querySelectorAll('.choice-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      window._doSelectedId = opt.id;
+      $('lockInBtn').disabled = false;
+    });
+    grid.appendChild(card);
+  });
+  iz.appendChild(grid);
+  const lockBtn = document.createElement('button');
+  lockBtn.id = 'lockInBtn';
+  lockBtn.className = 'lockin-btn';
+  lockBtn.textContent = 'LOCK IN';
+  lockBtn.disabled = true;
+  lockBtn.addEventListener('click', () => submitProve(r));
+  iz.appendChild(lockBtn);
+}
+
+/* ==========================================================
+   MECHANIC: Hotspot
+   (Student clicks on arena region OR on labeled choice cards)
+   ========================================================== */
+function renderHotspot(r){
+  const iz = $('izContent');
+  iz.innerHTML = '';
+  const q = document.createElement('div'); q.className = 'iz-prompt'; q.textContent = r.proveQuestion;
+  iz.appendChild(q);
+  const sub = document.createElement('div'); sub.className = 'iz-sub';
+  sub.textContent = 'Tap the region in the arena above that answers the question.';
+  iz.appendChild(sub);
+
+  // Add click-zones overlaying the arena
+  const overlayNS = 'http://www.w3.org/2000/svg';
+  const svg = $('arenaSvg');
+  const oldZones = svg.querySelectorAll('.hotspot-zone');
+  oldZones.forEach(z => z.remove());
+
+  // For R4, zones: teen neuron (B correct), adult neuron (A), synapse gap (C)
+  if(r.num === 4){
+    [
+      {id:'B', cx:170, cy:210, r:110, label:'Teen brain'},
+      {id:'A', cx:500, cy:210, r:110, label:'Adult brain'},
+      {id:'C', cx:335, cy:210, r:50, label:'Gap'}
+    ].forEach(zone => {
+      const c = document.createElementNS(overlayNS, 'circle');
+      c.setAttribute('cx', zone.cx); c.setAttribute('cy', zone.cy); c.setAttribute('r', zone.r);
+      c.setAttribute('fill', 'transparent');
+      c.setAttribute('stroke', 'rgba(59,130,246,0.3)');
+      c.setAttribute('stroke-width', '2');
+      c.setAttribute('stroke-dasharray', '6 4');
+      c.setAttribute('class', 'hotspot-zone');
+      c.style.cursor = 'pointer';
+      c.addEventListener('click', () => {
+        if(GS.processing) return;
+        window._doSelectedId = zone.id;
+        document.querySelectorAll('.hotspot-zone').forEach(z => z.setAttribute('stroke','rgba(59,130,246,0.3)'));
+        c.setAttribute('stroke', 'rgba(59,130,246,0.9)');
+        c.setAttribute('stroke-width', '4');
+        $('lockInBtn').disabled = false;
+      });
+      svg.appendChild(c);
+    });
+  }
+
+  const lockBtn = document.createElement('button');
+  lockBtn.id = 'lockInBtn';
+  lockBtn.className = 'lockin-btn';
+  lockBtn.textContent = 'LOCK IN';
+  lockBtn.disabled = true;
+  lockBtn.addEventListener('click', () => submitProve(r));
+  iz.appendChild(lockBtn);
+}
+
+/* ==========================================================
+   MECHANIC: Claim Builder
+   (Evidence panel + tap a claim)
+   ========================================================== */
+function renderClaimBuilder(r){
+  const iz = $('izContent');
+  iz.innerHTML = '';
+  const q = document.createElement('div'); q.className = 'iz-prompt'; q.textContent = r.proveQuestion;
+  iz.appendChild(q);
+
+  // Evidence tags
+  if(r.claimEvidence){
+    const evWrap = document.createElement('div');
+    evWrap.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:14px;';
+    r.claimEvidence.forEach((tag, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'evidence-tag';
+      chip.dataset.i = i;
+      chip.textContent = tag;
+      evWrap.appendChild(chip);
+    });
+    iz.appendChild(evWrap);
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'choice-grid';
+  r.proveOptions.forEach(opt => {
+    const card = document.createElement('div');
+    card.className = 'choice-card';
+    card.dataset.id = opt.id;
+    card.innerHTML = `<strong>${opt.id}.</strong> ${escHtml(opt.text)}`;
+    card.addEventListener('click', () => {
+      if(GS.processing) return;
+      if(card.classList.contains('disabled') || card.classList.contains('locked') ||
+         card.classList.contains('correct') || card.classList.contains('dimmed')) return;
+      document.querySelectorAll('.choice-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      window._doSelectedId = opt.id;
+      $('lockInBtn').disabled = false;
+    });
+    grid.appendChild(card);
+  });
+  iz.appendChild(grid);
+  const lockBtn = document.createElement('button');
+  lockBtn.id = 'lockInBtn';
+  lockBtn.className = 'lockin-btn';
+  lockBtn.textContent = 'LOCK IN';
+  lockBtn.disabled = true;
+  lockBtn.addEventListener('click', () => submitProve(r));
+  iz.appendChild(lockBtn);
+}
+
+/* ==========================================================
+   PROVE SUBMIT (unified)
+   ========================================================== */
+function submitProve(r){
+  if(GS.processing) return;
+  // CRITICAL: capture selected BEFORE any clearing
+  const wrongId = window._doSelectedId; // may be used as wrong
+  if(!wrongId) return;
+
+  const timeSincePhase = Date.now() - GS.phaseStartTime;
+
+  if(wrongId === r.correctAnswer){
+    // ==== CORRECT ====
+    GS.processing = true;
+    const card = document.querySelector(`.choice-card[data-id="${wrongId}"]`);
+    if(card) card.classList.add('correct');
+    // Hotspot highlight
+    document.querySelectorAll('.hotspot-zone').forEach(z => {
+      if(z.addEventListener && window._doSelectedId === r.correctAnswer){
+        const match = z;
+        // simpler: find by matching id on zones data — skip for simplicity; visual glow via banner
+      }
+    });
+    // Remove hint glow
+    document.querySelectorAll('.hint-glow').forEach(h => h.remove());
+    playCorrect();
+
+    // Score tier based on hintsUsed/resets
+    let roundScore = 100;
+    if(GS.resets >= 1) roundScore = 50;
+    else if(GS.hintsUsed >= 3) roundScore = 60;
+    else if(GS.hintsUsed === 2) roundScore = 70;
+    else if(GS.hintsUsed === 1) roundScore = 85;
+
+    GS.rounds[GS.currentRound].score = roundScore;
+    GS.rounds[GS.currentRound].completed = true;
+    GS.rounds[GS.currentRound].hintsUsed = GS.hintsUsed;
+    GS.rounds[GS.currentRound].resets = GS.resets;
+    GS.rounds[GS.currentRound].attempts = GS.wrongCount + 1;
+    GS.rounds[GS.currentRound].timeSeconds = Math.round((Date.now() - GS.roundStartTime) / 1000);
+    updateScore();
+
+    showArenaBanner(getCorrectBanner(r));
+
+    // First-try correct → affirmation flash
+    if(roundScore === 100){
+      safeTimeout(() => showAffirmFlash(), 800);
+    }
+
+    // Disable all choice cards
+    document.querySelectorAll('.choice-card').forEach(c => {
+      if(!c.classList.contains('correct')) c.classList.add('disabled');
+    });
+    const lockBtn = $('lockInBtn');
+    if(lockBtn) lockBtn.disabled = true;
+
+    // Advance after delay
+    safeTimeout(() => {
+      GS.processing = false;
+      advanceRound();
+    }, 2400);
+
+  } else {
+    // ==== WRONG ====
+    // FAST-GUESS gate
+    if(timeSincePhase < 2000){
+      GS.consecutiveFastWrongs++;
+    } else {
+      GS.consecutiveFastWrongs = 0;
+    }
+
+    GS.wrongCount++;
+    GS.lastWrongCount[wrongId] = (GS.lastWrongCount[wrongId] || 0) + 1;
+
+    // Capture wrong ID BEFORE clearing state
+    const theWrongId = wrongId;
+    // Clear state: selected, .selected class on all, lock-in enabled, GS.processing
+    window._doSelectedId = null;
+    document.querySelectorAll('.choice-card').forEach(c => c.classList.remove('selected'));
+    const lockBtn = $('lockInBtn');
+    if(lockBtn) lockBtn.disabled = true;
+    GS.processing = false;
+
+    // Red flash on the wrong card
+    const wrongCard = document.querySelector(`.choice-card[data-id="${theWrongId}"]`);
+    if(wrongCard){
+      wrongCard.classList.add('wrong');
+      safeTimeout(() => wrongCard.classList.remove('wrong'), 500);
+      // Dim it after 2nd wrong on same option
+      if(GS.lastWrongCount[theWrongId] >= 2){
+        wrongCard.classList.add('dimmed');
+      }
+    }
+    // Hotspot wrong — mark zone
+    document.querySelectorAll('.hotspot-zone').forEach(z => {
+      if(z.classList && z.classList.contains('hotspot-zone')){
+        z.setAttribute('stroke','rgba(59,130,246,0.3)');
+        z.setAttribute('stroke-width','2');
+      }
+    });
+
+    playWrong();
+
+    // Feedback lookup — use captured wrongId
+    let feedback = r.wrongFeedback[theWrongId] || 'Not quite — check the arena again.';
+
+    // Fast-guess gate coaching
+    if(GS.consecutiveFastWrongs >= 2){
+      feedback = 'Quick look at the readout — what did the number do?';
+      GS.consecutiveFastWrongs = 0;
+      // pulse the readout
+      pulseReadout(r.activeReadout);
+    }
+
+    // Show coaching
+    showCoaching(feedback, 'hint1');
+
+    // Auto-ladder on wrong count
+    if(GS.wrongCount === 1){ /* just coaching, no hint */ }
+    else if(GS.wrongCount === 2){ applyHint1(r); }
+    else if(GS.wrongCount === 3){ applyHint2(r); }
+    else if(GS.wrongCount === 4){ applyStepByStep(r); }
+    else if(GS.wrongCount >= 5){ safetyValveAdvance(r); return; }
+
+    // Add a "Try Again" visible helper button if not present
+    ensureTryAgainPresent();
+
+    // Arena nudge — pulse the active readout or relevant element
+    pulseReadout(r.activeReadout);
+  }
+}
+
+function pulseReadout(which){
+  if(which === 'receptor') $('roReceptor').classList.add('pulsing');
+  else if(which === 'dopamine') $('roDopamine').classList.add('pulsing');
+  else if(which === 'withdrawal') $('roWithdrawal').classList.add('pulsing');
+  safeTimeout(() => {
+    $('roReceptor').classList.remove('pulsing');
+    $('roDopamine').classList.remove('pulsing');
+    $('roWithdrawal').classList.remove('pulsing');
+  }, 1400);
+}
+
+function ensureTryAgainPresent(){
+  // Not adding a separate button since the cards remain clickable
+  // But if all non-correct options are dimmed, add a reset nudge
+  const remaining = Array.from(document.querySelectorAll('.choice-card')).filter(c =>
+    !c.classList.contains('dimmed') && !c.classList.contains('correct')
+  );
+  if(remaining.length <= 1){
+    // Only one or zero options left — show a clear nudge
+    const iz = $('izContent');
+    if(!iz.querySelector('.retry-nudge')){
+      const nudge = document.createElement('div');
+      nudge.className = 'retry-nudge iz-sub';
+      nudge.textContent = 'Pick the remaining option.';
+      iz.appendChild(nudge);
+    }
+  }
+}
+
+function getCorrectBanner(r){
+  switch(r.num){
+    case 1: return 'CORRECT — MORE RECEPTORS BIND';
+    case 2: return 'YES — TOLERANCE';
+    case 3: return 'YES — THE PATTERN KEPT CLIMBING';
+    case 4: return 'YES — TEEN BRAIN = FASTER TOLERANCE';
+    case 5: return 'YES — BOTH VARIABLES TOGETHER';
+    case 6: return 'YES — FULL PICTURE';
+  }
+  return 'CORRECT';
+}
+
+/* ==========================================================
+   COACHING BAR
+   ========================================================== */
+function showCoaching(text, level){
+  // Remove existing
+  document.querySelectorAll('.coaching-bar').forEach(el => el.remove());
+  if(GS._coachInterval){ clearInterval(GS._coachInterval); GS._coachInterval = null; }
+  const bar = document.createElement('div');
+  bar.className = 'coaching-bar' + (level === 'hint2' ? ' hint2' : '');
+  bar.innerHTML = `<span>${escHtml(text)}</span><button class="coach-close">×</button>`;
+  bar.querySelector('.coach-close').addEventListener('click', () => bar.remove());
+  document.body.appendChild(bar);
+  // Auto-dismiss after 7s
+  safeTimeout(() => { if(bar.parentNode) bar.remove(); }, 7000);
+}
+
+/* ==========================================================
+   HINT LADDER APPLICATION
+   ========================================================== */
+function applyHint1(r){
+  GS.hintsUsed = Math.max(GS.hintsUsed, 1);
+  const h = r.hintLadder.hint1;
+  if(!h) return;
+  showCoaching(h.text, 'hint1');
+  applyHighlight(h.highlight);
+}
+function applyHint2(r){
+  GS.hintsUsed = Math.max(GS.hintsUsed, 2);
+  const h = r.hintLadder.hint2;
+  if(!h) return;
+  showCoaching(h.text, 'hint2');
+  if(h.eliminate){
+    h.eliminate.forEach(id => {
+      const c = document.querySelector(`.choice-card[data-id="${id}"]`);
+      if(c) c.classList.add('dimmed');
+    });
+  }
+  if(h.highlight) applyHighlight(h.highlight);
+}
+function applyStepByStep(r){
+  GS.hintsUsed = Math.max(GS.hintsUsed, 3);
+  const panels = r.hintLadder.stepByStep;
+  if(!panels) return;
+  let idx = 0;
+  function showPanel(){
+    document.querySelectorAll('.sbs-modal').forEach(m => m.remove());
+    const modal = document.createElement('div');
+    modal.className = 'sbs-modal';
+    const dots = panels.map((_,i) => `<div class="step-dot ${i===idx?'active':''}"></div>`).join('');
+    modal.innerHTML = `
+      <div class="sbs-panel">
+        <h3>Step ${idx+1} of ${panels.length}</h3>
+        <div class="step-dots">${dots}</div>
+        <p>${escHtml(panels[idx].text)}</p>
+        <button class="sbs-next">${idx===panels.length-1 ? 'Got it' : 'Next →'}</button>
+      </div>
+    `;
+    modal.querySelector('.sbs-next').addEventListener('click', () => {
+      idx++;
+      if(idx >= panels.length){
+        modal.remove();
+      } else {
+        showPanel();
+      }
+    });
+    document.body.appendChild(modal);
+  }
+  showPanel();
+}
+
+function applyHighlight(target){
+  if(!target) return;
+  if(target === 'readout-receptor'){ $('roReceptor').classList.add('highlighted'); safeTimeout(()=>$('roReceptor').classList.remove('highlighted'), 3500); }
+  else if(target === 'readout-dopamine'){ $('roDopamine').classList.add('highlighted'); safeTimeout(()=>$('roDopamine').classList.remove('highlighted'), 3500); }
+  else if(target === 'readout-withdrawal'){ $('roWithdrawal').classList.add('highlighted'); safeTimeout(()=>$('roWithdrawal').classList.remove('highlighted'), 3500); }
+  else if(target === 'neuron'){
+    const n = $('arenaSvg').querySelector('#neuronBody');
+    if(n){ n.setAttribute('stroke','#F59E0B'); n.setAttribute('stroke-width','5'); safeTimeout(()=>{ n.setAttribute('stroke','#E89A9A'); n.setAttribute('stroke-width','3'); }, 3500); }
+  }
+  else if(target === 'graph'){
+    // R3 graph — pulse
+    const g = $('arenaSvg').querySelector('#graphOverlay');
+    if(g){ g.classList.add('pulsing'); safeTimeout(()=>g.classList.remove('pulsing'), 3500); }
+  }
+  else if(target === 'both-neurons'){
+    const t = $('arenaSvg').querySelector('#teenNeuron');
+    const a = $('arenaSvg').querySelector('#adultNeuron');
+    if(t) t.classList.add('pulsing'); if(a) a.classList.add('pulsing');
+    safeTimeout(() => { if(t) t.classList.remove('pulsing'); if(a) a.classList.remove('pulsing'); }, 3500);
+  }
+  else if(target === 'controls'){
+    $('doseGroup').classList.add('highlighted');
+    $('freqGroup').classList.add('highlighted');
+    safeTimeout(()=>{ $('doseGroup').classList.remove('highlighted'); $('freqGroup').classList.remove('highlighted'); }, 3500);
+  }
+  else if(target === 'evidence-tags'){
+    document.querySelectorAll('.evidence-tag').forEach(t => t.classList.add('pulsing'));
+    safeTimeout(()=> document.querySelectorAll('.evidence-tag').forEach(t => t.classList.remove('pulsing')), 3500);
+  }
+  else if(target === 'body-map'){
+    const bm = $('arenaSvg').querySelector('#bodyMap');
+    if(bm){ bm.classList.add('pulsing'); safeTimeout(()=>bm.classList.remove('pulsing'), 3500); }
+  }
+}
+
+/* ==========================================================
+   HINT BUTTON (manual)
+   ========================================================== */
+$('hintBtn').addEventListener('click', () => {
+  const r = ROUND_DATA[GS.currentRound];
+  if(!r || GS.currentPhase !== 'prove') {
+    showCoaching('Hints become available during the PROVE phase.', 'hint1');
+    return;
+  }
+  if(GS.hintsUsed === 0) applyHint1(r);
+  else if(GS.hintsUsed === 1) applyHint2(r);
+  else applyStepByStep(r);
+});
+
+/* ==========================================================
+   ARENA BANNER (correct answer moment)
+   ========================================================== */
+function showArenaBanner(text){
+  const existing = $('arena').querySelector('.arena-banner');
+  if(existing) existing.remove();
+  const b = document.createElement('div');
+  b.className = 'arena-banner';
+  b.textContent = text;
+  $('arenaContent').appendChild(b);
+  safeTimeout(() => { if(b.parentNode) b.remove(); }, 2000);
+}
+
+/* ==========================================================
+   AFFIRMATION FLASH
+   ========================================================== */
+function showAffirmFlash(){
+  const existing = document.getElementById('affirmFlash');
+  if(existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'affirmFlash';
+  el.style.cssText = 'position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(17,24,39,0.85); color:white; padding:10px 20px; border-radius:20px; font-size:15px; font-weight:700; z-index:70; animation:focusFadeIn 0.4s; max-width:80%; text-align:center;';
+  el.textContent = getAffirm();
+  document.body.appendChild(el);
+  safeTimeout(() => { if(el.parentNode){ el.style.transition = 'opacity 0.5s'; el.style.opacity = '0'; setTimeout(()=> el.remove(), 550); } }, 1500);
+}
+
+/* ==========================================================
+   ADVANCE ROUND / COMPLETION
+   ========================================================== */
+function advanceRound(){
+  if(GS.processing) return;
+  GS.processing = true;
+  closeAllOverlays();
+  // Every 2 rounds → celebration
+  const next = GS.currentRound + 1;
+  const shouldCelebrate = ((GS.currentRound + 1) % 2 === 0);
+
+  function doNext(){
+    GS.processing = false;
+    // Check if we just finished required rounds (idx 0-3 = R1-R4)
+    const requiredDone = GS.rounds.slice(0,4).every(r => r.completed);
+    const allDone = GS.rounds.every(r => r.completed);
+    if(allDone){
+      showBonusCompleteOverlay();
+      return;
+    }
+    if(requiredDone && !GS.requiredCompleteShown){
+      GS.requiredCompleteShown = true;
+      showRequiredCompleteChoice();
+      return;
+    }
+    if(next >= ROUND_DATA.length){
+      showReceipt();
+      return;
+    }
+    startRound(next);
+  }
+
+  if(shouldCelebrate){
+    showCelebration(() => doNext());
+  } else {
+    safeTimeout(doNext, 600);
+  }
+}
+
+function showCelebration(cb){
+  $('celebrateTitle').textContent = 'Nice Work!';
+  $('celebrateAffirm').textContent = getAffirm();
+  $('celebrateOverlay').classList.add('show');
+  spawnConfetti(50);
+  playChime();
+  safeTimeout(() => {
+    $('celebrateOverlay').classList.remove('show');
+    if(cb) cb();
+  }, 2000);
+}
+
+function spawnConfetti(count){
+  const layer = $('confettiLayer');
+  layer.innerHTML = '';
+  const colors = ['#3B82F6','#10B981','#F59E0B','#8B5CF6','#EF4444'];
+  count = Math.min(count, 50);
+  for(let i=0;i<count;i++){
+    const p = document.createElement('div');
+    p.className = 'confetti-p';
+    p.style.left = (Math.random()*100) + '%';
+    p.style.top = '-20px';
+    p.style.background = colors[i%colors.length];
+    p.style.animationDelay = (Math.random()*0.3) + 's';
+    p.style.animationDuration = (1.4 + Math.random()*0.8) + 's';
+    layer.appendChild(p);
+  }
+  safeTimeout(() => layer.innerHTML = '', 2500);
+}
+
+function showRequiredCompleteChoice(){
+  closeAllOverlays();
+  const ov = document.createElement('div');
+  ov.className = 'choice-overlay';
+  ov.innerHTML = `
+    <div class="choice-overlay-card">
+      <h2>You did it!</h2>
+      <div class="affirm">${escHtml(getAffirm())}</div>
+      <p style="margin-bottom:18px; color:var(--text-mid);">2 Bonus Rounds available — dare to try?</p>
+      <div class="btn-row">
+        <button class="choice-btn primary" id="keepGoingBtn">Keep Going (Bonus)</button>
+        <button class="choice-btn secondary" id="seeScoreBtn">See Score</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  $('keepGoingBtn').addEventListener('click', () => {
+    ov.remove();
+    startRound(4); // R5
+  });
+  $('seeScoreBtn').addEventListener('click', () => {
+    ov.remove();
+    showReceipt();
+  });
+}
+
+function showBonusCompleteOverlay(){
+  if(GS.bonusCompleteShown) return;
+  GS.bonusCompleteShown = true;
+  closeAllOverlays();
+  $('celebrateTitle').textContent = '⭐ BONUS COMPLETE! ⭐';
+  $('celebrateAffirm').textContent = getAffirm();
+  $('celebrateOverlay').classList.add('show');
+  spawnConfetti(80);
+  playChime();
+  safeTimeout(() => { playTone(784, 0.3, 'sine'); }, 200);
+  safeTimeout(() => {
+    $('celebrateOverlay').classList.remove('show');
+    showReceipt();
+  }, 3000);
+}
+
+/* ==========================================================
+   RESET ROUND
+   ========================================================== */
+$('resetLvlBtn').addEventListener('click', () => {
+  // NEVER checks processing. Force-clears.
+  GS.processing = false;
+  GS.arenaGen++;  // defensive: invalidate any in-flight stale timeouts BEFORE cleanup steps run
+  closeAllOverlays();
+  if(GS.rounds[GS.currentRound] && GS.rounds[GS.currentRound].completed){
+    // on completed round — just re-render current (don't lose progress)
+    return;
+  }
+  GS.resets++;
+  if(GS.resets >= 3){
+    // Safety valve — award 50% and advance
+    safetyValveAdvance(ROUND_DATA[GS.currentRound]);
+    return;
+  }
+  // Remove current data row
+  const tbody = $('dataTableBody');
+  const cur = tbody.querySelector('tr.current');
+  if(cur) cur.remove();
+  // Restart round (keep wrongCount/hintsUsed baseline so scoring remembers they reset)
+  const savedResets = GS.resets;
+  const savedHints = GS.hintsUsed;
+  startRound(GS.currentRound);
+  GS.resets = savedResets;
+  GS.hintsUsed = savedHints;
+});
+
+function safetyValveAdvance(r){
+  GS.processing = false;
+  closeAllOverlays();
+  GS.rounds[GS.currentRound].score = 50;
+  GS.rounds[GS.currentRound].completed = true;
+  GS.rounds[GS.currentRound].attempts = GS.wrongCount + 1;
+  GS.rounds[GS.currentRound].hintsUsed = GS.hintsUsed;
+  GS.rounds[GS.currentRound].resets = GS.resets;
+  GS.rounds[GS.currentRound].timeSeconds = Math.round((Date.now() - GS.roundStartTime) / 1000);
+  updateScore();
+  showCoaching("Let's move on — you'll see this idea again.", 'hint1');
+  safeTimeout(() => advanceRound(), 1600);
+}
+
+/* ==========================================================
+   NEW RUN
+   ========================================================== */
+$('newRunBtn').addEventListener('click', () => {
+  if(!confirm('Start over from Round 1? Your current progress will be lost.')) return;
+  GS.processing = false;
+  closeAllOverlays();
+  clearAllIntervals();
+  // Reset everything
+  GS.score = 0;
+  GS.currentRound = 0;
+  GS.requiredCompleteShown = false;
+  GS.bonusCompleteShown = false;
+  GS.receiptRendered = false;
+  GS.startTime = Date.now();
+  GS.rounds = ROUND_DATA.map(rd => ({
+    num:rd.num, name:rd.name, required:rd.required,
+    completed:false, score:0, attempts:0, hintsUsed:0, resets:0, timeSeconds:0
+  }));
+  $('receiptScreen').classList.remove('show');
+  $('dataTableBody').innerHTML = '';
+  startRound(0);
+});
+
+/* ==========================================================
+   SCORE
+   ========================================================== */
+function updateScore(){
+  // Running total = sum of round scores
+  let total = 0;
+  GS.rounds.forEach(r => { if(r.completed) total += r.score; });
+  GS.score = total;
+  $('scoreDisplay').textContent = 'Score: ' + total;
+  // Progress bar
+  const completed = GS.rounds.filter(r => r.completed).length;
+  const pct = (completed / 6) * 100;
+  $('progressFill').style.width = pct + '%';
+}
+
+function computeOverallGrade(){
+  const required = GS.rounds.slice(0,4).filter(r => r.completed);
+  if(required.length === 0) return 0;
+  const avg = required.reduce((s,r) => s + r.score, 0) / required.length;
+  const bonusCount = GS.rounds.slice(4).filter(r => r.completed).length;
+  return Math.min(100, avg + bonusCount * 5);
+}
+
+/* ==========================================================
+   RECEIPT
+   ========================================================== */
+function showReceipt(){
+  if(GS.receiptRendered) return;
+  GS.receiptRendered = true;
+  closeAllOverlays();
+  clearAllIntervals();
+  // Teacher name set dynamically
+  $('receiptTitle').textContent = escHtml(GS.teacherName) + "'s Simulations";
+  const tbody = $('receiptTableBody');
+  tbody.innerHTML = '';
+  GS.rounds.forEach((r,i) => {
+    const tr = document.createElement('tr');
+    const isBonus = !r.required;
+    let scoreClass = 'red';
+    if(r.score >= 85) scoreClass = 'green';
+    else if(r.score >= 70) scoreClass = 'yellow';
+    tr.innerHTML = `
+      <td>${isBonus ? '⭐' : (i+1)}</td>
+      <td>${escHtml(r.name)}</td>
+      <td class="score-cell ${scoreClass}">${r.completed ? r.score + '%' : '—'}</td>
+      <td>${r.completed ? r.attempts : '—'}</td>
+      <td>${r.completed ? formatTime(r.timeSeconds) : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const overall = computeOverallGrade();
+  const gb = $('gradeBig'), gl = $('gradeLabel');
+  gb.textContent = overall + '%';
+  gb.className = 'grade-big';
+  if(overall >= 85){ gb.classList.add('green'); gl.textContent = 'MASTERY'; }
+  else if(overall >= 70){ gb.classList.add('yellow'); gl.textContent = 'APPROACHING MASTERY'; }
+  else { gb.classList.add('red'); gl.textContent = 'NEEDS MORE PRACTICE'; }
+
+  const totalTime = Math.round((Date.now() - GS.startTime) / 1000);
+  const allDone = GS.rounds.every(r => r.completed);
+  const bonusDone = GS.rounds.slice(4).every(r => r.completed);
+  let status = 'Required Complete';
+  if(allDone) status = allDone && bonusDone ? '✅ All Complete (with Bonus!)' : '✅ All Complete';
+  $('statusRow').textContent = `Total Time: ${formatTime(totalTime)}     Status: ${status}`;
+
+  // Pre-fill name
+  $('receiptName').value = GS.studentName;
+  $('receiptName').disabled = false;
+  $('receiptLockBtn').disabled = false;
+  $('receiptLockBtn').textContent = 'Lock';
+
+  $('receiptScreen').classList.add('show');
+}
+
+function formatTime(s){
+  const m = Math.floor(s/60), sec = s%60;
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+$('receiptLockBtn').addEventListener('click', () => {
+  const name = $('receiptName').value.trim();
+  if(!name){ alert('Please type your name.'); return; }
+  GS.studentName = name;
+  $('receiptName').disabled = true;
+  $('receiptLockBtn').disabled = true;
+  $('receiptLockBtn').textContent = 'Locked ✓';
+});
+
+$('printReceiptBtn').addEventListener('click', () => window.print());
+
+$('startOverBtn').addEventListener('click', () => {
+  if(!confirm('Start over from Round 1?')) return;
+  GS.receiptRendered = false;
+  $('receiptScreen').classList.remove('show');
+  $('newRunBtn').click();
+});
+
+/* ==========================================================
+   VOCAB PANEL
+   ========================================================== */
+$('vocabBtn').addEventListener('click', () => $('vocabPanel').classList.add('open'));
+$('vocabCloseBtn').addEventListener('click', () => $('vocabPanel').classList.remove('open'));
+
+/* ==========================================================
+   VISIBILITY CHANGE — clean intervals
+   ========================================================== */
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){
+    clearAllIntervals();
+  }
+});
+
+/* ==========================================================
+   GLOBAL ERROR HANDLER (defensive)
+   ========================================================== */
+window.addEventListener('error', (e) => {
+  console.error('Global error:', e.message, e.error);
+  // Don't crash — continue
+});
+
+</script>
+</body>
+</html>
