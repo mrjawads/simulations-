@@ -264,13 +264,21 @@ const CORN_LABELS = {degermed:'Stripped',whole:'Whole',treated:'Lime-Soaked'};
 const FOOD_LABELS = {none:'None',some:'Meat/Eggs',full:'Full Diet'};
 
 // Canvas
-let canvas,ctx,W,H,dpr;
-let particles=[], floaters=[], sparks=[];
-let personHP='healthy', curNiacin=0, targetNiacin=0;
-let aPhase='idle', eatT=0, digestT=0, frame=0;
-let ambients=[];
-// Smooth animated niacin for HUD
-let displayNiacin = 0;
+let canvas, ctx, W, H, dpr;
+let frame = 0, lastTime = 0;
+let personHP = 'healthy';
+let curNiacin = 0;
+let ambients = [];
+
+// Animation state machine: null when idle, else {phase, phaseTime, target, finished}
+// phases: 'eating' -> 'digesting' -> 'absorbing' -> 'circulating' -> 'done'
+let anim = null;
+
+// Particle systems
+let foodParticles = [];    // corn morsels traveling from plate to mouth
+let niacinParticles = [];  // niacin (free/bound) in lumen / villi / bloodstream
+let sparks = [];           // burst effects on absorption
+let plateBurst = false;    // visual cue when feed is pressed
 
 function init(){
   try{
@@ -281,6 +289,7 @@ function init(){
     window.addEventListener('resize',resize);
     mkAmbient();
     updateControls();
+    lastTime = performance.now();
     loop();
   }catch(e){console.error(e);}
 }
@@ -301,7 +310,27 @@ function resize(){
 
 function mkAmbient(){
   ambients=[];
-  for(let i=0;i<30;i++) ambients.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*0.4,vy:(Math.random()-0.5)*0.3,r:Math.random()*2+0.5,a:Math.random()*0.08+0.02,phase:Math.random()*Math.PI*2});
+  for(let i=0;i<25;i++) ambients.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.25,r:Math.random()*2+0.5,a:Math.random()*0.08+0.02,phase:Math.random()*Math.PI*2});
+}
+
+// Anatomy layout helpers (computed each frame from W/H)
+function layout(){
+  return {
+    // Plate zone (bottom-left)
+    plate:{x:W*0.13, y:H*0.80, w:140, h:38},
+    mouth:{x:W*0.13, y:H*0.18},
+    esophagus:{x:W*0.13, y1:H*0.20, y2:H*0.34},
+    stomach:{x:W*0.17, y:H*0.40, rx:46, ry:34},
+    intestineEntry:{x:W*0.22, y:H*0.48},
+    // Zoomed villi window (center-right, the main feature)
+    villiBox:{
+      x:W*0.34, y:H*0.20,
+      w:Math.min(W*0.44, 460),
+      h:Math.min(H*0.52, 360)
+    },
+    // Mini-body on the far right inside the arena
+    body:{x:W*0.90, y:H*0.50, scale:Math.min(W,H)*0.0008+0.55}
+  };
 }
 
 // ===== CONTROLS =====
@@ -401,45 +430,77 @@ function updateControls(){
 // ===== FEED =====
 function feedRound(){
   try{
-  if(S.phase!=='pick'||S.done)return;
-  if(S.round===6&&!S.fort){showStatus('Toggle Fortification ON!');return;}
+    if(S.phase!=='pick'||S.done)return;
+    if(S.round===6&&!S.fort){showStatus('Toggle Fortification ON!');return;}
 
-  S.phase='feeding';
-  document.getElementById('feed-btn').disabled=true;
+    S.phase='feeding';
+    document.getElementById('feed-btn').disabled=true;
 
-  const cfg=NIACIN[S.corn];
-  let n=cfg.base+cfg.food[S.food];
-  if(S.fort)n+=cfg.fortB;
-  n=Math.min(100,Math.max(5,n+Math.floor(Math.random()*8-4)));
-  targetNiacin=n;
+    const cfg=NIACIN[S.corn];
+    let n=cfg.base+cfg.food[S.food];
+    if(S.fort)n+=cfg.fortB;
+    n=Math.min(100,Math.max(5,n+Math.floor(Math.random()*8-4)));
 
-  // Start eat
-  aPhase='eating'; eatT=0; particles=[]; floaters=[]; sparks=[];
+    // Start time-based animation
+    foodParticles=[]; niacinParticles=[]; sparks=[];
+    anim={phase:'eating',phaseTime:0,target:n,finished:false,announced:false};
+    plateBurst=true; setTimeout(()=>plateBurst=false,400);
 
-  setTimeout(()=>{ aPhase='digesting'; digestT=0; mkNiacinParts(n); },2000);
-  setTimeout(()=>{ aPhase='done'; curNiacin=n; finishRound(n); },5500);
-  setTimeout(()=>{ if(S.phase==='feeding'){aPhase='done';curNiacin=n;finishRound(n);} },7500);
-  }catch(e){console.error('feedRound error:',e);S.phase='pick';document.getElementById('feed-btn').disabled=false;}
+    // Spawn food morsels from the plate toward the mouth
+    for(let i=0;i<5;i++){
+      foodParticles.push({
+        t:-i*0.15,           // negative = wait before starting
+        type:S.corn,
+        size:7+Math.random()*3
+      });
+    }
+  }catch(e){
+    console.error('feedRound error:',e);
+    S.phase='pick'; anim=null;
+    document.getElementById('feed-btn').disabled=false;
+  }
 }
 
-function mkNiacinParts(n){
-  particles=[];
-  const tot=40;
-  const green=Math.round((n/100)*tot);
+// Spawn niacin particles. Each will:
+//   - travel through the intestinal lumen (left → right) inside the zoomed villi box
+//   - "free" particles reach a target villus and get absorbed into its capillary,
+//     then enter the systemic bloodstream and deliver to the body
+//   - "bound" particles skim past the villi and exit right (passed-through)
+function spawnNiacinParticles(n){
+  const total=26;
+  const green=Math.max(1,Math.round((n/100)*total));
+  const red=total-green;
+
   for(let i=0;i<green;i++){
-    particles.push({
-      x:W*0.46+Math.random()*50-25, y:H*0.32+Math.random()*20,
-      vx:(Math.random()-0.5)*1.5, vy:Math.random()*1.2+0.4,
-      c:'#22c55e',g:'#4ade80',type:'g',r:4+Math.random()*3,
-      abs:false,t:0,delay:Math.floor(Math.random()*50),trail:[]
+    niacinParticles.push({
+      type:'free',
+      stage:'lumen',          // lumen → approaching → absorbing → capillary → systemic → delivered (removed)
+      spawnDelay:200+Math.random()*1600,
+      age:0,
+      lumenX:0,               // 0..1 position along the lumen
+      lumenY:0.4+Math.random()*0.3,  // vertical position in lumen (0 = top/wall, 1 = bottom)
+      speed:0.00028+Math.random()*0.00018, // per ms, covers 0..1 across lumen
+      targetVillus:Math.floor(Math.random()*7),
+      bend:Math.random()*Math.PI*2,
+      size:4+Math.random()*1.8,
+      absorbT:0,
+      capT:0,
+      systemicT:0,
+      alive:true
     });
   }
-  for(let i=0;i<tot-green;i++){
-    particles.push({
-      x:W*0.46+Math.random()*50-25, y:H*0.32+Math.random()*20,
-      vx:(Math.random()-0.5)*1.5, vy:Math.random()*0.8+0.3,
-      c:'#ef4444',g:'#f87171',type:'r',r:4+Math.random()*3,
-      bounced:false,t:0,delay:Math.floor(Math.random()*50),trail:[]
+  for(let i=0;i<red;i++){
+    niacinParticles.push({
+      type:'bound',
+      stage:'lumen',
+      spawnDelay:200+Math.random()*1600,
+      age:0,
+      lumenX:0,
+      lumenY:0.55+Math.random()*0.35,
+      speed:0.00024+Math.random()*0.00020,
+      bend:Math.random()*Math.PI*2,
+      size:4+Math.random()*1.8,
+      alive:true
     });
   }
 }
@@ -478,19 +539,19 @@ function finishRound(n){
 
 function nextRound(){
   try{
-  if(S.round>=8){
-    S.done=true;
-    document.getElementById('completion').style.display='flex';
+    if(S.round>=8){
+      S.done=true;
+      document.getElementById('completion').style.display='flex';
+      document.getElementById('next-btn').style.display='none';
+      if(!S.badges.ec){S.badges.ec=true;showBadge('🏆','Extra Credit Complete!','All 8 rounds finished!');}
+      return;
+    }
+    S.round++; S.phase='pick'; S.randEvt=false;
+    anim=null; foodParticles=[]; niacinParticles=[]; sparks=[];
     document.getElementById('next-btn').style.display='none';
-    if(!S.badges.ec){S.badges.ec=true;showBadge('🏆','Extra Credit Complete!','All 8 rounds finished!');}
-    return;
-  }
-  S.round++; S.phase='pick'; S.randEvt=false; aPhase='idle';
-  particles=[]; floaters=[]; sparks=[];
-  document.getElementById('next-btn').style.display='none';
-  document.getElementById('feed-btn').disabled=false;
-  document.getElementById('random-event').style.display='none';
-  updateControls();
+    document.getElementById('feed-btn').disabled=false;
+    document.getElementById('random-event').style.display='none';
+    updateControls();
   }catch(e){console.error('nextRound error:',e);S.phase='pick';document.getElementById('feed-btn').disabled=false;}
 }
 
@@ -568,7 +629,7 @@ function closeBadge(){document.getElementById('badge-overlay').style.display='no
 function resetSim(){
   try{
   S={round:1,corn:'degermed',food:'none',fort:false,score:0,streak:0,rounds:[],phase:'pick',healthyStreak:0,badges:{},randEvt:false,done:false};
-  curNiacin=0;targetNiacin=0;aPhase='idle';particles=[];floaters=[];sparks=[];personHP='healthy';displayNiacin=0;
+  curNiacin=0; anim=null; foodParticles=[]; niacinParticles=[]; sparks=[]; personHP='healthy';
   document.getElementById('data-body').innerHTML='';
   document.getElementById('niacin-bar').style.width='0%';
   document.getElementById('niacin-val').textContent='0%';
@@ -594,535 +655,1064 @@ function resetSim(){
 }
 function newRun(){resetSim();}
 
-// ===== RENDERING =====
+// ===== RENDERING (time-based state machine) =====
+const PHASE_MS = { eating:1800, digesting:1200, absorbing:3000, circulating:1600 };
+
 function loop(){
   try{
-    if(W<10||H<10){requestAnimationFrame(loop);return;}
+    const now = performance.now();
+    const dt = Math.min(50, now - lastTime); // clamp dt to avoid huge jumps
+    lastTime = now;
     frame++;
+
+    if(W<10||H<10){ requestAnimationFrame(loop); return; }
+
+    updateAnim(dt);
     ctx.clearRect(0,0,W,H);
     drawBG();
-    drawBody();
+    drawAnatomy();
+    drawVilliView();
     drawPlate();
-    if(aPhase==='eating') drawEat();
-    if(aPhase==='digesting'||aPhase==='done') drawParts();
-    drawSparks();
+    drawBodyMini();
+    drawFoodFlight();
+    drawNiacinParticles();
+    drawSparks(dt);
     drawLabels();
     drawAmb();
-  }catch(e){}
+  }catch(e){ console.error('loop error:', e); }
   requestAnimationFrame(loop);
 }
 
-function drawBG(){
-  // Subtle radial glow in center
-  const grd=ctx.createRadialGradient(W*0.46,H*0.5,50,W*0.46,H*0.5,Math.max(W,H)*0.6);
-  grd.addColorStop(0,'rgba(99,102,241,0.03)');
-  grd.addColorStop(1,'transparent');
-  ctx.fillStyle=grd;ctx.fillRect(0,0,W,H);
+function updateAnim(dt){
+  if(!anim) return;
+  anim.phaseTime += dt;
 
-  // Grid
-  ctx.strokeStyle='rgba(99,102,241,0.04)';ctx.lineWidth=0.5;
-  for(let x=0;x<W;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-  for(let y=0;y<H;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-}
-
-function drawBody(){
-  const cx=W*0.46, cy=H*0.5;
-  const sc=Math.min(W/900,H/600)*1.1;
-  ctx.save();ctx.translate(cx,cy);ctx.scale(sc,sc);
-
-  // Outer glow
-  const glowCol=personHP==='healthy'?'rgba(34,197,94,0.12)':personHP==='struggling'?'rgba(234,179,8,0.1)':'rgba(239,68,68,0.12)';
-  const pulse=Math.sin(frame*0.04)*0.3+0.7;
-  ctx.shadowColor=personHP==='healthy'?'#22c55e':personHP==='struggling'?'#eab308':'#ef4444';
-  ctx.shadowBlur=20*pulse;
-  ctx.strokeStyle=glowCol;ctx.lineWidth=6;
-  ctx.beginPath();ctx.ellipse(0,0,100,200,0,0,Math.PI*2);ctx.stroke();
-  ctx.shadowBlur=0;
-
-  // Torso
-  const skinGrad=ctx.createLinearGradient(-70,-190,70,180);
-  if(personHP==='healthy'){skinGrad.addColorStop(0,'#fcd5b0');skinGrad.addColorStop(1,'#f5c08e');}
-  else if(personHP==='struggling'){skinGrad.addColorStop(0,'#f0c097');skinGrad.addColorStop(1,'#dfa578');}
-  else{skinGrad.addColorStop(0,'#e09080');skinGrad.addColorStop(1,'#cc7060');}
-
-  // Head
-  ctx.fillStyle=skinGrad;
-  ctx.beginPath();ctx.arc(0,-165,48,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=1.5;ctx.stroke();
-
-  // Hair
-  ctx.fillStyle='#2d1810';
-  ctx.beginPath();ctx.ellipse(0,-195,46,22,0,Math.PI,0);ctx.fill();
-
-  // Face
-  if(personHP==='healthy'){
-    ctx.fillStyle='#3a2a1a';
-    ctx.beginPath();ctx.ellipse(-16,-170,5,6,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(16,-170,5,6,0,0,Math.PI*2);ctx.fill();
-    // Eye glint
-    ctx.fillStyle='#fff';
-    ctx.beginPath();ctx.arc(-14,-172,2,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(18,-172,2,0,Math.PI*2);ctx.fill();
-    // Smile
-    ctx.strokeStyle='#5a3a2a';ctx.lineWidth=2.5;
-    ctx.beginPath();ctx.arc(0,-152,16,0.15,Math.PI-0.15);ctx.stroke();
-    // Blush
-    ctx.fillStyle='rgba(255,150,150,0.2)';
-    ctx.beginPath();ctx.ellipse(-28,-155,10,6,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(28,-155,10,6,0,0,Math.PI*2);ctx.fill();
-  } else if(personHP==='struggling'){
-    ctx.fillStyle='#4a3a2a';
-    ctx.beginPath();ctx.ellipse(-16,-170,4.5,5,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(16,-170,4.5,5,0,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#5a4a3a';ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(-12,-148);ctx.lineTo(12,-148);ctx.stroke();
-    // Skin patches
-    ctx.fillStyle='rgba(220,60,60,0.3)';
-    ctx.beginPath();ctx.ellipse(-35,-158,12,8,0.3,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(32,-165,10,7,-0.2,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(20,-140,8,5,0.1,0,Math.PI*2);ctx.fill();
-  } else {
-    ctx.fillStyle='#6a5a4a';
-    ctx.beginPath();ctx.ellipse(-16,-168,3.5,4,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(16,-168,3.5,4,0,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#6a5a4a';ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(0,-146,12,Math.PI+0.2,-0.2);ctx.stroke();
-    // Severe patches
-    ctx.fillStyle='rgba(200,40,40,0.45)';
-    ctx.beginPath();ctx.ellipse(-36,-158,15,10,0.3,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(34,-162,14,9,-0.2,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(-22,-140,10,7,0.1,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(10,-135,9,6,-0.1,0,Math.PI*2);ctx.fill();
-    // Dark circles
-    ctx.fillStyle='rgba(80,40,60,0.3)';
-    ctx.beginPath();ctx.ellipse(-16,-163,7,4,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(16,-163,7,4,0,0,Math.PI*2);ctx.fill();
-  }
-
-  // Neck
-  ctx.fillStyle=skinGrad;
-  ctx.fillRect(-16,-118,32,22);
-
-  // Torso body
-  ctx.beginPath();
-  ctx.moveTo(-65,-96);
-  ctx.bezierCurveTo(-80,-50,-72,60,-48,140);
-  ctx.lineTo(48,140);
-  ctx.bezierCurveTo(72,60,80,-50,65,-96);
-  ctx.closePath();
-  ctx.fillStyle=skinGrad;ctx.fill();
-  ctx.strokeStyle='rgba(0,0,0,0.08)';ctx.lineWidth=1.5;ctx.stroke();
-
-  // ---- INTERNAL ORGANS ----
-
-  // Esophagus
-  ctx.strokeStyle='rgba(220,120,120,0.25)';ctx.lineWidth=8;
-  ctx.beginPath();ctx.moveTo(0,-96);ctx.quadraticCurveTo(-5,-60,-8,-35);ctx.stroke();
-
-  // Stomach - rounded pouch shape
-  const stomachGlow=personHP==='healthy'?'rgba(34,197,94,0.2)':personHP==='struggling'?'rgba(234,179,8,0.2)':'rgba(239,68,68,0.2)';
-  ctx.fillStyle=stomachGlow;
-  ctx.beginPath();
-  ctx.moveTo(-8,-35);
-  ctx.bezierCurveTo(-40,-25,-48,5,-35,30);
-  ctx.bezierCurveTo(-20,50,15,45,22,25);
-  ctx.bezierCurveTo(28,5,15,-20,-8,-35);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=2;ctx.stroke();
-
-  // Stomach acid bubbles
-  for(let i=0;i<4;i++){
-    const bx=-15+Math.sin(frame*0.03+i*1.5)*12;
-    const by=-5+Math.cos(frame*0.04+i*1.2)*8;
-    ctx.fillStyle=`rgba(255,255,200,${0.1+Math.sin(frame*0.05+i)*0.05})`;
-    ctx.beginPath();ctx.arc(bx,by,3+Math.sin(frame*0.06+i)*1,0,Math.PI*2);ctx.fill();
-  }
-
-  // Gut wall - thicker, more visible dashed line
-  const gutY=42;
-  ctx.save();
-  ctx.strokeStyle='rgba(255,255,255,0.35)';ctx.lineWidth=4;
-  ctx.setLineDash([10,5]);
-  ctx.beginPath();ctx.moveTo(-55,gutY);ctx.lineTo(55,gutY);ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
-
-  // Gut wall membrane glow
-  const memGrad=ctx.createLinearGradient(-55,gutY-4,55,gutY+4);
-  memGrad.addColorStop(0,'rgba(139,92,246,0.08)');
-  memGrad.addColorStop(0.5,'rgba(139,92,246,0.15)');
-  memGrad.addColorStop(1,'rgba(139,92,246,0.08)');
-  ctx.fillStyle=memGrad;
-  ctx.fillRect(-55,gutY-3,110,6);
-
-  // Bloodstream area
-  const bsGrad=ctx.createLinearGradient(0,gutY+8,0,gutY+90);
-  bsGrad.addColorStop(0,'rgba(220,38,38,0.06)');
-  bsGrad.addColorStop(1,'rgba(220,38,38,0.02)');
-  ctx.fillStyle=bsGrad;
-  ctx.fillRect(-55,gutY+8,110,82);
-
-  // Blood vessel lines - animated flow
-  const flowOff=(frame%90)/90;
-  ctx.strokeStyle='rgba(220,38,38,0.12)';ctx.lineWidth=1.5;
-  for(let i=0;i<6;i++){
-    const fy=gutY+18+i*12;
-    ctx.beginPath();
-    for(let fx=-50;fx<55;fx+=2){
-      const w=Math.sin((fx+flowOff*90)*0.08+i*0.5)*4;
-      if(fx===-50)ctx.moveTo(fx,fy+w);else ctx.lineTo(fx,fy+w);
+  // Update food morsels flying to the mouth
+  if(anim.phase==='eating'){
+    foodParticles.forEach(f => f.t += dt/PHASE_MS.eating);
+    if(anim.phaseTime >= PHASE_MS.eating){
+      anim.phase='digesting'; anim.phaseTime=0;
+      spawnNiacinParticles(anim.target);
+      foodParticles = [];
     }
-    ctx.stroke();
   }
-
-  // Animated blood cells flowing
-  for(let i=0;i<8;i++){
-    const t=(frame*0.8+i*35)%300;
-    const bx=-50+(t/300)*105;
-    const by=gutY+22+i*10+Math.sin(t*0.05)*3;
-    ctx.fillStyle=`rgba(220,38,38,${0.15+Math.sin(frame*0.03+i)*0.05})`;
-    ctx.beginPath();ctx.ellipse(bx,by,4,2.5,0,0,Math.PI*2);ctx.fill();
+  else if(anim.phase==='digesting'){
+    updateNiacin(dt, false);
+    if(anim.phaseTime >= PHASE_MS.digesting){
+      anim.phase='absorbing'; anim.phaseTime=0;
+    }
   }
-
-  // Person posture overlay
-  if(personHP==='struggling'){
-    // Slight yellow tint
-    ctx.fillStyle='rgba(234,179,8,0.03)';
-    ctx.beginPath();ctx.ellipse(0,-20,90,180,0,0,Math.PI*2);ctx.fill();
-  } else if(personHP==='critical'){
-    // Red warning tint
-    ctx.fillStyle='rgba(239,68,68,0.05)';
-    ctx.beginPath();ctx.ellipse(0,-20,90,180,0,0,Math.PI*2);ctx.fill();
-    // Warning ring pulse
-    const wp=Math.sin(frame*0.08)*0.5+0.5;
-    ctx.strokeStyle=`rgba(239,68,68,${0.1*wp})`;ctx.lineWidth=3;
-    ctx.beginPath();ctx.ellipse(0,-20,95+wp*5,185+wp*5,0,0,Math.PI*2);ctx.stroke();
+  else if(anim.phase==='absorbing'){
+    updateNiacin(dt, true);
+    if(anim.phaseTime >= PHASE_MS.absorbing){
+      anim.phase='circulating'; anim.phaseTime=0;
+    }
   }
-
-  ctx.restore();
+  else if(anim.phase==='circulating'){
+    updateNiacin(dt, true);
+    if(anim.phaseTime >= PHASE_MS.circulating){
+      if(!anim.finished){
+        anim.finished = true;
+        curNiacin = anim.target;
+        finishRound(anim.target);
+      }
+      anim.phase='done';
+    }
+  }
+  else if(anim.phase==='done'){
+    updateNiacin(dt, true);
+    // Clean up once all particles are gone
+    if(niacinParticles.length === 0 && anim.phaseTime > 200){
+      // keep anim alive for a moment after finishRound so body glow updates nicely
+    }
+  }
 }
 
-function drawPlate(){
-  const px=W*0.1, py=H*0.6;
-  const sc=Math.min(W/900,H/600)*1.1;
-  ctx.save();ctx.translate(px,py);ctx.scale(sc,sc);
+// Update niacin particles. allowAbsorb=false during initial digesting so particles
+// appear in the stomach area before flowing through the intestinal lumen.
+function updateNiacin(dt, allowAbsorb){
+  const box = layout().villiBox;
+  const lumenY1 = box.y + box.h*0.38;   // top of lumen (wall line)
+  const lumenY2 = box.y + box.h*0.78;   // bottom of lumen
+  const lumenH = lumenY2 - lumenY1;
+  const lumenL = box.x + 8;
+  const lumenR = box.x + box.w - 8;
+  const lumenW = lumenR - lumenL;
 
-  // Plate shadow
-  ctx.fillStyle='rgba(0,0,0,0.15)';
-  ctx.beginPath();ctx.ellipse(0,8,62,18,0,0,Math.PI*2);ctx.fill();
+  const NVILLI = 7;
+  const villiSpacing = box.w / (NVILLI+1);
+  const villusTopY = box.y + box.h*0.06;
+  const villusBaseY = lumenY1;
 
-  // Plate
-  const plateGrad=ctx.createRadialGradient(0,-5,10,0,0,60);
-  plateGrad.addColorStop(0,'#f5f0e8');plateGrad.addColorStop(1,'#ddd5c5');
-  ctx.fillStyle=plateGrad;
-  ctx.beginPath();ctx.ellipse(0,0,60,22,0,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='rgba(180,170,150,0.5)';ctx.lineWidth=2;ctx.stroke();
-  // Plate rim
-  ctx.strokeStyle='rgba(200,190,170,0.3)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.ellipse(0,0,50,16,0,0,Math.PI*2);ctx.stroke();
+  for(let i=niacinParticles.length-1; i>=0; i--){
+    const p = niacinParticles[i];
+    p.age += dt;
+    if(p.age < p.spawnDelay) continue;
 
-  if(aPhase==='idle'||aPhase==='eating'){
-    // CORN - much more detailed
-    const cornCfg={
-      degermed:{body:'#e8d9b0',kernel:'#d4c89e',outline:'#c4b488',shadow:'rgba(180,160,120,0.3)',lbl:'Stripped'},
-      whole:{body:'#f5c842',kernel:'#e8a817',outline:'#c4910a',shadow:'rgba(200,160,0,0.3)',lbl:'Whole'},
-      treated:{body:'#80cbc4',kernel:'#4db6ac',outline:'#339e96',shadow:'rgba(50,170,160,0.3)',lbl:'Lime-Soaked'}
-    };
-    const cc=cornCfg[S.corn];
+    if(p.stage === 'lumen'){
+      // Flow left to right through the lumen
+      p.lumenX += p.speed * dt;
+      p.bend += 0.006 * dt;
+      const wave = Math.sin(p.bend) * 4;
+      p.x = lumenL + p.lumenX * lumenW;
+      p.y = lumenY1 + p.lumenY * lumenH + wave;
 
-    // Corn shadow
-    ctx.fillStyle=cc.shadow;
-    ctx.beginPath();ctx.ellipse(-2,12,20,6,0.1,0,Math.PI*2);ctx.fill();
+      if(allowAbsorb && p.type==='free'){
+        // When we're adjacent to the target villus, begin absorbing
+        const targetX = box.x + villiSpacing*(p.targetVillus+1);
+        const dx = Math.abs(p.x - targetX);
+        if(dx < 22 && p.lumenX > 0.08){
+          p.stage = 'absorbing';
+          p.absorbT = 0;
+          p.absorbStartX = p.x;
+          p.absorbStartY = p.y;
+          p.absorbTargetX = targetX;
+          p.absorbTargetY = villusBaseY + 6; // entry point at base of villus
+        }
+      }
 
-    // Corn cob body
-    const cornGrad=ctx.createLinearGradient(-18,-45,18,-45);
-    cornGrad.addColorStop(0,cc.outline);cornGrad.addColorStop(0.3,cc.body);
-    cornGrad.addColorStop(0.7,cc.body);cornGrad.addColorStop(1,cc.outline);
-    ctx.fillStyle=cornGrad;
-    ctx.beginPath();
-    ctx.moveTo(-14,-50);
-    ctx.bezierCurveTo(-20,-30,-20,10,-12,25);
-    ctx.quadraticCurveTo(0,32,12,25);
-    ctx.bezierCurveTo(20,10,20,-30,14,-50);
-    ctx.quadraticCurveTo(0,-55,-14,-50);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle=cc.outline;ctx.lineWidth=1.5;ctx.stroke();
-
-    // Kernel rows
-    for(let row=-42;row<22;row+=7){
-      for(let col=-10;col<12;col+=7){
-        const kx=col+Math.sin(row*0.2)*2;
-        const ky=row;
-        // Check if inside corn shape roughly
-        if(Math.abs(kx)<14-Math.abs(ky)*0.08){
-          ctx.fillStyle=cc.kernel;
-          ctx.beginPath();ctx.ellipse(kx,ky,2.8,3.2,0,0,Math.PI*2);ctx.fill();
-          // Kernel highlight
-          ctx.fillStyle='rgba(255,255,255,0.15)';
-          ctx.beginPath();ctx.ellipse(kx-0.8,ky-1,1.2,1.5,0,0,Math.PI*2);ctx.fill();
+      // Exit: past the right edge of the lumen, remove
+      if(p.lumenX > 1.0){
+        niacinParticles.splice(i,1);
+        continue;
+      }
+    }
+    else if(p.stage === 'absorbing'){
+      // Curve up into the villus
+      p.absorbT += dt/400;
+      const t = Math.min(1, p.absorbT);
+      // ease quadratic
+      const e = t*(2-t);
+      p.x = p.absorbStartX + (p.absorbTargetX - p.absorbStartX)*e;
+      p.y = p.absorbStartY + (p.absorbTargetY - p.absorbStartY)*e;
+      if(t >= 1){
+        // Enter the capillary loop inside the villus
+        p.stage = 'capillary';
+        p.capT = 0;
+        p.villusX = p.absorbTargetX;
+        // Add spark at entry point
+        for(let s=0;s<4;s++){
+          sparks.push({
+            x:p.x, y:p.y,
+            vx:(Math.random()-0.5)*3, vy:-Math.random()*3,
+            life:1, c:'#4ade80', size:2+Math.random()*1.5
+          });
         }
       }
     }
-
-    // Husk leaves
-    ctx.fillStyle='#7cb342';
-    ctx.beginPath();
-    ctx.moveTo(-8,-48);ctx.quadraticCurveTo(-25,-60,-18,-75);
-    ctx.quadraticCurveTo(-10,-65,-5,-50);ctx.closePath();ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(8,-48);ctx.quadraticCurveTo(22,-58,16,-72);
-    ctx.quadraticCurveTo(12,-62,5,-50);ctx.closePath();ctx.fill();
-    // Leaf veins
-    ctx.strokeStyle='rgba(100,160,50,0.4)';ctx.lineWidth=0.5;
-    ctx.beginPath();ctx.moveTo(-8,-48);ctx.lineTo(-16,-68);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(8,-48);ctx.lineTo(14,-66);ctx.stroke();
-
-    // TREATED CORN - lime wash swirl effect
-    if(S.corn==='treated'){
-      ctx.save();
-      for(let i=0;i<8;i++){
-        const angle=frame*0.025+i*0.785;
-        const rx=Math.cos(angle)*24;
-        const ry=Math.sin(angle)*40-12;
-        const alpha=0.3+Math.sin(frame*0.06+i)*0.15;
-        ctx.fillStyle=`rgba(77,182,172,${alpha})`;
-        ctx.beginPath();ctx.arc(rx,ry,2.5+Math.sin(frame*0.08+i)*0.8,0,Math.PI*2);ctx.fill();
-        // Trail
-        const rx2=Math.cos(angle-0.3)*24;
-        const ry2=Math.sin(angle-0.3)*40-12;
-        ctx.fillStyle=`rgba(77,182,172,${alpha*0.4})`;
-        ctx.beginPath();ctx.arc(rx2,ry2,1.5,0,Math.PI*2);ctx.fill();
+    else if(p.stage === 'capillary'){
+      // Travel up-inside-villus and back down (capillary loop)
+      p.capT += dt/900;
+      const t = Math.min(1, p.capT);
+      // U-shape: go up the left side, across the top, down the right side
+      const villusHeight = (villusBaseY - villusTopY) * 0.82;
+      const villusX = p.villusX;
+      // t in [0, 0.45]: go up the left side
+      // t in [0.45, 0.55]: curve across top
+      // t in [0.55, 1]: come down the right side
+      let vx, vy;
+      if(t < 0.45){
+        const u = t/0.45;
+        vx = villusX - 3 + (u*0); // stay on left side
+        vy = villusBaseY - u * villusHeight;
+      } else if(t < 0.55){
+        const u = (t-0.45)/0.10;
+        vx = villusX - 3 + u*6;
+        vy = villusBaseY - villusHeight;
+      } else {
+        const u = (t-0.55)/0.45;
+        vx = villusX + 3;
+        vy = (villusBaseY - villusHeight) + u * villusHeight;
       }
-      // Glow ring
-      ctx.strokeStyle=`rgba(77,182,172,${0.2+Math.sin(frame*0.04)*0.1})`;
-      ctx.lineWidth=2;
-      ctx.beginPath();ctx.ellipse(0,-12,26,44,0,0,Math.PI*2);ctx.stroke();
-      ctx.restore();
-    }
-
-    // FORTIFICATION golden overlay
-    if(S.fort){
-      ctx.save();
-      const fPulse=Math.sin(frame*0.05)*0.15+0.85;
-      ctx.globalAlpha=0.25*fPulse;
-      ctx.fillStyle='#fbbf24';
-      ctx.beginPath();
-      ctx.moveTo(-14,-50);ctx.bezierCurveTo(-20,-30,-20,10,-12,25);
-      ctx.quadraticCurveTo(0,32,12,25);ctx.bezierCurveTo(20,10,20,-30,14,-50);
-      ctx.quadraticCurveTo(0,-55,-14,-50);ctx.closePath();ctx.fill();
-      ctx.globalAlpha=1;
-      // Sparkles
-      for(let i=0;i<5;i++){
-        const sx=Math.sin(frame*0.04+i*1.2)*18;
-        const sy=Math.cos(frame*0.05+i*1.5)*35-12;
-        const sa=0.5+Math.sin(frame*0.1+i)*0.3;
-        drawStar(sx,sy,3+Math.sin(frame*0.08+i)*1,5,'#fbbf24',sa);
+      p.x = vx;
+      p.y = vy;
+      if(t >= 1){
+        // Exit into systemic bloodstream
+        p.stage = 'systemic';
+        p.systemicT = 0;
+        p.sysStartX = p.x;
+        p.sysStartY = p.y;
       }
-      ctx.restore();
     }
-
-    // FOOD ITEMS
-    if(S.food==='some'){
-      // Drumstick
-      ctx.fillStyle='#a0522d';
-      ctx.beginPath();ctx.ellipse(42,0,14,10,0.3,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#8b4513';
-      ctx.fillRect(50,-2,10,4);ctx.beginPath();ctx.arc(60,0,3,0,Math.PI*2);ctx.fill();
-      // Egg
-      ctx.fillStyle='#fff8dc';
-      ctx.beginPath();ctx.ellipse(36,-22,9,11,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffd700';
-      ctx.beginPath();ctx.arc(36,-22,5,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,0.4)';
-      ctx.beginPath();ctx.arc(34,-24,2,0,Math.PI*2);ctx.fill();
-    } else if(S.food==='full'){
-      ctx.fillStyle='#a0522d';ctx.beginPath();ctx.ellipse(40,2,12,8,0.2,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#4caf50';ctx.beginPath();ctx.ellipse(44,-18,9,7,-0.1,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ff6347';ctx.beginPath();ctx.arc(32,-12,6,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#fff8dc';ctx.beginPath();ctx.ellipse(52,-10,7,9,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(52,-10,4,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ff8c00';ctx.beginPath();ctx.arc(28,8,6,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#9c27b0';ctx.beginPath();ctx.arc(50,8,4,0,Math.PI*2);ctx.fill();
+    else if(p.stage === 'systemic'){
+      // Flow through bloodstream pipe toward the body
+      p.systemicT += dt/1200;
+      const t = Math.min(1, p.systemicT);
+      const body = layout().body;
+      // Bloodstream pipe lives at lumenY2 + 30
+      const pipeY = lumenY2 + 44;
+      // Start: from villus exit down to pipe, then flow right to body
+      if(t < 0.25){
+        const u = t/0.25;
+        p.x = p.sysStartX;
+        p.y = p.sysStartY + (pipeY - p.sysStartY)*u;
+      } else {
+        const u = (t-0.25)/0.75;
+        const startX = p.sysStartX;
+        p.x = startX + (body.x - startX)*u;
+        p.y = pipeY + Math.sin(u*Math.PI*2 + p.bend)*3;
+      }
+      if(t >= 1){
+        // Delivered — sparkle at body then remove
+        for(let s=0;s<6;s++){
+          sparks.push({
+            x:p.x, y:p.y,
+            vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4,
+            life:1, c:'#4ade80', size:2+Math.random()*1.5
+          });
+        }
+        niacinParticles.splice(i,1);
+        continue;
+      }
     }
   }
+}
+
+function drawBG(){
+  // Deep space gradient
+  const g=ctx.createRadialGradient(W*0.5,H*0.5,40,W*0.5,H*0.5,Math.max(W,H)*0.75);
+  g.addColorStop(0,'rgba(99,102,241,0.06)');
+  g.addColorStop(0.6,'rgba(30,41,59,0.0)');
+  g.addColorStop(1,'transparent');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  // Very subtle grid
+  ctx.strokeStyle='rgba(99,102,241,0.04)'; ctx.lineWidth=0.5;
+  for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+}
+
+// Left side: simplified digestive tract diagram (mouth → esophagus → stomach → intestine)
+function drawAnatomy(){
+  const L = layout();
+
+  ctx.save();
+
+  // Mouth
+  ctx.fillStyle='rgba(251,113,133,0.85)';
+  ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.ellipse(L.mouth.x, L.mouth.y, 18, 10, 0, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+  // tongue highlight
+  ctx.fillStyle='rgba(244,63,94,0.6)';
+  ctx.beginPath();
+  ctx.ellipse(L.mouth.x, L.mouth.y+1, 10, 4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Esophagus pipe
+  ctx.strokeStyle='rgba(248,180,180,0.5)';
+  ctx.lineWidth=14; ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(L.esophagus.x, L.esophagus.y1);
+  ctx.lineTo(L.esophagus.x, L.esophagus.y2);
+  ctx.stroke();
+  // inner
+  ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=6;
+  ctx.beginPath();
+  ctx.moveTo(L.esophagus.x, L.esophagus.y1);
+  ctx.lineTo(L.esophagus.x, L.esophagus.y2);
+  ctx.stroke();
+
+  // Peristalsis wave animation (if eating)
+  if(anim && (anim.phase==='eating' || anim.phase==='digesting')){
+    const t = (frame*0.08) % 1;
+    const yy = L.esophagus.y1 + (L.esophagus.y2 - L.esophagus.y1)*t;
+    ctx.strokeStyle='rgba(34,197,94,0.6)'; ctx.lineWidth=14;
+    ctx.beginPath();
+    ctx.arc(L.esophagus.x, yy, 0.1, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  // Stomach — J-shaped pouch
+  const S_ = L.stomach;
+  const stomachGlow = anim && anim.phase==='digesting' ? 0.25 + Math.sin(frame*0.1)*0.08 : 0.12;
+  ctx.fillStyle = `rgba(251,146,60,${stomachGlow})`;
+  ctx.strokeStyle = 'rgba(251,146,60,0.85)'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(S_.x - S_.rx*0.6, S_.y - S_.ry*0.8);
+  ctx.bezierCurveTo(
+    S_.x - S_.rx*1.3, S_.y - S_.ry*0.2,
+    S_.x - S_.rx*0.9, S_.y + S_.ry*1.0,
+    S_.x + S_.rx*0.2, S_.y + S_.ry*0.95
+  );
+  ctx.bezierCurveTo(
+    S_.x + S_.rx*1.15, S_.y + S_.ry*0.5,
+    S_.x + S_.rx*0.95, S_.y - S_.ry*0.4,
+    S_.x - S_.rx*0.6, S_.y - S_.ry*0.8
+  );
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Gastric acid bubbles
+  if(anim && (anim.phase==='digesting' || anim.phase==='absorbing')){
+    for(let i=0;i<5;i++){
+      const bx = S_.x + Math.sin(frame*0.04 + i*1.3) * S_.rx*0.5;
+      const by = S_.y + Math.cos(frame*0.05 + i*1.1) * S_.ry*0.4;
+      const br = 2.5 + Math.sin(frame*0.07+i)*1.2;
+      ctx.fillStyle = `rgba(254,243,199,${0.5 + Math.sin(frame*0.06+i)*0.2})`;
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // Duodenum connector → intestine entry
+  ctx.strokeStyle='rgba(167,139,250,0.55)';
+  ctx.lineWidth=10; ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(S_.x + S_.rx*0.2, S_.y + S_.ry*0.95);
+  ctx.quadraticCurveTo(S_.x + S_.rx*1.8, S_.y + S_.ry*1.4, L.intestineEntry.x, L.intestineEntry.y);
+  ctx.stroke();
+
+  // ARROW "zoom in to villi"
+  const zx = L.intestineEntry.x + 18;
+  const zy = L.intestineEntry.y - 14;
+  const zx2 = L.villiBox.x - 10;
+  const zy2 = L.villiBox.y + L.villiBox.h*0.5;
+  ctx.strokeStyle='rgba(167,139,250,0.35)';
+  ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  ctx.moveTo(zx, zy);
+  ctx.lineTo(zx2, zy2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // "ZOOM IN" label
+  ctx.fillStyle='rgba(167,139,250,0.7)';
+  ctx.font="bold 10px 'Segoe UI'"; ctx.textAlign='center';
+  ctx.fillText('ZOOM →', (zx+zx2)/2, (zy+zy2)/2 - 6);
+
   ctx.restore();
 }
 
-function drawStar(x,y,r,pts,color,alpha){
-  ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle=color;
+// Main centerpiece: zoomed small intestine cross-section with villi + capillaries + bloodstream
+function drawVilliView(){
+  const L = layout();
+  const B = L.villiBox;
+
+  ctx.save();
+
+  // Frame / backdrop
+  const frameGrad = ctx.createLinearGradient(B.x, B.y, B.x, B.y + B.h);
+  frameGrad.addColorStop(0, 'rgba(88,28,135,0.12)');
+  frameGrad.addColorStop(1, 'rgba(30,27,75,0.18)');
+  ctx.fillStyle = frameGrad;
+  ctx.beginPath(); ctx.roundRect(B.x, B.y, B.w, B.h, 14); ctx.fill();
+
+  ctx.strokeStyle='rgba(167,139,250,0.35)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.roundRect(B.x, B.y, B.w, B.h, 14); ctx.stroke();
+
+  // Title
+  ctx.fillStyle='rgba(226,232,240,0.88)';
+  ctx.font="bold 12px 'Segoe UI'"; ctx.textAlign='left';
+  ctx.fillText('🔬 Small Intestine · Villi Cross-Section', B.x+12, B.y+18);
+
+  const lumenY1 = B.y + B.h*0.38;
+  const lumenY2 = B.y + B.h*0.78;
+  const wallThick = 4;
+
+  // Intestinal wall (pink/coral band at top of lumen)
+  const wallGrad = ctx.createLinearGradient(0, lumenY1 - 8, 0, lumenY1 + 4);
+  wallGrad.addColorStop(0, 'rgba(244,114,182,0.5)');
+  wallGrad.addColorStop(1, 'rgba(244,114,182,0.85)');
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(B.x + 6, lumenY1 - 10, B.w - 12, 10);
+
+  // Villi hanging from the wall into the lumen
+  const NVILLI = 7;
+  const villiSpacing = B.w / (NVILLI + 1);
+  const villusWidth = 18;
+  const villusHeight = (lumenY1 - (B.y + B.h*0.06)) * 0.82;
+  const villusTopY = lumenY1 - villusHeight;
+
+  for(let i=0; i<NVILLI; i++){
+    const vx = B.x + villiSpacing * (i+1);
+    // Villus body (finger-like projection hanging down from wall)
+    const sway = Math.sin(frame*0.03 + i*0.6) * 1.5;
+
+    // villus gradient
+    const vg = ctx.createLinearGradient(vx-villusWidth/2, villusTopY, vx+villusWidth/2, lumenY1);
+    vg.addColorStop(0, '#f9a8d4');
+    vg.addColorStop(1, '#ec4899');
+    ctx.fillStyle = vg;
+    ctx.strokeStyle = 'rgba(190,24,93,0.6)';
+    ctx.lineWidth = 1.2;
+
+    ctx.beginPath();
+    ctx.moveTo(vx - villusWidth/2, lumenY1);
+    ctx.bezierCurveTo(
+      vx - villusWidth/2 + sway, villusTopY + villusHeight*0.3,
+      vx - villusWidth/2 + sway*1.5, villusTopY + 4,
+      vx + sway, villusTopY
+    );
+    ctx.bezierCurveTo(
+      vx + villusWidth/2 + sway*1.5, villusTopY + 4,
+      vx + villusWidth/2 + sway, villusTopY + villusHeight*0.3,
+      vx + villusWidth/2, lumenY1
+    );
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Capillary loop INSIDE villus (red U-shape)
+    ctx.strokeStyle = 'rgba(220,38,38,0.7)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(vx - 3, lumenY1 - 2);
+    ctx.bezierCurveTo(
+      vx - 4, villusTopY + villusHeight*0.35,
+      vx - 4, villusTopY + 6,
+      vx, villusTopY + 6
+    );
+    ctx.bezierCurveTo(
+      vx + 4, villusTopY + 6,
+      vx + 4, villusTopY + villusHeight*0.35,
+      vx + 3, lumenY1 - 2
+    );
+    ctx.stroke();
+
+    // Capillary pulse dots (showing blood flow)
+    const pulseT = ((frame*0.5 + i*20) % 60) / 60;
+    const capY = villusTopY + 6 + (villusHeight-8) * Math.abs(Math.sin(pulseT*Math.PI));
+    ctx.fillStyle = 'rgba(220,38,38,0.9)';
+    ctx.beginPath();
+    ctx.arc(vx + (pulseT<0.5 ? -3 : 3), capY, 1.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Lumen floor (opposite intestinal wall - thinner)
+  const floorGrad = ctx.createLinearGradient(0, lumenY2 - 2, 0, lumenY2 + 10);
+  floorGrad.addColorStop(0, 'rgba(244,114,182,0.75)');
+  floorGrad.addColorStop(1, 'rgba(244,114,182,0.35)');
+  ctx.fillStyle = floorGrad;
+  ctx.fillRect(B.x + 6, lumenY2, B.w - 12, 8);
+
+  // Lumen label
+  ctx.fillStyle='rgba(203,213,225,0.5)';
+  ctx.font="italic 10px 'Segoe UI'"; ctx.textAlign='left';
+  ctx.fillText('lumen (food flow →)', B.x + 14, lumenY2 - 4);
+
+  // Flow arrows in lumen
+  ctx.strokeStyle='rgba(148,163,184,0.25)'; ctx.lineWidth=1;
+  for(let i=0;i<4;i++){
+    const ax = B.x + 80 + i*((B.w-100)/4) + ((frame*0.5)%40);
+    const ay = (lumenY1 + lumenY2)/2 + 10;
+    if(ax > B.x + B.w - 14) continue;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax+8, ay);
+    ctx.moveTo(ax+6, ay-3);
+    ctx.lineTo(ax+8, ay);
+    ctx.lineTo(ax+6, ay+3);
+    ctx.stroke();
+  }
+
+  // Systemic bloodstream pipe below villi view
+  const pipeY = lumenY2 + 44;
+  const pipeH = 18;
+  ctx.fillStyle = 'rgba(127,29,29,0.75)';
   ctx.beginPath();
-  for(let i=0;i<pts*2;i++){
-    const a=Math.PI/pts*i-Math.PI/2;
-    const rad=i%2===0?r:r*0.4;
-    if(i===0)ctx.moveTo(x+Math.cos(a)*rad,y+Math.sin(a)*rad);
-    else ctx.lineTo(x+Math.cos(a)*rad,y+Math.sin(a)*rad);
+  ctx.roundRect(B.x, pipeY - pipeH/2, B.w + (layout().body.x - (B.x+B.w)) + 10, pipeH, pipeH/2);
+  ctx.fill();
+  // inner gradient
+  const pipeGrad = ctx.createLinearGradient(0, pipeY - pipeH/2, 0, pipeY + pipeH/2);
+  pipeGrad.addColorStop(0, 'rgba(239,68,68,0.5)');
+  pipeGrad.addColorStop(0.5, 'rgba(220,38,38,0.85)');
+  pipeGrad.addColorStop(1, 'rgba(153,27,27,0.75)');
+  ctx.fillStyle = pipeGrad;
+  ctx.beginPath();
+  ctx.roundRect(B.x + 4, pipeY - pipeH/2 + 3, B.w + (layout().body.x - (B.x+B.w)) + 2, pipeH - 6, pipeH/2);
+  ctx.fill();
+
+  // Blood cell dots in systemic pipe
+  for(let i=0;i<12;i++){
+    const t = ((frame*0.9 + i*25) % 200)/200;
+    const bx = B.x + 8 + t*(B.w + (layout().body.x - (B.x+B.w)) - 4);
+    const by = pipeY + Math.sin(frame*0.03 + i)*3;
+    ctx.fillStyle = 'rgba(254,202,202,0.7)';
+    ctx.beginPath();
+    ctx.ellipse(bx, by, 3, 2, 0, 0, Math.PI*2);
+    ctx.fill();
   }
-  ctx.closePath();ctx.fill();ctx.restore();
+
+  // Pipe label
+  ctx.fillStyle='rgba(248,113,113,0.85)';
+  ctx.font="bold 10px 'Segoe UI'"; ctx.textAlign='left';
+  ctx.fillText('🩸 bloodstream → body', B.x + 10, pipeY + 3);
+
+  ctx.restore();
 }
 
-function drawEat(){
-  eatT++;
-  const progress=Math.min(eatT/70,1);
-  const px=W*0.1, py=H*0.6;
-  const tx=W*0.46, ty=H*0.5-80;
-  const sc=Math.min(W/900,H/600)*1.1;
+// Bottom-left plate with corn (showing niacin-bound vs free state)
+function drawPlate(){
+  const L = layout();
+  const px = L.plate.x, py = L.plate.y;
 
-  // Multiple food particles float toward mouth
-  for(let i=0;i<5;i++){
-    const t=((progress*1.2+i*0.12)%1);
-    if(t>1)continue;
-    const x=px+((tx-px)*t);
-    const y=py+((ty-py)*t)-Math.sin(t*Math.PI)*40;
-    const alpha=(1-t)*0.9;
-    const sz=(6-t*3)*sc;
+  ctx.save();
 
-    ctx.save();ctx.globalAlpha=alpha;
-    // Corn kernel
-    const cols=['#f5c842','#e8a817','#80cbc4'];
-    ctx.fillStyle=S.corn==='treated'?cols[2]:S.corn==='whole'?cols[0]:cols[1];
-    ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();
-    // Glow trail
-    ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=8;
-    ctx.beginPath();ctx.arc(x,y,sz*0.5,0,Math.PI*2);ctx.fill();
-    ctx.shadowBlur=0;
+  // Plate shadow
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(px, py + 8, 75, 14, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Plate
+  const plateGrad = ctx.createRadialGradient(px-8, py-8, 10, px, py, 70);
+  plateGrad.addColorStop(0, '#faf5ef');
+  plateGrad.addColorStop(1, '#cec5b0');
+  ctx.fillStyle = plateGrad;
+  ctx.beginPath();
+  ctx.ellipse(px, py, 70, 22, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle='rgba(120,113,108,0.5)'; ctx.lineWidth=2; ctx.stroke();
+  ctx.strokeStyle='rgba(180,170,155,0.5)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.ellipse(px, py-2, 60, 16, 0, 0, Math.PI*2);
+  ctx.stroke();
+
+  // Corn cob
+  const cornCfg = {
+    degermed:{body:'#eadbb1',kernel:'#d8c48a',outline:'#9c8a5e',lbl:'Stripped'},
+    whole:{body:'#f5c842',kernel:'#e8a817',outline:'#b4810a',lbl:'Whole'},
+    treated:{body:'#7ad1c5',kernel:'#3fb5a7',outline:'#1d8a7a',lbl:'Lime-Soaked'}
+  };
+  const cc = cornCfg[S.corn];
+
+  const cobX = px - 8;
+  const cobY = py - 8;
+  const cobW = 30; // half-width
+  const cobH = 48; // half-height
+
+  // Cob body gradient
+  const cobGrad = ctx.createLinearGradient(cobX - cobW, cobY, cobX + cobW, cobY);
+  cobGrad.addColorStop(0, cc.outline);
+  cobGrad.addColorStop(0.2, cc.body);
+  cobGrad.addColorStop(0.8, cc.body);
+  cobGrad.addColorStop(1, cc.outline);
+  ctx.fillStyle = cobGrad;
+  ctx.beginPath();
+  ctx.moveTo(cobX - cobW*0.7, cobY - cobH*0.9);
+  ctx.bezierCurveTo(
+    cobX - cobW, cobY - cobH*0.3,
+    cobX - cobW, cobY + cobH*0.4,
+    cobX - cobW*0.5, cobY + cobH*0.9
+  );
+  ctx.bezierCurveTo(
+    cobX, cobY + cobH*1.02,
+    cobX + cobW*0.5, cobY + cobH*0.9,
+    cobX + cobW, cobY + cobH*0.4
+  );
+  ctx.bezierCurveTo(
+    cobX + cobW, cobY - cobH*0.3,
+    cobX + cobW*0.7, cobY - cobH*0.9,
+    cobX, cobY - cobH*1.0
+  );
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle=cc.outline; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Kernel grid
+  for(let row=-cobH*0.85; row<cobH*0.85; row+=7){
+    for(let col=-cobW*0.7; col<cobW*0.75; col+=6){
+      const kx = cobX + col + Math.sin(row*0.2)*2;
+      const ky = cobY + row;
+      if(Math.abs(col) > (cobW*0.7 - Math.abs(row)*0.15)) continue;
+      ctx.fillStyle = cc.kernel;
+      ctx.beginPath();
+      ctx.ellipse(kx, ky, 2.5, 2.9, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(kx - 0.6, ky - 0.9, 1, 1.2, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // Husk leaves
+  ctx.fillStyle = '#7cb342';
+  ctx.beginPath();
+  ctx.moveTo(cobX - 10, cobY - cobH*0.9);
+  ctx.quadraticCurveTo(cobX - 28, cobY - cobH*1.2, cobX - 22, cobY - cobH*1.45);
+  ctx.quadraticCurveTo(cobX - 12, cobY - cobH*1.15, cobX - 6, cobY - cobH*0.95);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cobX + 10, cobY - cobH*0.9);
+  ctx.quadraticCurveTo(cobX + 24, cobY - cobH*1.15, cobX + 18, cobY - cobH*1.4);
+  ctx.quadraticCurveTo(cobX + 14, cobY - cobH*1.2, cobX + 6, cobY - cobH*0.95);
+  ctx.closePath(); ctx.fill();
+
+  // NIACIN MOLECULE OVERLAY — the key visual metaphor
+  // Stripped = locked (red hexagonal cages)
+  // Whole = mixed (some free green, some locked red)
+  // Lime-soaked = free (green, no cages)
+  ctx.save();
+  const mols = [
+    {x:cobX-14, y:cobY-22}, {x:cobX+8, y:cobY-30},
+    {x:cobX-4, y:cobY+10}, {x:cobX+14, y:cobY-5},
+    {x:cobX-18, y:cobY+20}, {x:cobX+2, y:cobY+32}
+  ];
+
+  mols.forEach((m, i) => {
+    const wobble = Math.sin(frame*0.04 + i*1.2) * 1.2;
+    const mx = m.x + wobble;
+    const my = m.y;
+
+    let locked;
+    if(S.corn === 'degermed') locked = true;
+    else if(S.corn === 'whole') locked = i % 2 === 0; // ~half free, half locked
+    else locked = false; // treated = all free
+
+    if(locked){
+      // Red hexagonal cage with small red niacin inside
+      ctx.strokeStyle = 'rgba(239,68,68,0.8)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for(let k=0;k<6;k++){
+        const a = k*Math.PI/3 + frame*0.01;
+        const hx = mx + Math.cos(a)*4;
+        const hy = my + Math.sin(a)*4;
+        if(k===0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      // inner dot
+      ctx.fillStyle = 'rgba(239,68,68,0.7)';
+      ctx.beginPath();
+      ctx.arc(mx, my, 1.8, 0, Math.PI*2);
+      ctx.fill();
+    } else {
+      // Free green niacin molecule (sparkling green dot)
+      ctx.fillStyle = '#22c55e';
+      ctx.shadowColor = '#4ade80';
+      ctx.shadowBlur = 8 + Math.sin(frame*0.1+i)*3;
+      ctx.beginPath();
+      ctx.arc(mx, my, 2.8, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath();
+      ctx.arc(mx-0.8, my-0.8, 1.1, 0, Math.PI*2);
+      ctx.fill();
+    }
+  });
+  ctx.restore();
+
+  // Lime-soak visual effect for treated corn
+  if(S.corn === 'treated'){
+    ctx.save();
+    for(let i=0;i<6;i++){
+      const angle = frame*0.02 + i*1.05;
+      const rx = Math.cos(angle)*28;
+      const ry = Math.sin(angle)*42 - 8;
+      const alpha = 0.25 + Math.sin(frame*0.06+i)*0.12;
+      ctx.fillStyle = `rgba(77,182,172,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(cobX + rx, cobY + ry, 2 + Math.sin(frame*0.08+i)*0.6, 0, Math.PI*2);
+      ctx.fill();
+    }
     ctx.restore();
   }
+
+  // Fortification sparkle overlay
+  if(S.fort){
+    ctx.save();
+    const fPulse = Math.sin(frame*0.06)*0.2 + 0.8;
+    ctx.globalAlpha = 0.35 * fPulse;
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.ellipse(cobX, cobY - 4, cobW*0.85, cobH*0.95, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    for(let i=0;i<6;i++){
+      const sx = cobX + Math.sin(frame*0.05 + i*1.1)*20;
+      const sy = cobY + Math.cos(frame*0.06 + i*1.4)*36;
+      drawStar(sx, sy, 2.5 + Math.sin(frame*0.1+i)*1, 5, '#fbbf24', 0.7);
+    }
+    ctx.restore();
+  }
+
+  // Other foods
+  if(S.food === 'some'){
+    // Drumstick
+    ctx.fillStyle = '#a0522d';
+    ctx.beginPath();
+    ctx.ellipse(px + 38, py + 2, 14, 10, 0.3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#8b4513';
+    ctx.fillRect(px + 48, py, 10, 4);
+    ctx.beginPath();
+    ctx.arc(px + 58, py + 2, 3, 0, Math.PI*2);
+    ctx.fill();
+    // Egg
+    ctx.fillStyle = '#fff8dc';
+    ctx.beginPath();
+    ctx.ellipse(px + 32, py - 18, 8, 10, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(px + 32, py - 18, 4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.arc(px + 30, py - 20, 1.5, 0, Math.PI*2);
+    ctx.fill();
+  } else if(S.food === 'full'){
+    ctx.fillStyle = '#a0522d'; ctx.beginPath();
+    ctx.ellipse(px + 36, py + 4, 12, 8, 0.2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#4caf50'; ctx.beginPath();
+    ctx.ellipse(px + 40, py - 14, 9, 7, -0.1, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ff6347'; ctx.beginPath();
+    ctx.arc(px + 28, py - 8, 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff8dc'; ctx.beginPath();
+    ctx.ellipse(px + 50, py - 10, 6, 8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffd700'; ctx.beginPath();
+    ctx.arc(px + 50, py - 10, 3.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ff8c00'; ctx.beginPath();
+    ctx.arc(px + 24, py + 10, 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#9c27b0'; ctx.beginPath();
+    ctx.arc(px + 46, py + 10, 3.5, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Plate label
+  ctx.fillStyle = 'rgba(15,23,42,0.7)';
+  ctx.beginPath();
+  ctx.roundRect(px - 70, py + 28, 140, 18, 6);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = "bold 11px 'Segoe UI'";
+  ctx.textAlign = 'center';
+  ctx.fillText(cc.lbl + ' Corn' + (S.fort ? ' + B3' : ''), px, py + 40);
+
+  // Feed-press pulse ring
+  if(plateBurst){
+    ctx.save();
+    const pr = Math.sin(frame*0.5) * 8 + 80;
+    ctx.strokeStyle = 'rgba(251,146,60,0.5)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(px, py, pr, pr*0.35, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.restore();
 }
 
-function drawParts(){
-  const sc=Math.min(W/900,H/600)*1.1;
-  const cx=W*0.46, cy=H*0.5;
-  const gutWallY=cy+42*sc;
+function drawStar(x, y, r, pts, color, alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  for(let i=0; i<pts*2; i++){
+    const a = Math.PI/pts*i - Math.PI/2;
+    const rad = i%2===0 ? r : r*0.4;
+    if(i===0) ctx.moveTo(x + Math.cos(a)*rad, y + Math.sin(a)*rad);
+    else ctx.lineTo(x + Math.cos(a)*rad, y + Math.sin(a)*rad);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
 
-  particles.forEach(p=>{
-    if(p.delay>0){p.delay--;return;}
-    p.t++;
+// Small body silhouette on right showing organ status
+function drawBodyMini(){
+  const L = layout();
+  const bx = L.body.x, by = L.body.y;
+  const sc = L.body.scale;
 
+  ctx.save();
+  ctx.translate(bx, by);
+  ctx.scale(sc, sc);
+
+  // Outer glow ring
+  const glowCol = personHP==='healthy' ? '#22c55e' : personHP==='struggling' ? '#eab308' : '#ef4444';
+  const pulse = Math.sin(frame*0.04)*0.3 + 0.7;
+  ctx.shadowColor = glowCol;
+  ctx.shadowBlur = 16*pulse;
+  ctx.strokeStyle = glowCol.replace('c55e','c55e').replace(')',',0.25)').replace('rgb','rgba');
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 58, 140, 0, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Skin tone
+  const skinGrad = ctx.createLinearGradient(-50, -130, 50, 130);
+  if(personHP==='healthy'){
+    skinGrad.addColorStop(0,'#fcd5b0'); skinGrad.addColorStop(1,'#f5c08e');
+  } else if(personHP==='struggling'){
+    skinGrad.addColorStop(0,'#f0c097'); skinGrad.addColorStop(1,'#dfa578');
+  } else {
+    skinGrad.addColorStop(0,'#e09080'); skinGrad.addColorStop(1,'#cc7060');
+  }
+
+  // Head
+  ctx.fillStyle = skinGrad;
+  ctx.beginPath();
+  ctx.arc(0, -108, 32, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.1)'; ctx.lineWidth=1; ctx.stroke();
+
+  // Hair
+  ctx.fillStyle = '#2d1810';
+  ctx.beginPath();
+  ctx.ellipse(0, -128, 31, 16, 0, Math.PI, 0);
+  ctx.fill();
+
+  // Face (simplified based on health)
+  if(personHP === 'healthy'){
+    ctx.fillStyle = '#3a2a1a';
+    ctx.beginPath(); ctx.arc(-11, -112, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(11, -112, 3, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#5a3a2a'; ctx.lineWidth=1.8;
+    ctx.beginPath(); ctx.arc(0, -100, 10, 0.2, Math.PI - 0.2); ctx.stroke();
+    ctx.fillStyle='rgba(255,150,150,0.3)';
+    ctx.beginPath(); ctx.ellipse(-18, -102, 6, 4, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(18, -102, 6, 4, 0, 0, Math.PI*2); ctx.fill();
+  } else if(personHP === 'struggling'){
+    ctx.fillStyle = '#4a3a2a';
+    ctx.beginPath(); ctx.arc(-11, -112, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(11, -112, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#5a4a3a'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(-8, -99); ctx.lineTo(8, -99); ctx.stroke();
+    // Skin patches (dermatitis)
+    ctx.fillStyle='rgba(220,60,60,0.35)';
+    ctx.beginPath(); ctx.ellipse(-22, -105, 8, 5, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(20, -108, 7, 5, -0.2, 0, Math.PI*2); ctx.fill();
+  } else {
+    // Critical
+    ctx.fillStyle = '#6a5a4a';
+    ctx.beginPath(); ctx.arc(-11, -110, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(11, -110, 2, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#6a5a4a'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(0, -97, 8, Math.PI + 0.2, -0.2); ctx.stroke();
+    // Heavy skin patches
+    ctx.fillStyle='rgba(200,40,40,0.5)';
+    ctx.beginPath(); ctx.ellipse(-22, -104, 10, 7, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(22, -106, 9, 6, -0.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-14, -92, 7, 5, 0.1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, -88, 6, 4, -0.1, 0, Math.PI*2); ctx.fill();
+    // Dark under-eye circles
+    ctx.fillStyle='rgba(80,40,60,0.3)';
+    ctx.beginPath(); ctx.ellipse(-11, -108, 5, 2.5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(11, -108, 5, 2.5, 0, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Neck
+  ctx.fillStyle = skinGrad;
+  ctx.fillRect(-11, -80, 22, 16);
+
+  // Torso
+  ctx.beginPath();
+  ctx.moveTo(-44, -64);
+  ctx.bezierCurveTo(-54, -32, -50, 42, -34, 96);
+  ctx.lineTo(34, 96);
+  ctx.bezierCurveTo(50, 42, 54, -32, 44, -64);
+  ctx.closePath();
+  ctx.fillStyle = skinGrad; ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.08)'; ctx.lineWidth=1; ctx.stroke();
+
+  // Simplified internal organs (small glyphs inside torso)
+  const organPulse = personHP==='healthy' ? 0.9 + Math.sin(frame*0.08)*0.1 : 0.6;
+  // Heart
+  ctx.fillStyle = `rgba(220,38,38,${organPulse})`;
+  ctx.beginPath();
+  const hx = -10, hy = -40;
+  ctx.moveTo(hx, hy+5);
+  ctx.bezierCurveTo(hx-8, hy-3, hx-8, hy-8, hx-4, hy-6);
+  ctx.bezierCurveTo(hx, hy-3, hx, hy-3, hx+4, hy-6);
+  ctx.bezierCurveTo(hx+8, hy-8, hx+8, hy-3, hx, hy+5);
+  ctx.closePath();
+  ctx.fill();
+  // Stomach (small)
+  ctx.fillStyle = `rgba(251,146,60,${organPulse*0.7})`;
+  ctx.beginPath();
+  ctx.ellipse(-8, -10, 10, 7, 0.3, 0, Math.PI*2);
+  ctx.fill();
+  // Intestine coils (abstract)
+  ctx.strokeStyle = `rgba(244,114,182,${organPulse*0.7})`;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(-4, 18, 10, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(4, 36, 10, 0, Math.PI*2);
+  ctx.stroke();
+
+  // Delivery sparkle zone (where systemic niacin arrives)
+  if(anim && (anim.phase==='circulating' || anim.phase==='done')){
+    const glowR = 30 + Math.sin(frame*0.12)*8;
+    ctx.fillStyle = `rgba(74,222,128,${0.15 + Math.sin(frame*0.08)*0.08})`;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, glowR, glowR*1.5, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// Food morsels flying from plate to mouth (during 'eating' phase)
+function drawFoodFlight(){
+  if(!anim || anim.phase!=='eating') return;
+  const L = layout();
+
+  foodParticles.forEach(f => {
+    const t = Math.max(0, Math.min(1, f.t));
+    if(t <= 0) return;
+
+    // Cubic path from plate to mouth with upward arc
+    const x0 = L.plate.x, y0 = L.plate.y - 12;
+    const x1 = L.mouth.x, y1 = L.mouth.y + 6;
+    const x = x0 + (x1-x0)*t;
+    const arc = -40 * Math.sin(t*Math.PI);
+    const y = y0 + (y1-y0)*t + arc;
+
+    const colors = {degermed:'#d8c48a', whole:'#e8a817', treated:'#3fb5a7'};
+    const col = colors[f.type];
+    const alpha = t < 0.9 ? 1 : (1 - t)*10;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // Glow
+    ctx.shadowColor = col; ctx.shadowBlur = 10;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(x, y, f.size, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.arc(x - f.size*0.3, y - f.size*0.3, f.size*0.4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+// Draw all active niacin particles (in lumen, absorbing, capillary, or systemic)
+function drawNiacinParticles(){
+  niacinParticles.forEach(p => {
+    if(p.age < p.spawnDelay) return;
+    if(p.x===undefined) return;
+
+    const col = p.type==='free' ? '#22c55e' : '#ef4444';
+    const glow = p.type==='free' ? '#4ade80' : '#f87171';
+
+    ctx.save();
     // Trail
-    if(p.t%3===0&&p.trail.length<8) p.trail.push({x:p.x,y:p.y,a:0.4});
-
-    if(p.type==='g'&&!p.abs){
-      p.y+=p.vy*sc; p.x+=Math.sin(p.t*0.04)*0.6;
-      if(p.y>gutWallY){
-        p.abs=true; p.vy*=0.4;
-        // Spark on absorption
-        for(let i=0;i<3;i++) sparks.push({x:p.x,y:p.y,vx:(Math.random()-0.5)*3,vy:(Math.random()-0.5)*3,life:20,c:'#4ade80'});
-      }
-    } else if(p.type==='g'&&p.abs){
-      p.y+=p.vy*sc*0.25; p.x+=(Math.random()-0.5)*0.8;
-      p.r*=0.997;
+    if(p.stage === 'capillary' || p.stage === 'systemic'){
+      ctx.fillStyle = p.type==='free' ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)';
+      ctx.beginPath();
+      ctx.arc(p.x - 4, p.y, p.size*0.7, 0, Math.PI*2);
+      ctx.fill();
     }
-
-    if(p.type==='r'&&!p.bounced){
-      p.y+=p.vy*sc; p.x+=Math.sin(p.t*0.06)*0.4;
-      if(p.y>gutWallY-4*sc){
-        p.bounced=true;
-        p.vy=-Math.abs(p.vy)*1.2;
-        p.vx=(Math.random()-0.5)*4;
-        for(let i=0;i<3;i++) sparks.push({x:p.x,y:p.y,vx:(Math.random()-0.5)*3,vy:-Math.random()*3,life:15,c:'#f87171'});
-      }
-    } else if(p.type==='r'&&p.bounced){
-      p.y+=p.vy*sc*0.4; p.x+=p.vx*sc*0.4;
-      p.vy+=0.03; p.r*=0.992;
-    }
-
-    // Draw trail
-    p.trail.forEach((tr,ti)=>{
-      tr.a*=0.88;
-      if(tr.a>0.02){
-        ctx.fillStyle=p.type==='g'?`rgba(34,197,94,${tr.a})`:`rgba(239,68,68,${tr.a})`;
-        ctx.beginPath();ctx.arc(tr.x,tr.y,p.r*sc*0.4,0,Math.PI*2);ctx.fill();
-      }
-    });
-    p.trail=p.trail.filter(tr=>tr.a>0.02);
-
-    // Draw particle
-    if(p.r>0.3){
-      ctx.save();
-      const alpha=Math.max(0,1-p.t/250);
-      ctx.globalAlpha=alpha;
-      // Glow
-      ctx.shadowColor=p.g;ctx.shadowBlur=10;
-      ctx.fillStyle=p.c;
-      ctx.beginPath();ctx.arc(p.x,p.y,p.r*sc,0,Math.PI*2);ctx.fill();
-      // Inner bright core
-      ctx.shadowBlur=0;
-      ctx.fillStyle=p.type==='g'?'rgba(255,255,255,0.4)':'rgba(255,200,200,0.3)';
-      ctx.beginPath();ctx.arc(p.x-p.r*sc*0.2,p.y-p.r*sc*0.2,p.r*sc*0.4,0,Math.PI*2);ctx.fill();
-      ctx.restore();
-    }
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = p.stage==='capillary' ? 14 : 10;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Inner highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.arc(p.x - p.size*0.3, p.y - p.size*0.3, p.size*0.35, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
   });
 }
 
-function drawSparks(){
-  sparks=sparks.filter(s=>{
-    s.x+=s.vx;s.y+=s.vy;s.life--;s.vx*=0.92;s.vy*=0.92;
-    if(s.life<=0)return false;
-    ctx.save();ctx.globalAlpha=s.life/20;
-    ctx.fillStyle=s.c;
-    ctx.beginPath();ctx.arc(s.x,s.y,2,0,Math.PI*2);ctx.fill();
+function drawSparks(dt){
+  for(let i=sparks.length-1; i>=0; i--){
+    const s = sparks[i];
+    s.x += s.vx;
+    s.y += s.vy;
+    s.vx *= 0.92;
+    s.vy *= 0.92;
+    s.life -= dt/500;
+    if(s.life <= 0){ sparks.splice(i,1); continue; }
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, s.life);
+    ctx.fillStyle = s.c;
+    ctx.shadowColor = s.c;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size || 2, 0, Math.PI*2);
+    ctx.fill();
     ctx.restore();
-    return true;
-  });
+  }
 }
 
 function drawLabels(){
-  const sc=Math.min(W/900,H/600)*1.1;
-  const cx=W*0.46, cy=H*0.5;
-  const fs=Math.max(11,12*sc);
-
+  const L = layout();
   ctx.save();
-  ctx.font=`bold ${fs}px 'Segoe UI'`;ctx.textAlign='center';
+  ctx.font = "bold 11px 'Segoe UI'"; ctx.textAlign = 'center';
 
-  // Label backgrounds for readability
-  function labelBG(text,x,y,color){
-    const m=ctx.measureText(text);
-    const pw=6,ph=3;
-    ctx.fillStyle='rgba(15,23,42,0.7)';
+  function labelBG(text, x, y, color, fs){
+    ctx.font = `bold ${fs||11}px 'Segoe UI'`;
+    const m = ctx.measureText(text);
+    const pw = 6, ph = 3;
+    const lx = x - m.width/2 - pw;
+    const ly = y - (fs||11)*0.8 - ph;
+    const lw = m.width + pw*2;
+    const lh = (fs||11) + ph*2;
+    ctx.fillStyle = 'rgba(15,23,42,0.75)';
     ctx.beginPath();
-    const rr=4;
-    const lx=x-m.width/2-pw,ly=y-fs*0.7-ph,lw=m.width+pw*2,lh=fs+ph*2;
-    ctx.roundRect(lx,ly,lw,lh,rr);ctx.fill();
-    ctx.fillStyle=color;ctx.fillText(text,x,y);
+    ctx.roundRect(lx, ly, lw, lh, 4);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
   }
 
-  labelBG('Stomach',cx-8*sc,cy-28*sc,'rgba(255,255,255,0.7)');
-  labelBG('Gut Wall',cx+45*sc,cy+42*sc,'rgba(167,139,250,0.8)');
-  labelBG('Bloodstream',cx,cy+88*sc,'rgba(248,113,113,0.7)');
+  labelBG('Mouth', L.mouth.x, L.mouth.y - 18, 'rgba(255,255,255,0.85)', 10);
+  labelBG('Stomach', L.stomach.x, L.stomach.y - L.stomach.ry - 8, 'rgba(253,186,116,0.95)', 10);
 
-  // Corn type label under plate
-  const cornName=CORN_LABELS[S.corn];
-  ctx.font=`bold ${Math.max(11,13*sc)}px 'Segoe UI'`;
-  labelBG(cornName+' Corn',W*0.1,H*0.6+40*sc,'rgba(255,255,255,0.8)');
+  // Key legend top-right of the arena
+  const kx = W - 130;
+  const ky = 14;
+  ctx.fillStyle = 'rgba(15,23,42,0.75)';
+  ctx.beginPath();
+  ctx.roundRect(kx, ky, 120, 52, 8);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(99,102,241,0.35)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(kx, ky, 120, 52, 8);
+  ctx.stroke();
 
-  // Key legend top-right
-  const kx=W*0.82, ky=20;
-  ctx.font=`bold ${Math.max(10,11*sc)}px 'Segoe UI'`;
-  ctx.fillStyle='rgba(15,23,42,0.6)';
-  ctx.beginPath();ctx.roundRect(kx-12,ky-10,110*sc,50,8);ctx.fill();
+  ctx.fillStyle = '#22c55e';
+  ctx.shadowColor = '#4ade80'; ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.arc(kx + 14, ky + 16, 5, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = "bold 10px 'Segoe UI'"; ctx.textAlign = 'left';
+  ctx.fillText('Free niacin (absorbed)', kx + 24, ky + 20);
 
-  ctx.fillStyle='#22c55e';ctx.beginPath();ctx.arc(kx,ky+4,5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.8)';ctx.textAlign='left';ctx.fillText('Absorbed',kx+10,ky+8);
-
-  ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(kx,ky+24,5,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,0.8)';ctx.fillText('Locked',kx+10,ky+28);
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath(); ctx.arc(kx + 14, ky + 36, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillText('Bound niacin (locked)', kx + 24, ky + 40);
 
   ctx.restore();
 }
 
 function drawAmb(){
-  ambients.forEach(p=>{
-    p.x+=p.vx;p.y+=p.vy;
-    p.phase+=0.02;
-    if(p.x<0)p.x=W;if(p.x>W)p.x=0;
-    if(p.y<0)p.y=H;if(p.y>H)p.y=0;
-    const a=p.a*(0.7+Math.sin(p.phase)*0.3);
-    ctx.fillStyle=`rgba(129,140,248,${a})`;
-    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+  ambients.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.phase += 0.02;
+    if(p.x < 0) p.x = W;
+    if(p.x > W) p.x = 0;
+    if(p.y < 0) p.y = H;
+    if(p.y > H) p.y = 0;
+    const a = p.a * (0.7 + Math.sin(p.phase)*0.3);
+    ctx.fillStyle = `rgba(129,140,248,${a})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fill();
   });
 }
+
 
 // Polyfill roundRect
 if(!CanvasRenderingContext2D.prototype.roundRect){
