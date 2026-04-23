@@ -129,6 +129,8 @@ button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px}
 .bottom-btn{padding:8px 14px;font-size:13px;font-weight:600;border-radius:8px;background:linear-gradient(135deg,#F1F5F9,#E2E8F0);color:var(--textLight);border:1px solid #CBD5E1;min-height:40px;transition:all .2s;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
 .bottom-btn:hover{background:linear-gradient(135deg,#E2E8F0,#CBD5E1);box-shadow:0 2px 4px rgba(0,0,0,0.08)}
 .bottom-btn.disabled{opacity:.4;pointer-events:none}
+#stuckBtn{background:linear-gradient(135deg,#FEF3C7,#FDE68A);color:#92400E;border:2px solid #F59E0B;position:fixed;bottom:12px;right:12px;z-index:9999;font-size:14px;padding:10px 16px;min-height:44px;box-shadow:0 4px 14px rgba(245,158,11,.35)}
+#stuckBtn:hover{background:linear-gradient(135deg,#FDE68A,#FCD34D);box-shadow:0 6px 18px rgba(245,158,11,.45)}
 .round-indicator{flex:1;text-align:center;font-size:13px;color:var(--textLight);font-weight:500}
 
 /* OVERLAYS */
@@ -384,6 +386,7 @@ button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px}
     <button class="bottom-btn" id="hintBtn">Hint</button>
     <span class="round-indicator" id="roundIndicatorBottom">Round 1 of 6</span>
     <button class="bottom-btn" id="resetLevelBtn">Reset Level</button>
+    <button class="bottom-btn" id="stuckBtn" title="If you cannot get past this round, tap here to skip with 50% credit.">I'm Stuck</button>
   </div>
 </div>
 
@@ -464,7 +467,6 @@ const GS={
   vars:{social:'alone',space:'small',enrich:'none'},
   meterVal:0,
   roundData:[],
-  processing:false,
   wrongCount:0,consecutiveFastWrongs:0,phaseStartTime:0,
   resets:0,hintsUsed:0,
   roundStartTime:0,gameStartTime:0,
@@ -473,6 +475,44 @@ const GS={
   recordConfirmedFast:false,
   varChanged:false
 };
+
+// ===== PROCESSING FLAG WATCHDOG (SYSTEMIC LOCKUP PREVENTION) =====
+// Any time GS.processing is set to true, a 5-second watchdog arms. If the
+// normal flow fails to clear it (async error, missed code path, swallowed
+// exception, anything), the watchdog silently clears the flag so the NEXT
+// tap from the student works. No code elsewhere needs to change; every
+// existing `GS.processing = true/false` assignment goes through here.
+(function installProcessingWatchdog(){
+  let _val=false;let _wd=null;
+  Object.defineProperty(GS,'processing',{
+    configurable:true,
+    get(){return _val},
+    set(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null}
+      if(_val){
+        _wd=setTimeout(()=>{
+          console.warn('[watchdog] processing flag stuck 5s — auto-clearing to unblock student');
+          _val=false;_wd=null;
+          // Try to refresh the stuck screen so the student sees they can proceed
+          try{showStuckHint()}catch(e){}
+        },5000);
+      }
+    }
+  });
+})();
+
+// Shows a small, non-intrusive nudge if the watchdog had to rescue the student.
+function showStuckHint(){
+  const existing=document.getElementById('stuckNudge');
+  if(existing)return;
+  const nudge=document.createElement('div');
+  nudge.id='stuckNudge';
+  nudge.textContent='Tap a button to continue.';
+  nudge.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#FEF3C7;color:#92400E;padding:10px 18px;border-radius:10px;font-weight:600;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:10000;border:2px solid #F59E0B';
+  document.body.appendChild(nudge);
+  setTimeout(()=>{if(nudge.parentNode)nudge.remove()},4000);
+}
 
 // ===== AFFIRMATIONS =====
 let lastAffirmIdx=-1;
@@ -1472,6 +1512,8 @@ function showGuidedMessage(text){
 
 // ===== WATCH PHASE =====
 function startWatchPhase(){
+  // Clear processing FIRST so nothing downstream can leave it stuck true
+  GS.processing=false;
   const r=ROUNDS[GS.currentRound];
   GS.phase='watch';
   clearIZ();
@@ -1486,21 +1528,19 @@ function startWatchPhase(){
   else if(roundIdx===3){GS.vars.social='alone';GS.vars.space='small';GS.vars.enrich='full'}
   else if(roundIdx===4){GS.vars.social='8rats';GS.vars.space='small';GS.vars.enrich='full'}
 
-  // Build arena with the enforced state
-  let social=GS.vars.social,space=GS.vars.space,enrich=GS.vars.enrich;
-  if(r.activeVar==='binary_switch'){social='8rats';space='large';enrich='full'}
-  const animate=true;
-  const showSameRat=r.activeVar==='binary_switch';
-  buildArena(social,space,enrich,r.meterTarget,{animate,sameRatLabel:showSameRat});
+  // Build arena — wrapped so a drawing error cannot trap the student
+  try{
+    let social=GS.vars.social,space=GS.vars.space,enrich=GS.vars.enrich;
+    if(r.activeVar==='binary_switch'){social='8rats';space='large';enrich='full'}
+    const animate=true;
+    const showSameRat=r.activeVar==='binary_switch';
+    buildArena(social,space,enrich,r.meterTarget,{animate,sameRatLabel:showSameRat});
+  }catch(e){
+    console.error('buildArena failed — continuing anyway:',e);
+  }
 
-  // CRITICAL: Clear processing now that we've safely entered WATCH phase.
-  // The RUN button click set processing=true to prevent double-clicks during the
-  // synchronous transition. If we leave it true, the "Tap to continue" button below
-  // is permanently unresponsive (its handler returns when processing is true).
-  GS.processing=false;
-
-  // Animate meter to target
-  safeTimeout(()=>updateMeter(r.meterTarget,true),500);
+  // Animate meter to target (defensive)
+  safeTimeout(()=>{try{updateMeter(r.meterTarget,true)}catch(e){console.error(e)}},500);
 
   // Show same-rat label for R6
   if(r.activeVar==='binary_switch'){
@@ -1558,6 +1598,8 @@ function showPredictionFeedback(cb){
 
 // ===== RECORD PHASE =====
 function startRecordPhase(){
+  // Clear processing FIRST — defensive against any stuck-flag state
+  GS.processing=false;
   const r=ROUNDS[GS.currentRound];
   GS.phase='record';
   clearIZ();
@@ -1637,6 +1679,8 @@ function startRecordPhase(){
 
 // ===== PROVE PHASE =====
 function startProvePhase(){
+  // Clear processing FIRST — defensive against any stuck-flag state
+  GS.processing=false;
   const r=ROUNDS[GS.currentRound];
   GS.phase='prove';
   GS.wrongCount=0;GS.phaseStartTime=Date.now();GS.consecutiveFastWrongs=0;
@@ -2143,10 +2187,12 @@ function resetCurrentLevel(){
 function showReceipt(){
   if(GS.receiptRendered)return;
   GS.receiptRendered=true;
+  GS.phase='receipt';
   clearAllTimers();
   closeAllOverlays();
   showScreen('receiptScreen');
   document.getElementById('resetLevelBtn').classList.add('disabled');
+  const stuckBtn=document.getElementById('stuckBtn');if(stuckBtn)stuckBtn.style.display='none';
 
   const overall=calcOverall();
   const pctClass=overall>=85?'green':overall>=70?'yellow':'red';
@@ -2229,6 +2275,62 @@ document.getElementById('resetLevelBtn').addEventListener('click',()=>{
   // Always force-clear processing — if a callback chain crashed, processing might be stuck true
   GS.processing=false;
   resetCurrentLevel();
+});
+
+// ===== "I'M STUCK" EMERGENCY ADVANCE BUTTON =====
+// Guaranteed escape hatch. Works from ANY phase. Ignores processing flag.
+// Awards 50% credit and advances to the next round. Never lets a student
+// be trapped on a broken screen.
+document.getElementById('stuckBtn').addEventListener('click',()=>{
+  if(GS.phase==='receipt')return;
+  const ok=confirm('Skip this round? You will get 50% credit and move on to the next round.');
+  if(!ok)return;
+  try{
+    // 1. Clear processing flag and any watchdog
+    GS.processing=false;
+    // 2. Invalidate stale callbacks from the current round
+    bumpGen();
+    // 3. Aggressively strip every possible blocking UI element
+    closeAllOverlays();
+    // Close vocab overlay too in case it's open
+    try{document.getElementById('vocabOverlay').style.display='none'}catch(e){}
+    try{document.getElementById('celebOverlay').style.display='none'}catch(e){}
+    // Remove any dynamically-created buttons, coaching bars, or overlays left behind
+    document.querySelectorAll('.coaching-bar,.ag-screen,.choice-overlay,.guided-msg,.try-again-btn,.tap-continue,#predictLockBtn,#proveLockBtn,#stuckNudge').forEach(el=>{try{el.remove()}catch(e){}});
+    // Reset any stuck pointer-events on the interaction zone
+    try{
+      const iz=document.getElementById('izContainer');
+      if(iz)iz.style.pointerEvents='';
+      document.querySelectorAll('.opt-card').forEach(c=>{c.style.pointerEvents='';c.style.opacity='';c.classList.remove('selected','dimmed','wrong-card','eliminated')});
+    }catch(e){}
+    // Clear multi-variable checklist interval if running
+    if(GS._multiCheckInterval){clearInterval(GS._multiCheckInterval);GS._multiCheckInterval=null}
+    // 4. Award 50% for this round
+    if(GS.currentRound<ROUNDS.length){
+      GS.roundScores[GS.currentRound]=50;
+      GS.roundTimes[GS.currentRound]=Math.round((Date.now()-(GS.roundStartTime||Date.now()))/1000);
+      GS.totalScore=calcOverall();
+      const segs=document.querySelectorAll('.progress-seg');
+      if(segs[GS.currentRound])segs[GS.currentRound].classList.add('done');
+    }
+    updateHUD();
+    // 5. Advance. If this was the last round, show receipt.
+    const next=GS.currentRound+1;
+    if(next>=ROUNDS.length){showReceipt();return}
+    if(next===4&&!GS.requiredCompleteShown){
+      GS.requiredCompleteShown=true;
+      showRequiredComplete();
+    } else if(next===6&&!GS.bonusCompleteShown){
+      GS.bonusCompleteShown=true;
+      showBonusComplete();
+    } else {
+      startRound(next);
+    }
+  }catch(e){
+    console.error('Stuck-button error:',e);
+    // Last-ditch rescue: force a reload of the current round from scratch
+    try{GS.processing=false;startRound(Math.min(GS.currentRound+1,ROUNDS.length-1))}catch(e2){console.error(e2)}
+  }
 });
 
 // ===== START =====
