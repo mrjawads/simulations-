@@ -917,10 +917,47 @@ svg.cascade-celebrate #cascBurst { opacity: 1 !important; animation: cascadeCele
 /* =========================================================
    PRINT
    ========================================================= */
+/* =========================================================
+   FIX 2 — FLOATING "I'M STUCK" EMERGENCY ADVANCE BUTTON
+   position:fixed bottom-right, z-index:9999 so no overlay can cover it.
+   Amber palette so students can spot it. Works from any phase regardless
+   of processing flag state. Hidden only on the receipt screen.
+   ========================================================= */
+#stuckBtn {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 9999;
+  min-width: 112px;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 2px solid #b45309;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  color: #1a0f2e;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.35), 0 2px 4px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  touch-action: manipulation;
+  user-select: none;
+}
+#stuckBtn:hover { filter: brightness(1.06); }
+#stuckBtn:active { transform: translateY(1px); }
+#stuckBtn.hidden { display: none !important; }
+@media (max-width: 480px) {
+  #stuckBtn { right: 10px; bottom: 10px; min-width: 96px; font-size: 13px; }
+}
+
 @media print {
   body { background: white; color: black; }
   #welcome, #game, #vocabPanel, #sbsModal, #celebration, #particleLayer,
-  #choiceOverlay, #levelIntro, .receipt-actions, .upload-note { display: none !important; }
+  #choiceOverlay, #levelIntro, .receipt-actions, .upload-note, #stuckBtn { display: none !important; }
   #receipt { background: white; position: static; padding: 0; }
   .receipt-inner { background: white; border: 2px solid #333; color: black; box-shadow: none; max-width: 100%; }
   #receiptTitle, #breakdown th { color: #1a1a2e !important; }
@@ -933,6 +970,13 @@ svg.cascade-celebrate #cascBurst { opacity: 1 !important; animation: cascadeCele
 </style>
 </head>
 <body>
+
+<!-- FIX 2 — Floating emergency advance button.
+     Starts hidden on welcome screen, shown once simulation starts,
+     hidden again on the receipt screen. -->
+<button id="stuckBtn" class="hidden" type="button" aria-label="I'm Stuck — skip this round for 50% credit">
+  <span aria-hidden="true">🆘</span><span>I'm Stuck</span>
+</button>
 
 <!-- =========================================================
      WELCOME SCREEN
@@ -1150,6 +1194,34 @@ window.GS = {
   timers: {},
   intervals: {}
 };
+
+/* =========================================================
+   FIX 1 — SELF-HEALING PROCESSING WATCHDOG
+   Replaces the plain GS.processing property with a getter/setter that
+   auto-clears the flag after 5 seconds if anything forgets. This catches
+   every missed clear path (error, early return, swallowed exception,
+   async failure) without changing any existing GS.processing=true/false
+   assignments. Non-optional defense per classroom crash-prevention rules.
+   ========================================================= */
+(function installProcessingWatchdog() {
+  let _val = false;
+  let _wd = null;
+  Object.defineProperty(GS, 'processing', {
+    configurable: true,
+    get() { return _val; },
+    set(v) {
+      _val = !!v;
+      if (_wd) { clearTimeout(_wd); _wd = null; }
+      if (_val) {
+        _wd = setTimeout(() => {
+          console.warn('[watchdog] GS.processing stuck 5s — auto-clearing');
+          _val = false;
+          _wd = null;
+        }, 5000);
+      }
+    }
+  });
+})();
 
 // DOM helpers
 const $ = (id) => document.getElementById(id);
@@ -3137,17 +3209,26 @@ function startLevel(idx) {
 }
 
 function phaseFocusWatch() {
+  // FIX 3 — defensive clear first (prevents caller-leaked stuck flag)
+  GS.processing = false;
   const L = LEVELS[GS.currentLevel];
   GS.phase = 'watch';
 
-  // Render arena for watch (renderArenaForLevel internally calls cleanupArena())
-  renderArenaForLevel('watch');
+  // FIX 3 — wrap arena render so a graphics failure cannot leave flag stuck
+  try {
+    renderArenaForLevel('watch');
+  } catch (e) {
+    console.error('phaseFocusWatch render failed', e);
+    try { $('arena').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary)">Evidence unavailable — continuing.</div>'; } catch (e2) {}
+  }
 
   // Focus banner
-  const banner = document.createElement('div');
-  banner.className = 'focus-banner';
-  banner.textContent = L.focusPrompt;
-  $('arena').appendChild(banner);
+  try {
+    const banner = document.createElement('div');
+    banner.className = 'focus-banner';
+    banner.textContent = L.focusPrompt;
+    $('arena').appendChild(banner);
+  } catch (e) { console.error('focus banner failed', e); }
 
   // IZ shows "WATCH" state
   $('izContent').innerHTML = `
@@ -3167,16 +3248,28 @@ function phaseFocusWatch() {
 }
 
 function phaseDo() {
+  // FIX 3 — defensive clear first
+  GS.processing = false;
   const L = LEVELS[GS.currentLevel];
   GS.phase = 'do';
   clearTimeout(GS.timers.watchAdvance);
   clearTimeout(GS.timers.watchSafety);
 
-  // Re-render arena for DO state (keeps visual evidence visible)
-  renderArenaForLevel('do');
+  // FIX 3 — wrap arena re-render so graphics errors can't leave flag stuck
+  try {
+    renderArenaForLevel('do');
+  } catch (e) {
+    console.error('phaseDo render failed', e);
+  }
 
   GS.doStartTime = Date.now();
-  renderDoMechanic(L);
+  try {
+    renderDoMechanic(L);
+  } catch (e) {
+    console.error('renderDoMechanic failed', e);
+    // IZ fallback so student is not stranded
+    try { $('izContent').innerHTML = '<div class="iz-prompt">Tap the emergency button to move on.</div>'; } catch (e2) {}
+  }
 }
 
 function renderDoMechanic(L) {
@@ -3535,6 +3628,10 @@ function autoAdvanceWithCredit() {
    PHASE: PROVE
    ========================================================= */
 function phaseProve() {
+  // FIX 3 — defensive clear first (PROVE correct path in handleCorrect
+  // used to leave GS.processing=true all the way through the safeTimeout
+  // to completeLevel, which was the real lockup path this audit found)
+  GS.processing = false;
   GS.phase = 'prove';
   GS.wrongCount = 0; // reset for prove phase
   GS.fastWrongs = 0;
@@ -3548,21 +3645,30 @@ function phaseProve() {
     if (t) t.removeEventListener('click', onHotspotCorrect);
   } catch (e) { /* ignore */ }
 
-  // Keep arena visible - re-render for prove state
-  renderArenaForLevel('prove');
+  // FIX 3 — wrap arena re-render so graphics errors can't leave flag stuck
+  try {
+    renderArenaForLevel('prove');
+  } catch (e) {
+    console.error('phaseProve render failed', e);
+  }
 
-  const L = LEVELS[GS.currentLevel];
-  const iz = $('izContent');
-  iz.innerHTML = '';
-  const prompt = document.createElement('div');
-  prompt.className = 'iz-prompt';
-  prompt.textContent = L.prove.prompt;
-  iz.appendChild(prompt);
-  const sub = document.createElement('div');
-  sub.className = 'iz-sub';
-  sub.textContent = 'PROVE IT — pick the answer that fits the evidence.';
-  iz.appendChild(sub);
-  renderOptionCards(iz, L.prove.options, 'prove');
+  try {
+    const L = LEVELS[GS.currentLevel];
+    const iz = $('izContent');
+    iz.innerHTML = '';
+    const prompt = document.createElement('div');
+    prompt.className = 'iz-prompt';
+    prompt.textContent = L.prove.prompt;
+    iz.appendChild(prompt);
+    const sub = document.createElement('div');
+    sub.className = 'iz-sub';
+    sub.textContent = 'PROVE IT — pick the answer that fits the evidence.';
+    iz.appendChild(sub);
+    renderOptionCards(iz, L.prove.options, 'prove');
+  } catch (e) {
+    console.error('phaseProve IZ render failed', e);
+    try { $('izContent').innerHTML = '<div class="iz-prompt">Tap the emergency button to move on.</div>'; } catch (e2) {}
+  }
 }
 
 /* =========================================================
@@ -4267,6 +4373,8 @@ function finishSimulation() {
   clearAllTimers();
   closeAllOverlays();
   $('game').style.display = 'none';
+  // FIX 2 — hide emergency button on receipt (nothing to skip to)
+  const _sb = $('stuckBtn'); if (_sb) _sb.classList.add('hidden');
   const r = $('receipt');
   r.classList.add('active');
 
@@ -4347,6 +4455,137 @@ $('newRunBtn').addEventListener('click', () => {
 });
 
 /* =========================================================
+   FIX 2 — "I'M STUCK" EMERGENCY ADVANCE HANDLER
+   Works from any phase regardless of processing flag state.
+   On confirm: force-clear processing, bump arenaGen (invalidate stale
+   callbacks), strip every blocking UI surface, award 50% credit,
+   advance to next round or receipt. Wrapped in try/catch with a
+   last-ditch startRound fallback so even a broken state can escape.
+   ========================================================= */
+$('stuckBtn').addEventListener('click', () => {
+  try {
+    const ok = confirm('Skip this round? You will get 50% credit and move on.');
+    if (!ok) return;
+  } catch (e) { /* ignore */ }
+
+  try {
+    // Force-clear the processing flag (watchdog would catch it in 5s anyway)
+    GS.processing = false;
+
+    // Bump generation counter to invalidate any in-flight safeTimeout callbacks
+    if (typeof GS.arenaGen === 'number') GS.arenaGen++;
+
+    // Clear every timer and interval the sim has registered
+    try { clearAllTimers(); } catch (e) {}
+    try { clearAllIntervals(); } catch (e) {}
+
+    // Close every overlay, coaching bar, and transient UI element
+    try { closeAllOverlays(); } catch (e) {}
+    document.querySelectorAll(
+      '.coaching-bar, .try-again-btn, .tap-continue, .focus-banner, ' +
+      '.celebration-inner, .affirmation, .feedback-popup, .overlay'
+    ).forEach(el => { try { el.remove(); } catch (e) {} });
+
+    // Strip any dynamically-attached lock-in / submit buttons inside IZ
+    document.querySelectorAll(
+      '#doLockIn, #proveLockIn, #claimSubmit, #wcnSubmit'
+    ).forEach(btn => { try { btn.disabled = true; } catch (e) {} });
+
+    // Strip stuck card states so future levels render cleanly
+    document.querySelectorAll(
+      '.option-card, .claim-card, .wcn-slot, .wcn-card'
+    ).forEach(c => {
+      try {
+        c.classList.remove('selected', 'dimmed', 'wrong', 'locked', 'disabled');
+        c.style.pointerEvents = '';
+      } catch (e) {}
+    });
+
+    // Detach hotspot listeners that might linger
+    try {
+      const arenaEl = $('arena');
+      if (arenaEl && typeof onHotspotWrong === 'function') {
+        arenaEl.removeEventListener('click', onHotspotWrong);
+      }
+      const t = document.querySelector('#hotspotTarget');
+      if (t && typeof onHotspotCorrect === 'function') {
+        t.removeEventListener('click', onHotspotCorrect);
+      }
+    } catch (e) {}
+
+    // Hide intro/choice overlays if visible
+    try { const li = $('levelIntro'); if (li) li.classList.remove('active'); } catch (e) {}
+    try { const co = $('choiceOverlay'); if (co) co.classList.remove('open'); } catch (e) {}
+    try { const sbm = $('sbsModal'); if (sbm) sbm.classList.remove('open'); } catch (e) {}
+
+    // Award 50% credit for the current level and mark completed
+    const idx = GS.currentLevel;
+    if (GS.levels && GS.levels[idx]) {
+      const slot = GS.levels[idx];
+      if (!slot.completed) {
+        slot.completed = true;
+        slot.score = 50;
+        slot.attempts = (GS.wrongCount || 0) + 1;
+        slot.hintsUsed = GS.hintsUsedThisLevel || 0;
+        slot.resets = (GS.resetCount || 0);
+        slot.timeSeconds = Math.round((Date.now() - (GS.levelStartTime || Date.now())) / 1000);
+        GS.score = (GS.score || 0) + 50;
+      }
+    }
+
+    // Brief visual confirmation
+    try {
+      const banner = document.createElement('div');
+      banner.textContent = 'Moving on — you will see this idea again.';
+      banner.style.cssText = 'position:fixed; top:18px; left:50%; transform:translateX(-50%); background:#f59e0b; color:#1a0f2e; padding:10px 18px; border-radius:10px; font-weight:800; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+      document.body.appendChild(banner);
+      setTimeout(() => { try { banner.remove(); } catch (e) {} }, 2200);
+    } catch (e) {}
+
+    // Advance: next level, or receipt if that was the last
+    const nextIdx = idx + 1;
+    if (nextIdx >= LEVELS.length) {
+      // Was the last level — go to receipt
+      setTimeout(() => {
+        try { finishSimulation(); }
+        catch (e) { console.error('finishSimulation failed from stuckBtn', e); }
+      }, 400);
+    } else {
+      // Advance to next level. safeTimeout is gated on arenaGen which we just
+      // bumped — use a raw setTimeout so nothing can invalidate this rescue.
+      setTimeout(() => {
+        try {
+          // Check if required-complete milestone should fire first
+          const reqDone = GS.levels.slice(0, 4).every(s => s.completed);
+          if (reqDone && !GS.requiredCompleteShown && nextIdx >= 4) {
+            showRequiredCompleteChoice();
+          } else {
+            startLevel(nextIdx);
+          }
+        } catch (e) {
+          // Last-ditch fallback: try startLevel directly
+          console.error('stuckBtn advance failed, retrying startLevel', e);
+          try { startLevel(nextIdx); }
+          catch (e2) {
+            console.error('startLevel retry failed, going to receipt', e2);
+            try { finishSimulation(); } catch (e3) {}
+          }
+        }
+      }, 400);
+    }
+  } catch (e) {
+    // Absolute last-ditch: just try to start the next level
+    console.error('stuckBtn handler threw', e);
+    try {
+      GS.processing = false;
+      startLevel((GS.currentLevel || 0) + 1);
+    } catch (e2) {
+      try { finishSimulation(); } catch (e3) {}
+    }
+  }
+});
+
+/* =========================================================
    START GAME
    ========================================================= */
 $('startBtn').addEventListener('click', () => {
@@ -4374,6 +4613,9 @@ $('startBtn').addEventListener('click', () => {
 
   $('welcome').style.display = 'none';
   $('game').style.display = 'flex';
+
+  // FIX 2 — reveal floating emergency button for the rest of the sim
+  const _sb = $('stuckBtn'); if (_sb) _sb.classList.remove('hidden');
 
   // Unlock audio context on gesture
   getAudioContext();

@@ -619,6 +619,43 @@ button:disabled{ cursor:not-allowed; opacity:0.5; }
   to{ transform:translateY(500px) rotate(720deg); opacity:0;}
 }
 
+/* LOCKUP DEFENSE 2/3: I'm Stuck emergency button.
+   Fixed bottom-right, z-index:9999, amber styling so students can always find it.
+   44px minimum touch target, visible above all overlays. */
+#imStuckBtn{
+  position:fixed;
+  right:14px; bottom:14px;
+  z-index:9999;
+  display:none; /* shown after welcome screen closes */
+  align-items:center; gap:8px;
+  min-height:44px; min-width:120px;
+  padding:10px 16px;
+  background:linear-gradient(180deg, #F59E0B 0%, #D97706 100%);
+  color:#1F2937;
+  border:2px solid #92400E;
+  border-radius:24px;
+  font-weight:800; font-size:14px; letter-spacing:0.3px;
+  box-shadow:0 4px 14px rgba(217,119,6,0.45), 0 2px 4px rgba(0,0,0,0.15);
+  cursor:pointer;
+  font-family:inherit;
+  transition:transform 0.12s, box-shadow 0.12s;
+}
+#imStuckBtn:hover, #imStuckBtn:focus{
+  transform:translateY(-1px);
+  box-shadow:0 6px 18px rgba(217,119,6,0.55), 0 2px 6px rgba(0,0,0,0.18);
+  outline:none;
+}
+#imStuckBtn:active{ transform:translateY(1px); }
+#imStuckBtn.visible{ display:inline-flex; }
+#imStuckBtn .stuck-icon{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:22px; height:22px; border-radius:50%;
+  background:#92400E; color:#FEF3C7;
+  font-size:14px; font-weight:900;
+}
+#imStuckBtn .stuck-label{ white-space:nowrap; }
+@media print{ #imStuckBtn{ display:none !important; } }
+
 .choice-overlay{
   position:fixed; inset:0; background:rgba(17,24,39,0.72); z-index:100;
   display:flex; align-items:center; justify-content:center;
@@ -896,7 +933,7 @@ button:disabled{ cursor:not-allowed; opacity:0.5; }
 }
 
 @media print{
-  #topbar,#main,#izWrap,#bottombar,#vocabPanel,.coaching-bar,.sbs-modal,#celebrateOverlay,#confettiLayer,.receipt-btn-row{ display:none !important; }
+  #topbar,#main,#izWrap,#bottombar,#vocabPanel,.coaching-bar,.sbs-modal,#celebrateOverlay,#confettiLayer,.receipt-btn-row,#imStuckBtn{ display:none !important; }
   #receiptScreen{ position:static; padding:0; }
   .receipt-card{ box-shadow:none; max-width:100%; }
   *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
@@ -1116,6 +1153,15 @@ button:disabled{ cursor:not-allowed; opacity:0.5; }
 
 <!-- Confetti + celebrate layer -->
 <div id="confettiLayer"></div>
+
+<!-- LOCKUP DEFENSE 2/3: Floating emergency advance button. Always visible
+     during gameplay, hidden only on receipt screen. Works from ANY phase
+     regardless of flag state. z-index:9999 so no overlay can cover it. -->
+<button id="imStuckBtn" type="button" aria-label="I'm Stuck — skip this round">
+  <span class="stuck-icon" aria-hidden="true">?</span>
+  <span class="stuck-label">I'm Stuck</span>
+</button>
+
 <div id="celebrateOverlay">
   <div class="celebrate-card">
     <div class="celebrate-title" id="celebrateTitle">Nice Work!</div>
@@ -1134,7 +1180,7 @@ const GS = {
   currentPhase: '',    // 'change','predict','watch','record','prove','complete'
   score: 0,
   arenaGen: 0,         // increments on reset/startRound — invalidates stale timeouts
-  processing: false,   // guards against double-taps on advancement
+  // processing: replaced below by self-healing watchdog (Object.defineProperty)
   startTime: Date.now(),
   rounds: [],          // filled from ROUND_DATA
   vars: { dose:'Low', freq:'Once', age:'Teen', dur:'7' },
@@ -1161,6 +1207,34 @@ const GS = {
 
 // Window-level selected id (prevents closure-local jam bug)
 window._doSelectedId = null;
+
+/* ==========================================================
+   LOCKUP DEFENSE 1/3: Self-healing watchdog on GS.processing.
+   Replaces the plain property with a getter/setter that
+   auto-clears the flag 5 seconds after it was set to true.
+   Catches every missed clear path (error, early return,
+   swallowed exception, async failure) without changing any
+   existing GS.processing = true/false assignments.
+   ========================================================== */
+(function installProcessingWatchdog(){
+  let _val = false;
+  let _wd = null;
+  Object.defineProperty(GS, 'processing', {
+    configurable: true,
+    get(){ return _val; },
+    set(v){
+      _val = !!v;
+      if(_wd){ clearTimeout(_wd); _wd = null; }
+      if(_val){
+        _wd = setTimeout(() => {
+          console.warn('[watchdog] GS.processing stuck 5s — auto-clearing');
+          _val = false;
+          _wd = null;
+        }, 5000);
+      }
+    }
+  });
+})();
 
 /* ==========================================================
    AUDIO (lazy)
@@ -1555,6 +1629,7 @@ $('welcomeStartBtn').addEventListener('click', () => {
   $('receiptTitle').textContent = escHtml(GS.teacherName) + "'s Simulations";
   $('welcomeScreen').style.display = 'none';
   $('app').style.display = 'flex';
+  $('imStuckBtn').classList.add('visible'); // LOCKUP DEFENSE 2/3: show emergency button
   GS.startTime = Date.now();
   // Init rounds state
   GS.rounds = ROUND_DATA.map(rd => ({
@@ -2314,6 +2389,7 @@ $('runBtn').addEventListener('click', () => {
    PHASE: PREDICT (R4, R5)
    ========================================================== */
 function renderPredictPhase(r){
+  GS.processing = false; // LOCKUP DEFENSE 3/3: defensive clear — never trust caller
   setPhase('predict');
   closeAllOverlays();
   const iz = $('izContent');
@@ -2355,6 +2431,7 @@ function renderPredictPhase(r){
    PHASE: WATCH — animations per round
    ========================================================== */
 function startWatchPhase(r){
+  GS.processing = false; // LOCKUP DEFENSE 3/3: defensive clear — never trust caller
   setPhase('watch');
   closeAllOverlays();
   const iz = $('izContent');
@@ -2364,10 +2441,19 @@ function startWatchPhase(r){
   prompt.textContent = 'Watch the arena. The data will record automatically.';
   iz.appendChild(prompt);
 
-  // Execute animation based on sequence
-  runWatchSequence(r);
+  // Execute animation based on sequence — wrapped so an SVG/drawing error
+  // cannot leave a stuck flag or strand the student on a blank WATCH screen.
+  try{
+    runWatchSequence(r);
+  }catch(e){
+    console.error('[startWatchPhase] runWatchSequence threw — force-advancing to RECORD', e);
+    GS.processing = false;
+    safeTimeout(() => startRecordPhase(r), 600);
+    return;
+  }
 
-  // Safety timeout: auto-advance even if animation stalls
+  // Safety timeout: auto-advance even if animation stalls.
+  // NOTE: this NEVER checks !GS.processing — it is the rescue, it must fire.
   safeTimeout(() => {
     if(GS.currentPhase === 'watch'){
       startRecordPhase(r);
@@ -2757,13 +2843,19 @@ function showMiniProgress(text){
    PHASE: RECORD
    ========================================================== */
 function startRecordPhase(r){
+  GS.processing = false; // LOCKUP DEFENSE 3/3: defensive clear — never trust caller
   setPhase('record');
   closeAllOverlays();
   const iz = $('izContent');
   iz.innerHTML = '';
 
   // Build the data row into the table first (with the value being verified)
-  addDataTableRow(r);
+  try{
+    addDataTableRow(r);
+  }catch(e){
+    console.error('[startRecordPhase] addDataTableRow threw — continuing to verify prompt', e);
+    GS.processing = false;
+  }
 
   const prompt = document.createElement('div');
   prompt.className = 'iz-prompt';
@@ -2905,16 +2997,30 @@ function finalizeDataRow(r, wasAutoConfirm){
    PHASE: PROVE (mechanic dispatcher)
    ========================================================== */
 function startProvePhase(r){
+  GS.processing = false; // LOCKUP DEFENSE 3/3: defensive clear — never trust caller
   setPhase('prove');
   closeAllOverlays();
   GS.phaseStartTime = Date.now();
   window._doSelectedId = null;
-  switch(r.proveType){
-    case 'pick-match': return renderPickMatch(r);
-    case 'coach-click': return renderCoachClick(r);
-    case 'what-next': return renderWhatNext(r);
-    case 'hotspot': return renderHotspot(r);
-    case 'claim-builder': return renderClaimBuilder(r);
+  try{
+    switch(r.proveType){
+      case 'pick-match': return renderPickMatch(r);
+      case 'coach-click': return renderCoachClick(r);
+      case 'what-next': return renderWhatNext(r);
+      case 'hotspot': return renderHotspot(r);
+      case 'claim-builder': return renderClaimBuilder(r);
+    }
+  }catch(e){
+    console.error('[startProvePhase] render threw — falling back to simple pick-match', e);
+    GS.processing = false;
+    // Minimal fallback so the student is never stuck on a blank screen
+    try{ renderPickMatch(r); }catch(e2){
+      // Ultimate fallback: show an error card with a skip option
+      const iz = $('izContent');
+      if(iz){
+        iz.innerHTML = '<div class="iz-prompt">Something went wrong with this round. Tap "I\'m Stuck" at the bottom-right to move on.</div>';
+      }
+    }
   }
 }
 
@@ -3631,7 +3737,118 @@ $('newRunBtn').addEventListener('click', () => {
   }));
   $('receiptScreen').classList.remove('show');
   $('dataTableBody').innerHTML = '';
+  $('imStuckBtn').classList.add('visible'); // LOCKUP DEFENSE 2/3: re-show emergency button
   startRound(0);
+});
+
+/* ==========================================================
+   LOCKUP DEFENSE 2/3: I'M STUCK — EMERGENCY ADVANCE HANDLER
+   Works from ANY phase regardless of flag state. Force-clears
+   processing, bumps arenaGen to invalidate stale callbacks,
+   aggressively strips blocking UI, awards 50% credit, and
+   advances to the next round (or receipt if last).
+   Wrapped in try/catch with a last-ditch startRound fallback.
+   ========================================================== */
+$('imStuckBtn').addEventListener('click', () => {
+  try{
+    if(!confirm('Skip this round? You will get 50% credit and move on.')) return;
+  }catch(e){ /* if confirm somehow fails, still proceed */ }
+
+  try{
+    // 1) Force-clear the flag, watchdog or not
+    GS.processing = false;
+
+    // 2) Bump generation counter so any in-flight safeTimeouts bail out
+    GS.arenaGen++;
+
+    // 3) Close all overlays / coaching / modals
+    try{ closeAllOverlays(); }catch(e){ console.warn(e); }
+
+    // 4) Aggressively strip every blocking UI element
+    document.querySelectorAll(
+      '.coaching-bar, .sbs-modal, .choice-overlay, .arena-banner, ' +
+      '.feedback-popup, .completion-screen, .confirmation-dialog, ' +
+      '.retry-nudge, .try-again-btn, .tap-continue, .fix-picker, ' +
+      '.hint-glow, #proveLockIn'
+    ).forEach(el => { try{ el.remove(); }catch(e){} });
+
+    // 5) Reset stuck card states (selected, dimmed, disabled from current round)
+    document.querySelectorAll('.choice-card, .predict-card').forEach(c => {
+      c.classList.remove('selected','dimmed','wrong');
+      c.style.pointerEvents = '';
+    });
+
+    // 6) Clear ghost intervals
+    if(GS._coachInterval){ try{ clearInterval(GS._coachInterval); }catch(e){} GS._coachInterval = null; }
+
+    // 7) Reset the selected-id jam guard
+    window._doSelectedId = null;
+
+    // 8) Award 50% credit for the current round (if not already completed)
+    const idx = GS.currentRound;
+    const rd = GS.rounds[idx];
+    if(rd && !rd.completed){
+      rd.score = 50;
+      rd.completed = true;
+      rd.attempts = (GS.wrongCount || 0) + 1;
+      rd.hintsUsed = GS.hintsUsed || 0;
+      rd.resets = GS.resets || 0;
+      rd.timeSeconds = Math.round((Date.now() - (GS.roundStartTime || Date.now())) / 1000);
+      try{ updateScore(); }catch(e){ console.warn(e); }
+    }
+
+    // 9) Flash a brief, non-punitive message
+    try{
+      showCoaching("Moving on — you'll see this idea again.", 'hint1');
+    }catch(e){ /* if coaching fails, proceed silently */ }
+
+    // 10) Advance to next round, or receipt if this was the last
+    setTimeout(() => {
+      try{
+        // Check completion states exactly like advanceRound does
+        const allDone = GS.rounds.every(r => r.completed);
+        const requiredDone = GS.rounds.slice(0,4).every(r => r.completed);
+        if(allDone){
+          try{ showBonusCompleteOverlay(); }catch(e){ showReceipt(); }
+          return;
+        }
+        if(requiredDone && !GS.requiredCompleteShown){
+          GS.requiredCompleteShown = true;
+          try{ showRequiredCompleteChoice(); }catch(e){
+            // Last-ditch: advance to next incomplete round
+            const nextIdx = GS.rounds.findIndex(r => !r.completed);
+            if(nextIdx === -1) showReceipt(); else startRound(nextIdx);
+          }
+          return;
+        }
+        // Find the next incomplete round (not just idx+1 — student may have skipped around)
+        let nextIdx = idx + 1;
+        while(nextIdx < GS.rounds.length && GS.rounds[nextIdx].completed) nextIdx++;
+        if(nextIdx >= GS.rounds.length){
+          showReceipt();
+        } else {
+          startRound(nextIdx);
+        }
+      }catch(err){
+        // Last-ditch fallback — try raw startRound, then receipt
+        console.error('[imStuck] advance failed, falling back', err);
+        try{
+          const nextIdx = (GS.currentRound + 1) >= GS.rounds.length ? -1 : GS.currentRound + 1;
+          if(nextIdx === -1) showReceipt(); else startRound(nextIdx);
+        }catch(err2){
+          console.error('[imStuck] fallback failed, showing receipt', err2);
+          try{ showReceipt(); }catch(err3){ /* give up silently */ }
+        }
+      }
+    }, 700);
+  }catch(outer){
+    // Absolute last-ditch — if everything above fails, just try to reset this round
+    console.error('[imStuck] top-level failure', outer);
+    try{
+      GS.processing = false;
+      startRound(GS.currentRound);
+    }catch(e){ /* nothing left to try */ }
+  }
 });
 
 /* ==========================================================
@@ -3665,6 +3882,9 @@ function showReceipt(){
   GS.receiptRendered = true;
   closeAllOverlays();
   clearAllIntervals();
+  // LOCKUP DEFENSE 2/3: hide emergency button on receipt — nowhere left to escape to
+  const stuckBtn = $('imStuckBtn');
+  if(stuckBtn) stuckBtn.classList.remove('visible');
   // Teacher name set dynamically
   $('receiptTitle').textContent = escHtml(GS.teacherName) + "'s Simulations";
   const tbody = $('receiptTableBody');

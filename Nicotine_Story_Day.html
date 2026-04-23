@@ -1073,6 +1073,36 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none}
 .scene-doctor::before{content:"🏥 Doctor's Office";display:block;font-weight:800;color:var(--amber);margin-bottom:6px;font-size:13px}
 .scene-hearing::before{content:"🏛️ Congressional Hearing, 2019";display:block;font-weight:800;color:var(--coral);margin-bottom:6px;font-size:13px}
 
+/* ========== FIX 2: I'M STUCK FLOATING EMERGENCY BUTTON ========== */
+#imStuckBtn{
+  position:fixed;
+  right:14px;
+  bottom:14px;
+  z-index:9999;
+  display:none; /* shown after welcome, hidden on receipt */
+  align-items:center;
+  gap:8px;
+  padding:10px 16px;
+  min-height:44px;
+  background:linear-gradient(180deg,#F59E0B,#D97706);
+  color:#fff;
+  border:2px solid #B45309;
+  border-radius:999px;
+  font-family:inherit;
+  font-weight:800;
+  font-size:14px;
+  letter-spacing:.3px;
+  box-shadow:0 4px 0 #92400E, 0 6px 14px rgba(180,83,9,.35);
+  cursor:pointer;
+  touch-action:manipulation;
+}
+#imStuckBtn.visible{display:inline-flex}
+#imStuckBtn:active{transform:translateY(2px);box-shadow:0 2px 0 #92400E, 0 3px 8px rgba(180,83,9,.35)}
+#imStuckBtn .stuck-ic{font-size:18px}
+@media(max-width:480px){
+  #imStuckBtn{right:10px;bottom:10px;padding:9px 14px;font-size:13px}
+}
+
 </style>
 </head>
 <body>
@@ -1141,6 +1171,11 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none}
   </div>
 </div>
 
+<!-- ========== FIX 2: FLOATING "I'M STUCK" EMERGENCY ADVANCE BUTTON ========== -->
+<button id="imStuckBtn" aria-label="I'm stuck — skip this round for 50% credit">
+  <span class="stuck-ic">🆘</span><span>I'm Stuck</span>
+</button>
+
 <!-- ========== VOCAB PANEL ========== -->
 <div id="vocabPanel">
   <button class="vocab-close" id="vocabClose">✕</button>
@@ -1195,6 +1230,35 @@ const GS = {
   // per-level results
   perLevel: [],               // filled as levels complete
 };
+
+/* ============================================================
+   FIX 1 — SELF-HEALING WATCHDOG on GS.processing
+   Any path that sets GS.processing=true and forgets to clear it
+   (throw, early-return miss, async failure) will auto-clear
+   after 5 seconds. Catches every lockup path without changing
+   any existing GS.processing assignments.
+   ============================================================ */
+(function installProcessingWatchdog(){
+  let _val = GS.processing || false;
+  let _wd = null;
+  delete GS.processing;
+  Object.defineProperty(GS, 'processing', {
+    configurable: true,
+    enumerable: true,
+    get(){ return _val; },
+    set(v){
+      _val = !!v;
+      if(_wd){ clearTimeout(_wd); _wd = null; }
+      if(_val){
+        _wd = setTimeout(() => {
+          console.warn('[watchdog] GS.processing stuck 5s — auto-clearing');
+          _val = false;
+          _wd = null;
+        }, 5000);
+      }
+    }
+  });
+})();
 
 const AFFIRMATIONS = [
   name => `${name} is proud of you!`,
@@ -2531,6 +2595,7 @@ function showFocusPrompt(text, done){
 
 /* ---------- WATCH ---------- */
 function runWatch(lvl){
+  GS.processing = false;  // FIX 3: defensive clear FIRST
   GS.phase = 'watch';
   GS.phaseStartTime = Date.now();
   closeAllOverlays();
@@ -2540,7 +2605,7 @@ function runWatch(lvl){
   const narrPanel = $('narrativePanel');
   narrPanel.classList.remove('dimmed');
 
-  // Kick off arena animation
+  // Kick off arena animation (try/catch via safeCall — graphics failure cannot lock processing)
   if(lvl.watch && typeof lvl.watch.arenaAction === 'function'){
     safeCall(() => lvl.watch.arenaAction(), 'arena action L'+lvl.num);
   }
@@ -2614,6 +2679,42 @@ function runDo(lvl){
 }
 
 /* ---------- MECHANIC: HOTSPOT (L1) ---------- */
+
+/* AUDIT FIX — handleDoCorrect / handleDoWrong were called by renderHotspot
+   but never defined. On any correct receptor tap this threw ReferenceError
+   and left GS.processing=true stuck forever (hard lockup on Level 1). */
+function handleDoCorrect(lvl, arenaCb){
+  try { correctSound(); } catch(e){}
+  if(typeof arenaCb === 'function') safeCall(arenaCb, 'handleDoCorrect arena');
+  setTimeout(() => {
+    GS.processing = false;
+    runProve(lvl);
+  }, 1000);
+}
+function handleDoWrong(lvl, feedback, onWrongArena){
+  GS.wrongCount++;
+  GS.attempts++;
+  if(typeof onWrongArena === 'function') safeCall(onWrongArena, 'handleDoWrong arena');
+  const fb = feedback || 'Not quite — look back at the arena.';
+  if(GS.hintTier < 1) GS.hintTier = 1;
+  showCoaching(fb, 'hint1');
+  ensureTryAgainButton(() => {
+    closeCoaching();
+    GS.processing = false;
+    // Re-enter DO phase (fresh closure so "answered" and listeners re-arm)
+    safeCall(() => runDo(lvl), 'retry runDo');
+  });
+  if(GS.wrongCount >= 3){
+    GS.wrongCount = 0;
+    GS.resetCount++;
+    if(GS.resetCount >= 3){
+      advanceWithPartialCredit(lvl);
+      return;
+    }
+    setTimeout(()=>{ resetCurrentLevel(); }, 900);
+  }
+}
+
 function renderHotspot(lvl){
   // Hotspots are the receptor elements in the arena.
   // Attach click handlers on all receptor divs (correct) and other non-receptor parts (wrong).
@@ -3628,8 +3729,109 @@ $('welcomeStartBtn') && $('welcomeStartBtn').addEventListener('click', () => {
   $('gameScreen').classList.remove('hidden');
   initParticlePool();
   GS.overallStarted = true;
+  // FIX 2: Show floating emergency-advance button for the whole gameplay
+  const stuck = $('imStuckBtn');
+  if(stuck) stuck.classList.add('visible');
   startLevel(0);
 });
+
+/* ============================================================
+   FIX 2 — "I'M STUCK" EMERGENCY ADVANCE HANDLER
+   Works from ANY phase regardless of GS.processing state.
+   Aggressively strips blocking UI, awards 50%, advances.
+   ============================================================ */
+function emergencyAdvance(){
+  try {
+    // 1. Force-clear the processing flag (watchdog will also do this, but do it now)
+    GS.processing = false;
+
+    // 2. Invalidate every stale safeTimeout / callback in flight
+    GS.arenaGen = (GS.arenaGen || 0) + 1;
+
+    // 3. Cancel any speech synthesis
+    try { cancelSpeech(); } catch(e){}
+
+    // 4. Close every overlay and coaching UI
+    try { closeAllOverlays(); } catch(e){
+      document.querySelectorAll('.overlay, .choice-overlay, .celebration-overlay, .coaching-bar').forEach(el=>el.remove());
+    }
+
+    // 5. Strip every stuck interaction element
+    document.querySelectorAll(
+      '.coaching-bar, .try-again-btn, .tap-continue-btn, .fast-guess-coach'
+    ).forEach(el => el.remove());
+
+    // 6. Clean dynamic lock-in buttons inside the interaction zone
+    const iz = document.getElementById('interactionZone');
+    if(iz){
+      iz.querySelectorAll('.lock-in-btn').forEach(b => b.remove());
+    }
+
+    // 7. Clear selected/dimmed/locked states and pointer-events blocks
+    document.querySelectorAll('.option-card').forEach(c => {
+      c.classList.remove('selected','dimmed','locked','wrong','disabled');
+      c.style.pointerEvents = '';
+    });
+
+    // 8. Award 50% credit for current level (or ensure it is already counted)
+    try {
+      const lvl = LEVELS[GS.currentLevel];
+      if(lvl){
+        // Has this level already been recorded?
+        const already = GS.perLevel.find(x => x.num === lvl.num);
+        if(!already){
+          GS.resetCount = Math.max(GS.resetCount, 3); // force 50% via scoring ladder
+          GS.phase = 'complete';
+          // completeLevel handles the record + advance flow
+          safeCall(() => completeLevel(lvl), 'stuck completeLevel');
+        } else {
+          // Already recorded — just advance
+          GS.processing = false;
+          if(GS.currentLevel + 1 >= LEVELS.length){
+            showReceipt();
+          } else {
+            startLevel(GS.currentLevel + 1);
+          }
+        }
+      }
+    } catch(err){
+      console.error('emergencyAdvance primary path failed:', err);
+      // Last-ditch fallback: try to start the next level, or the receipt
+      try {
+        GS.processing = false;
+        if(GS.currentLevel + 1 >= (LEVELS ? LEVELS.length : 6)){
+          showReceipt();
+        } else {
+          startLevel(GS.currentLevel + 1);
+        }
+      } catch(err2){
+        console.error('emergencyAdvance fallback failed:', err2);
+        alert('Please press "Reset" or refresh the page.');
+      }
+    }
+  } catch(outer){
+    console.error('emergencyAdvance outer failure:', outer);
+  }
+}
+
+$('imStuckBtn') && $('imStuckBtn').addEventListener('click', () => {
+  // Work from any phase regardless of flag state
+  if(!confirm('Skip this round? You will get 50% credit and move on.')) return;
+  emergencyAdvance();
+});
+
+// Hide I'm Stuck on receipt screen: patch showReceipt to hide it
+(function patchReceiptForStuckButton(){
+  if(typeof showReceipt !== 'function') return;
+  const _orig = showReceipt;
+  window.showReceipt = function(){
+    const stuck = $('imStuckBtn');
+    if(stuck) stuck.classList.remove('visible');
+    return _orig.apply(this, arguments);
+  };
+  // Also replace the local binding since other code calls showReceipt by name
+  showReceipt = window.showReceipt;
+})();
 
 /* ============================================================
    GLOBAL ERROR NET

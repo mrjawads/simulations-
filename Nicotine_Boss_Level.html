@@ -201,6 +201,22 @@ input{font-family:inherit}
 .print-btn{background:linear-gradient(90deg,var(--neon-green),var(--gold));color:#000}
 .startover-btn{background:rgba(255,107,53,.15);color:#fff;border:2px solid var(--streak-orange)}
 
+/* EMERGENCY "I'M STUCK" BUTTON (v2 lockup defense) */
+#stuck-btn{
+  position:fixed;bottom:14px;right:14px;z-index:9999;
+  padding:10px 14px;min-height:44px;
+  background:linear-gradient(90deg,#FF8C00,#FFB347);color:#1a0f0a;
+  border:2px solid #FF6B00;border-radius:10px;
+  font-weight:800;font-size:13px;font-family:inherit;letter-spacing:.3px;
+  box-shadow:0 4px 12px rgba(255,140,0,.45);
+  cursor:pointer;display:none;
+}
+#stuck-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(255,140,0,.6)}
+#stuck-btn:active{transform:translateY(0)}
+#stuck-btn .stuck-icon{margin-right:6px}
+body.game-active #stuck-btn{display:inline-block}
+body.receipt-active #stuck-btn{display:none!important}
+
 /* PRINT */
 @media print{
   html,body{background:#fff!important;color:#000!important;overflow:visible!important;height:auto!important}
@@ -420,6 +436,9 @@ input{font-family:inherit}
   </div>
 </div>
 
+<!-- ============== FLOATING "I'M STUCK" EMERGENCY ADVANCE (v2) ============== -->
+<button id="stuck-btn" type="button" title="Skip this round and move on"><span class="stuck-icon">⚠️</span>I'm Stuck</button>
+
 <!-- ============== RECEIPT SCREEN ============== -->
 <div id="receipt-screen">
   <div class="receipt-inner">
@@ -485,6 +504,31 @@ const GS = window._gameState = {
   lastWrongOptionCount:0,
   r8: null // round 8 state holder
 };
+
+/* =====================================================================
+   LOCKUP DEFENSES (v2)
+   Watchdog + "I'm Stuck" emergency advance. Installed before any handlers
+   wire up, so every future set of GS.processing goes through the setter.
+   ===================================================================== */
+(function installProcessingWatchdog(){
+  let _val = false;
+  let _wd = null;
+  Object.defineProperty(GS, 'processing', {
+    configurable: true,
+    get(){ return _val; },
+    set(v){
+      _val = !!v;
+      if(_wd){ clearTimeout(_wd); _wd = null; }
+      if(_val){
+        _wd = setTimeout(()=>{
+          console.warn('[watchdog] GS.processing stuck 5s, auto clearing');
+          _val = false;
+          _wd = null;
+        }, 5000);
+      }
+    }
+  });
+})();
 
 // Teacher affirmation pool — pulled dynamically with teacher name
 function getAffirmations(){
@@ -2094,6 +2138,8 @@ function startGame(){
   $("welcome-screen").style.display = "none";
   $("game-screen").classList.add("active");
   $("receipt-screen").classList.remove("active");
+  document.body.classList.add("game-active");
+  document.body.classList.remove("receipt-active");
   loadRound();
 }
 
@@ -2198,6 +2244,7 @@ function resetRound(){
    ===================================================================== */
 function renderPhase(phase){
   try {
+    GS.processing = false; // defensive clear — phase entry must never inherit a stuck flag
     closeAllOverlays();
     GS.currentPhase = phase;
     GS.phaseStartTime = Date.now();
@@ -2676,6 +2723,7 @@ function computeRoundScore(){
 
 function autoAdvanceFiftyPercent(){
   try {
+    GS.processing = false; // defensive clear — advancement must never wait on a stuck flag
     closeAllOverlays();
     showCoachingBar("Let's move on — you'll see this idea again.", 2200);
     const r = ROUNDS[GS.currentRoundIdx];
@@ -2693,6 +2741,7 @@ function autoAdvanceFiftyPercent(){
 
 function completeRound(){
   try {
+    GS.processing = false; // defensive clear — celebration window must never inherit a stuck flag
     const r = ROUNDS[GS.currentRoundIdx];
     const score = computeRoundScore();
     GS.results.push({
@@ -2740,6 +2789,96 @@ function advanceToNextRound(){
     }
     loadRound();
   } catch(e){ console.error("advanceToNextRound:", e); }
+}
+
+/* =====================================================================
+   EMERGENCY ESCAPE (v2) — "I'm Stuck" button handler.
+   Works from ANY phase regardless of flag state. Bypasses the processing
+   guard entirely (wired outside the normal onCardClick / onLockIn path).
+   Awards 50% credit for the current round and force advances, or routes
+   to the receipt if it was the last round.
+   ===================================================================== */
+function emergencyEscape(){
+  try {
+    const ok = confirm("Skip this round? You will get 50% credit and move on.");
+    if(!ok) return;
+
+    // 1. Force clear the processing flag (bypasses watchdog timer too)
+    try { GS.processing = false; } catch(e){}
+
+    // 2. Bump generation counter so any pending safeTimeout callbacks drop themselves
+    try { GS.arenaGen = (GS.arenaGen|0) + 1; } catch(e){}
+
+    // 3. Aggressively strip blocking UI
+    try { clearAllTimeouts(); } catch(e){}
+    try { closeAllOverlays(); } catch(e){}
+    try {
+      document.querySelectorAll('.coaching-bar, .hint-modal, .celebration, .arena-msg-overlay, .try-again-btn, #continue-tap-btn')
+        .forEach(el=>{ try { el.remove(); } catch(e){} });
+    } catch(e){}
+    try {
+      document.querySelectorAll('#options-container .option-card').forEach(c=>{
+        c.classList.remove("selected","locked","dimmed","disabled");
+      });
+    } catch(e){}
+    try {
+      const lockBtn = document.getElementById("lock-in-btn");
+      if(lockBtn){ lockBtn.disabled = true; }
+      const r8Confirm = document.getElementById("r8-confirm-btn");
+      if(r8Confirm){ r8Confirm.disabled = true; }
+    } catch(e){}
+    try {
+      // any lingering stuck pointer-events on hotspots
+      document.querySelectorAll('#arena-visual .hotspot').forEach(el=>{
+        el.style.pointerEvents = "";
+        el.classList.remove("dim-el","locked");
+      });
+    } catch(e){}
+    try {
+      if(GS.coachingInterval){ clearInterval(GS.coachingInterval); GS.coachingInterval = null; }
+    } catch(e){}
+
+    // 4. Record 50% credit for the current round (only if not already recorded)
+    try {
+      const r = ROUNDS[GS.currentRoundIdx];
+      const alreadyScored = GS.results.some(x => x.idx === (GS.currentRoundIdx+1));
+      if(r && !alreadyScored){
+        GS.results.push({
+          idx: GS.currentRoundIdx + 1,
+          name: r.name,
+          source: r.source,
+          score: 50,
+          attempts: (GS.wrongCount|0) + (GS.resetsThisRound|0) + 1,
+          timeSec: Math.floor((Date.now() - GS.roundStartTime)/1000),
+          completed: true,
+          isBonus: !r.required,
+          didBonus: !r.required,
+          skippedByStudent: true
+        });
+        GS.streak = 0;
+        try { updateStreakDisplay(); } catch(e){}
+        try { updateScoreDisplay(); } catch(e){}
+      }
+    } catch(e){ console.error("emergencyEscape score:", e); }
+
+    // 5. Advance to next round OR receipt if last
+    try {
+      if(GS.currentRoundIdx >= 7){
+        endGauntlet(true);
+      } else {
+        GS.currentRoundIdx++;
+        loadRound();
+      }
+    } catch(e){
+      console.error("emergencyEscape advance:", e);
+      // Last ditch fallback: try loadRound directly
+      try { loadRound(); } catch(e2){ console.error("emergencyEscape fallback:", e2); }
+    }
+  } catch(outer){
+    console.error("emergencyEscape outer:", outer);
+    // Absolute last resort: force flag clear so the rest of the UI at least responds
+    try { GS.processing = false; } catch(e){}
+  }
 }
 
 function updateScoreDisplay(){
@@ -2848,6 +2987,8 @@ function endGauntlet(){
     $("game-screen").classList.remove("active");
     $("welcome-screen").style.display = "none";
     $("receipt-screen").classList.add("active");
+    document.body.classList.remove("game-active");
+    document.body.classList.add("receipt-active");
     renderReceipt();
   } catch(e){ console.error("endGauntlet:", e); }
 }
@@ -2944,6 +3085,12 @@ function wireEvents(){
   });
   $("reset-btn").onclick = resetRound;
 
+  // Emergency "I'm Stuck" button (v2 lockup defense). Uses addEventListener
+  // instead of onclick so it survives any accidental re-assignment and works
+  // from any phase regardless of flag state.
+  const stuckBtn = document.getElementById("stuck-btn");
+  if(stuckBtn){ stuckBtn.addEventListener("click", emergencyEscape); }
+
   // Receipt events
   $("lock-name-btn").onclick = ()=>{
     const inp = $("receipt-name");
@@ -2979,6 +3126,7 @@ function confirmStartOver(){
   $("receipt-screen").classList.remove("active");
   $("game-screen").classList.remove("active");
   $("welcome-screen").style.display = "flex";
+  document.body.classList.remove("game-active","receipt-active");
   $("student-name-input").value = GS.studentName || "";
   $("teacher-name-input").value = GS.teacherName || "Mr. Jawad";
 }
@@ -2986,6 +3134,7 @@ function confirmStartOver(){
 /* ===== CLAIM BUILDER (R8) — full two-phase implementation ===== */
 function renderClaimBuilder(r){
   try {
+    GS.processing = false; // defensive clear — R8 entry must never inherit a stuck flag
     const container = $("options-container");
     const promptEl = $("prompt-text");
     container.innerHTML = "";
