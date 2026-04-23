@@ -129,8 +129,9 @@ button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px}
 .bottom-btn{padding:8px 14px;font-size:13px;font-weight:600;border-radius:8px;background:linear-gradient(135deg,#F1F5F9,#E2E8F0);color:var(--textLight);border:1px solid #CBD5E1;min-height:40px;transition:all .2s;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
 .bottom-btn:hover{background:linear-gradient(135deg,#E2E8F0,#CBD5E1);box-shadow:0 2px 4px rgba(0,0,0,0.08)}
 .bottom-btn.disabled{opacity:.4;pointer-events:none}
-#stuckBtn{background:linear-gradient(135deg,#FEF3C7,#FDE68A);color:#92400E;border:2px solid #F59E0B;position:fixed;bottom:12px;right:12px;z-index:9999;font-size:14px;padding:10px 16px;min-height:44px;box-shadow:0 4px 14px rgba(245,158,11,.35)}
-#stuckBtn:hover{background:linear-gradient(135deg,#FDE68A,#FCD34D);box-shadow:0 6px 18px rgba(245,158,11,.45)}
+#stuckBtn{background:linear-gradient(135deg,#FEF3C7,#FDE68A);color:#92400E;border:2px solid #F59E0B;position:fixed;bottom:12px;right:12px;z-index:9999;font-size:14px;padding:10px 16px;min-height:44px;box-shadow:0 4px 14px rgba(245,158,11,.35);animation:stuckPulse 3s ease-in-out infinite}
+#stuckBtn:hover{background:linear-gradient(135deg,#FDE68A,#FCD34D);box-shadow:0 6px 18px rgba(245,158,11,.45);animation:none}
+@keyframes stuckPulse{0%,100%{box-shadow:0 4px 14px rgba(245,158,11,.35)}50%{box-shadow:0 4px 18px rgba(245,158,11,.7),0 0 0 6px rgba(245,158,11,.15)}}
 .round-indicator{flex:1;text-align:center;font-size:13px;color:var(--textLight);font-weight:500}
 
 /* OVERLAYS */
@@ -477,7 +478,7 @@ const GS={
 };
 
 // ===== PROCESSING FLAG WATCHDOG (SYSTEMIC LOCKUP PREVENTION) =====
-// Any time GS.processing is set to true, a 5-second watchdog arms. If the
+// Any time GS.processing is set to true, a 3-second watchdog arms. If the
 // normal flow fails to clear it (async error, missed code path, swallowed
 // exception, anything), the watchdog silently clears the flag so the NEXT
 // tap from the student works. No code elsewhere needs to change; every
@@ -492,15 +493,39 @@ const GS={
       if(_wd){clearTimeout(_wd);_wd=null}
       if(_val){
         _wd=setTimeout(()=>{
-          console.warn('[watchdog] processing flag stuck 5s — auto-clearing to unblock student');
+          console.warn('[watchdog] processing flag stuck 3s — auto-clearing to unblock student');
           _val=false;_wd=null;
-          // Try to refresh the stuck screen so the student sees they can proceed
           try{showStuckHint()}catch(e){}
-        },5000);
+        },3000);
       }
     }
   });
 })();
+
+// ===== PHASE DEAD-MAN TIMER =====
+// Even if the processing flag is fine, a student can still be stuck because the
+// UI state is broken (wrong button hidden, listener detached, overlay covering).
+// This timer watches how long a phase has been active. If it exceeds the max,
+// we force-advance — no matter what. Cap means no student waits more than the
+// max for rescue.
+let _phaseDeadman=null;
+let _phaseDeadmanPhase=null;
+let _phaseDeadmanRound=null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  _phaseDeadmanPhase=GS.phase;
+  _phaseDeadmanRound=GS.currentRound;
+  _phaseDeadman=setTimeout(()=>{
+    if(GS.phase===_phaseDeadmanPhase && GS.currentRound===_phaseDeadmanRound){
+      console.warn('[deadman] phase',_phaseDeadmanPhase,'round',_phaseDeadmanRound,'exceeded time — forcing advance');
+      try{skipCurrentRound({confirmFirst:false,reason:'timeout'})}catch(e){console.error(e)}
+    }
+  },ms);
+}
+function clearPhaseDeadman(){
+  if(_phaseDeadman){clearTimeout(_phaseDeadman);_phaseDeadman=null}
+  _phaseDeadmanPhase=null;_phaseDeadmanRound=null;
+}
 
 // Shows a small, non-intrusive nudge if the watchdog had to rescue the student.
 function showStuckHint(){
@@ -1362,6 +1387,7 @@ document.addEventListener('click',function(e){
 function startRound(idx){
   if(idx>=ROUNDS.length){showReceipt();return}
   bumpGen();// invalidate stale safeTimeout callbacks from prior round
+  clearPhaseDeadman();// new round gets fresh dead-man timers per phase
   const preservedResets=GS.currentRound===idx?GS.resets:0;
   GS.currentRound=idx;
   GS.phase='change';GS.wrongCount=0;GS.consecutiveFastWrongs=0;GS.hintsUsed=0;GS.resets=preservedResets;
@@ -1600,6 +1626,7 @@ function showPredictionFeedback(cb){
 function startRecordPhase(){
   // Clear processing FIRST — defensive against any stuck-flag state
   GS.processing=false;
+  armPhaseDeadman(180000);// 3-minute ceiling — force-advance if student never confirms
   const r=ROUNDS[GS.currentRound];
   GS.phase='record';
   clearIZ();
@@ -1681,6 +1708,7 @@ function startRecordPhase(){
 function startProvePhase(){
   // Clear processing FIRST — defensive against any stuck-flag state
   GS.processing=false;
+  armPhaseDeadman(240000);// 4-minute ceiling — force-advance if student never solves
   const r=ROUNDS[GS.currentRound];
   GS.phase='prove';
   GS.wrongCount=0;GS.phaseStartTime=Date.now();GS.consecutiveFastWrongs=0;
@@ -2189,6 +2217,7 @@ function showReceipt(){
   GS.receiptRendered=true;
   GS.phase='receipt';
   clearAllTimers();
+  clearPhaseDeadman();
   closeAllOverlays();
   showScreen('receiptScreen');
   document.getElementById('resetLevelBtn').classList.add('disabled');
@@ -2281,29 +2310,29 @@ document.getElementById('resetLevelBtn').addEventListener('click',()=>{
 // Guaranteed escape hatch. Works from ANY phase. Ignores processing flag.
 // Awards 50% credit and advances to the next round. Never lets a student
 // be trapped on a broken screen.
-document.getElementById('stuckBtn').addEventListener('click',()=>{
-  if(GS.phase==='receipt')return;
-  const ok=confirm('Skip this round? You will get 50% credit and move on to the next round.');
-  if(!ok)return;
+function skipCurrentRound(opts){
+  opts=opts||{};
+  if(GS.phase==='receipt')return false;
+  if(opts.confirmFirst!==false){
+    const ok=confirm('Skip this round? You will get 50% credit and move on to the next round.');
+    if(!ok)return false;
+  }
   try{
     // 1. Clear processing flag and any watchdog
     GS.processing=false;
+    clearPhaseDeadman();
     // 2. Invalidate stale callbacks from the current round
     bumpGen();
     // 3. Aggressively strip every possible blocking UI element
     closeAllOverlays();
-    // Close vocab overlay too in case it's open
     try{document.getElementById('vocabOverlay').style.display='none'}catch(e){}
     try{document.getElementById('celebOverlay').style.display='none'}catch(e){}
-    // Remove any dynamically-created buttons, coaching bars, or overlays left behind
     document.querySelectorAll('.coaching-bar,.ag-screen,.choice-overlay,.guided-msg,.try-again-btn,.tap-continue,#predictLockBtn,#proveLockBtn,#stuckNudge').forEach(el=>{try{el.remove()}catch(e){}});
-    // Reset any stuck pointer-events on the interaction zone
     try{
       const iz=document.getElementById('izContainer');
       if(iz)iz.style.pointerEvents='';
       document.querySelectorAll('.opt-card').forEach(c=>{c.style.pointerEvents='';c.style.opacity='';c.classList.remove('selected','dimmed','wrong-card','eliminated')});
     }catch(e){}
-    // Clear multi-variable checklist interval if running
     if(GS._multiCheckInterval){clearInterval(GS._multiCheckInterval);GS._multiCheckInterval=null}
     // 4. Award 50% for this round
     if(GS.currentRound<ROUNDS.length){
@@ -2314,9 +2343,17 @@ document.getElementById('stuckBtn').addEventListener('click',()=>{
       if(segs[GS.currentRound])segs[GS.currentRound].classList.add('done');
     }
     updateHUD();
-    // 5. Advance. If this was the last round, show receipt.
+    // 5. Show a brief "moving on" flash if this was a timeout (no confirm dialog)
+    if(opts.reason==='timeout'){
+      const flash=document.createElement('div');
+      flash.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#FEF3C7;color:#92400E;padding:20px 30px;border-radius:14px;font-size:18px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:10001;border:3px solid #F59E0B;text-align:center';
+      flash.textContent='Moving on — you\'ll see this idea again.';
+      document.body.appendChild(flash);
+      setTimeout(()=>{if(flash.parentNode)flash.remove()},2000);
+    }
+    // 6. Advance. If this was the last round, show receipt.
     const next=GS.currentRound+1;
-    if(next>=ROUNDS.length){showReceipt();return}
+    if(next>=ROUNDS.length){showReceipt();return true}
     if(next===4&&!GS.requiredCompleteShown){
       GS.requiredCompleteShown=true;
       showRequiredComplete();
@@ -2326,12 +2363,14 @@ document.getElementById('stuckBtn').addEventListener('click',()=>{
     } else {
       startRound(next);
     }
+    return true;
   }catch(e){
-    console.error('Stuck-button error:',e);
-    // Last-ditch rescue: force a reload of the current round from scratch
+    console.error('skipCurrentRound error:',e);
     try{GS.processing=false;startRound(Math.min(GS.currentRound+1,ROUNDS.length-1))}catch(e2){console.error(e2)}
+    return true;
   }
-});
+}
+document.getElementById('stuckBtn').addEventListener('click',()=>{skipCurrentRound({confirmFirst:true})});
 
 // ===== START =====
 document.getElementById('startBtn').addEventListener('click',()=>{
