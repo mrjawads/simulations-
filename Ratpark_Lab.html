@@ -1493,6 +1493,12 @@ function startWatchPhase(){
   const showSameRat=r.activeVar==='binary_switch';
   buildArena(social,space,enrich,r.meterTarget,{animate,sameRatLabel:showSameRat});
 
+  // CRITICAL: Clear processing now that we've safely entered WATCH phase.
+  // The RUN button click set processing=true to prevent double-clicks during the
+  // synchronous transition. If we leave it true, the "Tap to continue" button below
+  // is permanently unresponsive (its handler returns when processing is true).
+  GS.processing=false;
+
   // Animate meter to target
   safeTimeout(()=>updateMeter(r.meterTarget,true),500);
 
@@ -1528,9 +1534,11 @@ function startWatchPhase(){
     document.getElementById('izPrompt').textContent='';
   },tapDelay);
 
-  // Safety timeout — skip if student's tap is already processing the transition
+  // Safety timeout — unconditional rescue if the Tap to continue button never fires
+  // (speech hang, touch event lost, etc.). Must NOT gate on !GS.processing; this is
+  // the last-resort escape and must work even if processing got stuck somewhere.
   safeTimeout(()=>{
-    if(GS.phase==='watch'&&!GS.processing){
+    if(GS.phase==='watch'){
       GS.processing=false;
       if(r.predict&&GS.predictionChoice!==null){
         showPredictionFeedback(()=>startRecordPhase());
