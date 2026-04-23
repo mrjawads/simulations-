@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Mr. Jawad's Simulations — Ozempic, Insulin, Diabetes (v2)</title>
+<title>Mr. Jawad's Simulations — Ozempic, Insulin, Diabetes (v3)</title>
 <style>
 :root {
   --bg1:#0F0A1A;--bg2:#1A0F2E;--neon:#39FF14;--pink:#FF1493;--gold:#FFD700;
@@ -210,6 +210,20 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .svg-glow-green{filter:drop-shadow(0 0 6px rgba(57,255,20,0.4));}
 .svg-glow-red{filter:drop-shadow(0 0 6px rgba(255,71,87,0.4));}
 .svg-glow-blue{filter:drop-shadow(0 0 6px rgba(0,212,255,0.4));}
+/* FIX 2 — Emergency "I'm Stuck" button. Fixed, top layer, amber. Visible in every phase. */
+.stuck-btn{position:fixed;bottom:16px;right:16px;z-index:9999;min-height:48px;padding:10px 18px;border:2px solid #B87333;border-radius:10px;background:linear-gradient(180deg,#FFB84D 0%,#F59E0B 100%);color:#2B1700;font-weight:800;font-size:15px;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(0,0,0,0.35),0 0 0 2px rgba(255,215,100,0.25);cursor:pointer;display:none;font-family:inherit;}
+.stuck-btn:hover{filter:brightness(1.05);}
+.stuck-btn:active{transform:translateY(1px);}
+.stuck-btn.visible{display:inline-block;}
+.stuck-confirm-overlay{position:fixed;inset:0;background:rgba(10,10,20,0.72);z-index:10000;display:none;align-items:center;justify-content:center;padding:20px;}
+.stuck-confirm-overlay.visible{display:flex;}
+.stuck-confirm-box{background:#1A1A2E;border:2px solid #F59E0B;border-radius:14px;padding:22px;max-width:420px;width:100%;color:#F8F8FF;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+.stuck-confirm-box h3{margin:0 0 8px 0;color:#FFB84D;font-size:20px;}
+.stuck-confirm-box p{margin:0 0 16px 0;font-size:15px;line-height:1.4;}
+.stuck-confirm-box .btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.stuck-confirm-box button{min-height:48px;padding:10px 18px;border-radius:10px;border:0;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;}
+.stuck-confirm-box .btn-skip{background:linear-gradient(180deg,#FFB84D 0%,#F59E0B 100%);color:#2B1700;}
+.stuck-confirm-box .btn-cancel{background:#2D3748;color:#E2E8F0;border:1px solid #4A5568;}
 </style>
 </head>
 <body>
@@ -273,10 +287,43 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <div class="confirm-overlay" id="confirmOverlay"><div class="confirm-box" id="confirmBox"></div></div>
 <div class="receipt-screen" id="receiptScreen"></div>
 
+<!-- FIX 2 — Emergency "I'm Stuck" button + confirm overlay. Always on top (z-index 9999/10000). -->
+<button class="stuck-btn" id="stuckBtn" type="button" aria-label="I'm Stuck — skip this round">I'm Stuck</button>
+<div class="stuck-confirm-overlay" id="stuckConfirm" role="dialog" aria-modal="true" aria-labelledby="stuckConfirmTitle">
+  <div class="stuck-confirm-box">
+    <h3 id="stuckConfirmTitle">Skip this round?</h3>
+    <p>You will get 50% credit and move on to the next round. This helps you keep going.</p>
+    <div class="btn-row">
+      <button class="btn-skip" id="stuckConfirmYes" type="button">Yes, Skip</button>
+      <button class="btn-cancel" id="stuckConfirmNo" type="button">Keep Trying</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===== GLOBALS =====
 let studentName='',teacherName='Mr. Jawad';
-let currentRound=0,phase='',processing=false,totalScore=0,streak=0,maxStreak=0;
+let currentRound=0,phase='',totalScore=0,streak=0,maxStreak=0;
+// FIX 1 — Self-healing watchdog: `processing` is a window property with a 5s auto-clear.
+// If any code path forgets to clear it (thrown exception, dropped safeTimeout callback,
+// unhandled early return), the watchdog frees the UI instead of freezing the student.
+(function installProcessingWatchdog(){
+  let _val=false;let _wd=null;
+  Object.defineProperty(window,'processing',{
+    configurable:true,
+    get(){return _val;},
+    set(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null;}
+      if(_val){
+        _wd=setTimeout(()=>{
+          console.warn('[watchdog] processing stuck 5s — auto-clearing');
+          _val=false;_wd=null;
+        },5000);
+      }
+    }
+  });
+})();
 let wrongCount=0,hintsUsed=0,resetsThisRound=0,roundStartTime=0,phaseStartTime=0;
 let consecutiveFastWrongs=0;
 let audioCtx=null;
@@ -800,7 +847,9 @@ function startGame(){
 }
 
 function loadRound(idx){
-  if(processing)return;arenaGen++;const gen=arenaGen;
+  // FIX 3 — Defensive clear FIRST: never rely on callers to have cleared the flag.
+  processing=false;
+  arenaGen++;const gen=arenaGen;
   clearAllTimers();closeAllOverlays();
   currentRound=idx;const r=ROUNDS[idx];
   wrongCount=0;hintsUsed=0;resetsThisRound=gameState.rounds[idx].resets;consecutiveFastWrongs=0;
@@ -814,7 +863,8 @@ function loadRound(idx){
   document.getElementById('resetLevelBtn').disabled=false;
   // Scroll to top
   document.getElementById('mainArea').scrollTop=0;
-  showRoundIntro(r,()=>{if(arenaGen!==gen)return;processing=false;buildRoundContent(r);});
+  // Clear processing BEFORE the gen check so a dropped callback can never leave it stuck.
+  showRoundIntro(r,()=>{processing=false;if(arenaGen!==gen)return;buildRoundContent(r);});
 }
 
 function showRoundIntro(r,cb){
@@ -824,13 +874,23 @@ function showRoundIntro(r,cb){
 }
 
 function buildRoundContent(r){
-  const ap=document.getElementById('arenaContainer');
-  while(ap.firstChild)ap.removeChild(ap.firstChild);
-  document.getElementById('focusPrompt').textContent=r.focusPrompt;
-  document.getElementById('contextCaption').textContent=r.contextCaption;
-  safeCall(()=>{r.buildArena(ap);},'Arena build error');
-  phase='do';phaseStartTime=Date.now();
-  buildDoPhase(r);
+  // FIX 3 — Defensive clear: a prior phase's dropped callback must not carry the lock here.
+  processing=false;
+  try{
+    const ap=document.getElementById('arenaContainer');
+    while(ap.firstChild)ap.removeChild(ap.firstChild);
+    document.getElementById('focusPrompt').textContent=r.focusPrompt;
+    document.getElementById('contextCaption').textContent=r.contextCaption;
+    // Arena build is wrapped in safeCall — a graphics failure cannot leave the flag stuck.
+    safeCall(()=>{r.buildArena(ap);},'Arena build error');
+    phase='do';phaseStartTime=Date.now();
+    buildDoPhase(r);
+  }catch(e){
+    console.error('buildRoundContent error',e);
+    processing=false;
+    const iz=document.getElementById('interactionZone');
+    if(iz)iz.innerHTML='<div class="coaching-bar hint-fb">If nothing appears, tap the amber "I\'m Stuck" button.</div>';
+  }
   // Scroll to interaction zone after a brief delay
   setTimeout(()=>{const iz=document.getElementById('interactionZone');if(iz)iz.scrollIntoView({behavior:'smooth',block:'nearest'});},300);
 }
@@ -838,10 +898,17 @@ function buildRoundContent(r){
 // ===== MECHANIC ENGINES =====
 function buildDoPhase(r){
   const iz=document.getElementById('interactionZone');iz.innerHTML='';
-  if(r.mechanic==='pick-the-match'||r.mechanic==='coach-click'){buildPickOptions(r,iz);}
-  else if(r.mechanic==='hotspot'){buildHotspotDo(r,iz);}
-  else if(r.mechanic==='what-comes-next'){buildSequenceDo(r,iz);}
-  else if(r.mechanic==='claim-builder'){buildClaimDo(r,iz);}
+  // FIX 3 — Wrap mechanic builders so one bad data entry cannot freeze the student.
+  try{
+    if(r.mechanic==='pick-the-match'||r.mechanic==='coach-click'){buildPickOptions(r,iz);}
+    else if(r.mechanic==='hotspot'){buildHotspotDo(r,iz);}
+    else if(r.mechanic==='what-comes-next'){buildSequenceDo(r,iz);}
+    else if(r.mechanic==='claim-builder'){buildClaimDo(r,iz);}
+  }catch(e){
+    console.error('buildDoPhase error',e);
+    processing=false;
+    iz.innerHTML='<div class="coaching-bar hint-fb">Something went wrong loading this round. Tap the amber "I\'m Stuck" button to move on.</div>';
+  }
 }
 
 function buildPickOptions(r,iz){
@@ -981,12 +1048,21 @@ function handleTileSelect(card,r,tileIdx){
 
 // ===== PROVE =====
 function startProvePhase(r){
-  phase='prove';phaseStartTime=Date.now();wrongCount=0;
-  const iz=document.getElementById('interactionZone'),p=r.provePhase;
-  iz.innerHTML=`<div class="phase-label">PROVE</div><div class="prompt-text">${escHtml(p.question)}</div><div class="options-row" id="proveOptionsRow"></div><div id="proveFeedback"></div>`;
-  const row=document.getElementById('proveOptionsRow');
-  p.options.forEach(o=>{const card=document.createElement('div');card.className='option-card';card.dataset.id=o.id;card.textContent=o.text;card.onclick=function(){handleProveSelect(this,r);};row.appendChild(card);});
-  setTimeout(()=>{const iz2=document.getElementById('interactionZone');if(iz2)iz2.scrollIntoView({behavior:'smooth',block:'nearest'});},200);
+  // FIX 3 — Defensive clear: guarantee the student's PROVE taps are accepted.
+  processing=false;
+  try{
+    phase='prove';phaseStartTime=Date.now();wrongCount=0;
+    const iz=document.getElementById('interactionZone'),p=r.provePhase;
+    iz.innerHTML=`<div class="phase-label">PROVE</div><div class="prompt-text">${escHtml(p.question)}</div><div class="options-row" id="proveOptionsRow"></div><div id="proveFeedback"></div>`;
+    const row=document.getElementById('proveOptionsRow');
+    p.options.forEach(o=>{const card=document.createElement('div');card.className='option-card';card.dataset.id=o.id;card.textContent=o.text;card.onclick=function(){handleProveSelect(this,r);};row.appendChild(card);});
+    setTimeout(()=>{const iz2=document.getElementById('interactionZone');if(iz2)iz2.scrollIntoView({behavior:'smooth',block:'nearest'});},200);
+  }catch(e){
+    console.error('startProvePhase error',e);
+    processing=false;
+    const iz=document.getElementById('interactionZone');
+    if(iz)iz.innerHTML='<div class="coaching-bar hint-fb">Tap the amber "I\'m Stuck" button to move on.</div>';
+  }
 }
 function handleProveSelect(card,r){
   if(processing||cardLocked(card))return;processing=true;const p=r.provePhase,row=document.getElementById('proveOptionsRow');
@@ -1077,6 +1153,103 @@ function doRestart(){document.getElementById('confirmOverlay').style.display='no
 function clearAllTimers(){[celebTimeout,transitionTimeout,agTimeout,roundIntroTimeout].forEach(t=>{if(t)clearTimeout(t);});if(agCountdown)clearInterval(agCountdown);if(ambientInterval)clearInterval(ambientInterval);celebTimeout=transitionTimeout=agTimeout=roundIntroTimeout=null;agCountdown=ambientInterval=null;pendingTimeouts.forEach(t=>clearTimeout(t));pendingTimeouts=[];}
 function closeAllOverlays(){if(agCountdown){clearInterval(agCountdown);agCountdown=null;}['celebOverlay','hintOverlay','vocabPopup','choiceOverlay','agScreen','confirmOverlay','roundIntro'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearAllTimers();}else{const ag=document.getElementById('agScreen');if(ag&&ag.style.display==='block'){ag.style.display='none';processing=false;consecutiveFastWrongs=0;const r=ROUNDS[currentRound];if(r&&!gameState.rounds[currentRound].completed)buildRoundContent(r);}}});
+
+// ===== FIX 2 — EMERGENCY "I'M STUCK" BUTTON =====
+// Always-on-top amber escape hatch. Works from ANY phase regardless of the processing flag.
+// Force-clears state, aggressively strips blocking UI, awards 50% credit, advances.
+function setStuckBtnVisible(v){
+  const b=document.getElementById('stuckBtn');if(!b)return;
+  if(v)b.classList.add('visible');else b.classList.remove('visible');
+}
+function hideStuckConfirm(){
+  const o=document.getElementById('stuckConfirm');if(o)o.classList.remove('visible');
+}
+function showStuckConfirm(){
+  const o=document.getElementById('stuckConfirm');if(o)o.classList.add('visible');
+}
+function doEmergencySkip(){
+  hideStuckConfirm();
+  try{
+    // 1) Force-clear the processing flag regardless of watchdog state.
+    processing=false;
+    // 2) Invalidate every stale callback (safeTimeout uses arenaGen).
+    arenaGen++;
+    // 3) Clear every known timer/interval.
+    try{clearAllTimers();}catch(e){}
+    // 4) Aggressively strip blocking UI — overlays, coaching bars, try-again buttons,
+    //    tap-continue buttons, dynamic lock-in buttons, selected/dimmed cards, pointer-events.
+    try{closeAllOverlays();}catch(e){}
+    const killSelectors=[
+      '.coaching-bar','.try-again-btn','#tryAgainBtn','.tap-continue',
+      '.dynamic-lock-in','.lock-in-btn','.feedback-popup','.completion-screen',
+      '.confirmation-dialog','.celebration-overlay'
+    ];
+    killSelectors.forEach(sel=>{document.querySelectorAll(sel).forEach(el=>{try{el.remove();}catch(e){}});});
+    // Drop stuck selection/dim state and any pointer-events lockouts on option cards.
+    document.querySelectorAll('.option-card,.hotspot-zone').forEach(el=>{
+      el.classList.remove('selected');el.classList.remove('dimmed');el.style.pointerEvents='';
+    });
+    // Force-hide every overlay-like element defensively.
+    ['celebOverlay','hintOverlay','vocabPopup','choiceOverlay','agScreen','confirmOverlay','roundIntro','stuckConfirm'].forEach(id=>{
+      const el=document.getElementById(id);if(el)el.style.display='';
+    });
+    document.getElementById('stuckConfirm').classList.remove('visible');
+    // 5) Award 50% credit for the current round if not already completed.
+    const idx=currentRound;
+    if(gameState&&gameState.rounds&&gameState.rounds[idx]){
+      const gs=gameState.rounds[idx];
+      if(!gs.completed){
+        gs.completed=true;
+        gs.score=Math.max(gs.score||0,50);
+        gs.timeSeconds=Math.round((Date.now()-(roundStartTime||Date.now()))/1000);
+        try{totalScore=calcOverallScore();updateScore();updateProgress();}catch(e){}
+      }
+    }
+    // 6) Advance — receipt if that was the last round, otherwise next round.
+    streak=0;try{updateStreak();}catch(e){}
+    if(idx+1>=ROUNDS.length){
+      try{showReceipt();return;}
+      catch(e){console.error('emergency showReceipt failed',e);}
+    }
+    try{loadRound(idx+1);return;}
+    catch(e){console.error('emergency loadRound failed, retrying',e);}
+    // 7) Last-ditch fallback — try startSimulation-equivalent restart of current index.
+    try{processing=false;arenaGen++;loadRound(Math.min(idx+1,ROUNDS.length-1));}
+    catch(e){console.error('emergency last-ditch failed',e);}
+  }catch(outer){
+    console.error('emergency skip outer failure',outer);
+    // Absolute last resort: force the flag down and reload the round.
+    processing=false;
+    try{loadRound(Math.min(currentRound+1,ROUNDS.length-1));}catch(e){}
+  }
+}
+// Wire buttons once DOM is parsed (this script is at end of body so elements exist).
+(function wireStuckBtn(){
+  const btn=document.getElementById('stuckBtn');
+  const yes=document.getElementById('stuckConfirmYes');
+  const no=document.getElementById('stuckConfirmNo');
+  const overlay=document.getElementById('stuckConfirm');
+  if(btn)btn.addEventListener('click',showStuckConfirm);
+  if(yes)yes.addEventListener('click',doEmergencySkip);
+  if(no)no.addEventListener('click',hideStuckConfirm);
+  if(overlay)overlay.addEventListener('click',(e)=>{if(e.target===overlay)hideStuckConfirm();});
+})();
+// Show the stuck button whenever gameContainer is visible; hide on welcome + receipt.
+// Hook into existing screen transitions by patching two specific entry points.
+(function hookScreenTransitions(){
+  const origShowReceipt=window.showReceipt;
+  if(typeof origShowReceipt==='function'){
+    window.showReceipt=function(){setStuckBtnVisible(false);hideStuckConfirm();return origShowReceipt.apply(this,arguments);};
+  }
+  const origDoRestart=window.doRestart;
+  if(typeof origDoRestart==='function'){
+    window.doRestart=function(){setStuckBtnVisible(false);hideStuckConfirm();return origDoRestart.apply(this,arguments);};
+  }
+  const origStartGame=window.startGame;
+  if(typeof origStartGame==='function'){
+    window.startGame=function(){const r=origStartGame.apply(this,arguments);setStuckBtnVisible(true);return r;};
+  }
+})();
 </script>
 </body>
 </html>

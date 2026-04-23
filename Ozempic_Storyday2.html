@@ -225,6 +225,11 @@ button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px;}
   .receipt-btns{display:none!important;}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
 }
+#stuckBtn{position:fixed;bottom:18px;right:18px;z-index:9999;background:#F59E0B;color:#fff;font-weight:700;font-size:14px;padding:12px 18px;border-radius:24px;border:2px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,0.28);min-height:44px;min-width:96px;display:none;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;}
+#stuckBtn:hover{background:#E08E09;}
+#stuckBtn:active{transform:scale(0.96);}
+#stuckBtn:focus-visible{outline:3px solid #fff;outline-offset:2px;}
+@media print{#stuckBtn{display:none !important;}}
 </style>
 </head>
 <body>
@@ -297,6 +302,9 @@ button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px;}
 <div id="receiptScreen"></div>
 <div id="confirmDialog"><div class="confirm-card"><p id="confirmMsg"></p><button id="confirmYes" style="background:var(--wrong);color:white;">Yes, Start Over</button><button id="confirmNo" style="background:#F3F4F6;color:var(--text);">Cancel</button></div></div>
 
+<!-- FIX 2: Emergency advance button — always visible during gameplay, hidden on receipt -->
+<button id="stuckBtn" type="button" aria-label="I'm stuck, skip this level for 50 percent credit">I'm Stuck</button>
+
 <script>
 /* ===== UTILITIES ===== */
 function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
@@ -314,6 +322,27 @@ function playCorrectSound(){playTone(523,.1);setTimeout(()=>playTone(659,.1),100
 /* ===== STATE ===== */
 const GS={studentName:'',teacherName:'Mr. Jawad',currentLevel:0,phase:'',levels:[],overallScore:0,totalTimeMs:0,startTime:0,readAloud:true,vocabOpen:false,wrongCount:0,hintsUsed:0,resets:0,levelResets:0,selectedOption:null,processing:false,consecutiveFastWrongs:0,phaseStartTime:0,levelStartTime:0,attempts:0,requiredCompleteShown:false,bonusCompleteShown:false,receiptRendered:false,hotspotWrongs:0};
 let transitionTimeout=null,speechTimeout=null,resumeInterval=null,celebTimeout=null,coachingInterval=null,arenaGen=0;
+
+/* ===== FIX 1: PROCESSING WATCHDOG ===== */
+/* Replaces GS.processing with a self-healing getter/setter.
+   If anything forgets to clear it, auto-clears after 5s. */
+(function installProcessingWatchdog(){
+  let _val=false;let _wd=null;
+  Object.defineProperty(GS,'processing',{
+    configurable:true,
+    get(){return _val;},
+    set(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null;}
+      if(_val){
+        _wd=setTimeout(()=>{
+          console.warn('[watchdog] GS.processing stuck 5s — auto-clearing');
+          _val=false;_wd=null;
+        },5000);
+      }
+    }
+  });
+})();
 
 function clearAllTimers(){
   [transitionTimeout,speechTimeout,celebTimeout].forEach(t=>{if(t)clearTimeout(t);});
@@ -703,14 +732,15 @@ function startLevel(idx){
   $('sequenceDisplay').innerHTML='';$('sequenceDisplay').style.display='none';hide($('evidenceStrip'));hide($('claimFrame'));$('hotspotPrompt').style.display='none';
   $('resetLevelBtn').disabled=false;
   $('narrativeText').innerHTML='';$('narrativeTitle').textContent=lv.required?'Story':'Story (BONUS)';
-  buildArena(lv.watch.arenaState);
+  try{buildArena(lv.watch.arenaState);}catch(e){console.warn('buildArena failed',e);}
   const fp=$('focusPromptBanner');fp.textContent=(idx===0)?lv.focusPrompt+" You'll be asked about this next.":lv.focusPrompt;fp.style.opacity='1';
   transitionTimeout=setTimeout(()=>{fp.style.opacity='0.4';startWatch();},3000);
 }
 
 function startWatch(){
+  GS.processing=false; /* FIX 3: defensive clear */
   const lv=LEVELS[GS.currentLevel];GS.phase='watch';GS.phaseStartTime=Date.now();
-  typewriterHTML($('narrativeText'),lv.watch.text);
+  try{typewriterHTML($('narrativeText'),lv.watch.text);}catch(e){console.warn('typewriter failed',e);}
   let watchDoneFired=false;
   const watchDone=()=>{
     if(watchDoneFired)return;watchDoneFired=true;
@@ -720,13 +750,15 @@ function startWatch(){
     else{transitionTimeout=setTimeout(()=>startDo(),1500);}
   };
   const as=lv.watch.arenaState;
-  if(as==='healthy-intro')animateArena('show-glucose-label',null);
-  else if(as==='healthy-keys')animateArena('show-insulin-flow',null);
-  else if(as==='ozempic')animateArena('ozempic-surge',null);
-  else if(as==='crisis')animateArena('crisis-unfold',null);
-  else if(as==='crisis-data')animateArena('crisis-data-reveal',null);
-  else if(as==='recovery')animateArena('recovery-animate',null);
-  speakText(lv.watch.text,watchDone);
+  try{
+    if(as==='healthy-intro')animateArena('show-glucose-label',null);
+    else if(as==='healthy-keys')animateArena('show-insulin-flow',null);
+    else if(as==='ozempic')animateArena('ozempic-surge',null);
+    else if(as==='crisis')animateArena('crisis-unfold',null);
+    else if(as==='crisis-data')animateArena('crisis-data-reveal',null);
+    else if(as==='recovery')animateArena('recovery-animate',null);
+  }catch(e){console.warn('watch animateArena failed',e);}
+  try{speakText(lv.watch.text,watchDone);}catch(e){console.warn('speakText failed',e);}
   transitionTimeout=setTimeout(()=>{try{if(window.speechSynthesis)window.speechSynthesis.cancel();}catch(e){}watchDone();},lv.watch.duration+5000);
 }
 
@@ -758,14 +790,18 @@ function lockInDo(){
   const lv=LEVELS[GS.currentLevel];const correct=lv.doPhase.correct;const sel=GS.selectedOption;GS.attempts++;
   const timeSince=Date.now()-GS.phaseStartTime;const cards=qsa('.opt-card',$('izOptions'));
   if(sel===correct){
-    cards[sel].classList.add('correct-flash');hide($('lockInBtn'));
-    const mystery=$('mysteryStep');if(mystery&&lv.doPhase.mechanic==='what-comes-next'){mystery.textContent=lv.doPhase.options[sel];mystery.classList.remove('mystery');mystery.classList.add('correct-flash');}
-    if(lv.doPhase.mechanic==='claim-builder'){$('claimFrame').innerHTML="Alec's cells were starving because <strong style='color:var(--correct)'>"+escHtml(lv.doPhase.options[sel])+"</strong>.";}
-    const aa=['correct-glucose','correct-insulin','pancreas-glow','flash-glucose','highlight-crisis-data','correct-insulin'];
-    animateArena(aa[GS.currentLevel]||'flash-glucose',null);playCorrectSound();
-    let score=100;if(GS.hintsUsed>=3)score=60;else if(GS.hintsUsed===2)score=70;else if(GS.hintsUsed===1)score=85;if(GS.levelResets>0)score=50;
-    GS.levels[GS.currentLevel].score=score;
-    if(GS.hintsUsed===0&&GS.levelResets===0)showAffirmation();
+    try{
+      cards[sel].classList.add('correct-flash');hide($('lockInBtn'));
+      const mystery=$('mysteryStep');if(mystery&&lv.doPhase.mechanic==='what-comes-next'){mystery.textContent=lv.doPhase.options[sel];mystery.classList.remove('mystery');mystery.classList.add('correct-flash');}
+      if(lv.doPhase.mechanic==='claim-builder'){$('claimFrame').innerHTML="Alec's cells were starving because <strong style='color:var(--correct)'>"+escHtml(lv.doPhase.options[sel])+"</strong>.";}
+      const aa=['correct-glucose','correct-insulin','pancreas-glow','flash-glucose','highlight-crisis-data','correct-insulin'];
+      try{animateArena(aa[GS.currentLevel]||'flash-glucose',null);}catch(e){console.warn('animateArena correct failed',e);}
+      try{playCorrectSound();}catch(e){}
+      let score=100;if(GS.hintsUsed>=3)score=60;else if(GS.hintsUsed===2)score=70;else if(GS.hintsUsed===1)score=85;if(GS.levelResets>0)score=50;
+      GS.levels[GS.currentLevel].score=score;
+      if(GS.hintsUsed===0&&GS.levelResets===0)showAffirmation();
+    }catch(e){console.warn('lockInDo correct body failed',e);}
+    /* FIX 3: setTimeout ALWAYS scheduled, even if body above threw */
     transitionTimeout=setTimeout(()=>{GS.processing=false;startProve();},1500);
   } else {
     cards[sel].classList.add('wrong-flash');GS.wrongCount++;
@@ -776,14 +812,17 @@ function lockInDo(){
 }
 
 function showWrongFeedback(msg,selIdx,cards){
-  $('coachingBar').textContent=msg;show($('coachingBar'),'block');cards[selIdx].classList.add('dimmed');
-  show($('tryAgainBtn'),'block');hide($('lockInBtn'));
-  const wh=['highlight-glucose-nudge','highlight-insulin','pancreas-glow','highlight-receptors-empty','highlight-crisis-data','highlight-receptors-empty'];
-  animateArena(wh[GS.currentLevel]||'flash-glucose',null);
-  $('tryAgainBtn').onclick=()=>{
-    hide($('tryAgainBtn'));hide($('coachingBar'));GS.selectedOption=null;show($('lockInBtn'),'block');$('lockInBtn').disabled=true;GS.processing=false;GS.phaseStartTime=Date.now();
-    if(GS.wrongCount===1&&GS.hintsUsed===0)deliverHint(1);else if(GS.wrongCount===2&&GS.hintsUsed<=1)deliverHint(2);else if(GS.wrongCount>=3&&GS.hintsUsed<=2)deliverStepByStep();
-  };GS.processing=false;
+  try{
+    $('coachingBar').textContent=msg;show($('coachingBar'),'block');cards[selIdx].classList.add('dimmed');
+    show($('tryAgainBtn'),'block');hide($('lockInBtn'));
+    const wh=['highlight-glucose-nudge','highlight-insulin','pancreas-glow','highlight-receptors-empty','highlight-crisis-data','highlight-receptors-empty'];
+    try{animateArena(wh[GS.currentLevel]||'flash-glucose',null);}catch(e){console.warn('animateArena wrong failed',e);}
+    $('tryAgainBtn').onclick=()=>{
+      hide($('tryAgainBtn'));hide($('coachingBar'));GS.selectedOption=null;show($('lockInBtn'),'block');$('lockInBtn').disabled=true;GS.processing=false;GS.phaseStartTime=Date.now();
+      if(GS.wrongCount===1&&GS.hintsUsed===0)deliverHint(1);else if(GS.wrongCount===2&&GS.hintsUsed<=1)deliverHint(2);else if(GS.wrongCount>=3&&GS.hintsUsed<=2)deliverStepByStep();
+    };
+  }catch(e){console.warn('showWrongFeedback failed',e);}
+  GS.processing=false; /* FIX 3: ALWAYS clear, even on error */
 }
 
 /* ===== PROVE ===== */
@@ -800,22 +839,30 @@ function lockInProve(){
   if(GS.processing)return;GS.processing=true;if(GS.selectedOption===null){GS.processing=false;return;}
   const lv=LEVELS[GS.currentLevel];const correct=lv.prove.correct;const sel=GS.selectedOption;const cards=qsa('.opt-card',$('izOptions'));
   if(sel===correct){
-    cards[sel].classList.add('correct-flash');hide($('lockInBtn'));playCorrectSound();
-    const ls=GS.levels[GS.currentLevel];ls.completed=true;ls.timeMs=Date.now()-GS.levelStartTime;ls.attempts=GS.attempts;ls.hintsUsed=GS.hintsUsed;ls.resets=GS.levelResets;
-    if(ls.score===0)ls.score=100;
+    try{
+      cards[sel].classList.add('correct-flash');hide($('lockInBtn'));
+      try{playCorrectSound();}catch(e){}
+      const ls=GS.levels[GS.currentLevel];ls.completed=true;ls.timeMs=Date.now()-GS.levelStartTime;ls.attempts=GS.attempts;ls.hintsUsed=GS.hintsUsed;ls.resets=GS.levelResets;
+      if(ls.score===0)ls.score=100;
+    }catch(e){console.warn('lockInProve correct body failed',e);}
+    /* FIX 3: setTimeout ALWAYS scheduled, even if body above threw */
     transitionTimeout=setTimeout(()=>{GS.processing=false;onLevelComplete();},1500);
   } else {
-    cards[sel].classList.add('wrong-flash');GS.wrongCount++;
-    const fb=lv.prove.wrongFeedback[sel]||'Look at the model and try again.';
-    $('coachingBar').textContent=fb;show($('coachingBar'),'block');cards[sel].classList.add('dimmed');
-    show($('tryAgainBtn'),'block');hide($('lockInBtn'));
-    $('tryAgainBtn').onclick=()=>{hide($('tryAgainBtn'));hide($('coachingBar'));GS.selectedOption=null;show($('lockInBtn'),'block');$('lockInBtn').disabled=true;GS.processing=false;GS.phaseStartTime=Date.now();};
-    GS.processing=false;
+    try{
+      cards[sel].classList.add('wrong-flash');GS.wrongCount++;
+      const fb=lv.prove.wrongFeedback[sel]||'Look at the model and try again.';
+      $('coachingBar').textContent=fb;show($('coachingBar'),'block');cards[sel].classList.add('dimmed');
+      show($('tryAgainBtn'),'block');hide($('lockInBtn'));
+      $('tryAgainBtn').onclick=()=>{hide($('tryAgainBtn'));hide($('coachingBar'));GS.selectedOption=null;show($('lockInBtn'),'block');$('lockInBtn').disabled=true;GS.processing=false;GS.phaseStartTime=Date.now();};
+    }catch(e){console.warn('lockInProve wrong body failed',e);}
+    GS.processing=false; /* FIX 3: ALWAYS clear */
   }
 }
 
 /* ===== HOTSPOT ===== */
-function startHotspot(lv){$('izPrompt').textContent=lv.doPhase.prompt;$('izOptions').innerHTML='';hide($('lockInBtn'));$('hotspotPrompt').textContent=lv.doPhase.prompt;$('hotspotPrompt').style.display='block';GS.hotspotWrongs=0;
+function startHotspot(lv){
+  GS.processing=false; /* FIX 3: defensive clear */
+  $('izPrompt').textContent=lv.doPhase.prompt;$('izOptions').innerHTML='';hide($('lockInBtn'));$('hotspotPrompt').textContent=lv.doPhase.prompt;$('hotspotPrompt').style.display='block';GS.hotspotWrongs=0;
   const arena=$('arena');arena.style.cursor='crosshair';
   arena._hotspotHandler=function(e){if(GS.processing)return;const rect=arena.getBoundingClientRect();const xPct=((e.clientX-rect.left)/rect.width)*100;const yPct=((e.clientY-rect.top)/rect.height)*100;handleHotspotClick(xPct,yPct,lv);};
   arena.addEventListener('click',arena._hotspotHandler);
@@ -823,29 +870,40 @@ function startHotspot(lv){$('izPrompt').textContent=lv.doPhase.prompt;$('izOptio
 function handleHotspotClick(x,y,lv){
   const isPancreas=(x<18&&y<38&&y>4);
   if(isPancreas){
-    GS.processing=true;GS.attempts++;$('hotspotPrompt').style.display='none';$('arena').style.cursor='default';$('arena').removeEventListener('click',$('arena')._hotspotHandler);
-    animateArena('pancreas-glow',null);playCorrectSound();
-    let sc=100;if(GS.hintsUsed>=3)sc=60;else if(GS.hintsUsed===2)sc=70;else if(GS.hintsUsed===1)sc=85;if(GS.levelResets>0)sc=50;
-    GS.levels[GS.currentLevel].score=sc;if(GS.hintsUsed===0&&GS.levelResets===0)showAffirmation();
+    GS.processing=true;GS.attempts++;
+    try{
+      $('hotspotPrompt').style.display='none';$('arena').style.cursor='default';$('arena').removeEventListener('click',$('arena')._hotspotHandler);
+      try{animateArena('pancreas-glow',null);}catch(e){console.warn('animateArena hotspot correct failed',e);}
+      try{playCorrectSound();}catch(e){}
+      let sc=100;if(GS.hintsUsed>=3)sc=60;else if(GS.hintsUsed===2)sc=70;else if(GS.hintsUsed===1)sc=85;if(GS.levelResets>0)sc=50;
+      GS.levels[GS.currentLevel].score=sc;if(GS.hintsUsed===0&&GS.levelResets===0)showAffirmation();
+    }catch(e){console.warn('hotspot correct body failed',e);}
+    /* FIX 3: setTimeout ALWAYS scheduled */
     transitionTimeout=setTimeout(()=>{GS.processing=false;startProve();},1500);
   } else {
     GS.processing=true;GS.hotspotWrongs++;GS.wrongCount++;GS.attempts++;
-    // Wrong ring via SVG
-    const svg=$('arena').querySelector('svg');if(svg){
-      const vb=svg.viewBox.baseVal;const rect=svg.getBoundingClientRect();
-      const sx=(x/100)*vb.width;const sy=(y/100)*vb.height;
-      const circ=document.createElementNS('http://www.w3.org/2000/svg','circle');circ.setAttribute('cx',sx);circ.setAttribute('cy',sy);circ.setAttribute('r','15');circ.setAttribute('fill','none');circ.setAttribute('stroke','#EF4444');circ.setAttribute('stroke-width','3');circ.setAttribute('opacity','0.8');svg.appendChild(circ);
-      setTimeout(()=>circ.remove(),1500);
-    }
-    const wf=lv.doPhase.wrongFeedback;let fb=wf.generic||'Look for the organ that MAKES insulin.';
-    if(x>15&&x<95&&y>34&&y<56)fb=wf.blood||fb;else if(y>65)fb=wf.cells||fb;
-    $('coachingBar').textContent=fb;show($('coachingBar'),'block');transitionTimeout=setTimeout(()=>{hide($('coachingBar'));GS.processing=false;},3500);
-    if(GS.hotspotWrongs>=3){animateArena('pancreas-glow',null);if(GS.hintsUsed<1){GS.hintsUsed=1;deliverHint(2);}}
+    try{
+      // Wrong ring via SVG
+      const svg=$('arena').querySelector('svg');
+      if(svg&&svg.viewBox&&svg.viewBox.baseVal){
+        const vb=svg.viewBox.baseVal;
+        const sx=(x/100)*vb.width;const sy=(y/100)*vb.height;
+        const circ=document.createElementNS('http://www.w3.org/2000/svg','circle');circ.setAttribute('cx',sx);circ.setAttribute('cy',sy);circ.setAttribute('r','15');circ.setAttribute('fill','none');circ.setAttribute('stroke','#EF4444');circ.setAttribute('stroke-width','3');circ.setAttribute('opacity','0.8');svg.appendChild(circ);
+        setTimeout(()=>{try{circ.remove();}catch(e){}},1500);
+      }
+      const wf=lv.doPhase.wrongFeedback;let fb=wf.generic||'Look for the organ that MAKES insulin.';
+      if(x>15&&x<95&&y>34&&y<56)fb=wf.blood||fb;else if(y>65)fb=wf.cells||fb;
+      $('coachingBar').textContent=fb;show($('coachingBar'),'block');
+      if(GS.hotspotWrongs>=3){try{animateArena('pancreas-glow',null);}catch(e){}if(GS.hintsUsed<1){GS.hintsUsed=1;deliverHint(2);}}
+    }catch(e){console.warn('hotspot wrong body failed',e);}
+    /* FIX 3: setTimeout ALWAYS scheduled to clear processing */
+    transitionTimeout=setTimeout(()=>{hide($('coachingBar'));GS.processing=false;},3500);
   }
 }
 
 /* ===== WHAT-COMES-NEXT ===== */
 function startWhatComesNext(lv){
+  GS.processing=false; /* FIX 3: defensive clear */
   const sd=$('sequenceDisplay');sd.innerHTML='';show(sd,'flex');
   if(lv.doPhase.sequence)lv.doPhase.sequence.forEach(s=>{const st=document.createElement('div');st.className='seq-step';st.textContent=s;sd.appendChild(st);});
   const m=document.createElement('div');m.className='seq-step mystery';m.textContent='?';m.id='mysteryStep';sd.appendChild(m);
@@ -854,6 +912,7 @@ function startWhatComesNext(lv){
 
 /* ===== CLAIM BUILDER ===== */
 function startClaimBuilder(lv){
+  GS.processing=false; /* FIX 3: defensive clear */
   show($('evidenceStrip'),'block');$('evidenceStrip').innerHTML=lv.doPhase.evidenceHTML||'';
   show($('claimFrame'),'block');$('claimFrame').textContent=lv.doPhase.claimFrame||'';
   buildOptionCards(lv.doPhase.options,lv.doPhase.correct,'do');show($('lockInBtn'),'block');$('lockInBtn').disabled=true;$('lockInBtn').onclick=()=>lockInDo();
@@ -903,6 +962,7 @@ $('resetLevelBtn').addEventListener('click',()=>{if(GS.levels[GS.currentLevel]&&
 /* ===== RECEIPT ===== */
 function showReceipt(){
   if(GS.receiptRendered)return;GS.receiptRendered=true;clearAllTimers();closeAllOverlays();hide($('gameContainer'));$('resetLevelBtn').disabled=true;GS.totalTimeMs=Date.now()-GS.startTime;
+  const sb=$('stuckBtn');if(sb)sb.style.display='none'; /* FIX 2: hide stuck button on receipt */
   const rq=GS.levels.filter((_,i)=>LEVELS[i].required&&GS.levels[i].completed);const ra=rq.length>0?rq.reduce((s,l)=>s+l.score,0)/rq.length:0;
   const bd=GS.levels.filter((_,i)=>!LEVELS[i].required&&GS.levels[i].completed).length;const ov=Math.min(100,Math.round(ra+bd*5));
   const cc=ov>=85?'score-green':ov>=70?'score-yellow':'score-red';const lb=ov>=85?'Strong Mastery':ov>=70?'Approaching Mastery':'Needs More Practice';
@@ -928,7 +988,82 @@ $('readAloudBtn').addEventListener('click',()=>{GS.readAloud=!GS.readAloud;$('re
 
 /* ===== START ===== */
 $('studentNameInput').addEventListener('input',()=>{$('startBtn').disabled=!$('studentNameInput').value.trim();});
-$('startBtn').addEventListener('click',()=>{GS.studentName=escHtml($('studentNameInput').value.trim());const tn=$('teacherNameInput').value.trim();GS.teacherName=tn?escHtml(tn):'Your teacher';hide($('welcomeScreen'));show($('gameContainer'),'flex');initGameState();GS.startTime=Date.now();initParticles();startLevel(0);});
+$('startBtn').addEventListener('click',()=>{GS.studentName=escHtml($('studentNameInput').value.trim());const tn=$('teacherNameInput').value.trim();GS.teacherName=tn?escHtml(tn):'Your teacher';hide($('welcomeScreen'));show($('gameContainer'),'flex');initGameState();GS.startTime=Date.now();initParticles();const sb=$('stuckBtn');if(sb)sb.style.display='block';startLevel(0);});
+
+/* ===== FIX 2: I'M STUCK — EMERGENCY ADVANCE BUTTON ===== */
+/* Works from ANY phase regardless of flag state. Last-resort escape for students. */
+(function wireStuckButton(){
+  const btn=$('stuckBtn');if(!btn)return;
+  function stripBlockingUI(){
+    /* overlays */
+    ['hintOverlay','celebOverlay','choiceOverlay','coachingOverlay','confirmDialog'].forEach(id=>{const el=$(id);if(el)el.style.display='none';});
+    /* coaching/try-again/focus/hotspot bars */
+    ['coachingBar','tryAgainBtn','focusPromptBanner','hotspotPrompt'].forEach(id=>{const el=$(id);if(el){el.style.display='none';el.style.opacity='';}});
+    /* affirmation text */
+    const aff=$('affirmationText');if(aff)aff.classList.remove('show');
+    /* card states — strip selected/dimmed/flashes/pointer-events */
+    document.querySelectorAll('.opt-card').forEach(c=>{
+      c.classList.remove('selected','dimmed','wrong-flash','correct-flash','locked','glow-hint');
+      c.style.pointerEvents='';c.disabled=false;
+    });
+    /* arena cursor + hotspot handler */
+    const arena=$('arena');
+    if(arena){
+      arena.style.cursor='default';
+      if(arena._hotspotHandler){try{arena.removeEventListener('click',arena._hotspotHandler);}catch(e){}arena._hotspotHandler=null;}
+    }
+  }
+  btn.addEventListener('click',()=>{
+    try{
+      if(!confirm('Skip this round? You will get 50% credit and move on.'))return;
+    }catch(e){/* if confirm is blocked, proceed anyway — student clearly wants out */}
+    try{
+      /* Force-clear processing flag */
+      try{GS.processing=false;}catch(e){}
+      /* Bump generation counter to invalidate stale callbacks */
+      try{arenaGen++;}catch(e){}
+      /* Clear all timers/intervals */
+      try{clearAllTimers();}catch(e){}
+      try{if(coachingInterval){clearInterval(coachingInterval);coachingInterval=null;}}catch(e){}
+      try{if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}}catch(e){}
+      try{if(window.speechSynthesis)window.speechSynthesis.cancel();}catch(e){}
+      /* Strip blocking UI */
+      try{stripBlockingUI();}catch(e){}
+      /* Reset selection state */
+      try{GS.selectedOption=null;GS.wrongCount=0;GS.hintsUsed=0;GS.consecutiveFastWrongs=0;}catch(e){}
+      /* Award 50% credit for current level */
+      const idx=GS.currentLevel;
+      try{
+        if(GS.levels&&GS.levels[idx]&&!GS.levels[idx].completed){
+          GS.levels[idx].completed=true;
+          GS.levels[idx].score=50;
+          GS.levels[idx].timeMs=Date.now()-(GS.levelStartTime||GS.startTime||Date.now());
+          GS.levels[idx].attempts=GS.attempts||1;
+          GS.levels[idx].hintsUsed=GS.hintsUsed||0;
+          GS.levels[idx].resets=GS.levelResets||0;
+        }
+      }catch(e){}
+      /* Advance to next level or receipt */
+      const next=idx+1;
+      if(next>=LEVELS.length){
+        try{showReceipt();}catch(e){console.error('showReceipt failed',e);}
+      } else {
+        try{startLevel(next);}
+        catch(e){
+          console.error('[stuckBtn] startLevel failed — retrying',e);
+          try{GS.processing=false;startLevel(next);}
+          catch(e2){
+            console.error('[stuckBtn] retry failed — last-ditch receipt',e2);
+            try{showReceipt();}catch(e3){console.error('[stuckBtn] showReceipt also failed',e3);}
+          }
+        }
+      }
+    }catch(e){
+      console.error('[stuckBtn] outer handler failed — last-ditch',e);
+      try{GS.processing=false;startLevel(Math.min((GS.currentLevel||0)+1,LEVELS.length-1));}catch(_){}
+    }
+  });
+})();
 
 /* ===== VISIBILITY ===== */
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}try{if(window.speechSynthesis)window.speechSynthesis.pause();}catch(e){}}});

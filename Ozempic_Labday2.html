@@ -96,6 +96,33 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;heigh
 /* BOTTOM BAR */
 #bottomBar{height:44px;background:var(--card);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;flex-shrink:0;gap:6px;}
 #bottomBar button{font-size:12px;padding:6px 12px;min-height:34px;white-space:nowrap;}
+
+/* FIX 2: EMERGENCY "I'M STUCK" BUTTON — always clickable, always visible during gameplay */
+#stuckBtn{
+  position:fixed;bottom:14px;right:14px;z-index:9999;display:none;
+  background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;
+  font-size:13px;font-weight:700;padding:10px 16px;min-height:44px;
+  border-radius:22px;border:2px solid #fff;
+  box-shadow:0 4px 14px rgba(217,119,6,.45),0 0 0 2px rgba(245,158,11,.35);
+  cursor:pointer;font-family:inherit;
+  transition:transform .15s,box-shadow .15s;
+}
+#stuckBtn:hover{transform:scale(1.04);box-shadow:0 6px 18px rgba(217,119,6,.6);}
+#stuckBtn:active{transform:scale(.96);}
+#stuckConfirm{
+  position:fixed;inset:0;z-index:10000;display:none;
+  background:rgba(15,23,42,.65);align-items:center;justify-content:center;padding:20px;
+}
+#stuckConfirm.open{display:flex;}
+#stuckConfirm .box{
+  background:#fff;border-radius:14px;padding:22px;max-width:360px;width:100%;
+  box-shadow:0 12px 40px rgba(0,0,0,.3);text-align:center;
+}
+#stuckConfirm h3{font-size:18px;color:var(--txt);margin-bottom:8px;}
+#stuckConfirm p{font-size:14px;color:var(--txtL);margin-bottom:16px;line-height:1.4;}
+#stuckConfirm .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+#stuckConfirm .btn-skip{background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;font-weight:700;padding:12px 22px;border-radius:10px;min-height:48px;}
+#stuckConfirm .btn-cancel{background:var(--border);color:var(--txt);padding:12px 22px;border-radius:10px;min-height:48px;}
 .vocab-btn{background:var(--accent3);color:#fff;}
 .hint-btn{background:var(--yellow);color:#333;}
 .reset-level-btn{background:#E2E8F0;color:var(--txt);}
@@ -290,6 +317,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;heigh
 <div id="particleLayer"></div>
 <div id="receiptScreen"><div id="receiptInner"></div></div>
 
+<!-- FIX 2: EMERGENCY "I'M STUCK" BUTTON -->
+<button id="stuckBtn" type="button" aria-label="I'm Stuck — skip this round">I'm Stuck</button>
+<div id="stuckConfirm" role="dialog" aria-modal="true">
+  <div class="box">
+    <h3>Skip this round?</h3>
+    <p>You will get 50% credit and move on to the next round.</p>
+    <div class="btns">
+      <button type="button" class="btn-skip" onclick="stuckEmergencyAdvance()">Yes, Skip</button>
+      <button type="button" class="btn-cancel" onclick="document.getElementById('stuckConfirm').classList.remove('open')">Keep Trying</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    MR. JAWAD'S SIMULATIONS — Cause-and-Effect Lab
@@ -298,7 +338,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;heigh
 
 // ── GLOBALS ──
 let studentName='', teacherName='Mr. Jawad';
-let currentRound=0, currentPhase='', processing=false, arenaGen=0;
+let currentRound=0, currentPhase='', arenaGen=0;
+// processing is installed below as a self-healing watchdog property on window
 let hintLevel=0, wrongCount=0, resetCount=0, consecutiveFastWrongs=0;
 let phaseStartTime=0, roundStartTime=0;
 let transitionTimeout=null, fastGuessGateId=0, watchTimeout=null;
@@ -311,6 +352,30 @@ let audioCtx=null;
 let sliderMoved=false;
 const PARTICLE_POOL=[];
 let particleIdx=0;
+
+// ── FIX 1: SELF-HEALING PROCESSING WATCHDOG ──
+// processing is now a property on window with a 5-second auto-clear.
+// If any code path forgets to reset it (thrown buildArena, stale arenaGen
+// check in a safety timeout, missed early-return), the watchdog unsticks it
+// so the student can keep going instead of staring at a frozen screen.
+(function installProcessingWatchdog(){
+  let _val=false;let _wd=null;
+  Object.defineProperty(window,'processing',{
+    configurable:true,
+    get(){return _val;},
+    set(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null;}
+      if(_val){
+        _wd=setTimeout(()=>{
+          console.warn('[watchdog] processing stuck 5s — auto-clearing');
+          _val=false;_wd=null;
+        },5000);
+      }
+    }
+  });
+  window.processing=false;
+})();
 
 const insulinLabels=['None','Low','Normal','High'];
 const glucoseLabels=['Fasting','Normal Meal','Huge Meal'];
@@ -806,6 +871,7 @@ function startSim(){
   document.getElementById('topBar').style.display='flex';
   document.getElementById('mainArea').style.display='flex';
   document.getElementById('bottomBar').style.display='flex';
+  document.getElementById('stuckBtn').style.display='block';
   initParticles();
   loadRound(0);
 }
@@ -845,7 +911,7 @@ function loadRound(idx){
   } else {
     initState=Object.assign({},rd.watchDesc||calcState(2,1,1));
   }
-  buildArena(initState);
+  try{buildArena(initState);}catch(e){console.warn('buildArena loadRound',e);}
 
   // Start round timer
   roundStartTime=Date.now();
@@ -901,6 +967,7 @@ function calcState(ins,glu,rec){
 
 // ── PHASE: PREDICTION ──
 function showPrediction(rd){
+  processing=false; // FIX 3: defensive clear at phase start
   currentPhase='PREDICT';
   const iz=document.getElementById('interactionZone');
   iz.innerHTML='';
@@ -992,6 +1059,7 @@ function lockPrediction(){
 
 // ── PHASE: CHANGE ──
 function showChangePhase(rd){
+  processing=false; // FIX 3: defensive clear
   currentPhase='CHANGE';
   const iz=document.getElementById('interactionZone');
   iz.innerHTML='';
@@ -1026,18 +1094,19 @@ function pressRun(){
 
 // ── PHASE: WATCH ──
 function startWatchPhase(rd){
+  processing=false; // FIX 3: defensive clear at phase start
   currentPhase='WATCH';
   const iz=document.getElementById('interactionZone');
   iz.innerHTML=`<div class="phase-title">WATCH</div><div class="iz-prompt">Observe what happens...</div>`;
 
-  // Animate arena to result state
+  // Animate arena to result state — wrapped so a render fail can't lock us
   const targetState=rd.watchDesc;
-  buildArena(targetState);
+  try{buildArena(targetState);}catch(e){console.warn('buildArena watch',e);}
 
   // Focus banner
-  showFocusBanner(rd.focusPrompt,true);
+  try{showFocusBanner(rd.focusPrompt,true);}catch(e){}
 
-  // Safety timeout
+  // Safety timeout — processing already clear above, so stale-gen early return is harmless
   const gen=arenaGen;
   watchTimeout=setTimeout(()=>{
     if(arenaGen!==gen)return;
@@ -1048,6 +1117,7 @@ function startWatchPhase(rd){
 
 // ── PHASE: RECORD ──
 function startRecordPhase(rd){
+  processing=false; // FIX 3: defensive clear at phase start
   currentPhase='RECORD';
   const iz=document.getElementById('interactionZone');
   iz.innerHTML='';
@@ -1174,6 +1244,7 @@ function fixDataCell(rd){
 
 // ── PHASE: PROVE ──
 function startProvePhase(rd){
+  processing=false; // FIX 3: defensive clear at phase start
   currentPhase='PROVE';
   phaseStartTime=Date.now();
   const iz=document.getElementById('interactionZone');
@@ -1336,7 +1407,7 @@ function submitClaim(){
     gameState.levels[currentRound].attempts++;
     safeCall(()=>playWrong(),'snd');
     if(fbText)showCoachingInIZ(fbText);
-    buildArena(Object.assign({},rd.watchDesc||calcState(2,1,1),{highlights:{receptors:true}}));
+    try{buildArena(Object.assign({},rd.watchDesc||calcState(2,1,1),{highlights:{receptors:true}}));}catch(e){console.warn('buildArena claim-wrong',e);}
     // Safety valve: auto-advance after too many fails
     if(wrongCount>=4&&resetCount>=3){
       autoAdvance50();return;
@@ -1420,7 +1491,7 @@ function handleCorrectProve(rd){
     }
   }
   // Arena correct state
-  buildArena(Object.assign({},rd.watchDesc||calcState(2,1,1),{highlights:{}}));
+  try{buildArena(Object.assign({},rd.watchDesc||calcState(2,1,1),{highlights:{}}));}catch(e){console.warn('buildArena correct',e);}
 
   // Show feedback
   const iz=document.getElementById('interactionZone');
@@ -1478,7 +1549,7 @@ function handleWrongProve(rd){
     showCoachingInIZ(fb.text);
     if(fb.arenaHighlight){
       let hl={};hl[fb.arenaHighlight]=true;
-      buildArena(Object.assign({},rd.watchDesc,{highlights:hl}));
+      try{buildArena(Object.assign({},rd.watchDesc,{highlights:hl}));}catch(e){console.warn('buildArena wrong-prove',e);}
     }
   }
 
@@ -1579,10 +1650,10 @@ function useHint(){
       dp.style.boxShadow='0 0 16px rgba(59,130,246,.5)';
       setTimeout(()=>{dp.style.boxShadow=''},4000);
     } else if(target==='both'){
-      buildArena(Object.assign({},rd.watchDesc,{highlights:{energy:true,glucose:true}}));
+      try{buildArena(Object.assign({},rd.watchDesc,{highlights:{energy:true,glucose:true}}));}catch(e){console.warn('buildArena hint-both',e);}
     } else if(target){
       let hl={};hl[target]=true;
-      buildArena(Object.assign({},rd.watchDesc,{highlights:hl}));
+      try{buildArena(Object.assign({},rd.watchDesc,{highlights:hl}));}catch(e){console.warn('buildArena hint-target',e);}
     }
   } else if(hintLevel===2){
     showCoachingInIZ(rd.hints.hint2.text);
@@ -1616,6 +1687,93 @@ function sbsNext(){
     document.getElementById('sbsOverlay').classList.remove('open');
   } else {
     updateSBS();
+  }
+}
+
+// ── FIX 2: EMERGENCY ADVANCE (I'm Stuck button) ──
+// Works from ANY phase regardless of processing flag. Never blocked.
+document.addEventListener('DOMContentLoaded',()=>{
+  const sb=document.getElementById('stuckBtn');
+  if(sb){
+    sb.addEventListener('click',()=>{
+      document.getElementById('stuckConfirm').classList.add('open');
+    });
+  }
+});
+
+function stuckEmergencyAdvance(){
+  // Close the confirm dialog first
+  try{document.getElementById('stuckConfirm').classList.remove('open');}catch(e){}
+
+  // FORCE-clear everything, swallow any error
+  try{window.processing=false;}catch(e){}
+  try{arenaGen++;}catch(e){}
+  try{clearTimers();}catch(e){}
+  try{closeAllOverlays();}catch(e){}
+  try{if(resumeInterval){clearInterval(resumeInterval);resumeInterval=null;}}catch(e){}
+  try{if(ambientInterval){clearInterval(ambientInterval);ambientInterval=null;}}catch(e){}
+
+  // Aggressively strip blocking UI
+  try{
+    document.querySelectorAll('.coaching-bar,.feedback-popup,.confirm-dialog,.try-again-btn,.tap-continue-btn,#lockInBtn,#proveLockIn,#confirmDataBtn').forEach(el=>{
+      try{el.remove();}catch(e){}
+    });
+    // Clear selected/dimmed on all option cards
+    document.querySelectorAll('.option-card').forEach(c=>{
+      try{c.classList.remove('selected','dimmed','wrong','correct');c.style.pointerEvents='';}catch(e){}
+    });
+    // Clear any stuck pointer-events blockers
+    document.querySelectorAll('[style*="pointer-events"]').forEach(el=>{
+      try{el.style.pointerEvents='';}catch(e){}
+    });
+    // Clear prediction badge
+    const pb=document.querySelector('.predict-badge');if(pb)pb.remove();
+  }catch(e){console.warn('stuck: ui strip',e);}
+
+  // Reset per-round tap-state
+  try{
+    selectedOption=null;predictionChoice=null;predictionCorrect=false;
+    claimSlots={};consecutiveFastWrongs=0;
+    dataErrorCaught=false;dataConfirmAttempts=0;
+  }catch(e){}
+
+  // Award 50% credit for current round (if not already completed)
+  try{
+    const ls=gameState.levels[currentRound];
+    if(ls&&!ls.completed){
+      ls.completed=true;
+      ls.score=50;
+      ls.timeSeconds=Math.round((Date.now()-roundStartTime)/1000)||0;
+    }
+    updateScore();updateProgress();
+  }catch(e){console.warn('stuck: score',e);}
+
+  // Advance — wrapped in try/catch with last-ditch startRound fallback
+  try{
+    let next=currentRound+1;
+    if(next>=ROUNDS.length){
+      showReceipt();
+    } else {
+      // Check if milestones would fire (required complete)
+      const reqDone=gameState.levels.filter(l=>l.required&&l.completed).length;
+      if(reqDone===4&&!requiredCompleteShown){
+        requiredCompleteShown=true;
+        try{showCelebration('You Did It!',0,true,true);return;}catch(e){}
+      }
+      loadRound(next);
+    }
+  }catch(e){
+    console.error('stuck: advance failed, last-ditch fallback',e);
+    // Last-ditch: try to force-load next round directly
+    try{
+      window.processing=false;
+      let next=Math.min(currentRound+1,ROUNDS.length-1);
+      currentRound=next;
+      loadRound(next);
+    }catch(e2){
+      console.error('stuck: last-ditch failed, forcing receipt',e2);
+      try{window.processing=false;receiptRendered=false;showReceipt();}catch(e3){}
+    }
   }
 }
 
@@ -1740,6 +1898,7 @@ function showReceipt(){
   document.getElementById('topBar').style.display='none';
   document.getElementById('mainArea').style.display='none';
   document.getElementById('bottomBar').style.display='none';
+  const _sb=document.getElementById('stuckBtn');if(_sb)_sb.style.display='none';
 
   const rs=document.getElementById('receiptScreen');
   rs.classList.add('open');
@@ -1793,7 +1952,7 @@ function handleMultiVarRun(){
   let rec=parseInt(sliders.receptor.value);
   let state=calcState(ins,glu,rec);
   document.getElementById('runBtn').disabled=true;
-  buildArena(state);
+  try{buildArena(state);}catch(e){console.warn('buildArena multivar',e);}
   const iz=document.getElementById('interactionZone');
 
   if(multiVarGoal===0){
@@ -1822,6 +1981,7 @@ function handleMultiVarRun(){
 }
 
 function showGoal2(){
+  processing=false; // FIX 3: defensive clear at phase start
   currentPhase='CHANGE';
   const rd=ROUNDS[currentRound];
   const iz=document.getElementById('interactionZone');
