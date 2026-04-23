@@ -213,6 +213,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135d
 #cascadePanel{min-height:200px;}
 .opt-card{min-width:100px;font-size:13px;padding:10px;}
 }
+
+/* === FIX 2: I'm Stuck emergency advance button === */
+#stuckBtn{position:fixed;bottom:14px;right:14px;z-index:9999;min-height:44px;padding:10px 16px;border:2px solid #b45309;border-radius:22px;background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#1a1a00;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.45);display:none;animation:stuckPulse 3s ease-in-out infinite;font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+#stuckBtn:hover{background:linear-gradient(180deg,#fcd34d,#fbbf24);}
+#stuckBtn:active{transform:scale(0.96);}
+@keyframes stuckPulse{0%,100%{box-shadow:0 4px 12px rgba(0,0,0,0.45),0 0 0 0 rgba(251,191,36,0.5);}50%{box-shadow:0 4px 12px rgba(0,0,0,0.45),0 0 0 10px rgba(251,191,36,0);}}
+@media print{#stuckBtn{display:none!important;}}
 </style>
 </head>
 <body>
@@ -296,6 +303,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135d
 <div id="coachingBar"><span id="coachText"></span><br><button id="tryAgainBtn">Try Again</button></div>
 <div id="antiGuessOverlay"><div class="ag-box" id="agBox"></div></div>
 <div id="particleLayer"></div>
+<button id="stuckBtn" type="button" aria-label="I'm stuck — skip this round">I'm Stuck</button>
 
 <script>
 "use strict";
@@ -308,8 +316,7 @@ function safeTimeout(fn,ms){const id=setTimeout(()=>{const i=timers.indexOf(id);
 function clearAllTimers(){timers.forEach(t=>clearTimeout(t));timers.length=0;}
 let arenaGen=0;
 function arenaTimeout(fn,ms){const gen=arenaGen;return safeTimeout(()=>{if(gen===arenaGen)fn();},ms);}
-let processing=false;
-function guardReset(){processing=false;}
+/* processing flag migrated to GS.processing (watchdog-protected — see installProcessingWatchdog below) */
 
 /* === AUDIO (lazy) === */
 let audioCtx=null;
@@ -367,6 +374,120 @@ levels:[],currentLevel:0,totalScore:0,evidenceConnected:0,
 requiredCompleteShown:false,bonusCompleteShown:false,receiptRendered:false,
 startTime:0,levelStartTime:0
 };
+
+/* === LOCKUP DEFENSE FIX 1: Self-healing watchdog on GS.processing ===
+   Any code path that sets GS.processing=true arms a 3-second auto-clear timer.
+   Prevents permanent lockups from any forgotten/thrown/early-returned clear path. */
+(function installProcessingWatchdog(){
+let _val=false;let _wd=null;
+Object.defineProperty(GS,'processing',{
+configurable:true,
+get(){return _val;},
+set(v){
+_val=!!v;
+if(_wd){clearTimeout(_wd);_wd=null;}
+if(_val){
+_wd=setTimeout(()=>{
+console.warn('[watchdog] GS.processing stuck 3s — auto-clearing');
+_val=false;_wd=null;
+},3000);
+}
+}
+});
+})();
+
+/* === LOCKUP DEFENSE FIX 4: Phase dead-man timer infrastructure === */
+let _phaseDeadman=null,_phaseDeadmanPhase=null,_phaseDeadmanRound=null;
+function armPhaseDeadman(ms){
+clearPhaseDeadman();
+_phaseDeadmanPhase=curPhase;_phaseDeadmanRound=GS.currentLevel;
+_phaseDeadman=setTimeout(()=>{
+if(curPhase===_phaseDeadmanPhase&&GS.currentLevel===_phaseDeadmanRound){
+console.warn('[deadman] phase '+_phaseDeadmanPhase+' round '+_phaseDeadmanRound+' exceeded '+ms+'ms ceiling — auto-advancing');
+try{skipCurrentRound({confirmFirst:false,reason:'timeout'});}catch(e){console.error('deadman skip error',e);}
+}
+},ms);
+}
+function clearPhaseDeadman(){
+if(_phaseDeadman){clearTimeout(_phaseDeadman);_phaseDeadman=null;}
+_phaseDeadmanPhase=null;_phaseDeadmanRound=null;
+}
+
+/* === LOCKUP DEFENSE FIX 2 (logic): Emergency skip — shared by "I'm Stuck" button and dead-man timer ===
+   Force-clears UI, awards 50%, advances. Works from any phase regardless of flag state. */
+function skipCurrentRound(opts){
+opts=opts||{};
+const confirmFirst=opts.confirmFirst!==false;
+const reason=opts.reason||'user';
+if(confirmFirst){
+if(!confirm('Skip this round? You will get 50% credit and move on.'))return;
+}
+try{
+// Force-clear all blocking state
+GS.processing=false;
+clearPhaseDeadman();
+arenaGen++;
+try{clearAllTimers();}catch(e){}
+try{speechSynthesis.cancel();}catch(e){}
+if(typeof resumeInt!=='undefined'&&resumeInt){try{clearInterval(resumeInt);}catch(e){}resumeInt=null;}
+// Strip every overlay/coaching/try-again/dynamic-button layer
+try{closeAllOverlays();}catch(e){}
+try{
+document.querySelectorAll('#optionsRow .opt-card').forEach(c=>{
+c.classList.remove('selected','wrong','dimmed');
+c.style.pointerEvents='';
+});
+}catch(e){}
+try{
+const tab=$('tryAgainBtn');if(tab)tab.onclick=null;
+const cb=$('coachingBar');if(cb){cb.style.display='none';cb.classList.remove('visible');}
+const lock=$('lockInBtn');if(lock){lock.style.display='none';lock.classList.remove('ready');}
+const hp=$('hotspotPrompt');if(hp)hp.style.display='none';
+const fb=$('focusBanner');if(fb)fb.classList.remove('visible');
+}catch(e){}
+curSelected=null;doCompleted=true;proveCompleted=true;
+// Award 50% if not already completed
+if(GS.levels[GS.currentLevel]&&!GS.levels[GS.currentLevel].completed){
+GS.levels[GS.currentLevel].score=50;
+GS.levels[GS.currentLevel].completed=true;
+GS.levels[GS.currentLevel].timeSeconds=Math.round((Date.now()-GS.levelStartTime)/1000);
+GS.totalScore=calcOverall();
+try{updateHUD();}catch(e){}
+}
+// Brief flash for timeout-triggered skips
+if(reason==='timeout'){
+try{
+const pt=$('promptText');
+if(pt)pt.innerHTML='<span style="color:var(--yellow);font-weight:700;">Moving on — you will see this idea again.</span>';
+}catch(e){}
+}
+// Advance
+setTimeout(()=>{
+try{
+if(GS.currentLevel<LEVELS.length-1){
+const completedCount=GS.levels.filter(l=>l.completed).length;
+const reqDone=GS.levels.filter((l,i)=>LEVELS[i].required&&l.completed).length;
+if(completedCount>=6&&!GS.bonusCompleteShown){GS.bonusCompleteShown=true;showReceipt();return;}
+if(reqDone>=4&&!GS.requiredCompleteShown){GS.requiredCompleteShown=true;showReqComplete();return;}
+GS.currentLevel++;levelResets=0;
+loadLevel(GS.currentLevel);
+}else{
+showReceipt();
+}
+}catch(e){
+console.error('skipCurrentRound advance error — last-ditch fallback',e);
+try{
+if(GS.currentLevel<LEVELS.length-1){GS.currentLevel++;loadLevel(GS.currentLevel);}
+else{showReceipt();}
+}catch(e2){console.error('last-ditch failed',e2);}
+}
+},reason==='timeout'?1200:300);
+}catch(outerErr){
+console.error('skipCurrentRound fatal',outerErr);
+// Absolute last resort — reload
+try{if(confirm('Something went wrong. Start over?'))location.reload();}catch(e){}
+}
+}
 
 /* === CASCADE MODEL === */
 const CASCADE_STEPS=[
@@ -952,12 +1073,15 @@ arenaTimeout(()=>{if(pr)pr.setAttribute('points','65,105 100,102 140,100 180,98 
 
 /* === WATCH PHASE === */
 function runWatch(levelIdx){
-curPhase='watch';processing=true;
+/* FIX 3: defensive clear so a stale flag can't block phase entry */
+GS.processing=false;
+curPhase='watch';
+clearPhaseDeadman(); /* WATCH is time-boxed by watchTimeout; no deadman needed here */
 const L=LEVELS[levelIdx];
-closeAllOverlays();clearArena();
+try{closeAllOverlays();clearArena();}catch(e){console.error('runWatch init error',e);}
 const ed=$('evidenceDisplay');
 const fb=$('focusBanner');
-fb.textContent=L.focusPrompt;fb.classList.add('visible');
+try{fb.textContent=L.focusPrompt;fb.classList.add('visible');}catch(e){}
 
 $('phaseLabel').textContent='WATCH';
 $('promptText').textContent='Observe the evidence carefully...';
@@ -965,13 +1089,18 @@ $('optionsRow').innerHTML='';
 $('lockInBtn').style.display='none';
 $('hotspotPrompt').style.display='none';
 
-// Level-specific arena
+/* FIX 3: wrap level-specific arena/SVG build so a graphics failure cannot block
+   the safety timeouts below from registering */
+try{
 if(levelIdx===0) runWatchL1(ed,L);
 else if(levelIdx===1) runWatchL2(ed,L);
 else if(levelIdx===2) runWatchL3(ed,L);
 else if(levelIdx===3) runWatchL4(ed,L);
 else if(levelIdx===4) runWatchL5(ed,L);
 else if(levelIdx===5) runWatchL6(ed,L);
+}catch(e){console.error('runWatch arena build error — continuing to safety timers',e);}
+
+GS.processing=true; /* set AFTER build so a build-throw doesn't strand the flag */
 
 // Tap to advance after min watch
 tapAdvanceReady=false;
@@ -1194,7 +1323,9 @@ $('l6Modified').style.borderColor='var(--accent)';$('l6Modified').style.boxShado
 
 /* === DO PHASE === */
 function startDO(levelIdx){
-curPhase='do';processing=false;
+/* FIX 3: force-clear first so any stale flag never blocks DO entry */
+GS.processing=false;
+curPhase='do';
 doCompleted=false;curSelected=null;wrongCount=0;hintTier=0;
 consecutiveFastWrongs=0;sameWrongCount={};
 phaseStartTime=Date.now();
@@ -1202,8 +1333,12 @@ const L=LEVELS[levelIdx];
 $('phaseLabel').textContent='YOUR TURN';
 const gen=arenaGen;
 
+/* FIX 4: arm phase dead-man — 3 minute hard ceiling on the DO phase */
+armPhaseDeadman(180000);
+
 if(L.mechanic==='hotspot'){
-runHotspot(levelIdx);return;
+try{runHotspot(levelIdx);}catch(e){console.error('runHotspot error',e);GS.processing=false;}
+return;
 }
 
 // Mechanic-specific context above prompt
@@ -1232,18 +1367,20 @@ contextHtml=`<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:cen
 
 $('promptText').innerHTML=contextHtml+'<div>'+esc(L.doPrompt)+'</div>';
 const row=$('optionsRow');row.innerHTML='';
+try{
 L.doOptions.forEach(opt=>{
 const card=document.createElement('div');card.className='opt-card';card.dataset.id=opt.id;
 card.textContent=opt.text;
 // Level 1 guided glow on correct
 if(levelIdx===0&&opt.correct)card.classList.add('l1-glow');
 card.addEventListener('click',()=>{
-if(processing||doCompleted||curPhase!=='do'||arenaGen!==gen)return;
+if(GS.processing||doCompleted||curPhase!=='do'||arenaGen!==gen)return;
 if(card.classList.contains('dimmed')||card.classList.contains('eliminated')||card.classList.contains('correct'))return;
 selectOption(card,row);
 });
 row.appendChild(card);
 });
+}catch(e){console.error('startDO options build error',e);}
 $('lockInBtn').style.display='inline-block';$('lockInBtn').classList.remove('ready');
 $('lockInBtn').textContent='Lock In';
 $('hotspotPrompt').style.display='none';
@@ -1259,7 +1396,7 @@ $('lockInBtn').classList.add('ready');
 
 /* Lock In handler */
 $('lockInBtn').addEventListener('click',function(){
-if(processing||!curSelected)return;
+if(GS.processing||!curSelected)return;
 if(curPhase==='do')submitDO();
 else if(curPhase==='prove')submitProve();
 });
@@ -1274,7 +1411,7 @@ $('lockInBtn').classList.remove('ready');
 }
 
 function submitDO(){
-if(processing)return;processing=true;
+if(GS.processing)return;GS.processing=true;
 const L=LEVELS[GS.currentLevel];
 const elapsed=Date.now()-phaseStartTime;
 const chosen=curSelected;
@@ -1316,7 +1453,7 @@ if(l5card){l5card.style.borderColor='var(--green)';l5card.style.background='rgba
 }
 const score=calcScore();
 GS.levels[GS.currentLevel].score=score;
-arenaTimeout(()=>{processing=false;startProve(GS.currentLevel);},1200);
+arenaTimeout(()=>{GS.processing=false;startProve(GS.currentLevel);},1200);
 }else{
 // WRONG - capture wrong ID and card BEFORE any cleanup
 const wrongId=chosen;
@@ -1329,7 +1466,7 @@ const fb=L.doWrongFeedback[wrongId]||"Look at the evidence in the arena — the 
 if(elapsed<2000){consecutiveFastWrongs++;
 if(consecutiveFastWrongs>=2){
 clearDoSelectionState(card);
-processing=false;
+GS.processing=false;
 showAntiGuess(L);return;
 }
 }else{consecutiveFastWrongs=0;}
@@ -1338,7 +1475,7 @@ sameWrongCount[wrongId]=(sameWrongCount[wrongId]||0)+1;
 if(sameWrongCount[wrongId]>=2&&wrongCount>=3){
 levelResets++;GS.levels[GS.currentLevel].resets=levelResets;
 clearDoSelectionState(card);
-processing=false;
+GS.processing=false;
 if(levelResets>=3){autoAdvance();return;}
 showAntiGuess(L);return;
 }
@@ -1347,7 +1484,7 @@ highlightArenaForLevel(GS.currentLevel);
 showCoaching(fb,()=>{
 if(card&&!card.classList.contains('eliminated'))card.classList.add('dimmed');
 if(card)card.classList.remove('selected');
-curSelected=null;$('lockInBtn').classList.remove('ready');processing=false;
+curSelected=null;$('lockInBtn').classList.remove('ready');GS.processing=false;
 if(wrongCount===1)autoHint(1);
 else if(wrongCount===2)autoHint(2);
 else if(wrongCount>=3)autoHint(3);
@@ -1373,8 +1510,8 @@ const regions=svgEl.querySelectorAll('.strata-region');
 regions.forEach(r=>{
 r.style.cursor='pointer';
 r.addEventListener('click',function handler(e){
-if(processing||doCompleted||arenaGen!==gen)return;
-processing=true;
+if(GS.processing||doCompleted||arenaGen!==gen)return;
+GS.processing=true;
 const rid=r.dataset.region;
 const correct=L.hotspotRegions.find(h=>h.correct);
 GS.levels[GS.currentLevel].attempts++;
@@ -1388,18 +1525,20 @@ if(L.evidenceIdx>=0&&L.evidenceIdx<3)connectEvidence(L.evidenceIdx);
 const rect=r.getBoundingClientRect();
 burst(rect.left+rect.width/2,rect.top+rect.height/2,8,'var(--green)');
 const score=calcScore();GS.levels[GS.currentLevel].score=score;
-arenaTimeout(()=>{processing=false;startProve(GS.currentLevel);},1200);
+arenaTimeout(()=>{GS.processing=false;startProve(GS.currentLevel);},1200);
 }else{
 playWrong();wrongCount++;
 r.style.stroke='var(--red)';r.style.strokeWidth='2';
 safeTimeout(()=>{r.style.stroke='';r.style.strokeWidth='';},500);
 const elapsed=Date.now()-phaseStartTime;
-if(elapsed<2000){consecutiveFastWrongs++;if(consecutiveFastWrongs>=2){showAntiGuess(L);return;}}
+/* REAL BUG FIX: fast-guess early return used to leave GS.processing=true; now cleared */
+if(elapsed<2000){consecutiveFastWrongs++;if(consecutiveFastWrongs>=2){GS.processing=false;showAntiGuess(L);return;}}
 sameWrongCount[rid]=(sameWrongCount[rid]||0)+1;
 const showStepHint=wrongCount>=3;
 if(wrongCount>=3){
 levelResets++;GS.levels[GS.currentLevel].resets=levelResets;
-if(levelResets>=3){autoAdvance();return;}
+/* REAL BUG FIX: autoAdvance early return used to leave GS.processing=true; now cleared */
+if(levelResets>=3){GS.processing=false;autoAdvance();return;}
 // Glow the VISUAL clay layer as hint
 const clayVis=$('clayLayer');
 if(clayVis){clayVis.style.stroke='var(--yellow)';clayVis.style.strokeWidth='3';}
@@ -1407,7 +1546,7 @@ if(clayVis){clayVis.style.stroke='var(--yellow)';clayVis.style.strokeWidth='3';}
 wrongCount=0;sameWrongCount={};consecutiveFastWrongs=0;
 }
 const fb=L.hotspotWrongFeedback[rid]||"That's not the right layer — look for a thin dark line.";
-showCoaching(fb,()=>{curSelected=null;processing=false;
+showCoaching(fb,()=>{curSelected=null;GS.processing=false;
 if(showStepHint)autoHint(3);
 else if(wrongCount===1)autoHint(1);
 else if(wrongCount===2)autoHint(2);
@@ -1419,7 +1558,9 @@ else if(wrongCount===2)autoHint(2);
 
 /* === PROVE PHASE === */
 function startProve(levelIdx){
-curPhase='prove';processing=false;
+/* FIX 3: force-clear first so any stale flag never blocks PROVE entry */
+GS.processing=false;
+curPhase='prove';
 proveCompleted=false;curSelected=null;
 wrongCount=0;hintTier=0;consecutiveFastWrongs=0;sameWrongCount={};
 phaseStartTime=Date.now();
@@ -1428,23 +1569,29 @@ const gen=arenaGen;
 $('phaseLabel').textContent='PROVE IT';
 $('promptText').textContent=L.proveQuestion;
 $('hotspotPrompt').style.display='none';
+
+/* FIX 4: arm phase dead-man — 4 minute hard ceiling on the PROVE phase */
+armPhaseDeadman(240000);
+
 const row=$('optionsRow');row.innerHTML='';
+try{
 L.proveOptions.forEach(opt=>{
 const card=document.createElement('div');card.className='opt-card';card.dataset.id=opt.id;
 card.textContent=opt.text;
 card.addEventListener('click',()=>{
-if(processing||proveCompleted||curPhase!=='prove'||arenaGen!==gen)return;
+if(GS.processing||proveCompleted||curPhase!=='prove'||arenaGen!==gen)return;
 if(card.classList.contains('dimmed')||card.classList.contains('eliminated')||card.classList.contains('correct'))return;
 selectOption(card,row);
 });
 row.appendChild(card);
 });
+}catch(e){console.error('startProve options build error',e);}
 $('lockInBtn').style.display='inline-block';$('lockInBtn').classList.remove('ready');
 $('lockInBtn').textContent='Lock In';
 }
 
 function submitProve(){
-if(processing)return;processing=true;
+if(GS.processing)return;GS.processing=true;
 const L=LEVELS[GS.currentLevel];
 const chosen=curSelected;
 const correct=L.proveOptions.find(o=>o.correct);
@@ -1469,14 +1616,14 @@ const elapsed=Date.now()-phaseStartTime;
 if(elapsed<2000){consecutiveFastWrongs++;
 if(consecutiveFastWrongs>=2){
 clearDoSelectionState(card);
-processing=false;
+GS.processing=false;
 showAntiGuessProve(L);return;
 }
 }
 highlightArenaForLevel(GS.currentLevel);
 showCoaching(fb,()=>{
 if(card)card.classList.remove('selected');
-curSelected=null;$('lockInBtn').classList.remove('ready');processing=false;
+curSelected=null;$('lockInBtn').classList.remove('ready');GS.processing=false;
 if(wrongCount===1)autoHintProve(1);
 else if(wrongCount===2)autoHintProve(2);
 else if(wrongCount>=3)autoHintProve(3);
@@ -1576,7 +1723,7 @@ consecutiveFastWrongs=0;
 sameWrongCount={};
 // Invalidate stale hotspot listeners before restarting DO
 arenaGen++;
-processing=false;
+GS.processing=false;
 startDO(GS.currentLevel);
 },5000);
 }
@@ -1587,7 +1734,7 @@ box.innerHTML=`<p>Check the evidence one more time — the answer is on screen.<
 $('antiGuessOverlay').style.display='flex';$('antiGuessOverlay').classList.add('visible');
 arenaTimeout(()=>{
 $('antiGuessOverlay').classList.remove('visible');$('antiGuessOverlay').style.display='none';
-consecutiveFastWrongs=0;processing=false;
+consecutiveFastWrongs=0;GS.processing=false;
 // Re-enable Lock In ability for retry (curSelected was cleared in submitProve)
 $('lockInBtn').classList.remove('ready');
 },5000);
@@ -1623,7 +1770,7 @@ const o=$('l6Original'),m=$('l6Modified');
 
 /* === AUTO ADVANCE (safety valve) === */
 function autoAdvance(){
-closeAllOverlays();processing=true;
+closeAllOverlays();GS.processing=true;
 GS.levels[GS.currentLevel].score=50;
 showCoaching("Let's move on — you'll see this idea again.",()=>{
 if(LEVELS[GS.currentLevel].evidenceIdx>=0&&LEVELS[GS.currentLevel].evidenceIdx<3){
@@ -1635,7 +1782,7 @@ completeLevel();
 
 /* === LEVEL COMPLETE === */
 function completeLevel(){
-processing=true;
+GS.processing=true;
 const ls=GS.levels[GS.currentLevel];
 ls.completed=true;
 ls.timeSeconds=Math.round((Date.now()-GS.levelStartTime)/1000);
@@ -1671,7 +1818,7 @@ return Math.min(100,Math.round(avg+bonusDone*5));
 }
 
 function advanceLevel(){
-processing=false;levelResets=0;
+GS.processing=false;levelResets=0;
 if(GS.currentLevel<LEVELS.length-1){
 GS.currentLevel++;
 loadLevel(GS.currentLevel);
@@ -1725,6 +1872,8 @@ showReceipt();
 function showReceipt(){
 if(GS.receiptRendered)return;GS.receiptRendered=true;
 closeAllOverlays();clearAllTimers();
+clearPhaseDeadman(); /* FIX 4: tear down any phase dead-man on receipt */
+try{const sb=$('stuckBtn');if(sb)sb.style.display='none';}catch(e){} /* FIX 2: hide emergency button on receipt */
 try{speechSynthesis.cancel();}catch(e){}
 $('app').style.display='none';
 const rs=$('receiptScreen');rs.classList.add('visible');
@@ -1771,7 +1920,8 @@ location.reload();
 function loadLevel(idx){
 arenaGen++;
 clearAllTimers();closeAllOverlays();
-processing=false;doCompleted=false;proveCompleted=false;
+clearPhaseDeadman(); /* FIX 4: clear any prior phase dead-man on round/level start */
+GS.processing=false;doCompleted=false;proveCompleted=false;
 curSelected=null;wrongCount=0;hintTier=0;
 consecutiveFastWrongs=0;sameWrongCount={};
 GS.currentLevel=idx;GS.levelStartTime=Date.now();
@@ -1797,7 +1947,7 @@ if(GS.levels[GS.currentLevel].completed){return;}
 levelResets++;GS.levels[GS.currentLevel].resets=levelResets;
 arenaGen++;clearAllTimers();closeAllOverlays();
 try{speechSynthesis.cancel();}catch(e){}
-processing=false;
+GS.processing=false;
 loadLevel(GS.currentLevel);
 });
 
@@ -1818,9 +1968,16 @@ if(tn)teacherName=tn;
 if(!studentName){$('studentNameInput').focus();$('studentNameInput').style.borderColor='var(--red)';return;}
 $('welcomeScreen').style.display='none';
 $('app').style.display='flex';
+$('stuckBtn').style.display='block';
 initSpeech();initLevelTracking();buildCascadeModel();
 GS.startTime=Date.now();GS.currentLevel=0;levelResets=0;
 loadLevel(0);
+});
+
+/* === FIX 2: I'm Stuck button handler === */
+$('stuckBtn').addEventListener('click',function(){
+try{skipCurrentRound({confirmFirst:true,reason:'user'});}
+catch(e){console.error('stuck button error',e);try{if(confirm('Something went wrong. Start over?'))location.reload();}catch(e2){}}
 });
 
 /* === VISIBILITY HANDLER === */

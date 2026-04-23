@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Mr. Jawad's Simulation — Mass Extinction Cascade</title>
+<title>Mr. Jawad's Simulation — Mass Extinction Cascade v2</title>
 <style>
 :root {
   --bg-dark: #0F0A1A;
@@ -501,6 +501,27 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font-body); back
 .glow-red { filter: drop-shadow(0 0 6px rgba(239,68,68,0.6)); }
 .glow-blue { filter: drop-shadow(0 0 6px rgba(59,130,246,0.6)); }
 
+/* FIX 2: Floating "I'm Stuck" emergency advance button.
+   Fixed, bottom-right, amber, gentle pulse. Above all overlays. */
+#imStuckBtn {
+  position: fixed; right: 14px; bottom: 14px; z-index: 9999;
+  min-height: 44px; padding: 10px 16px;
+  background: linear-gradient(180deg, #F59E0B 0%, #D97706 100%);
+  color: #1A0F00; border: 2px solid #FDE68A;
+  border-radius: 10px; font-family: var(--font-display); font-weight: 700;
+  font-size: 14px; letter-spacing: 0.3px; cursor: pointer;
+  box-shadow: 0 4px 12px rgba(245,158,11,0.45), 0 0 0 0 rgba(245,158,11,0.7);
+  animation: stuckPulse 3s ease-in-out infinite;
+  -webkit-tap-highlight-color: transparent;
+}
+#imStuckBtn:hover, #imStuckBtn:focus { background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%); outline: none; }
+#imStuckBtn:active { transform: translateY(1px); }
+@keyframes stuckPulse {
+  0%, 100% { box-shadow: 0 4px 12px rgba(245,158,11,0.45), 0 0 0 0 rgba(245,158,11,0.55); }
+  50%      { box-shadow: 0 4px 12px rgba(245,158,11,0.55), 0 0 0 10px rgba(245,158,11,0.0); }
+}
+@media print { #imStuckBtn { display: none !important; } }
+
 /* PRINT CSS */
 @media print {
   #gameContainer, #topBar, #bottomBar, #defenseGrid, #contextPanel,
@@ -580,6 +601,9 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font-body); back
 <div id="confirmOverlay"></div>
 <div id="coachingGateOverlay"></div>
 
+<!-- FIX 2: Floating emergency advance button — works from ANY phase -->
+<button id="imStuckBtn" style="display:none;" aria-label="I'm stuck — skip this round">I'm Stuck</button>
+
 <script>
 // ============================================================
 // UTILITY & SAFETY HELPERS
@@ -655,7 +679,51 @@ function closeAllOverlays() {
 // ============================================================
 // GAME STATE
 // ============================================================
-let processing = false;
+// ============================================================
+// LOCKUP DEFENSES — self-healing processing watchdog + deadman
+// ============================================================
+// FIX 1: Self-healing watchdog on the processing flag.
+// `processing` is exposed as a property on window so every existing
+// bare `processing = true/false` and `if (processing)` falls through
+// the scope chain and hits this getter/setter. If anything forgets to
+// clear the flag, it auto-clears after 3 seconds instead of stranding
+// the student on an unresponsive screen.
+(function installProcessingWatchdog(){
+  let _val = false; let _wd = null;
+  Object.defineProperty(window, 'processing', {
+    configurable: true,
+    get() { return _val; },
+    set(v) {
+      _val = !!v;
+      if (_wd) { clearTimeout(_wd); _wd = null; }
+      if (_val) {
+        _wd = setTimeout(() => {
+          console.warn('[watchdog] processing stuck 3s — auto-clearing');
+          _val = false; _wd = null;
+        }, 3000);
+      }
+    }
+  });
+})();
+
+// FIX 4: Phase dead-man timer. Hard ceiling on how long a student can
+// be stuck in RECORD (3 min) or PROVE (4 min) regardless of root cause.
+let _phaseDeadman = null, _phaseDeadmanPhase = null, _phaseDeadmanRound = null;
+function armPhaseDeadman(ms) {
+  clearPhaseDeadman();
+  _phaseDeadmanPhase = phase;
+  _phaseDeadmanRound = currentRound;
+  _phaseDeadman = setTimeout(() => {
+    if (phase === _phaseDeadmanPhase && currentRound === _phaseDeadmanRound) {
+      try { skipCurrentRound({ confirmFirst: false, reason: 'timeout' }); }
+      catch (e) { console.error('[deadman] skip failed', e); }
+    }
+  }, ms);
+}
+function clearPhaseDeadman() {
+  if (_phaseDeadman) { clearTimeout(_phaseDeadman); _phaseDeadman = null; }
+  _phaseDeadmanPhase = null; _phaseDeadmanRound = null;
+}
 let studentName = '';
 let teacherName = 'Mr. Jawad';
 let currentRound = 0;
@@ -1736,35 +1804,48 @@ function submitDoAnswer(round, selectedIdx) {
 // PROVE PHASE
 // ============================================================
 function startProvePhase(round) {
+  // FIX 3: Defensive processing clear — first line, before anything else.
+  // If DO left the flag stuck true (arenaGen-skipped callback, error, etc.),
+  // PROVE must not arrive into a silently-broken UI.
+  processing = false;
+  // FIX 4: Arm PROVE dead-man — 4 minute hard ceiling.
   phase = 'prove';
   wrongCount = 0;
-  const r = ROUNDS[round];
-  const zone = document.getElementById('interactionZone');
-  zone.innerHTML = '';
-  zone.innerHTML += `<div class="mechanic-prompt">${esc(r.proveQuestion)}</div>`;
-  let html = '<div class="options-row" id="proveOptionsRow">';
-  r.proveOptions.forEach((opt, i) => {
-    html += `<div class="option-card" data-idx="${i}" tabindex="0">${esc(opt)}</div>`;
-  });
-  html += '</div>';
-  html += '<button class="lock-in-btn" id="proveBtn" disabled>Lock In</button>';
-  zone.innerHTML += html;
-  window._proveSelectedId = -1;
-  const cards = zone.querySelectorAll('#proveOptionsRow .option-card');
-  cards.forEach(card => {
-    card.addEventListener('click', () => {
-      if (processing || card.classList.contains('dimmed') || card.classList.contains('disabled') || card.classList.contains('correct') || card.classList.contains('locked')) return;
-      cards.forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      window._proveSelectedId = parseInt(card.dataset.idx);
-      document.getElementById('proveBtn').disabled = false;
+  armPhaseDeadman(240000);
+  // FIX 3: Wrap interaction-zone build in try/catch so a render failure
+  // cannot leave the flag stuck and the student stranded.
+  try {
+    const r = ROUNDS[round];
+    const zone = document.getElementById('interactionZone');
+    zone.innerHTML = '';
+    zone.innerHTML += `<div class="mechanic-prompt">${esc(r.proveQuestion)}</div>`;
+    let html = '<div class="options-row" id="proveOptionsRow">';
+    r.proveOptions.forEach((opt, i) => {
+      html += `<div class="option-card" data-idx="${i}" tabindex="0">${esc(opt)}</div>`;
     });
-  });
-  document.getElementById('proveBtn').addEventListener('click', () => {
-    if (processing || window._proveSelectedId < 0) return;
-    submitProveAnswer(round, window._proveSelectedId);
-  });
-  roundPhaseStartTime = Date.now();
+    html += '</div>';
+    html += '<button class="lock-in-btn" id="proveBtn" disabled>Lock In</button>';
+    zone.innerHTML += html;
+    window._proveSelectedId = -1;
+    const cards = zone.querySelectorAll('#proveOptionsRow .option-card');
+    cards.forEach(card => {
+      card.addEventListener('click', () => {
+        if (processing || card.classList.contains('dimmed') || card.classList.contains('disabled') || card.classList.contains('correct') || card.classList.contains('locked')) return;
+        cards.forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        window._proveSelectedId = parseInt(card.dataset.idx);
+        document.getElementById('proveBtn').disabled = false;
+      });
+    });
+    document.getElementById('proveBtn').addEventListener('click', () => {
+      if (processing || window._proveSelectedId < 0) return;
+      submitProveAnswer(round, window._proveSelectedId);
+    });
+    roundPhaseStartTime = Date.now();
+  } catch (e) {
+    console.error('[startProvePhase] build failed', e);
+    processing = false; // defensive re-clear
+  }
 }
 
 function submitProveAnswer(round, selectedIdx) {
@@ -1990,9 +2071,10 @@ function autoAdvance(round) {
 function loadRound(round) {
   if (round >= ROUNDS.length) { showReceipt(); return; }
   arenaGen++;
+  clearPhaseDeadman();         // FIX 4: cancel any prior phase deadman
   closeAllOverlays();
   if (gateInterval) { clearInterval(gateInterval); gateInterval = null; }
-  processing = false;
+  processing = false;          // FIX 3: defensive clear (already present)
   window._doSelectedId = -1;
   window._proveSelectedId = -1;
   currentRound = round;
@@ -2018,23 +2100,30 @@ function loadRound(round) {
   badge.innerHTML = `<span class="context-badge ${r.contextBadge}">${esc(r.sourceDay)}</span>`;
   document.getElementById('contextCaption').textContent = r.contextCaption;
 
-  // Build arena
-  const arena = document.getElementById('arena');
-  while (arena.firstChild) arena.removeChild(arena.firstChild);
-  // Cancel CSS animations by removing animated elements
-  // Remove hotspot rings
-  document.querySelectorAll('.hotspot-ring').forEach(r => r.remove());
+  // FIX 3: Build arena inside try/catch so a graphics error cannot
+  // strand the processing flag or leave the round un-interactable.
+  try {
+    const arena = document.getElementById('arena');
+    while (arena.firstChild) arena.removeChild(arena.firstChild);
+    document.querySelectorAll('.hotspot-ring').forEach(r => r.remove());
+    safeCall(() => r.buildArena(round), 'buildArena');
 
-  safeCall(() => r.buildArena(round), 'buildArena');
+    // Build interaction
+    const mechMap = {
+      'pick': renderPickTheDo, 'coach': renderCoachClickDo,
+      'wcn': renderWhatComesNextDo, 'hotspot': renderHotspotDo,
+      'claim': renderClaimBuilderDo
+    };
+    const renderer = mechMap[r.mechanic];
+    if (renderer) renderer(round);
+  } catch (e) {
+    console.error('[loadRound] build failed', e);
+    processing = false; // defensive re-clear
+  }
 
-  // Build interaction
-  const mechMap = {
-    'pick': renderPickTheDo, 'coach': renderCoachClickDo,
-    'wcn': renderWhatComesNextDo, 'hotspot': renderHotspotDo,
-    'claim': renderClaimBuilderDo
-  };
-  const renderer = mechMap[r.mechanic];
-  if (renderer) renderer(round);
+  // FIX 4: Arm DO-phase dead-man — 3 minute hard ceiling.
+  // If student cannot get past DO in 3 minutes, silently skip with 50%.
+  armPhaseDeadman(180000);
 }
 
 function onRoundComplete(round) {
@@ -2116,10 +2205,12 @@ function showBossDefeated() {
 // RESET LEVEL
 // ============================================================
 function resetCurrentLevel() {
+  // FIX 3: Defensive processing clear — first line.
+  processing = false;
   levelResets++;
   roundData[currentRound].resets++;
   arenaGen++;
-  processing = false;
+  clearPhaseDeadman();          // FIX 4: cancel old deadman
   phase = 'do';
   closeAllOverlays();
   if (gateInterval) { clearInterval(gateInterval); gateInterval = null; }
@@ -2129,20 +2220,29 @@ function resetCurrentLevel() {
   hotspotWrongCountLocal = 0;
   consecutiveFastWrongs = 0;
   sameWrongCount = {};
-  const r = ROUNDS[currentRound];
-  const arena = document.getElementById('arena');
-  while (arena.firstChild) arena.removeChild(arena.firstChild);
-  document.querySelectorAll('.hotspot-ring').forEach(r => r.remove());
-  safeCall(() => r.buildArena(currentRound), 'rebuild arena on reset');
-  const mechMap = {
-    'pick': renderPickTheDo, 'coach': renderCoachClickDo,
-    'wcn': renderWhatComesNextDo, 'hotspot': renderHotspotDo,
-    'claim': renderClaimBuilderDo
-  };
-  const renderer = mechMap[r.mechanic];
-  if (renderer) renderer(currentRound);
-  // Pre-show hint if they already used it
-  if (hintLevel >= 1) { showHint1(currentRound); }
+  // FIX 3: Wrap rebuild in try/catch so a graphics failure cannot
+  // leave the flag stuck or the arena half-built.
+  try {
+    const r = ROUNDS[currentRound];
+    const arena = document.getElementById('arena');
+    while (arena.firstChild) arena.removeChild(arena.firstChild);
+    document.querySelectorAll('.hotspot-ring').forEach(r => r.remove());
+    safeCall(() => r.buildArena(currentRound), 'rebuild arena on reset');
+    const mechMap = {
+      'pick': renderPickTheDo, 'coach': renderCoachClickDo,
+      'wcn': renderWhatComesNextDo, 'hotspot': renderHotspotDo,
+      'claim': renderClaimBuilderDo
+    };
+    const renderer = mechMap[r.mechanic];
+    if (renderer) renderer(currentRound);
+    // Pre-show hint if they already used it
+    if (hintLevel >= 1) { showHint1(currentRound); }
+  } catch (e) {
+    console.error('[resetCurrentLevel] build failed', e);
+    processing = false;
+  }
+  // FIX 4: Re-arm DO-phase deadman.
+  armPhaseDeadman(180000);
 }
 
 // ============================================================
@@ -2152,9 +2252,12 @@ function showReceipt() {
   if (receiptRendered) return;
   receiptRendered = true;
   clearAllIntervals();
+  clearPhaseDeadman();                                         // FIX 4
   closeAllOverlays();
   document.getElementById('gameContainer').style.display = 'none';
   document.getElementById('resetLevelBtn').disabled = true;
+  const isb = document.getElementById('imStuckBtn');           // FIX 2: hide on receipt
+  if (isb) isb.style.display = 'none';
 
   const base = calcTotalScore();
   const bonus = calcBonusPoints();
@@ -2250,12 +2353,96 @@ function fullReset() {
   totalScore = 0; streak = 0; bestStreak = 0;
   currentRound = 0;
   clearAllIntervals();
+  clearPhaseDeadman();
   initRoundData();
   initDefenseGrid();
   document.getElementById('receiptScreen').classList.remove('visible');
   document.getElementById('receiptScreen').innerHTML = '';
   document.getElementById('gameContainer').style.display = 'flex';
+  const isb = document.getElementById('imStuckBtn'); if (isb) isb.style.display = '';
   loadRound(0);
+}
+
+// ============================================================
+// FIX 2: skipCurrentRound — single source of truth for the
+// emergency exit used by both the I'm Stuck button and the
+// phase dead-man timer. Must work from ANY phase regardless
+// of flag state.
+// ============================================================
+function skipCurrentRound(opts) {
+  opts = opts || {};
+  const doSkip = () => {
+    try {
+      // Force-clear every flag and timer that could block advancement
+      processing = false;
+      arenaGen++;
+      clearPhaseDeadman();
+      if (gateInterval) { clearInterval(gateInterval); gateInterval = null; }
+      closeAllOverlays();
+      // Strip every piece of blocking UI
+      const zone = document.getElementById('interactionZone');
+      if (zone) {
+        zone.querySelectorAll('.coaching-bar, .try-again-btn, .tap-continue, .prove-lock-in, #proveLockIn').forEach(el => el.remove());
+        zone.querySelectorAll('.option-card').forEach(c => {
+          c.classList.remove('selected', 'dimmed', 'disabled');
+          c.style.pointerEvents = '';
+        });
+        zone.querySelectorAll('button').forEach(b => { b.disabled = false; });
+      }
+      document.querySelectorAll('.hotspot-ring').forEach(el => el.remove());
+      window._doSelectedId = -1;
+      window._proveSelectedId = -1;
+      // Award 50% credit for this round
+      if (roundData[currentRound]) {
+        roundData[currentRound].completed = true;
+        roundData[currentRound].score = Math.min(roundData[currentRound].score || 0, 50) || 50;
+        if (roundData[currentRound].score === 0) roundData[currentRound].score = 50;
+        roundData[currentRound].timeSeconds = Math.round((Date.now() - roundStartTime) / 1000);
+      }
+      totalScore = calcTotalScore();
+      updateHUD();
+      lightDefenseGrid(currentRound);
+      // Brief flash message then advance
+      if (zone) {
+        zone.innerHTML = '<div class="coaching-bar hint1" style="text-align:center;">Moving on — you will see this idea again.</div>';
+      }
+      const advRound = currentRound;
+      setTimeout(() => {
+        try { onRoundComplete(advRound); }
+        catch (e) {
+          console.error('[skip] onRoundComplete failed, falling back to loadRound', e);
+          try { loadRound(advRound + 1); }
+          catch (e2) { console.error('[skip] loadRound failed too', e2); try { showReceipt(); } catch(e3){} }
+        }
+      }, 1200);
+    } catch (e) {
+      console.error('[skip] outer failure — last-ditch loadRound', e);
+      try { loadRound(currentRound + 1); } catch (e2) { try { showReceipt(); } catch(e3){} }
+    }
+  };
+  if (opts.confirmFirst === false) {
+    doSkip();
+    return;
+  }
+  // Confirm dialog
+  closeAllOverlays();
+  const overlay = document.getElementById('confirmOverlay');
+  overlay.innerHTML = `<div class="confirm-card">
+    <h3>Skip this round?</h3>
+    <p>You will get 50% credit and move on.</p>
+    <div class="confirm-btn-row">
+      <button class="confirm-btn confirm-yes" id="stuckYes">Yes, skip</button>
+      <button class="confirm-btn confirm-no" id="stuckNo">Keep trying</button>
+    </div>
+  </div>`;
+  overlay.classList.add('visible');
+  document.getElementById('stuckYes').addEventListener('click', () => {
+    overlay.classList.remove('visible'); overlay.innerHTML = '';
+    doSkip();
+  });
+  document.getElementById('stuckNo').addEventListener('click', () => {
+    overlay.classList.remove('visible'); overlay.innerHTML = '';
+  });
 }
 
 // ============================================================
@@ -2289,6 +2476,14 @@ document.getElementById('resetLevelBtn').addEventListener('click', () => {
 });
 
 // ============================================================
+// FIX 2: I'M STUCK BUTTON — emergency advance, works ANY phase
+// ============================================================
+document.getElementById('imStuckBtn').addEventListener('click', () => {
+  // Do not require confirmation during receipt screen (button is hidden there anyway)
+  skipCurrentRound({ confirmFirst: true });
+});
+
+// ============================================================
 // WELCOME → START
 // ============================================================
 const studentInput = document.getElementById('studentNameInput');
@@ -2303,6 +2498,7 @@ startBtn.addEventListener('click', () => {
   buildAffirmations();
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('gameContainer').style.display = 'flex';
+  document.getElementById('imStuckBtn').style.display = '';
   initParticles();
   initDefenseGrid();
   initRoundData();

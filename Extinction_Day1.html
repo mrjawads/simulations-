@@ -190,6 +190,29 @@ body{display:flex;flex-direction:column;height:100vh;}
 .hotspot-zone:hover{background:rgba(245,158,11,0.1);}
 .hotspot-wrong{animation:hotspotWrong .5s;}
 @keyframes hotspotWrong{0%,100%{box-shadow:none;}50%{box-shadow:inset 0 0 20px rgba(239,68,68,0.4);}}
+
+/* FIX 2: "I'm Stuck" emergency escape button */
+#imStuckBtn{
+  display:none; /* toggled on by initGame; hidden on welcome + receipt */
+  position:fixed;right:14px;bottom:14px;z-index:9999;
+  background:#F59E0B;color:#fff;border:2px solid #B45309;
+  padding:10px 16px;border-radius:10px;
+  font-size:14px;font-weight:700;font-family:inherit;
+  min-height:44px;min-width:44px;
+  cursor:pointer;
+  box-shadow:0 3px 10px rgba(0,0,0,0.25);
+  animation:imStuckPulse 3s ease-in-out infinite;
+}
+#imStuckBtn:hover{background:#D97706;}
+#imStuckBtn:active{transform:scale(0.96);}
+@keyframes imStuckPulse{
+  0%,100%{box-shadow:0 3px 10px rgba(0,0,0,0.25),0 0 0 0 rgba(245,158,11,0.55);}
+  50%{box-shadow:0 3px 10px rgba(0,0,0,0.25),0 0 0 10px rgba(245,158,11,0);}
+}
+@media (max-width:500px){
+  #imStuckBtn{font-size:13px;padding:9px 13px;right:10px;bottom:10px;}
+}
+@media print{#imStuckBtn{display:none!important;}}
 .coaching-arrow{position:absolute;pointer-events:none;z-index:15;opacity:0;transition:opacity .4s;}
 .coaching-arrow.visible{opacity:1;}
 
@@ -321,6 +344,9 @@ body{display:flex;flex-direction:column;height:100vh;}
 <!-- ANTI-GUESSING -->
 <div id="agOverlay"><div id="agBox"><p id="agMsg"></p><div id="agCountdown">5</div></div></div>
 
+<!-- FIX 2: "I'm Stuck" emergency escape button (always visible during gameplay, hidden on welcome & receipt) -->
+<button id="imStuckBtn" type="button" onclick="handleImStuck()" aria-label="Skip this round if you are stuck">I'm Stuck — Skip</button>
+
 <script>
 // ===== SANITIZATION =====
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
@@ -328,7 +354,29 @@ function esc(s){const d=document.createElement('div');d.textContent=s;return d.i
 // ===== STATE =====
 let studentName='', teacherName='Mr. Jawad', readAloudOn=true;
 let audioCtx=null;
-let currentLevel=0, currentPhase='', processing=false;
+let currentLevel=0, currentPhase='';
+// FIX 1: Self-healing watchdog on `processing`. Auto-clears after 3s if anything
+// forgets to. `processing` is reachable as a plain identifier because it is
+// defined as an accessor property on window (script-scope has no binding).
+(function installProcessingWatchdog(){
+  let _val=false;
+  let _wd=null;
+  Object.defineProperty(window,'processing',{
+    configurable:true,
+    get(){return _val;},
+    set(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null;}
+      if(_val){
+        _wd=setTimeout(()=>{
+          console.warn('[watchdog] processing stuck 3s — auto-clearing');
+          _val=false;_wd=null;
+        },3000);
+      }
+    }
+  });
+  window.processing=false;
+})();
 let selectedOption=null, wrongCount=0, levelResets=0, hintLevel=0;
 let phaseStartTime=0, levelStartTime=0;
 let arenaGen=0, allTimers=[], allIntervals=[];
@@ -469,6 +517,104 @@ function closeAllOverlays(){
   document.getElementById('celebOverlay').style.display='none';
   document.getElementById('confirmOverlay').style.display='none';
   if(antiGuessInterval){clearInterval(antiGuessInterval);antiGuessInterval=null;}
+}
+
+// ===== FIX 4: PHASE DEAD-MAN TIMER =====
+// Hard ceiling on how long a student can be stuck in a single phase.
+// On timeout, silently skip the round with 50% credit.
+let _phaseDeadman=null, _phaseDeadmanPhase=null, _phaseDeadmanLevel=null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  _phaseDeadmanPhase=currentPhase;
+  _phaseDeadmanLevel=currentLevel;
+  _phaseDeadman=setTimeout(()=>{
+    // Only fire if still in the same phase on the same level
+    if(currentPhase===_phaseDeadmanPhase && currentLevel===_phaseDeadmanLevel){
+      try{ skipCurrentRound({confirmFirst:false,reason:'timeout'}); }
+      catch(e){ console.error('[deadman] skip failed',e); }
+    }
+  },ms);
+}
+function clearPhaseDeadman(){
+  if(_phaseDeadman){clearTimeout(_phaseDeadman);_phaseDeadman=null;}
+  _phaseDeadmanPhase=null;
+  _phaseDeadmanLevel=null;
+}
+
+// ===== FIX 2 + FIX 4: SKIP CURRENT ROUND (reusable escape hatch) =====
+// Reused by the "I'm Stuck" button AND by the phase dead-man timer.
+// Works from ANY phase regardless of flag state. Wraps everything in try/catch
+// so a failure in one step doesn't block the advance.
+function skipCurrentRound(opts){
+  opts=opts||{};
+  try{
+    if(opts.confirmFirst){
+      if(!confirm('Skip this round? You will get 50% credit and move on.')) return;
+    }
+    // 1. Force-clear processing flag and dead-man timer
+    try{ window.processing=false; }catch(e){}
+    try{ clearPhaseDeadman(); }catch(e){}
+    // 2. Bump generation counter so stale safeTimeouts drop
+    try{ arenaGen++; clearAllTimers(); }catch(e){}
+    // 3. Close overlays
+    try{ closeAllOverlays(); }catch(e){}
+    try{ if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel(); }catch(e){}
+    // 4. Aggressively strip blocking UI
+    try{
+      document.querySelectorAll('.coaching-bar, .try-again-btn, .tap-continue, .dynamic-lock-in').forEach(el=>{try{el.remove();}catch(e){}});
+      const coach=document.getElementById('coachingText'); if(coach) coach.style.display='none';
+      const tryBtn=document.getElementById('tryAgainBtn'); if(tryBtn) tryBtn.style.display='none';
+      const lockBtn=document.getElementById('lockInBtn'); if(lockBtn){lockBtn.style.display='none';lockBtn.disabled=true;}
+      document.querySelectorAll('#optionsRow .opt-card').forEach(c=>{
+        try{ c.classList.remove('selected','dimmed'); c.style.pointerEvents=''; }catch(e){}
+      });
+      document.querySelectorAll('.hotspot-zone').forEach(el=>{try{el.remove();}catch(e){}});
+    }catch(e){ console.error('[skip] UI strip failed',e); }
+    // 5. Show brief flash for timeout-triggered skips
+    if(opts.reason==='timeout'){
+      try{
+        const flash=document.createElement('div');
+        flash.textContent='Moving on — you will see this idea again.';
+        flash.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#F59E0B;color:#fff;padding:16px 24px;border-radius:12px;font-size:18px;font-weight:700;z-index:10000;box-shadow:0 4px 16px rgba(0,0,0,0.3);';
+        document.body.appendChild(flash);
+        setTimeout(()=>{try{flash.remove();}catch(e){}},2200);
+      }catch(e){}
+    }
+    // 6. Award 50% credit for current level (if not already completed)
+    try{
+      const gs=gameState.levels[currentLevel];
+      if(gs && !gs.completed){
+        gs.completed=true;
+        gs.score=50;
+        gs.attempts=(levelResets||0)+1;
+        gs.hintsUsed=hintLevel||0;
+        gs.resets=levelResets||0;
+        gs.timeSeconds=Math.round((Date.now()-levelStartTime)/1000);
+      }
+    }catch(e){ console.error('[skip] score update failed',e); }
+    // 7. Advance
+    try{
+      safetyValveUsed=true;
+      const nextIdx=currentLevel+1;
+      setTimeout(()=>{
+        try{
+          if(nextIdx>=LEVELS.length){ showReceipt(); }
+          else { loadLevel(nextIdx); }
+        }catch(e){
+          console.error('[skip] advance failed, last-ditch init',e);
+          try{ initGame(); }catch(e2){}
+        }
+      },opts.reason==='timeout'?2300:50);
+    }catch(e){ console.error('[skip] advance schedule failed',e); }
+  }catch(e){
+    console.error('[skip] top-level failure',e);
+    try{ initGame(); }catch(e2){}
+  }
+}
+
+// FIX 2: "I'm Stuck" button handler — always-on emergency escape
+function handleImStuck(){
+  skipCurrentRound({confirmFirst:true});
 }
 
 // ===== LEVELS DATA =====
@@ -728,6 +874,8 @@ function initGame(){
   currentLevel=0;
   requiredCompleteShown=false;bonusCompleteShown=false;receiptRendered=false;
   document.getElementById('receiptScreen').style.display='none';
+  // FIX 2: make "I'm Stuck" escape button visible for the whole game
+  try{ document.getElementById('imStuckBtn').style.display='block'; }catch(e){}
   loadLevel(currentLevel);
 }
 
@@ -737,6 +885,7 @@ function loadLevel(idx){
   currentLevel=idx;
   arenaGen++;
   clearAllTimers();
+  clearPhaseDeadman(); // FIX 4
   closeAllOverlays();
   processing=false;
   selectedOption=null;
@@ -1235,11 +1384,17 @@ function showFocusPrompt(text,cb){
 
 // ===== WATCH PHASE =====
 function startWatch(lv){
+  // FIX 3: defensive clear — whatever the previous phase did, start clean.
+  processing=false;
   currentPhase='watch';
-  processing=true;
   phaseStartTime=Date.now();
 
-  buildArena(currentLevel);
+  // FIX 3: wrap arena build so a graphics failure cannot leave state stuck.
+  try{ buildArena(currentLevel); }
+  catch(e){ console.error('[startWatch] buildArena failed:',e); }
+
+  // NOW block interaction for the WATCH phase (arena is safely built or failed cleanly).
+  processing=true;
 
   showFocusPrompt(lv.focusPrompt,()=>{
     // Typewriter + read aloud
@@ -1461,13 +1616,17 @@ function animateLevel6(check){
 
 // ===== DO PHASE =====
 function startDo(lv){
-  currentPhase='do';
+  // FIX 3: defensive clear is already the effective first line.
   processing=false;
+  currentPhase='do';
   phaseStartTime=Date.now();
   selectedOption=null;
   wrongCount=0;
   hintLevel=0;
   consecutiveFastWrongs=0;
+
+  // FIX 4: 3-minute ceiling on the DO phase
+  armPhaseDeadman(180000);
 
   document.getElementById('narrativePanel').classList.add('dimmed');
   document.getElementById('hintBtn').disabled=false;
@@ -1476,13 +1635,16 @@ function startDo(lv){
   document.getElementById('coachingText').style.display='none';
   document.getElementById('tryAgainBtn').style.display='none';
 
-  if(currentLevel===0){
-    // Guided: show coaching arrow first
-    document.getElementById('promptText').innerHTML=esc(lv.guidedTip);
-    safeTimeout(()=>renderDoMechanic(lv),2000);
-  } else {
-    renderDoMechanic(lv);
-  }
+  // FIX 3: wrap mechanic render so a graphics failure cannot strand the student.
+  try{
+    if(currentLevel===0){
+      // Guided: show coaching arrow first
+      document.getElementById('promptText').innerHTML=esc(lv.guidedTip);
+      safeTimeout(()=>{ try{ renderDoMechanic(lv); }catch(e){ console.error('[startDo] renderDoMechanic failed:',e); } },2000);
+    } else {
+      renderDoMechanic(lv);
+    }
+  }catch(e){ console.error('[startDo] render failed:',e); }
 }
 
 function renderDoMechanic(lv){
@@ -1573,41 +1735,46 @@ function handleHotspotClick(zone,lv){
   if(zone===lv.doCorrectZone){
     processing=true;
     hotspotWrongCount=0;
-    playCorrect();
-    // Green highlight on debris zone
-    const zoneEl=document.querySelector(`.hotspot-zone[data-zone="${zone}"]`);
-    if(zoneEl)zoneEl.style.background='rgba(34,197,94,0.3)';
-    showArenaLabel('debris-confirm','DEBRIS CLOUD','debris',35,20);
+    try{
+      playCorrect();
+      // Green highlight on debris zone
+      const zoneEl=document.querySelector(`.hotspot-zone[data-zone="${zone}"]`);
+      if(zoneEl)zoneEl.style.background='rgba(34,197,94,0.3)';
+      showArenaLabel('debris-confirm','DEBRIS CLOUD','debris',35,20);
+    }catch(e){ console.error('[hotspot-correct] sync error:',e); }
+    // FIX 3: safeTimeout ALWAYS scheduled; startProve clears processing itself
     safeTimeout(()=>{
-      cleanupHotspots();
-
-      startProve(lv);
+      try{ cleanupHotspots(); startProve(lv); }
+      catch(e){ console.error('[hotspot-correct->startProve] failed:',e); processing=false; }
     },1500);
   } else {
     hotspotWrongCount++;
     wrongCount++;
-    checkFastGuess(elapsed);
-    playWrong();
-    const zoneEl=document.querySelector(`.hotspot-zone[data-zone="${zone}"]`);
-    if(zoneEl)zoneEl.classList.add('hotspot-wrong');
-    safeTimeout(()=>{if(zoneEl)zoneEl.classList.remove('hotspot-wrong');},500);
-    const fb=lv.doZoneFeedback[zone]||'Try a different area.';
-    showCoaching(fb);
-    handleHintAfterWrong(lv);
+    try{
+      checkFastGuess(elapsed);
+      playWrong();
+      const zoneEl=document.querySelector(`.hotspot-zone[data-zone="${zone}"]`);
+      if(zoneEl)zoneEl.classList.add('hotspot-wrong');
+      safeTimeout(()=>{if(zoneEl)zoneEl.classList.remove('hotspot-wrong');},500);
+      const fb=lv.doZoneFeedback[zone]||'Try a different area.';
+      showCoaching(fb);
+      handleHintAfterWrong(lv);
 
-    if(hotspotWrongCount>=3){
-      // Glow correct zone
-      const correctEl=document.querySelector(`.hotspot-zone[data-zone="${lv.doCorrectZone}"]`);
-      if(correctEl)correctEl.style.background='rgba(245,158,11,0.25)';
-    }
+      if(hotspotWrongCount>=3){
+        // Glow correct zone
+        const correctEl=document.querySelector(`.hotspot-zone[data-zone="${lv.doCorrectZone}"]`);
+        if(correctEl)correctEl.style.background='rgba(245,158,11,0.25)';
+      }
+    }catch(e){ console.error('[hotspot-wrong] sync error:',e); }
     // Safety valve: after 5 wrong hotspot clicks, auto-advance
     if(hotspotWrongCount>=5){
       processing=true;
       safetyValveUsed=true;
-      showCoaching('Let\'s move on — you\'ll see this idea again.');
+      try{ showCoaching('Let\'s move on — you\'ll see this idea again.'); }catch(e){}
+      // FIX 3: safeTimeout ALWAYS scheduled even if showCoaching throws
       safeTimeout(()=>{
-        cleanupHotspots();
-        startProve(lv);
+        try{ cleanupHotspots(); startProve(lv); }
+        catch(e){ console.error('[hotspot-safety->startProve] failed:',e); processing=false; }
       },2000);
     }
   }
@@ -1627,42 +1794,54 @@ function handleLockIn(){
   if(currentPhase==='do'){
     if(selectedOption===lv.doCorrect){
       // CORRECT
-      playCorrect();
-      markCorrect(selectedOption);
+      try{
+        playCorrect();
+        markCorrect(selectedOption);
+      }catch(e){ console.error('[lockIn-do-correct] error:',e); }
+      // safeTimeout is ALWAYS scheduled — startProve clears processing itself
       safeTimeout(()=>{
-  
-        startProve(lv);
+        try{ startProve(lv); }
+        catch(e){ console.error('[lockIn->startProve] failed:',e); processing=false; }
       },1200);
     } else {
       // WRONG
       const wrongId=selectedOption; // CAPTURE before markWrong nulls it
       wrongCount++;
-      checkFastGuess(elapsed);
-      playWrong();
-      markWrong(wrongId);
-      const fb=lv.doWrongFeedback[wrongId];
-      if(fb)showCoaching(fb);
-      handleHintAfterWrong(lv);
-      safeTimeout(()=>{processing=false;showTryAgain();},800);
+      try{
+        checkFastGuess(elapsed);
+        playWrong();
+        markWrong(wrongId);
+        const fb=lv.doWrongFeedback[wrongId];
+        if(fb)showCoaching(fb);
+        handleHintAfterWrong(lv);
+      }catch(e){ console.error('[lockIn-do-wrong] sync error:',e); }
+      // FIX 3: always schedule the processing-clear, even if above threw
+      safeTimeout(()=>{processing=false;try{showTryAgain();}catch(e){}},800);
     }
   } else if(currentPhase==='prove'){
     if(selectedOption===lv.proveCorrect){
-      playCorrect();
-      markCorrect(selectedOption);
+      try{
+        playCorrect();
+        markCorrect(selectedOption);
+      }catch(e){ console.error('[lockIn-prove-correct] error:',e); }
       safeTimeout(()=>{
-        completeLevel(lv);
+        try{ completeLevel(lv); }
+        catch(e){ console.error('[lockIn->completeLevel] failed:',e); processing=false; }
       },1200);
     } else {
       const wrongId=selectedOption; // CAPTURE before markWrong nulls it
       wrongCount++;
-      playWrong();
-      markWrong(wrongId);
-      const fb=lv.proveWrongFeedback[wrongId];
-      if(fb)showCoaching(fb);
-      // Dim wrong option
-      const card=document.querySelector(`#optionsRow .opt-card[data-idx="${wrongId}"]`);
-      if(card)card.classList.add('dimmed');
-      safeTimeout(()=>{processing=false;showTryAgain();},800);
+      try{
+        playWrong();
+        markWrong(wrongId);
+        const fb=lv.proveWrongFeedback[wrongId];
+        if(fb)showCoaching(fb);
+        // Dim wrong option
+        const card=document.querySelector(`#optionsRow .opt-card[data-idx="${wrongId}"]`);
+        if(card)card.classList.add('dimmed');
+      }catch(e){ console.error('[lockIn-prove-wrong] sync error:',e); }
+      // FIX 3: always schedule the processing-clear, even if above threw
+      safeTimeout(()=>{processing=false;try{showTryAgain();}catch(e){}},800);
     }
   }
 }
@@ -1705,13 +1884,16 @@ function handleTryAgain(){
   if(levelResets>=3){
     processing=true;
     safetyValveUsed=true;
-    showCoaching('Let\'s move on — you\'ll see this idea again.');
+    try{ showCoaching('Let\'s move on — you\'ll see this idea again.'); }catch(e){}
+    // FIX 3: safeTimeout ALWAYS scheduled even if showCoaching throws
     safeTimeout(()=>{
-      if(currentPhase==='do'){
-        startProve(LEVELS[currentLevel]);
-      } else {
-        completeLevel(LEVELS[currentLevel]);
-      }
+      try{
+        if(currentPhase==='do'){
+          startProve(LEVELS[currentLevel]);
+        } else {
+          completeLevel(LEVELS[currentLevel]);
+        }
+      }catch(e){ console.error('[tryAgain-safety] advance failed:',e); processing=false; }
     },2000);
     return;
   }
@@ -1721,13 +1903,16 @@ function handleTryAgain(){
   if(hintLevel>=3&&totalWrongs>=4){
     processing=true;
     safetyValveUsed=true;
-    showCoaching('Let\'s move on — you\'ll see this idea again.');
+    try{ showCoaching('Let\'s move on — you\'ll see this idea again.'); }catch(e){}
+    // FIX 3: safeTimeout ALWAYS scheduled even if showCoaching throws
     safeTimeout(()=>{
-      if(currentPhase==='do'){
-        startProve(LEVELS[currentLevel]);
-      } else {
-        completeLevel(LEVELS[currentLevel]);
-      }
+      try{
+        if(currentPhase==='do'){
+          startProve(LEVELS[currentLevel]);
+        } else {
+          completeLevel(LEVELS[currentLevel]);
+        }
+      }catch(e){ console.error('[tryAgain-never-stuck] advance failed:',e); processing=false; }
     },2000);
     return;
   }
@@ -1874,11 +2059,15 @@ function pulseElement(el){
 
 // ===== PROVE PHASE =====
 function startProve(lv){
-  currentPhase='prove';
+  // FIX 3: defensive clear is the effective first line.
   processing=false;
+  currentPhase='prove';
   phaseStartTime=Date.now();
   selectedOption=null;
   wrongCount=0; // Reset for PROVE phase
+
+  // FIX 4: 4-minute ceiling on the PROVE phase
+  armPhaseDeadman(240000);
 
   document.getElementById('narrativePanel').classList.add('dimmed');
   document.getElementById('hintBtn').disabled=true; // Hints are DO-phase only
@@ -1892,26 +2081,29 @@ function startProve(lv){
   iz.querySelectorAll('.do-extra').forEach(el=>el.remove());
 
   // Clean up hotspot zones
-  cleanupHotspots();
+  try{ cleanupHotspots(); }catch(e){}
 
   const row=document.getElementById('optionsRow');
   row.innerHTML='';
 
-  lv.proveOptions.forEach((opt,i)=>{
-    const card=document.createElement('div');
-    card.className='opt-card';
-    card.dataset.idx=i;
-    card.textContent=opt;
-    card.addEventListener('click',function(){
-      if(processing)return;
-      if(this.classList.contains('dimmed')||this.classList.contains('locked')||this.classList.contains('correct-reveal')||this.classList.contains('disabled'))return;
-      document.querySelectorAll('#optionsRow .opt-card').forEach(c=>c.classList.remove('selected'));
-      this.classList.add('selected');
-      selectedOption=parseInt(this.dataset.idx);
-      document.getElementById('lockInBtn').disabled=false;
+  // FIX 3: wrap card rendering so a DOM failure cannot strand the student.
+  try{
+    lv.proveOptions.forEach((opt,i)=>{
+      const card=document.createElement('div');
+      card.className='opt-card';
+      card.dataset.idx=i;
+      card.textContent=opt;
+      card.addEventListener('click',function(){
+        if(processing)return;
+        if(this.classList.contains('dimmed')||this.classList.contains('locked')||this.classList.contains('correct-reveal')||this.classList.contains('disabled'))return;
+        document.querySelectorAll('#optionsRow .opt-card').forEach(c=>c.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedOption=parseInt(this.dataset.idx);
+        document.getElementById('lockInBtn').disabled=false;
+      });
+      row.appendChild(card);
     });
-    row.appendChild(card);
-  });
+  }catch(e){ console.error('[startProve] render failed:',e); }
 
   document.getElementById('lockInBtn').style.display='inline-block';
   document.getElementById('lockInBtn').disabled=true;
@@ -1929,6 +2121,7 @@ function computeLevelScore(){
 }
 
 function completeLevel(lv){
+  clearPhaseDeadman(); // FIX 4: phase is done, release the timer
   const gs=gameState.levels[currentLevel];
   if(!gs.completed){
     gs.completed=true;
@@ -2020,12 +2213,15 @@ function showReceipt(){
   if(receiptRendered)return;
   receiptRendered=true;
   clearAllTimers();
+  clearPhaseDeadman(); // FIX 4
   closeAllOverlays();
 
   document.getElementById('topBar').style.display='none';
   document.getElementById('mainArea').style.display='none';
   document.getElementById('interactionZone').style.display='none';
   document.getElementById('bottomBar').style.display='none';
+  // FIX 2: hide "I'm Stuck" button on receipt (no rounds left to skip)
+  try{ document.getElementById('imStuckBtn').style.display='none'; }catch(e){}
 
   document.getElementById('receiptScreen').style.display='block';
   document.getElementById('receiptTitle').textContent=teacherName+"'s Simulations";

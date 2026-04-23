@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Mr. Jawad's Simulation — Mass Extinction Cascade</title>
+<title>Mr. Jawad's Simulation Wednesday (Mass Extinction Cascade) v2</title>
 <style>
 :root{
 --bg1:#F0F4F8;--bg2:#E8EEF4;--accent1:#3B82F6;--accent2:#10B981;--accent3:#8B5CF6;
@@ -305,6 +305,17 @@ input[type=range]{width:100%;accent-color:var(--accent1);height:28px}
 #middleArea{flex-direction:column}
 #controlPanel,#dataPanel{width:100%;max-height:30vh;border:none;border-bottom:2px solid #E2E8F0}
 }
+
+/* I'm Stuck emergency advance button */
+#imStuckBtn{position:fixed;bottom:16px;right:16px;z-index:9999;background:#F59E0B;color:#fff;border:none;border-radius:24px;padding:10px 18px;font-size:14px;font-weight:700;min-height:44px;box-shadow:0 4px 14px rgba(245,158,11,.5);cursor:pointer;animation:stuckPulse 3s ease-in-out infinite;display:none;font-family:inherit}
+#imStuckBtn:hover{background:#D97706}
+#imStuckBtn:active{transform:scale(0.97)}
+@keyframes stuckPulse{0%,100%{box-shadow:0 4px 14px rgba(245,158,11,.5)}50%{box-shadow:0 4px 22px rgba(245,158,11,.85)}}
+
+/* Timeout flash message */
+#timeoutFlash{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(30,41,59,.95);color:#fff;padding:20px 28px;border-radius:12px;font-size:16px;font-weight:600;z-index:10000;box-shadow:0 8px 24px rgba(0,0,0,.3);display:none;max-width:80%;text-align:center}
+#timeoutFlash.show{display:block;animation:flashFade 2.5s ease-in-out forwards}
+@keyframes flashFade{0%{opacity:0}15%,70%{opacity:1}100%{opacity:0}}
 </style>
 </head>
 <body>
@@ -618,6 +629,10 @@ input[type=range]{width:100%;accent-color:var(--accent1);height:28px}
 <div id="confirmDialog"></div>
 <div id="particleLayer"></div>
 
+<!-- Emergency advance button (LOCKUP DEFENSE) -->
+<button id="imStuckBtn" type="button">I'm Stuck</button>
+<div id="timeoutFlash"></div>
+
 <script>
 // ============ UTILITIES ============
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
@@ -631,7 +646,130 @@ function closeAllOverlays(){
 }
 let arenaGen=0;
 function safeTimeout(fn,ms){const g=arenaGen;return setTimeout(()=>{if(arenaGen===g)try{fn()}catch(e){console.error('safeTimeout err',e)}},ms)}
-let processing=false;
+
+// ============ LOCKUP DEFENSE 1/4: SELF-HEALING WATCHDOG ============
+// Replaces `let processing=false` with a property-backed flag that auto-clears
+// after 3 seconds if anything forgets to set it back to false.
+// Because this script runs in non-strict mode, bare `processing=true` writes
+// hit window.processing and trigger the setter below.
+(function installProcessingWatchdog(){
+  let _val=false;let _wd=null;
+  try{
+    Object.defineProperty(window,'processing',{
+      configurable:true,
+      get(){return _val},
+      set(v){
+        _val=!!v;
+        if(_wd){clearTimeout(_wd);_wd=null}
+        if(_val){
+          _wd=setTimeout(()=>{
+            console.warn('[watchdog] processing stuck 3s — auto-clearing');
+            _val=false;_wd=null;
+          },3000);
+        }
+      }
+    });
+  }catch(e){console.error('watchdog install failed',e);window.processing=false}
+})();
+function bumpGen(){arenaGen++}
+
+// ============ LOCKUP DEFENSE 4/4: PHASE DEAD-MAN TIMER ============
+// Hard ceiling on how long a student can sit on RECORD/PROVE before the
+// simulation auto-skips them forward. Never gates on processing flag.
+let _phaseDeadman=null,_phaseDeadmanPhase=null,_phaseDeadmanRound=null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  _phaseDeadmanPhase=state.phase;_phaseDeadmanRound=state.currentRound;
+  _phaseDeadman=setTimeout(()=>{
+    if(state.phase===_phaseDeadmanPhase&&state.currentRound===_phaseDeadmanRound){
+      try{skipCurrentRound({confirmFirst:false,reason:'timeout'})}catch(e){console.error('deadman err',e)}
+    }
+  },ms);
+}
+function clearPhaseDeadman(){
+  if(_phaseDeadman){clearTimeout(_phaseDeadman);_phaseDeadman=null}
+  _phaseDeadmanPhase=null;_phaseDeadmanRound=null;
+}
+
+// ============ LOCKUP DEFENSE 2/4: SKIP CURRENT ROUND (emergency advance) ============
+// Reusable helper that strips all blocking UI, awards 50% credit, and advances.
+// Called by the I'm Stuck button AND by the phase dead-man timer.
+function skipCurrentRound(opts){
+  opts=opts||{};
+  const doSkip=()=>{
+    try{
+      window.processing=false;
+      clearPhaseDeadman();
+      bumpGen();
+      // Close every overlay + coaching bar + dialog
+      try{closeAllOverlays()}catch(e){console.error(e)}
+      document.querySelectorAll('.coaching-bar,.feedback-bar,.hint-panel').forEach(el=>{try{el.remove()}catch(e){}});
+      // Strip any stuck pointer-events / selected / dimmed / eliminated states in interaction zone
+      const iz=document.getElementById('interactionZone');
+      if(iz){
+        iz.querySelectorAll('*').forEach(el=>{
+          el.style.pointerEvents='';
+          el.classList&&el.classList.remove('selected','dimmed','eliminated','correct-reveal','wrong-reveal','pulse','hl-yellow');
+        });
+      }
+      // Hide focus banner if stuck
+      const fb=document.getElementById('focusBanner');if(fb)fb.classList.remove('show');
+      // Hide any stuck Try Again / Lock In buttons
+      const tab=document.querySelector('#tryAgainBtn');if(tab)tab.classList.remove('visible');
+      // Award 50% to current round if not already scored
+      const idx=state.currentRound;
+      if(typeof idx==='number'&&ROUNDS[idx]&&state.scores[idx]===undefined){
+        const r=ROUNDS[idx];
+        state.scores[idx]=50;
+        state.totalScore=calcTotalScore();
+        const timeS=Math.round((Date.now()-state.roundStartTime)/1000);
+        state.roundData[idx]={...(state.roundData[idx]||r.recordData||{}),_score:50,_time:timeS,_attempts:(state.wrongCount||0)+1};
+        try{rebuildDataTable()}catch(e){}
+        try{updateProgressDots()}catch(e){}
+        const hs=document.getElementById('hudScore');if(hs)hs.textContent='Score: '+state.totalScore;
+      }
+      // Clear interaction zone
+      if(iz)iz.innerHTML='';
+      // Show "moving on" flash when triggered by timeout (not confirm-skip)
+      if(opts.reason==='timeout'){
+        const tf=document.getElementById('timeoutFlash');
+        if(tf){tf.textContent='Moving on — you will see this idea again.';tf.classList.add('show');setTimeout(()=>tf.classList.remove('show'),2500)}
+      }
+      // Advance: if last round, go to receipt; else next round
+      safeTimeout(()=>{
+        try{
+          if(state.currentRound>=ROUNDS.length-1||ROUNDS.filter((r,i)=>state.scores[i]!==undefined).length===ROUNDS.length){
+            checkMilestone();
+          }else{
+            checkMilestone();
+          }
+        }catch(e){
+          console.error('advance failed, falling back to loadRound',e);
+          try{loadRound(state.currentRound+1)}catch(e2){console.error('loadRound fallback failed',e2)}
+        }
+      },600);
+    }catch(e){
+      console.error('skipCurrentRound critical error — last-ditch fallback',e);
+      window.processing=false;
+      try{loadRound(state.currentRound+1)}catch(e2){console.error(e2)}
+    }
+  };
+  if(opts.confirmFirst===false){doSkip();return}
+  // Confirm dialog
+  const d=document.getElementById('confirmDialog');
+  if(!d){doSkip();return}
+  d.innerHTML='<div class="confirm-box"><p>Skip this round? You will get 50% credit and move on.</p><div class="btn-row"><button style="background:#F59E0B;color:#fff" id="stuckYes">Yes, Skip</button><button style="background:#F1F5F9;color:var(--text);border:1px solid #CBD5E1" id="stuckNo">Cancel</button></div></div>';
+  d.classList.add('show');
+  d.querySelector('#stuckYes').addEventListener('click',()=>{d.classList.remove('show');doSkip()});
+  d.querySelector('#stuckNo').addEventListener('click',()=>{d.classList.remove('show')});
+}
+// Wire I'm Stuck button
+(function wireImStuck(){
+  const btn=document.getElementById('imStuckBtn');
+  if(!btn)return;
+  btn.addEventListener('click',()=>skipCurrentRound({confirmFirst:true,reason:'student'}));
+})();
+
 let audioCtx=null;
 function getAudioCtx(){if(!audioCtx)try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}return audioCtx}
 function playTone(freq,dur){try{const c=getAudioCtx();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=freq;g.gain.value=0.08;o.start();o.stop(c.currentTime+dur)}catch(e){}}
@@ -851,13 +989,20 @@ startBtn.addEventListener('click',startGame);
 
 function startGame(){
   if(processing)return;processing=true;
-  state.studentName=studentInput.value.trim();
-  state.teacherName=teacherInput.value.trim()||'Mr. Jawad';
-  $('welcomeScreen').style.display='none';
-  $('gameContainer').style.display='flex';
-  initParticles();buildProgressDots();initSunRays();
-  loadRound(0);
-  processing=false;
+  try{
+    state.studentName=studentInput.value.trim();
+    state.teacherName=teacherInput.value.trim()||'Mr. Jawad';
+    $('welcomeScreen').style.display='none';
+    $('gameContainer').style.display='flex';
+    // Show I'm Stuck escape hatch (hidden on welcome + receipt)
+    const stuck=$('imStuckBtn');if(stuck)stuck.style.display='block';
+    initParticles();buildProgressDots();initSunRays();
+    loadRound(0);
+  }catch(e){
+    console.error('startGame error',e);
+  }finally{
+    processing=false;
+  }
 }
 
 function buildProgressDots(){
@@ -1114,6 +1259,9 @@ function animateWatchStaged(round,cb){
 
 // ============ LOAD ROUND ============
 function loadRound(idx){
+  // LOCKUP DEFENSE 3/4: defensive clear at start of round-load
+  window.processing=false;
+  clearPhaseDeadman();
   arenaGen++;
   closeAllOverlays();
   if(idx>=ROUNDS.length){showReceipt();return}
@@ -1128,8 +1276,8 @@ function loadRound(idx){
   $('roundCounter').textContent='Round '+r.num+' of '+ROUNDS.length;
   $('hudScore').textContent='Score: '+state.totalScore;
   updateProgressDots();
-  resetArena();
-  setupSliders(r);
+  try{resetArena()}catch(e){console.error('resetArena err',e)}
+  try{setupSliders(r)}catch(e){console.error('setupSliders err',e)}
   $('hintBtn').disabled=false;
   $('resetLevelBtn').disabled=false;
   // Show guided overlay
@@ -1145,9 +1293,14 @@ function loadRound(idx){
   // Case mode state
   state.caseADone=false;state.caseBDone=false;state.freeExplore=false;
   // Start phase
-  if(r.hasPrediction){showPredictPhase()}
-  else if(r.caseMode){showCasePhase()}
-  else{showChangePhase()}
+  try{
+    if(r.hasPrediction){showPredictPhase()}
+    else if(r.caseMode){showCasePhase()}
+    else{showChangePhase()}
+  }catch(e){
+    console.error('phase-start error in loadRound',e);
+    window.processing=false;
+  }
 }
 
 // ============ DYNAMIC OUTCOME CALC ============
@@ -1171,6 +1324,7 @@ function calcOutcome(sz,thk,dur){
 
 // ============ PHASE: CASE MODE (Round 6) ============
 function showCasePhase(){
+  window.processing=false; // LOCKUP DEFENSE 3/4
   state.phase='change';
   const r=ROUNDS[state.currentRound];
   const iz=$('interactionZone');
@@ -1186,47 +1340,59 @@ function showCasePhase(){
   iz.querySelector('#caseABtn').addEventListener('click',()=>{
     if(processing||state.caseADone)return;
     processing=true;state.caseADone=true;
-    iz.querySelector('#caseABtn').classList.add('selected');iz.querySelector('#caseABtn').style.pointerEvents='none';
-    const ca=r.caseA;
-    // Set sliders to Case A values
-    Object.keys(sliderEls).forEach(k=>{sliderEls[k].value=ca[k];state.sliders[k]=ca[k];$('sv_'+k).textContent=sliderLabels[k][ca[k]]});
-    updateAsteroidSize(ca.asteroidSize);
-    const tempOutcome=ca.outcome;
-    const origOutcome=r.outcome;r.outcome=tempOutcome;
-    showFocusBanner('Case A: Small asteroid + Dense debris + Decades duration');
-    safeTimeout(()=>{
-      animateWatchStandard(r,()=>{
-        r.outcome=origOutcome;
-        safeTimeout(()=>{
-          resetArena();
-          iz.querySelector('#caseStatus').textContent=state.caseBDone?'Both cases done! Sliders are now unlocked — explore freely, then press RUN.':'Now run Case B.';
-          if(state.caseADone&&state.caseBDone)unlockFreeExplore(r);
-          processing=false;
-        },1000);
-      });
-    },2500);
+    try{
+      iz.querySelector('#caseABtn').classList.add('selected');iz.querySelector('#caseABtn').style.pointerEvents='none';
+      const ca=r.caseA;
+      // Set sliders to Case A values
+      Object.keys(sliderEls).forEach(k=>{sliderEls[k].value=ca[k];state.sliders[k]=ca[k];$('sv_'+k).textContent=sliderLabels[k][ca[k]]});
+      updateAsteroidSize(ca.asteroidSize);
+      const tempOutcome=ca.outcome;
+      const origOutcome=r.outcome;r.outcome=tempOutcome;
+      showFocusBanner('Case A: Small asteroid + Dense debris + Decades duration');
+      safeTimeout(()=>{
+        try{
+          animateWatchStandard(r,()=>{
+            try{
+              r.outcome=origOutcome;
+              safeTimeout(()=>{
+                try{resetArena()}catch(e){console.error(e)}
+                iz.querySelector('#caseStatus').textContent=state.caseBDone?'Both cases done! Sliders are now unlocked — explore freely, then press RUN.':'Now run Case B.';
+                if(state.caseADone&&state.caseBDone)unlockFreeExplore(r);
+                processing=false;
+              },1000);
+            }catch(e){console.error('caseA cb err',e);processing=false}
+          });
+        }catch(e){console.error('caseA animate err',e);processing=false}
+      },2500);
+    }catch(e){console.error('caseA click err',e);processing=false}
   });
   iz.querySelector('#caseBBtn').addEventListener('click',()=>{
     if(processing||state.caseBDone)return;
     processing=true;state.caseBDone=true;
-    iz.querySelector('#caseBBtn').classList.add('selected');iz.querySelector('#caseBBtn').style.pointerEvents='none';
-    const cb_data=r.caseB;
-    Object.keys(sliderEls).forEach(k=>{sliderEls[k].value=cb_data[k];state.sliders[k]=cb_data[k];$('sv_'+k).textContent=sliderLabels[k][cb_data[k]]});
-    updateAsteroidSize(cb_data.asteroidSize);
-    const tempOutcome=cb_data.outcome;
-    const origOutcome=r.outcome;r.outcome=tempOutcome;
-    showFocusBanner('Case B: Medium asteroid + Thin debris + Years duration');
-    safeTimeout(()=>{
-      animateWatchStandard(r,()=>{
-        r.outcome=origOutcome;
-        safeTimeout(()=>{
-          resetArena();
-          iz.querySelector('#caseStatus').textContent=state.caseADone?'Both cases done! Sliders are now unlocked — explore freely, then press RUN.':'Now run Case A.';
-          if(state.caseADone&&state.caseBDone)unlockFreeExplore(r);
-          processing=false;
-        },1000);
-      });
-    },2500);
+    try{
+      iz.querySelector('#caseBBtn').classList.add('selected');iz.querySelector('#caseBBtn').style.pointerEvents='none';
+      const cb_data=r.caseB;
+      Object.keys(sliderEls).forEach(k=>{sliderEls[k].value=cb_data[k];state.sliders[k]=cb_data[k];$('sv_'+k).textContent=sliderLabels[k][cb_data[k]]});
+      updateAsteroidSize(cb_data.asteroidSize);
+      const tempOutcome=cb_data.outcome;
+      const origOutcome=r.outcome;r.outcome=tempOutcome;
+      showFocusBanner('Case B: Medium asteroid + Thin debris + Years duration');
+      safeTimeout(()=>{
+        try{
+          animateWatchStandard(r,()=>{
+            try{
+              r.outcome=origOutcome;
+              safeTimeout(()=>{
+                try{resetArena()}catch(e){console.error(e)}
+                iz.querySelector('#caseStatus').textContent=state.caseADone?'Both cases done! Sliders are now unlocked — explore freely, then press RUN.':'Now run Case A.';
+                if(state.caseADone&&state.caseBDone)unlockFreeExplore(r);
+                processing=false;
+              },1000);
+            }catch(e){console.error('caseB cb err',e);processing=false}
+          });
+        }catch(e){console.error('caseB animate err',e);processing=false}
+      },2500);
+    }catch(e){console.error('caseB click err',e);processing=false}
   });
 }
 function unlockFreeExplore(r){
@@ -1245,6 +1411,7 @@ function unlockFreeExplore(r){
 
 // ============ PHASE: PREDICT ============
 function showPredictPhase(){
+  window.processing=false; // LOCKUP DEFENSE 3/4
   state.phase='predict';
   const r=ROUNDS[state.currentRound];
   const iz=$('interactionZone');
@@ -1277,6 +1444,7 @@ function showPredictPhase(){
 
 // ============ PHASE: CHANGE ============
 function showChangePhase(){
+  window.processing=false; // LOCKUP DEFENSE 3/4
   state.phase='change';
   const r=ROUNDS[state.currentRound];
   const iz=$('interactionZone');
@@ -1306,32 +1474,40 @@ function onRun(){
     return;
   }
   processing=true;
-  $('runBtn').disabled=true;$('runBtn').classList.remove('pulse');
-  $('guidedBox').style.display='none';
-  // Disable sliders
-  Object.keys(sliderEls).forEach(k=>sliderEls[k].disabled=true);
-  // For bonus rounds or free explore, compute dynamic outcome
-  if(r.isBonus||state.freeExplore){
-    const dynOutcome=calcOutcome(state.sliders.asteroidSize,state.sliders.debrisThickness,state.sliders.debrisDuration);
-    r.outcome=dynOutcome;
-    // Build setting description from active variables
-    const parts=[];
-    if(r.activeVars.includes('asteroidSize'))parts.push(SIZES[state.sliders.asteroidSize]);
-    if(r.activeVars.includes('debrisThickness'))parts.push(THICKS[state.sliders.debrisThickness]);
-    if(r.activeVars.includes('debrisDuration'))parts.push(DURS[state.sliders.debrisDuration]);
-    const setting=parts.join(' + ');
-    const varLabel=r.activeVars.length>2?'All Three':r.activeVars.map(v=>v==='asteroidSize'?'Size':v==='debrisThickness'?'Thickness':'Duration').join(' + ');
-    r.recordData={variable:varLabel,setting:setting,sunlight:dynOutcome.sunlight,plantHealth:dynOutcome.plantHealth,herbPop:dynOutcome.herbPop,predPop:dynOutcome.predPop};
+  try{
+    $('runBtn').disabled=true;$('runBtn').classList.remove('pulse');
+    $('guidedBox').style.display='none';
+    // Disable sliders
+    Object.keys(sliderEls).forEach(k=>sliderEls[k].disabled=true);
+    // For bonus rounds or free explore, compute dynamic outcome
+    if(r.isBonus||state.freeExplore){
+      const dynOutcome=calcOutcome(state.sliders.asteroidSize,state.sliders.debrisThickness,state.sliders.debrisDuration);
+      r.outcome=dynOutcome;
+      // Build setting description from active variables
+      const parts=[];
+      if(r.activeVars.includes('asteroidSize'))parts.push(SIZES[state.sliders.asteroidSize]);
+      if(r.activeVars.includes('debrisThickness'))parts.push(THICKS[state.sliders.debrisThickness]);
+      if(r.activeVars.includes('debrisDuration'))parts.push(DURS[state.sliders.debrisDuration]);
+      const setting=parts.join(' + ');
+      const varLabel=r.activeVars.length>2?'All Three':r.activeVars.map(v=>v==='asteroidSize'?'Size':v==='debrisThickness'?'Thickness':'Duration').join(' + ');
+      r.recordData={variable:varLabel,setting:setting,sunlight:dynOutcome.sunlight,plantHealth:dynOutcome.plantHealth,herbPop:dynOutcome.herbPop,predPop:dynOutcome.predPop};
+    }
+    // Show focus prompt
+    const fp=state.freeExplore?'Watch what happens with your combination — does the food chain collapse or survive?':r.focusPrompt;
+    showFocusBanner(fp);
+    // Start WATCH
+    safeTimeout(()=>{try{showWatchPhase()}catch(e){console.error('showWatchPhase err',e);window.processing=false}},2500);
+  }catch(e){
+    console.error('onRun err',e);
+    window.processing=false;
   }
-  // Show focus prompt
-  const fp=state.freeExplore?'Watch what happens with your combination — does the food chain collapse or survive?':r.focusPrompt;
-  showFocusBanner(fp);
-  // Start WATCH
-  safeTimeout(()=>{showWatchPhase()},2500);
 }
 
 // ============ PHASE: WATCH ============
 function showWatchPhase(){
+  // NOTE: deliberately do NOT clear processing here — onRun set it true and
+  // this phase owns the pending clear inside `cb`. Safety timeout below is
+  // the guaranteed rescue.
   state.phase='watch';
   const r=ROUNDS[state.currentRound];
   $('interactionZone').innerHTML='<div class="phase-label">WATCH</div><div class="phase-prompt">Observe the cascade...</div>';
@@ -1351,14 +1527,25 @@ function showWatchPhase(){
       }else{
         showRecordPhase();
       }
-      processing=false;
+      window.processing=false;
     },500);
   };
-  // Safety timeout
+  // Safety timeout — clears processing UNCONDITIONALLY; only runs cb if round unchanged
   const safetyMs=8000;
-  const safetyTimer=safeTimeout(()=>{cb()},safetyMs);
-  if(r.watchSequence==='staged'){animateWatchStaged(r,()=>{clearTimeout(safetyTimer);cb()})}
-  else{animateWatchStandard(r,()=>{clearTimeout(safetyTimer);cb()})}
+  const gen=arenaGen;
+  const safetyTimer=setTimeout(()=>{
+    window.processing=false;
+    if(arenaGen===gen){try{cb()}catch(e){console.error('watch safety cb err',e)}}
+  },safetyMs+500);
+  try{
+    if(r.watchSequence==='staged'){animateWatchStaged(r,()=>{clearTimeout(safetyTimer);cb()})}
+    else{animateWatchStandard(r,()=>{clearTimeout(safetyTimer);cb()})}
+  }catch(e){
+    console.error('animateWatch err',e);
+    clearTimeout(safetyTimer);
+    window.processing=false;
+    if(arenaGen===gen){try{cb()}catch(e2){console.error(e2)}}
+  }
 }
 
 function showFocusBanner(text){
@@ -1368,7 +1555,9 @@ function showFocusBanner(text){
 
 // ============ PHASE: RECORD ============
 function showRecordPhase(){
+  window.processing=false; // LOCKUP DEFENSE 3/4
   state.phase='record';
+  armPhaseDeadman(180000); // LOCKUP DEFENSE 4/4: 3-minute ceiling on RECORD
   const r=ROUNDS[state.currentRound];
   // Add data to table
   const rd=r.recordData;
@@ -1472,7 +1661,9 @@ window.onConfirmData=function(){
 
 // ============ PHASE: PROVE ============
 function showProvePhase(){
+  window.processing=false; // LOCKUP DEFENSE 3/4
   state.phase='prove';
+  armPhaseDeadman(240000); // LOCKUP DEFENSE 4/4: 4-minute ceiling on PROVE
   const r=ROUNDS[state.currentRound];
   const p=r.prove;
   const iz=$('interactionZone');
@@ -1534,87 +1725,93 @@ function buildProveUI(r,p,iz){
 function onProveSubmit(getStart,setStart){
   if(processing||state.selectedOption<0)return;
   processing=true;
-  const r=ROUNDS[state.currentRound];
-  const p=r.prove;
-  const iz=$('interactionZone');
-  const elapsed=Date.now()-getStart();
-  // CRITICAL: grab wrongId BEFORE any state mutation, look up wf BEFORE clearing selection
-  const wrongId=state.selectedOption;
-  const card=iz.querySelector('#proveOptionsRow .opt-card[data-idx="'+wrongId+'"]');
-  if(wrongId===p.correct){
-    // CORRECT
-    if(card)card.classList.add('correct-reveal');
-    playCorrect();
-    const fb=iz.querySelector('#proveFeedback');
-    if(fb){fb.className='feedback-bar correct';fb.textContent='Correct!';fb.style.display='block'}
-    const lib=iz.querySelector('#lockInBtn');if(lib)lib.style.display='none';
-    // Score
-    let score=100;
-    if(state.levelResets>0)score=50;
-    else if(state.hintsUsed>=3)score=60;
-    else if(state.hintsUsed===2)score=70;
-    else if(state.hintsUsed===1)score=85;
-    if(r.hasPrediction&&state.predictionCorrect===false&&score===100)score=85;
-    state.scores[state.currentRound]=score;
-    state.totalScore=calcTotalScore();
-    $('hudScore').textContent='Score: '+state.totalScore;
-    const timeS=Math.round((Date.now()-state.roundStartTime)/1000);
-    if(!state.roundData[state.currentRound])state.roundData[state.currentRound]=r.recordData;
-    state.roundData[state.currentRound]._score=score;
-    state.roundData[state.currentRound]._time=timeS;
-    state.roundData[state.currentRound]._attempts=state.wrongCount+1;
-    updateProgressDots();
-    safeTimeout(()=>{
-      processing=false;
-      checkMilestone();
-    },1500);
-    return;
-  }
-  // WRONG — unified cleanup runs on EVERY wrong path
-  if(card)card.classList.add('wrong-reveal');
-  playWrong();
-  state.wrongCount++;
-  // Look up wrong feedback NOW — wrongId is still valid
-  const wf=p.wrongFeedback[wrongId];
-  // Clear selection state immediately so card click guards work
-  state.selectedOption=-1;
-  // Hide Lock In button (will be restored by Try Again or new selection)
-  const lib=iz.querySelector('#lockInBtn');if(lib){lib.disabled=true;lib.style.display='none'}
-  // Helper: standard wrong-answer presentation — feedback + Try Again + dim + processing release
-  const showWrongFeedback=(text,coachingPause)=>{
-    const fb=iz.querySelector('#proveFeedback');
-    if(fb){fb.className='feedback-bar wrong';fb.textContent=text;fb.style.display='block'}
-    if(wf&&wf.hl)applyHighlight(wf.hl);
-    const tab=iz.querySelector('#tryAgainBtn');if(tab)tab.classList.add('visible');
-    // Dim the wrong card so it can't be re-selected
-    safeTimeout(()=>{
-      if(card){card.classList.remove('wrong-reveal');card.classList.add('dimmed','selected');card.classList.remove('selected')}
-      processing=false;
-    },coachingPause);
-  };
-  // Fast guess gate
-  if(elapsed<2000){
-    state.consecutiveFastWrongs++;
-    if(state.consecutiveFastWrongs>=2){
-      showCoaching('Take a moment and think about what you saw in the arena.');
-      state.consecutiveFastWrongs=0;
-      // Still show Try Again + dim card after coaching pause (don't strand the student)
-      const fbText=wf?wf.text:'That is not quite right. Look at the arena for clues.';
-      showWrongFeedback(fbText,3000);
-      // Reset phase start time so subsequent answers don't immediately re-trigger fast-guess
-      setStart(Date.now()+3000);
-      // Increment hints to match wrong count
-      if(state.wrongCount===1)state.hintsUsed=Math.max(state.hintsUsed,1);
-      if(state.wrongCount>=2)state.hintsUsed=Math.max(state.hintsUsed,2);
+  try{
+    const r=ROUNDS[state.currentRound];
+    const p=r.prove;
+    const iz=$('interactionZone');
+    const elapsed=Date.now()-getStart();
+    // CRITICAL: grab wrongId BEFORE any state mutation, look up wf BEFORE clearing selection
+    const wrongId=state.selectedOption;
+    const card=iz.querySelector('#proveOptionsRow .opt-card[data-idx="'+wrongId+'"]');
+    if(wrongId===p.correct){
+      // CORRECT
+      if(card)card.classList.add('correct-reveal');
+      playCorrect();
+      const fb=iz.querySelector('#proveFeedback');
+      if(fb){fb.className='feedback-bar correct';fb.textContent='Correct!';fb.style.display='block'}
+      const lib=iz.querySelector('#lockInBtn');if(lib)lib.style.display='none';
+      // Score
+      let score=100;
+      if(state.levelResets>0)score=50;
+      else if(state.hintsUsed>=3)score=60;
+      else if(state.hintsUsed===2)score=70;
+      else if(state.hintsUsed===1)score=85;
+      if(r.hasPrediction&&state.predictionCorrect===false&&score===100)score=85;
+      state.scores[state.currentRound]=score;
+      state.totalScore=calcTotalScore();
+      $('hudScore').textContent='Score: '+state.totalScore;
+      const timeS=Math.round((Date.now()-state.roundStartTime)/1000);
+      if(!state.roundData[state.currentRound])state.roundData[state.currentRound]=r.recordData;
+      state.roundData[state.currentRound]._score=score;
+      state.roundData[state.currentRound]._time=timeS;
+      state.roundData[state.currentRound]._attempts=state.wrongCount+1;
+      updateProgressDots();
+      clearPhaseDeadman(); // LOCKUP DEFENSE 4/4: clear dead-man on successful PROVE
+      safeTimeout(()=>{
+        window.processing=false;
+        try{checkMilestone()}catch(e){console.error('checkMilestone err',e);loadRound(state.currentRound+1)}
+      },1500);
       return;
     }
-  }else{state.consecutiveFastWrongs=0}
-  // Normal wrong-answer path
-  const fbText=wf?wf.text:'That is not quite right. Look at the arena for clues.';
-  showWrongFeedback(fbText,800);
-  // Handle hints
-  if(state.wrongCount===1)state.hintsUsed=Math.max(state.hintsUsed,1);
-  if(state.wrongCount>=2)state.hintsUsed=Math.max(state.hintsUsed,2);
+    // WRONG — unified cleanup runs on EVERY wrong path
+    if(card)card.classList.add('wrong-reveal');
+    playWrong();
+    state.wrongCount++;
+    // Look up wrong feedback NOW — wrongId is still valid
+    const wf=p.wrongFeedback[wrongId];
+    // Clear selection state immediately so card click guards work
+    state.selectedOption=-1;
+    // Hide Lock In button (will be restored by Try Again or new selection)
+    const lib=iz.querySelector('#lockInBtn');if(lib){lib.disabled=true;lib.style.display='none'}
+    // Helper: standard wrong-answer presentation — feedback + Try Again + dim + processing release
+    const showWrongFeedback=(text,coachingPause)=>{
+      const fb=iz.querySelector('#proveFeedback');
+      if(fb){fb.className='feedback-bar wrong';fb.textContent=text;fb.style.display='block'}
+      if(wf&&wf.hl)try{applyHighlight(wf.hl)}catch(e){console.error('applyHighlight err',e)}
+      const tab=iz.querySelector('#tryAgainBtn');if(tab)tab.classList.add('visible');
+      // Dim the wrong card so it can't be re-selected
+      safeTimeout(()=>{
+        if(card){card.classList.remove('wrong-reveal');card.classList.add('dimmed','selected');card.classList.remove('selected')}
+        window.processing=false;
+      },coachingPause);
+    };
+    // Fast guess gate
+    if(elapsed<2000){
+      state.consecutiveFastWrongs++;
+      if(state.consecutiveFastWrongs>=2){
+        showCoaching('Take a moment and think about what you saw in the arena.');
+        state.consecutiveFastWrongs=0;
+        // Still show Try Again + dim card after coaching pause (don't strand the student)
+        const fbText=wf?wf.text:'That is not quite right. Look at the arena for clues.';
+        showWrongFeedback(fbText,3000);
+        // Reset phase start time so subsequent answers don't immediately re-trigger fast-guess
+        setStart(Date.now()+3000);
+        // Increment hints to match wrong count
+        if(state.wrongCount===1)state.hintsUsed=Math.max(state.hintsUsed,1);
+        if(state.wrongCount>=2)state.hintsUsed=Math.max(state.hintsUsed,2);
+        return;
+      }
+    }else{state.consecutiveFastWrongs=0}
+    // Normal wrong-answer path
+    const fbText=wf?wf.text:'That is not quite right. Look at the arena for clues.';
+    showWrongFeedback(fbText,800);
+    // Handle hints
+    if(state.wrongCount===1)state.hintsUsed=Math.max(state.hintsUsed,1);
+    if(state.wrongCount>=2)state.hintsUsed=Math.max(state.hintsUsed,2);
+  }catch(e){
+    console.error('onProveSubmit critical err',e);
+    window.processing=false;
+  }
 }
 
 // ============ HINT SYSTEM ============
@@ -1738,6 +1935,8 @@ function showCelebration(title,subtitle,choices,autoMs,cb){
 // ============ RECEIPT ============
 function showReceipt(){
   if(state.receiptRendered)return;state.receiptRendered=true;
+  clearPhaseDeadman();
+  const stuck=$('imStuckBtn');if(stuck)stuck.style.display='none';
   $('resetLevelBtn').disabled=true;$('hintBtn').disabled=true;
   const rs=$('receiptScreen');
   const totalTime=ROUNDS.reduce((sum,r,i)=>{const rd=state.roundData[i];return sum+(rd&&rd._time?rd._time:0)},0);
@@ -1776,12 +1975,15 @@ window.doStartOver=function(){
   state.scores=[];state.totalScore=0;state.roundData=[];state.levelResets=0;
   state.requiredCompleteShown=false;state.bonusCompleteShown=false;state.receiptRendered=false;
   $('dataBody').innerHTML='';
+  const stuck=$('imStuckBtn');if(stuck)stuck.style.display='block';
+  $('resetLevelBtn').disabled=false;$('hintBtn').disabled=false;
   loadRound(0);
 };
 
 // ============ RESET LEVEL ============
 $('resetLevelBtn').addEventListener('click',()=>{
   if(state.scores[state.currentRound]!==undefined)return; // completed
+  clearPhaseDeadman(); // LOCKUP DEFENSE 4/4
   arenaGen++;
   closeAllOverlays();
   $('focusBanner').classList.remove('show');
