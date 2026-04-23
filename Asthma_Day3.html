@@ -341,6 +341,35 @@ button{font-family:inherit;cursor:pointer}
 .confetti-layer{position:fixed;inset:0;z-index:3000;pointer-events:none;overflow:hidden}
 .confetti-piece{position:absolute;width:10px;height:14px;will-change:transform,opacity}
 .confetti-piece.falling{animation:confettiFall 3s ease-out forwards}
+/* ==================== I'M STUCK EMERGENCY BUTTON (v3) ==================== */
+.im-stuck-btn{
+  position:fixed;bottom:16px;right:16px;z-index:9999;
+  background:linear-gradient(135deg,var(--warning-amber),#D97706);
+  color:#fff;border:2px solid #B45309;
+  border-radius:999px;padding:10px 18px;
+  font-family:inherit;font-size:14px;font-weight:800;letter-spacing:.3px;
+  min-height:44px;min-width:44px;cursor:pointer;
+  box-shadow:0 4px 12px rgba(217,119,6,.4),0 2px 4px rgba(0,0,0,.15);
+  display:none;align-items:center;gap:6px;
+  animation:imStuckPulse 3s ease-in-out infinite;
+}
+.im-stuck-btn.visible{display:inline-flex}
+.im-stuck-btn:active{transform:scale(.96)}
+.im-stuck-btn .is-icon{font-size:16px;line-height:1}
+@keyframes imStuckPulse{
+  0%,100%{box-shadow:0 4px 12px rgba(217,119,6,.4),0 2px 4px rgba(0,0,0,.15);transform:scale(1)}
+  50%{box-shadow:0 4px 20px rgba(245,158,11,.75),0 2px 6px rgba(0,0,0,.2);transform:scale(1.04)}
+}
+/* Brief "moving on" flash shown after a dead-man timeout skip */
+.skip-flash{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:var(--warning-amber-light);border:2px solid var(--warning-amber);
+  color:#92400E;border-radius:var(--radius);padding:14px 20px;
+  font-size:15px;font-weight:700;z-index:9998;
+  box-shadow:var(--shadow-lg);pointer-events:none;
+  opacity:0;transition:opacity .25s ease;
+}
+.skip-flash.visible{opacity:1}
 @keyframes confettiFall{
   0%{transform:translateY(-20px) rotate(0);opacity:1}
   100%{transform:translateY(calc(100vh + 40px)) rotate(720deg);opacity:0}
@@ -385,7 +414,7 @@ button{font-family:inherit;cursor:pointer}
 /* Print CSS */
 @media print{
   body{background:#fff}
-  .game-ui,.top-bar,.bbar,.main,.izone,.welcome,.vpanel,.overlay,.sbs-overlay,.coach-screen,.affirm,.confetti-layer,.prt-btn,.rst-btn,.r-acts{display:none !important}
+  .game-ui,.top-bar,.bbar,.main,.izone,.welcome,.vpanel,.overlay,.sbs-overlay,.coach-screen,.affirm,.confetti-layer,.prt-btn,.rst-btn,.r-acts,.im-stuck-btn,.skip-flash{display:none !important}
   .receipt{position:static !important;padding:0 !important;background:#fff !important}
   .r-inner{box-shadow:none !important;border:2px solid #333 !important}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -726,13 +755,26 @@ button{font-family:inherit;cursor:pointer}
   </div>
 </div>
 
+<!-- ==================== I'M STUCK EMERGENCY BUTTON (v3) ==================== -->
+<button class="im-stuck-btn" id="imStuckBtn" type="button" onclick="onImStuckClick()" aria-label="I am stuck, skip this round">
+  <span class="is-icon">&#x1F6A9;</span><span>I'm Stuck</span>
+</button>
+<div class="skip-flash" id="skipFlash" aria-live="polite"></div>
+
 <script>
 "use strict";
 
 /* ===========================================================================
-   MR. JAWAD'S SIMULATIONS -- RESPIRATORY SYSTEM / LUNGS (WEDNESDAY LAB) v2
+   MR. JAWAD'S SIMULATIONS -- RESPIRATORY SYSTEM / LUNGS (WEDNESDAY LAB) v3
    Full rebuild: SVG arena, welcome screen, safeTimeout/arenaGen,
    processing guards, one-shot flags, closeAllOverlays, CSS-first animations
+   v3 LOCKUP-DEFENSE PATCH:
+     * Self-healing watchdog on GS.processing (auto-clears after 3s)
+     * Floating "I'm Stuck" emergency advance button (50% credit + advance)
+     * Defensive processing=false at top of every phase-start function
+     * Phase dead-man timers: RECORD 3min, PROVE 4min (auto-skip on timeout)
+     * try/catch around every arena/drawing call so graphics errors cannot
+       leave the processing flag stuck
    =========================================================================== */
 
 // ========== GLOBAL STATE ==========
@@ -765,6 +807,231 @@ window._affirmTimeout = null;
 window._feedbackTimeout = null;
 window._sbsPanels = [];
 window._sbsIdx = 0;
+
+/* ==========================================================================
+   v3 LOCKUP-DEFENSE: watchdog on GS.processing
+   --------------------------------------------------------------------------
+   The "processing flag lockup" pattern: any code path that sets
+   GS.processing = true and then fails to clear it (thrown error, stale
+   safeTimeout killed by arenaGen bump, missed branch) leaves every guarded
+   button silently dropping taps. Student sees a frozen screen with visible
+   but dead buttons and has no escape.
+
+   This watchdog installs a property descriptor on GS.processing. Whenever
+   the flag is set to true, a 3-second timer starts. If nothing clears the
+   flag within 3s, the watchdog auto-clears it and logs a warning.
+   ========================================================================== */
+(function installProcessingWatchdog(){
+  let _val = false;
+  let _wd  = null;
+  Object.defineProperty(GS, 'processing', {
+    configurable: true,
+    get(){ return _val; },
+    set(v){
+      _val = !!v;
+      if (_wd){ clearTimeout(_wd); _wd = null; }
+      if (_val){
+        _wd = setTimeout(()=>{
+          console.warn('[watchdog] GS.processing stuck 3s -- auto-clearing');
+          _val = false; _wd = null;
+        }, 3000);
+      }
+    }
+  });
+})();
+
+/* ==========================================================================
+   v3 LOCKUP-DEFENSE: phase dead-man timer
+   --------------------------------------------------------------------------
+   Hard ceiling on how long a phase can stay active. If armed and not
+   cleared within the ceiling, silently calls skipCurrentRound(timeout) to
+   award 50% credit and advance. Never gates on !processing (the whole
+   point is that processing may be stuck). Re-checks phase AND round before
+   firing so a late timer from a previous round cannot skip the current one.
+   ========================================================================== */
+let _phaseDeadman = null;
+let _phaseDeadmanPhase = null;
+let _phaseDeadmanRound = null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  _phaseDeadmanPhase = GS.phase;
+  _phaseDeadmanRound = GS.cr;
+  _phaseDeadman = setTimeout(()=>{
+    if (GS.phase === _phaseDeadmanPhase && GS.cr === _phaseDeadmanRound){
+      try { skipCurrentRound({confirmFirst:false, reason:'timeout'}); }
+      catch(e){ console.error('[deadman] skip failed:', e); }
+    }
+  }, ms);
+}
+function clearPhaseDeadman(){
+  if (_phaseDeadman){ clearTimeout(_phaseDeadman); _phaseDeadman = null; }
+  _phaseDeadmanPhase = null;
+  _phaseDeadmanRound = null;
+}
+
+/* ==========================================================================
+   v3 LOCKUP-DEFENSE: skipCurrentRound
+   --------------------------------------------------------------------------
+   Shared escape hatch used by the I'm Stuck button AND by the phase
+   dead-man timer. Force-clears every blocking UI state, awards 50% credit
+   for the current round, and advances. Must work from ANY phase regardless
+   of processing flag state. Wrapped top-to-bottom in try/catch with a
+   last-ditch startRound fallback so it cannot itself become a lockup.
+
+   opts.confirmFirst   : show confirm dialog (default true for user click,
+                         false for timeout and for final receipt)
+   opts.reason         : 'user' | 'timeout' -- affects flash message
+   ========================================================================== */
+function skipCurrentRound(opts){
+  opts = opts || {};
+  const confirmFirst = opts.confirmFirst !== false;
+  const reason = opts.reason || 'user';
+
+  try {
+    if (confirmFirst){
+      const ok = confirm('Skip this round? You will get 50% credit and move on.');
+      if (!ok) return;
+    }
+
+    // 1. Force-clear the processing flag and the dead-man timer.
+    try { GS.processing = false; } catch(e){}
+    clearPhaseDeadman();
+
+    // 2. Bump arena generation to invalidate every stale safeTimeout
+    //    and every interval that checks arenaGen.
+    bumpArenaGen();
+
+    // 3. Strip blocking UI aggressively.
+    try { closeAllOverlays(); } catch(e){ console.error(e); }
+    try {
+      // Celebration + predict + intro overlays (closeAllOverlays covers
+      // introOv/celebOv/sbsOv/coachScr, but double-tap in case).
+      ['introOv','celebOv','sbsOv','coachScr'].forEach(id=>{
+        const el = document.getElementById(id);
+        if (el){ el.classList.remove('visible'); el.classList.remove('on'); }
+      });
+    } catch(e){}
+    // Coaching bars, try-again buttons, dynamic lock-in wrappers
+    try {
+      document.querySelectorAll('.coaching-bar, .try-again-wrap').forEach(el=>el.remove());
+    } catch(e){}
+    // Feedback banner
+    try {
+      const fb = document.getElementById('fbMsg');
+      if (fb){ fb.classList.remove('visible'); fb.style.display = 'none'; }
+    } catch(e){}
+    // Focus banner + target banners + target-hit banner + race timer
+    try {
+      const fBan = document.getElementById('focusBanner');
+      if (fBan){ fBan.classList.remove('visible','fading'); }
+      const tBan = document.getElementById('tgtBanner');
+      if (tBan){ tBan.classList.remove('visible'); }
+      const tHit = document.getElementById('tgtHit');
+      if (tHit){ tHit.classList.remove('visible','hit','miss'); }
+      const rTmr = document.getElementById('raceTimer');
+      if (rTmr){ rTmr.classList.remove('visible','warn'); rTmr.textContent = ''; }
+    } catch(e){}
+    // Arena highlight
+    try {
+      const hl = document.getElementById('arenaHighlight');
+      if (hl) hl.classList.remove('visible');
+    } catch(e){}
+    // Hotspot layer pointer-events + cursor
+    try {
+      const hs = document.getElementById('hotspotLayer');
+      if (hs){ hs.onclick = null; hs.style.cursor = 'default'; hs.innerHTML = ''; }
+    } catch(e){}
+    // Selected/dimmed/wrong/correct visual states inside izContent
+    try {
+      const iz = document.getElementById('izContent');
+      if (iz){
+        iz.querySelectorAll('.selected, .dimmed, .wrong, .correct, .filled, .locked').forEach(el=>{
+          el.classList.remove('selected','dimmed','wrong','correct','filled','locked');
+        });
+      }
+    } catch(e){}
+    // Kill running intervals (coach, race)
+    try {
+      if (window._coachInterval){ clearInterval(window._coachInterval); window._coachInterval = null; }
+      if (window._raceInterval){  clearInterval(window._raceInterval);  window._raceInterval  = null; }
+    } catch(e){}
+    // Restore default treat-row onclick (race mode binds a custom one)
+    try {
+      const tr = document.getElementById('treatRow');
+      if (tr) tr.onclick = function(){ toggleTreatment(); };
+    } catch(e){}
+    // Celeb/advance guards
+    try { window._celebClosed = false; window._advancing = false; } catch(e){}
+
+    // 4. Award 50% credit for the current round (do not overwrite a higher
+    //    score if the student already earned one this round).
+    try {
+      const existing = GS.scores[GS.cr];
+      const tm = Math.round((Date.now() - (GS.roundStart||Date.now())) / 1000);
+      if (!existing || existing.sc < 50){
+        GS.scores[GS.cr] = {
+          sc: 50,
+          att: (GS.wrongCnt||0) + (GS.resets||0) + 1,
+          h:   GS.hints||0,
+          rst: GS.resets||0,
+          tm:  tm
+        };
+      }
+      const sd = document.getElementById('scoreDisp');
+      if (sd) sd.textContent = calcOverallScore() + '%';
+      updatePDots();
+    } catch(e){ console.error('[skip] score assign failed:', e); }
+
+    // 5. Brief flash so the student knows what happened.
+    try {
+      const fl = document.getElementById('skipFlash');
+      if (fl){
+        fl.textContent = (reason === 'timeout')
+          ? 'Moving on -- you will see this idea again.'
+          : 'Skipped -- 50% credit. Keep going!';
+        fl.classList.add('visible');
+        setTimeout(()=>fl.classList.remove('visible'), 1800);
+      }
+    } catch(e){}
+
+    // 6. Advance to the next round, or receipt if this was the last.
+    if (GS.cr >= 7){
+      try { showReceipt(); }
+      catch(e){ console.error('[skip] showReceipt failed:', e); }
+    } else {
+      try { startRound(GS.cr + 1); }
+      catch(e){
+        console.error('[skip] startRound failed, last-ditch retry:', e);
+        // Last-ditch fallback: try once more after a tick
+        setTimeout(()=>{ try { startRound(GS.cr + 1); } catch(e2){ console.error(e2); } }, 50);
+      }
+    }
+  } catch(outerErr){
+    console.error('[skip] outer failure:', outerErr);
+    // Absolute last resort: force-clear and hard-advance round index.
+    try {
+      GS.processing = false;
+      clearPhaseDeadman();
+      if (GS.cr < 7){ GS.cr++; startRound(GS.cr); }
+      else { showReceipt(); }
+    } catch(e){ console.error('[skip] fatal:', e); }
+  }
+}
+
+function onImStuckClick(){
+  // User click -- always confirm.
+  skipCurrentRound({confirmFirst:true, reason:'user'});
+}
+
+function showImStuckBtn(){
+  const b = document.getElementById('imStuckBtn');
+  if (b) b.classList.add('visible');
+}
+function hideImStuckBtn(){
+  const b = document.getElementById('imStuckBtn');
+  if (b) b.classList.remove('visible');
+}
+/* ========================================================================== */
 
 // Teacher affirmation pool (uses collected teacher name)
 function getAffirmations(){
@@ -1300,6 +1567,8 @@ function startSimulation(){
   // Hide welcome, show game
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('gameUI').classList.add('on');
+  // v3: reveal the emergency skip button whenever game UI is live
+  showImStuckBtn();
   // Build particle pool and start flow
   buildAirParticles();
   setAirFlow(true);
@@ -1332,6 +1601,7 @@ function updatePDots(){
 function startRound(idx){
   bumpArenaGen();          // invalidate any pending timeouts
   closeAllOverlays();       // kill any stacked modals
+  clearPhaseDeadman();      // v3: any previous phase timer is void
   clearTriggerParticles();
   // Clear celebration/advance double-tap guards for the new round
   window._celebClosed = false;
@@ -1357,11 +1627,17 @@ function startRound(idx){
   if (idx === 3){ rd.blockT = GS.r3trig; } // Round 4: block the trigger used in R3
   if (rd.unlockTreat) GS.treatUnlocked = true;
   if (rd.isRace){ GS.trig = 'exercise'; GS.inten = 'high'; GS.varChanged = true; }
-  // Reset visuals
-  resetAirwayState();
-  updateGauges(10, 6, 98);
-  updateCtrls();
-  clearIZ();
+  // v3: wrap arena/visual build so a graphics failure cannot leave the
+  // round half-rendered AND the processing flag stuck.
+  try {
+    resetAirwayState();
+    updateGauges(10, 6, 98);
+    updateCtrls();
+    clearIZ();
+  } catch(e){
+    console.error('[startRound] arena build failed:', e);
+    GS.processing = false;
+  }
   // Enable/disable reset level button
   document.getElementById('resetLevelBtn').disabled = false;
   // Show intro modal
@@ -1389,6 +1665,8 @@ function showFocusPrompt(text){
 }
 
 function enterChangePhase(){
+  GS.processing = false;      // v3: defensive clear
+  clearPhaseDeadman();        // v3: CHANGE phase is open-ended, no ceiling
   const rd = R[GS.cr];
   GS.phase = 'change';
   GS.phaseStart = Date.now();
@@ -1503,11 +1781,20 @@ function runSimulation(rd){
   // Animate airway
   const conFrac = 1 - res.d / 10;
   const infFrac = conFrac * 0.8;
-  setAirwayState(res.d, infFrac, conFrac, GS.treatOn);
-  if (GS.trig) addTriggerParticles(GS.trig);
-  if (GS.trig2) safeTimeout(()=>addTriggerParticles(GS.trig2), 300);
-  // Update gauges
-  safeTimeout(()=>updateGauges(res.d, res.a, res.o), 600);
+  // v3: wrap arena/drawing so a graphics failure cannot strand the flow.
+  try {
+    setAirwayState(res.d, infFrac, conFrac, GS.treatOn);
+    if (GS.trig) addTriggerParticles(GS.trig);
+    if (GS.trig2) safeTimeout(()=>addTriggerParticles(GS.trig2), 300);
+    // Update gauges
+    safeTimeout(()=>{
+      try { updateGauges(res.d, res.a, res.o); }
+      catch(e){ console.error('[runSimulation] updateGauges failed:', e); }
+    }, 600);
+  } catch(e){
+    console.error('[runSimulation] arena render failed:', e);
+    GS.processing = false;
+  }
   // Prediction feedback
   if (rd.hasPred && GS.pred){
     safeTimeout(()=>{
@@ -1550,6 +1837,8 @@ function runSimulation(rd){
 }
 
 function enterRecordPhase(rd, res){
+  GS.processing = false;       // v3: defensive clear
+  armPhaseDeadman(180000);     // v3: 3 min ceiling on RECORD
   GS.phase = 'record';
   document.getElementById('phaseLbl').textContent = 'RECORD';
   document.getElementById('promptTxt').textContent = 'Data recorded. Check it and confirm it looks right.';
@@ -1584,6 +1873,8 @@ function confirmData(){
 
 // ========== DO PHASE ==========
 function enterDoPhase(){
+  GS.processing = false;       // v3: defensive clear
+  clearPhaseDeadman();         // v3: DO relies on reset-ladder, no hard ceiling
   const rd = R[GS.cr];
   GS.phase = 'do';
   GS.phaseStart = Date.now();
@@ -1931,6 +2222,8 @@ function showTryAgainButton(){
 
 // ========== PROVE PHASE ==========
 function enterProvePhase(){
+  GS.processing = false;       // v3: defensive clear
+  armPhaseDeadman(240000);     // v3: 4 min ceiling on PROVE
   const rd = R[GS.cr];
   GS.phase = 'prove';
   GS.phaseStart = Date.now();
@@ -1995,14 +2288,22 @@ function handleProve(i, el){
 
 // ========== RACE MODE (Round 8 bonus) ==========
 function startRace(){
+  GS.processing = false;       // v3: defensive clear
+  clearPhaseDeadman();         // v3: race has its own 20s timer -- no extra ceiling
   GS.phase = 'race';
   document.getElementById('phaseLbl').textContent = 'RACE';
   document.getElementById('promptTxt').textContent = 'Toggle the inhaler to keep oxygen above 90%!';
   document.getElementById('izContent').innerHTML = '';
   document.getElementById('focusBanner').classList.remove('visible','fading');
-  // Start in constricted state
-  setAirwayState(3, 0.8, 0.9, false);
-  updateGauges(3, 1.2, 82);
+  // v3: wrap arena draws so a failure cannot strand the race setup.
+  try {
+    // Start in constricted state
+    setAirwayState(3, 0.8, 0.9, false);
+    updateGauges(3, 1.2, 82);
+  } catch(e){
+    console.error('[startRace] arena draw failed:', e);
+    GS.processing = false;
+  }
   GS.treatUnlocked = true; GS.raceInhUsed = false;
   const tr = document.getElementById('treatRow');
   tr.classList.remove('disabled');
@@ -2041,6 +2342,7 @@ function startRace(){
 }
 
 function endRace(){
+  GS.processing = false;       // v3: defensive clear
   GS.phase = 'do';
   const rd = R[GS.cr];
   addRow(rd.n, 'exercise+dust', 'HIGH',
@@ -2369,6 +2671,10 @@ function confetti(n){
 function showReceipt(){
   if (_receiptRendered) return;
   _receiptRendered = true;
+  // v3: closing out -- clear dead-man, hide emergency button, clear flag.
+  clearPhaseDeadman();
+  hideImStuckBtn();
+  GS.processing = false;
   bumpArenaGen();
   closeAllOverlays();
   // Clear all intervals

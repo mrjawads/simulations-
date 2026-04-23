@@ -298,6 +298,17 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 
+/* ========== FIX 2 — I'M STUCK EMERGENCY BUTTON ========== */
+.im-stuck-btn{position:fixed;bottom:18px;right:18px;z-index:9999;min-height:44px;padding:10px 18px;background:linear-gradient(135deg,#F59E0B,#FB923C);color:#1a1a1a;border:2px solid #FFD700;border-radius:22px;font-weight:800;font-size:14px;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(245,158,11,.4);animation:imStuckPulse 3s ease-in-out infinite;display:flex;align-items:center;gap:6px;letter-spacing:.3px;-webkit-tap-highlight-color:transparent}
+.im-stuck-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(245,158,11,.55)}
+.im-stuck-btn:active{transform:translateY(0)}
+.im-stuck-btn.hidden{display:none}
+.im-stuck-btn .is-icon{font-size:16px;line-height:1}
+@keyframes imStuckPulse{
+  0%,100%{box-shadow:0 4px 14px rgba(245,158,11,.4)}
+  50%{box-shadow:0 4px 22px rgba(245,158,11,.8),0 0 0 6px rgba(245,158,11,.12)}
+}
+
 /* ========== RESPONSIVE TWEAKS ========== */
 @media (max-width:480px){
   .ocard{flex:1 1 100%;font-size:14.5px;padding:13px 14px}
@@ -306,6 +317,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear
   .r-name{font-size:14px}
   .ctx-panel{min-height:170px}
   .w-title{font-size:clamp(24px,7vw,36px)}
+  .im-stuck-btn{bottom:12px;right:12px;padding:8px 14px;font-size:12.5px;min-height:40px}
 }
 </style>
 </head>
@@ -424,6 +436,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:linear
 <!-- Particle pool (15 max) -->
 <div class="particle-layer" id="particleLayer"></div>
 
+<!-- FIX 2 — Floating "I'm Stuck" emergency advance button (hidden until game starts, hidden on receipt) -->
+<button id="imStuckBtn" class="im-stuck-btn hidden" onclick="skipCurrentRound({})" aria-label="Skip this round — I'm stuck" type="button">
+  <span class="is-icon">⚠</span><span>I'm Stuck</span>
+</button>
+
 <!-- ========================================================
      RECEIPT SCREEN
      ======================================================== -->
@@ -488,6 +505,133 @@ window._sbsAdv = null;
 let _coachingInterval = null;
 const _particlePool = [];
 const PARTICLE_MAX = 15;
+
+/* =========================================================
+   FIX 1 — SELF-HEALING WATCHDOG ON GS.processing
+   If any code path forgets to clear the flag, auto-release
+   after 3s so the student can never be silently frozen.
+   ========================================================= */
+(function installProcessingWatchdog(){
+  let _val = GS.processing || false;
+  let _wd = null;
+  Object.defineProperty(GS, 'processing', {
+    configurable: true,
+    get(){ return _val; },
+    set(v){
+      _val = !!v;
+      if (_wd) { clearTimeout(_wd); _wd = null; }
+      if (_val) {
+        _wd = setTimeout(() => {
+          console.warn('[watchdog] GS.processing stuck 3s — auto-clearing');
+          _val = false;
+          _wd = null;
+        }, 3000);
+      }
+    }
+  });
+})();
+
+/* =========================================================
+   FIX 4 — PHASE DEAD-MAN TIMER INFRASTRUCTURE
+   Hard ceiling on how long a student can be stuck in one phase
+   regardless of the cause. Never gates on !GS.processing.
+   ========================================================= */
+let _phaseDeadman = null;
+let _phaseDeadmanPhase = null;
+let _phaseDeadmanRound = null;
+function armPhaseDeadman(ms) {
+  clearPhaseDeadman();
+  _phaseDeadmanPhase = GS.phase;
+  _phaseDeadmanRound = GS.round;
+  _phaseDeadman = setTimeout(() => {
+    // Only fire if still in the same phase + round it was armed for
+    if (GS.phase === _phaseDeadmanPhase && GS.round === _phaseDeadmanRound) {
+      try { skipCurrentRound({ confirmFirst: false, reason: 'timeout' }); }
+      catch (e) { console.error('[deadman] skip failed', e); }
+    }
+  }, ms);
+}
+function clearPhaseDeadman() {
+  if (_phaseDeadman) { clearTimeout(_phaseDeadman); _phaseDeadman = null; }
+  _phaseDeadmanPhase = null;
+  _phaseDeadmanRound = null;
+}
+
+/* =========================================================
+   FIX 2 — SKIP CURRENT ROUND (reusable)
+   Drives the floating "I'm Stuck" button AND the dead-man
+   timer. Works from any phase regardless of flag state.
+   ========================================================= */
+function skipCurrentRound(opts) {
+  opts = opts || {};
+  if (opts.confirmFirst !== false) {
+    if (!confirm('Skip this round? You will get 50% credit and move on.')) return;
+  }
+  try {
+    // Force-clear state + invalidate pending safeTimeouts
+    GS.processing = false;
+    GS.arenaGen++;
+    clearPhaseDeadman();
+
+    // Kill intervals + overlays
+    if (_coachingInterval) { clearInterval(_coachingInterval); _coachingInterval = null; }
+    try { closeAllOverlays(); } catch (e) { console.error(e); }
+
+    // Aggressively strip blocking UI
+    document.querySelectorAll('.cbar').forEach(el => el.remove());
+    document.querySelectorAll('#hsOverlay, .hs-ov').forEach(el => el.remove());
+    document.querySelectorAll('.ocard').forEach(c => {
+      c.classList.remove('selected', 'dimmed', 'wrong', 'locked');
+      c.style.pointerEvents = '';
+    });
+    document.querySelectorAll('.dzone, .seq-drop, .dtile').forEach(el => {
+      el.classList.remove('wrong', 'filled');
+      el.style.pointerEvents = '';
+    });
+    const btn = document.getElementById('bLockIn');
+    if (btn) btn.disabled = true;
+    window._doSelectedId = null;
+    window._doSelectedTile = null;
+
+    // Award 50% for current round if not already scored
+    if (GS.levels[GS.round] && !GS.levels[GS.round].done) {
+      GS.levels[GS.round].done = true;
+      GS.levels[GS.round].score = 50;
+      GS.levels[GS.round].resets = (GS.levels[GS.round].resets || 0) + 1;
+      GS.levels[GS.round].time = Math.round((Date.now() - GS.roundStartTime) / 1000);
+      GS.score += 50;
+      const sd = document.getElementById('scoreD');
+      if (sd) sd.textContent = GS.score;
+      GS.streak = 0;
+      try { updateStreakDisplay(); } catch (e) {}
+      try { updateProgressDots(); } catch (e) {}
+    }
+
+    // Brief flash for timeout-triggered skips (reassuring, not punishing)
+    if (opts.reason === 'timeout') {
+      try { showFeedbackBar('Moving on — you will see this idea again.', 'hint-1'); }
+      catch (e) { console.error(e); }
+    }
+
+    // Advance
+    const nextFn = () => {
+      try {
+        if (GS.round < ROUNDS.length - 1) startLevel(GS.round + 1);
+        else showReceipt();
+      } catch (e) {
+        console.error('[skip] advance failed', e);
+        try { startLevel(Math.min(GS.round + 1, ROUNDS.length - 1)); }
+        catch (e2) { location.reload(); }
+      }
+    };
+    setTimeout(nextFn, opts.reason === 'timeout' ? 900 : 350);
+  } catch (e) {
+    console.error('[skip] fatal', e);
+    // Last-ditch fallback
+    try { startLevel(Math.min(GS.round + 1, ROUNDS.length - 1)); }
+    catch (e2) { location.reload(); }
+  }
+}
 
 /* =========================================================
    SAFE TIMEOUT — honors arenaGen generation counter
@@ -1086,6 +1230,9 @@ function beginGame() {
   // Switch screens
   document.getElementById('welcomeScr').classList.remove('active');
   document.getElementById('gameScr').classList.add('active');
+  // FIX 2 — reveal floating "I'm Stuck" emergency advance button
+  const _is = document.getElementById('imStuckBtn');
+  if (_is) _is.classList.remove('hidden');
   // Build progress dots
   buildProgressDots();
   // Load round 1
@@ -1118,6 +1265,7 @@ function updateProgressDots() {
    ========================================================= */
 function startLevel(idx) {
   GS.arenaGen++;                      // invalidate any pending safeTimeouts
+  clearPhaseDeadman();                // FIX 4 — clear any running dead-man before starting new round
   closeAllOverlays();
   // Clean up per-round DOM debris from the previous round (hotspot overlay, stray cbars)
   const _hs = document.getElementById('hsOverlay');
@@ -1131,7 +1279,7 @@ function startLevel(idx) {
   GS.attempts = 0;
   GS.fastWrongs = 0;
   GS.firstTryFlag = true;
-  GS.processing = false;
+  GS.processing = false;              // FIX 3 — defensive clear at phase start (already present; preserved)
   GS.r11phase = 1;
   GS.r11correctHits = [];
   GS.phaseStartTime = Date.now();
@@ -1159,10 +1307,14 @@ function startLevel(idx) {
   fb.style.animation = '';
   // Intro badge
   showIntroOverlay(r, () => {
+    // FIX 3 — one more defensive clear before rendering (graphics call wrapped in safeCall)
+    GS.processing = false;
     // Render arena + interaction after intro fades
     renderArena(r);
     document.getElementById('ctxCaption').textContent = r.caption || '';
     buildInteraction(r);
+    // FIX 4 — Arm dead-man timer for DO phase (3 min ceiling)
+    armPhaseDeadman(180000);
   });
 }
 
@@ -2310,6 +2462,7 @@ function handleWrongFlow(r) {
    PROVE PHASE
    ========================================================= */
 function goToProve() {
+  GS.processing = false;                // FIX 3 — defensive clear at phase start
   GS.phase = 'prove';
   GS.wrongCount = 0;  // fresh wrong count for prove
   GS.phaseStartTime = Date.now();
@@ -2317,49 +2470,54 @@ function goToProve() {
   // Remove hotspot overlay if present
   const ov = document.getElementById('hsOverlay');
   if (ov) ov.remove();
-  // Build PROVE UI
-  const iz = document.getElementById('izone');
-  iz.innerHTML = '';
-  const r = ROUNDS[GS.round];
-  const header = document.createElement('div');
-  header.innerHTML = '<div class="phase-l prove">PROVE</div><div class="prompt">' + r.prove.q + '</div>';
-  iz.appendChild(header);
+  // Build PROVE UI (wrapped — graphics errors must not strand the flag)
+  safeCall(() => {
+    const iz = document.getElementById('izone');
+    iz.innerHTML = '';
+    const r = ROUNDS[GS.round];
+    const header = document.createElement('div');
+    header.innerHTML = '<div class="phase-l prove">PROVE</div><div class="prompt">' + r.prove.q + '</div>';
+    iz.appendChild(header);
 
-  const grid = document.createElement('div');
-  grid.className = 'opts';
-  grid.id = 'proveGrid';
-  r.prove.options.forEach((opt, i) => {
-    const c = document.createElement('div');
-    c.className = 'ocard locked';
-    c.textContent = opt;
-    c.dataset.i = i;
-    c.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (c.classList.contains('locked') || c.classList.contains('disabled') || c.classList.contains('dimmed') || c.classList.contains('correct')) return;
-      grid.querySelectorAll('.ocard').forEach(x => x.classList.remove('selected'));
-      c.classList.add('selected');
-      window._doSelectedId = i;
-      const btn = document.getElementById('bLockIn');
-      if (btn) btn.disabled = false;
+    const grid = document.createElement('div');
+    grid.className = 'opts';
+    grid.id = 'proveGrid';
+    r.prove.options.forEach((opt, i) => {
+      const c = document.createElement('div');
+      c.className = 'ocard locked';
+      c.textContent = opt;
+      c.dataset.i = i;
+      c.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (c.classList.contains('locked') || c.classList.contains('disabled') || c.classList.contains('dimmed') || c.classList.contains('correct')) return;
+        grid.querySelectorAll('.ocard').forEach(x => x.classList.remove('selected'));
+        c.classList.add('selected');
+        window._doSelectedId = i;
+        const btn = document.getElementById('bLockIn');
+        if (btn) btn.disabled = false;
+      });
+      grid.appendChild(c);
     });
-    grid.appendChild(c);
-  });
-  iz.appendChild(grid);
+    iz.appendChild(grid);
 
-  const btn = document.createElement('button');
-  btn.className = 'btn-primary';
-  btn.textContent = '✓ Lock In';
-  btn.disabled = true;
-  btn.id = 'bLockIn';
-  btn.onclick = () => checkProve(r);
-  iz.appendChild(btn);
+    const btn = document.createElement('button');
+    btn.className = 'btn-primary';
+    btn.textContent = '✓ Lock In';
+    btn.disabled = true;
+    btn.id = 'bLockIn';
+    btn.onclick = () => checkProve(r);
+    iz.appendChild(btn);
 
-  // Unlock after 1.2s enforced read
-  const gen = GS.arenaGen;
-  safeTimeout(() => {
-    grid.querySelectorAll('.ocard').forEach(c => c.classList.remove('locked'));
-    GS.phaseStartTime = Date.now();
-  }, 1200, gen);
+    // Unlock after 1.2s enforced read
+    const gen = GS.arenaGen;
+    safeTimeout(() => {
+      grid.querySelectorAll('.ocard').forEach(c => c.classList.remove('locked'));
+      GS.phaseStartTime = Date.now();
+    }, 1200, gen);
+  }, 'goToProve build');
+
+  // FIX 4 — Arm dead-man timer for PROVE phase (4 min ceiling)
+  armPhaseDeadman(240000);
 }
 
 function checkProve(r) {
@@ -2661,7 +2819,11 @@ function showReceipt() {
   if (GS.receiptRendered) return;
   GS.receiptRendered = true;
   GS.arenaGen++;
+  clearPhaseDeadman();                                  // FIX 4 — clear dead-man on receipt
   closeAllOverlays();
+  // FIX 2 — hide floating "I'm Stuck" button on receipt screen
+  const _is = document.getElementById('imStuckBtn');
+  if (_is) _is.classList.add('hidden');
   document.getElementById('gameScr').classList.remove('active');
   document.getElementById('rcptScr').classList.add('active');
   // Teacher name in header (dynamic)

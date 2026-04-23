@@ -1414,6 +1414,62 @@ input { font-family: inherit; }
   100% { opacity: 0; transform: translateY(-50px); }
 }
 
+/* ============================================================
+   "I'M STUCK" EMERGENCY ADVANCE BUTTON (FIX 2)
+   Floating, always-accessible escape hatch that works regardless
+   of the processing flag state.
+   ============================================================ */
+.stuck-btn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 9999;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border: 2px solid #B45309;
+  border-radius: 26px;
+  box-shadow: 0 4px 14px rgba(180,83,9,0.45), 0 0 0 0 rgba(245,158,11,0.55);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  animation: stuckPulse 3s ease-in-out infinite;
+  display: none; /* shown once game has started, hidden on receipt */
+}
+.stuck-btn.active { display: inline-block; }
+.stuck-btn:hover { transform: translateY(-1px); }
+.stuck-btn:active { transform: translateY(1px); }
+@keyframes stuckPulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(180,83,9,0.45), 0 0 0 0 rgba(245,158,11,0.55); }
+  50%      { box-shadow: 0 4px 14px rgba(180,83,9,0.45), 0 0 0 12px rgba(245,158,11,0); }
+}
+.stuck-flash {
+  position: fixed;
+  top: 20px; left: 50%; transform: translateX(-50%);
+  z-index: 10000;
+  padding: 14px 22px;
+  background: #FFF4E0;
+  color: #8B4513;
+  border: 2px solid #F59E0B;
+  border-radius: 12px;
+  font-size: 15px; font-weight: 700;
+  box-shadow: 0 8px 28px rgba(139,69,19,0.22);
+  animation: stuckFlashFade 2.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes stuckFlashFade {
+  0%   { opacity: 0; transform: translate(-50%, -8px); }
+  15%  { opacity: 1; transform: translate(-50%, 0); }
+  85%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+
 </style>
 </head>
 <body>
@@ -1892,6 +1948,12 @@ input { font-family: inherit; }
   </div>
 </div>
 
+<!-- ============================================================
+     "I'M STUCK" EMERGENCY ADVANCE BUTTON (FIX 2)
+     Always visible during gameplay. Force-advances for 50% credit.
+     ============================================================ -->
+<button class="stuck-btn" id="stuckBtn" type="button" onclick="onStuckBtnClick()" aria-label="I'm stuck — skip this level for 50% credit">&#x1F6A9; I'm Stuck</button>
+
 <script>
 "use strict";
 
@@ -1940,6 +2002,59 @@ const GS = {
   // Per-level results (push on complete)
   results: []              // { levelNum, name, required, score, attempts, hintsUsed, resets, timeSeconds }
 };
+
+/* ============================================================
+   FIX 1 — SELF-HEALING WATCHDOG ON GS.processing
+   If any code path forgets to clear the flag, auto-clear after 3s.
+   Installed immediately after GS is defined.
+   ============================================================ */
+(function installProcessingWatchdog(){
+  let _val = false;
+  let _wd = null;
+  Object.defineProperty(GS, 'processing', {
+    configurable: true,
+    enumerable: true,
+    get() { return _val; },
+    set(v) {
+      _val = !!v;
+      if (_wd) { clearTimeout(_wd); _wd = null; }
+      if (_val) {
+        _wd = setTimeout(function(){
+          console.warn('[watchdog] GS.processing stuck 3s — auto-clearing');
+          _val = false;
+          _wd = null;
+        }, 3000);
+      }
+    }
+  });
+})();
+
+/* ============================================================
+   FIX 4 — PHASE DEAD-MAN TIMER
+   Ceiling on how long a student can sit stuck on one phase before
+   we silently skip them to the next level for 50% credit.
+   NOT gated on !GS.processing.
+   ============================================================ */
+let _phaseDeadman = null;
+let _phaseDeadmanPhase = null;
+let _phaseDeadmanLevel = null;
+function armPhaseDeadman(ms) {
+  clearPhaseDeadman();
+  _phaseDeadmanPhase = GS.phase;
+  _phaseDeadmanLevel = GS.currentLevel;
+  _phaseDeadman = setTimeout(function(){
+    if (GS.phase === _phaseDeadmanPhase && GS.currentLevel === _phaseDeadmanLevel) {
+      try {
+        skipCurrentRound({ confirmFirst: false, reason: 'timeout' });
+      } catch (e) { console.error('[deadman]', e); }
+    }
+  }, ms);
+}
+function clearPhaseDeadman() {
+  if (_phaseDeadman) { clearTimeout(_phaseDeadman); _phaseDeadman = null; }
+  _phaseDeadmanPhase = null;
+  _phaseDeadmanLevel = null;
+}
 
 /* ============================================================
    AFFIRMATION POOL (uses teacher name)
@@ -2492,6 +2607,131 @@ function closeAllOverlays() {
 }
 
 /* ============================================================
+   FIX 2 — skipCurrentRound + "I'm Stuck" handler
+   Works from ANY phase regardless of GS.processing. Force-strips
+   all blocking UI, awards 50% credit for the current level, and
+   advances.
+   ============================================================ */
+function skipCurrentRound(opts) {
+  opts = opts || {};
+  const confirmFirst = (opts.confirmFirst !== false);
+  const reason = opts.reason || "user";
+
+  function doSkip() {
+    try {
+      // 1) Force-clear the processing flag and any dead-man timer
+      GS.processing = false;
+      clearPhaseDeadman();
+
+      // 2) Bump generation counter to invalidate any stale safeTimeouts
+      GS.arenaGen++;
+
+      // 3) Stop speech and all managed intervals / timeouts
+      try { stopSpeech(); } catch(e){}
+      try { clearAllIntervals(); } catch(e){}
+
+      // 4) Aggressively strip blocking UI
+      try { closeAllOverlays(); } catch(e){}
+      // Confirm modal (not closed by closeAllOverlays)
+      const cm = $("confirmModal"); if (cm) cm.classList.remove("visible");
+      _confirmCb = null;
+      // Choice modal
+      const chm = $("choiceModal"); if (chm) chm.classList.remove("visible");
+      // Try-again / tap-continue / dynamic lock-in buttons inside mechanic area
+      const mech = $("mechanicArea"); if (mech) mech.innerHTML = "";
+      // Coaching bar
+      const cb = $("coachingBar"); if (cb) cb.classList.remove("visible");
+      // Hotspot layer: clear contents + restore pointer-events so it can't trap taps
+      const hs = $("hotspotLayer");
+      if (hs) { hs.innerHTML = ""; hs.style.pointerEvents = "none"; }
+      // Reset lock-in button state
+      const lockBtn = $("lockInBtn");
+      if (lockBtn) { lockBtn.disabled = true; lockBtn.style.display = "block"; lockBtn.textContent = "Lock In"; }
+      // Clear any selected / dimmed / locked card state globally
+      document.querySelectorAll('.option-card').forEach(function(c){
+        c.classList.remove("selected","dimmed","locked","correct","wrong","correct-flash","wrong-flash","guided-hint");
+      });
+      // Clear any stuck pointer-events: none on arena elements
+      try { clearAnatHighlights(); } catch(e){}
+
+      // 5) Award 50% credit for current level
+      const lv = LEVELS[GS.currentLevel];
+      if (lv) {
+        const timeSec = Math.max(1, Math.round((Date.now() - (GS.levelStartMs || Date.now())) / 1000));
+        const existingIdx = GS.results.findIndex(function(r){ return r.levelNum === lv.num; });
+        const record = {
+          levelNum: lv.num,
+          name: lv.name,
+          required: !!lv.required,
+          score: 50,
+          attempts: GS.attempts,
+          hintsUsed: GS.hintsUsed,
+          resets: GS.resets,
+          timeSeconds: timeSec
+        };
+        if (existingIdx >= 0) GS.results[existingIdx] = record;
+        else GS.results.push(record);
+        try { $("scoreDisplay").textContent = computeCurrentScore(); } catch(e){}
+        try { updatePips(); } catch(e){}
+      }
+
+      // 6) Brief on-screen confirmation
+      showStuckFlash(reason === "timeout"
+        ? "Moving on — you'll see this idea again."
+        : "No worries — moving on.");
+
+      // 7) Advance to next level OR show receipt if last
+      if (GS.currentLevel < LEVELS.length - 1) {
+        loadLevel(GS.currentLevel + 1);
+      } else {
+        if (!GS.allCompleteShown) { GS.allCompleteShown = true; }
+        showReceipt();
+      }
+    } catch (err) {
+      console.error("[skipCurrentRound] failure — last-ditch recovery", err);
+      // Last-ditch: try to bounce into the next level or restart current
+      try {
+        GS.processing = false;
+        if (GS.currentLevel < LEVELS.length - 1) loadLevel(GS.currentLevel + 1);
+        else showReceipt();
+      } catch (err2) {
+        try { loadLevel(GS.currentLevel); } catch(e){}
+      }
+    }
+  }
+
+  if (!confirmFirst) { doSkip(); return; }
+
+  // Student-driven: confirm first. Use native confirm so it cannot be blocked
+  // by a stuck custom modal / overlay.
+  const ok = window.confirm("Skip this level? You will get 50% credit and move on.");
+  if (ok) doSkip();
+}
+
+function showStuckFlash(msg) {
+  try {
+    const el = document.createElement("div");
+    el.className = "stuck-flash";
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 2600);
+  } catch(e){}
+}
+
+function onStuckBtnClick() {
+  skipCurrentRound({ confirmFirst: true, reason: "user" });
+}
+
+function showStuckBtn() {
+  const b = $("stuckBtn");
+  if (b) b.classList.add("active");
+}
+function hideStuckBtn() {
+  const b = $("stuckBtn");
+  if (b) b.classList.remove("active");
+}
+
+/* ============================================================
    START / WELCOME
    ============================================================ */
 function startGame() {
@@ -2517,6 +2757,7 @@ function startGame() {
 
   initPips();
   initLabelPositions();
+  showStuckBtn(); // FIX 2: emergency escape hatch is always reachable during gameplay
   loadLevel(0);
 }
 
@@ -2692,6 +2933,7 @@ function loadLevel(idx) {
   GS.currentLevel = idx;
   GS.arenaGen++;          // invalidate prior safeTimeouts
   clearAllIntervals();
+  clearPhaseDeadman();    // FIX 4: cancel any armed dead-man from prior level
   closeAllOverlays();
   stopSpeech();
   cleanupParticles();
@@ -2792,6 +3034,7 @@ function confirmRestart() {
     $("topBar").classList.remove("hidden");
     $("mainArea").classList.remove("hidden");
     $("bottomBar").classList.remove("hidden");
+    showStuckBtn(); // FIX 2: re-arm escape hatch
     loadLevel(0);
   });
 }
@@ -2800,6 +3043,9 @@ function confirmRestart() {
    WATCH PHASE
    ============================================================ */
 function startWatchPhase() {
+  // FIX 3 — defensive clear on every phase-start, as the FIRST line
+  GS.processing = false;
+
   const lv = LEVELS[GS.currentLevel];
   GS.phase = "watch";
   GS.phaseStartMs = Date.now();
@@ -2808,44 +3054,51 @@ function startWatchPhase() {
   $("interactionZone").classList.add("hidden");
   $("narrativePanel").classList.remove("dimmed");
 
-  // Render story sentences (fade in sequentially during speech)
-  const storyEl = $("storyText");
-  storyEl.innerHTML = "";
-  (lv.sentences || []).forEach(function(s){
-    const sp = document.createElement("span");
-    sp.className = "sentence";
-    sp.innerHTML = s;
-    storyEl.appendChild(sp);
-  });
-  // Stagger sentence visibility
-  const sentenceEls = storyEl.querySelectorAll(".sentence");
-  const wd = lv.watchDuration || 12000;
-  const perSentence = Math.floor(wd / Math.max(1, sentenceEls.length)) * 0.7;
-  sentenceEls.forEach(function(el, i){
-    safeTimeout(function(){ el.classList.add("visible"); }, Math.max(200, i * perSentence));
-  });
+  // FIX 3 — wrap all arena / drawing work so a graphics failure
+  // cannot leave the flag stuck or the student on a blank screen.
+  safeCall(function(){
+    // Render story sentences (fade in sequentially during speech)
+    const storyEl = $("storyText");
+    storyEl.innerHTML = "";
+    (lv.sentences || []).forEach(function(s){
+      const sp = document.createElement("span");
+      sp.className = "sentence";
+      sp.innerHTML = s;
+      storyEl.appendChild(sp);
+    });
+    // Stagger sentence visibility
+    const sentenceEls = storyEl.querySelectorAll(".sentence");
+    const wd = lv.watchDuration || 12000;
+    const perSentence = Math.floor(wd / Math.max(1, sentenceEls.length)) * 0.7;
+    sentenceEls.forEach(function(el, i){
+      safeTimeout(function(){ el.classList.add("visible"); }, Math.max(200, i * perSentence));
+    });
 
-  // Focus banner
-  showFocusBanner(lv.focusPrompt);
+    // Focus banner
+    showFocusBanner(lv.focusPrompt);
 
-  // Reveal labels at start of watch
-  if (lv.labelsToReveal) {
-    safeTimeout(function(){ revealLabels(lv.labelsToReveal); }, 600);
-  }
+    // Reveal labels at start of watch
+    if (lv.labelsToReveal) {
+      safeTimeout(function(){ revealLabels(lv.labelsToReveal); }, 600);
+    }
 
-  // Watch action (engine-specific visual emphasis)
-  applyWatchAction(lv.watchAction);
+    // Watch action (engine-specific visual emphasis)
+    applyWatchAction(lv.watchAction);
 
-  // Start speech of combined narrative
-  const combined = (lv.sentences || []).map(stripHtml).join(" ");
-  speak(combined, { rate: 0.88 });
+    // Start speech of combined narrative
+    const combined = (lv.sentences || []).map(stripHtml).join(" ");
+    speak(combined, { rate: 0.88 });
+  }, "startWatchPhase:arena");
 
-  // Safety timeout: auto-advance at watchDuration + 3s buffer
+  // Safety timeout: auto-advance at watchDuration + 3s buffer.
+  // NOTE: NOT gated on !GS.processing (anti-pattern). Uses raw setTimeout
+  // so it cannot be silently killed by an arenaGen bump from an inner throw.
   if (TIMERS.watchSafetyTimeout) clearTimeout(TIMERS.watchSafetyTimeout);
-  const safetyMs = (lv.watchDuration || 12000) + 3000;
-  TIMERS.watchSafetyTimeout = safeTimeout(function(){
-    stopSpeech();
-    startDoPhase();
+  const safetyMs = ((lv && lv.watchDuration) || 12000) + 3000;
+  TIMERS.watchSafetyTimeout = setTimeout(function(){
+    TIMERS.watchSafetyTimeout = null;
+    try { stopSpeech(); } catch(e){}
+    try { startDoPhase(); } catch(e){ console.error("[watchSafety]", e); }
   }, safetyMs);
 }
 
@@ -2885,13 +3138,15 @@ function applyWatchAction(name) {
    DO PHASE
    ============================================================ */
 function startDoPhase() {
+  // FIX 3 — defensive clear on every phase-start, as the FIRST line
+  GS.processing = false;
+
   const lv = LEVELS[GS.currentLevel];
   GS.phase = "do";
   GS.phaseStartMs = Date.now();
   GS.selectedOptionIdx = null;
   GS.hotspotsClicked = [];
   GS.claimSelected = [];
-  GS.processing = false;
   closeAllOverlays();
   // Keep arena state visible as reference (no arena reset)
   clearAnatHighlights();
@@ -2912,8 +3167,12 @@ function startDoPhase() {
 
   safeTimeout(function(){ $("yourTurnBadge").classList.remove("visible"); }, 1600);
 
-  // Render mechanic
-  renderMechanic(lv, "do");
+  // FIX 3 — render mechanic inside try/catch so a render failure can't
+  // leave GS.processing or UI stranded
+  safeCall(function(){ renderMechanic(lv, "do"); }, "startDoPhase:renderMechanic");
+
+  // FIX 4 — arm phase dead-man (3 min ceiling on DO phase)
+  armPhaseDeadman(180000);
 }
 
 function renderMechanic(lv, phaseKind) {
@@ -3249,6 +3508,12 @@ function onDoWrong(wrongIdx) {
     GS.consecutiveFastWrongs++;
     if (GS.consecutiveFastWrongs >= 2) {
       GS.consecutiveFastWrongs = 0;
+      // ACTUAL BUG FIX: before this early-return, GS.processing was left TRUE
+      // during the 5-second fast-guess countdown. If the student tapped Reset
+      // mid-countdown, the downstream clear could be lost to an arenaGen bump
+      // and the flag would strand. Clear it defensively now — the fast-guess
+      // screen has its own flow that doesn't need the guard.
+      GS.processing = false;
       showFastGuessScreen(function(){
         // After 5s, reset the current level (counts as a reset)
         GS.resets++;
@@ -3454,11 +3719,13 @@ function showFastGuessScreen(cb) {
    PROVE PHASE
    ============================================================ */
 function startProvePhase() {
+  // FIX 3 — defensive clear on every phase-start, as the FIRST line
+  GS.processing = false;
+
   const lv = LEVELS[GS.currentLevel];
   GS.phase = "prove";
   GS.phaseStartMs = Date.now();
   GS.selectedOptionIdx = null;
-  GS.processing = false;
   closeAllOverlays();
 
   $("phaseLabel").textContent = "PROVE IT";
@@ -3474,7 +3741,11 @@ function startProvePhase() {
   $("hotspotLayer").innerHTML = "";
   $("hotspotLayer").style.pointerEvents = "none";
 
-  renderMechanic(lv, "prove");
+  // FIX 3 — wrap render so a failure can't strand the flag
+  safeCall(function(){ renderMechanic(lv, "prove"); }, "startProvePhase:renderMechanic");
+
+  // FIX 4 — arm phase dead-man (4 min ceiling on PROVE phase)
+  armPhaseDeadman(240000);
 }
 
 /* ============================================================
@@ -3535,6 +3806,13 @@ function completeLevel() {
 }
 
 function fiftyPercentAdvance() {
+  // FIX 3-adjacent (actual bug): this function was NOT clearing GS.processing
+  // nor the phase dead-man. If the student triggered it after 3 resets,
+  // the downstream auto-advance safeTimeout could be arenaGen-killed and
+  // leave the flag stuck.
+  GS.processing = false;
+  clearPhaseDeadman();
+
   const lv = LEVELS[GS.currentLevel];
   const timeSec = Math.max(1, Math.round((Date.now() - GS.levelStartMs) / 1000));
   const existingIdx = GS.results.findIndex(function(r){ return r.levelNum === lv.num; });
@@ -3726,6 +4004,8 @@ function showReceipt() {
   GS.receiptRendered = true;
   closeAllOverlays();
   clearAllIntervals();
+  clearPhaseDeadman(); // FIX 4: cancel any armed dead-man when game ends
+  hideStuckBtn();      // FIX 2: no "I'm stuck" button on receipt screen
   stopSpeech();
   $("topBar").classList.add("hidden");
   $("mainArea").classList.add("hidden");
