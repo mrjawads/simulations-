@@ -293,6 +293,40 @@ body{display:flex;flex-direction:column;}
   .overall-grade .big-pct{font-size:36px;}
 }
 
+/* v3 PATCH — FIX 2: Floating "I'm Stuck" emergency advance button.
+   Always on top. Amber. Gentle pulse so students notice it exists. */
+#imStuckBtn{
+  position:fixed;
+  right:16px;
+  bottom:16px;
+  z-index:9999;
+  min-height:44px;
+  padding:10px 16px;
+  border-radius:22px;
+  border:2px solid #B45309;
+  background:linear-gradient(135deg,#F59E0B,#D97706);
+  color:#fff;
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:0.3px;
+  cursor:pointer;
+  box-shadow:0 4px 16px rgba(0,0,0,0.4), 0 0 0 0 rgba(245,158,11,0.6);
+  animation:imStuckPulse 3s ease-in-out infinite;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+#imStuckBtn:hover{filter:brightness(1.1);}
+#imStuckBtn:active{transform:scale(0.97);}
+#imStuckBtn .is-icon{font-size:16px;}
+@keyframes imStuckPulse{
+  0%,100%{box-shadow:0 4px 16px rgba(0,0,0,0.4), 0 0 0 0 rgba(245,158,11,0.6);}
+  50%{box-shadow:0 4px 16px rgba(0,0,0,0.4), 0 0 0 10px rgba(245,158,11,0);}
+}
+@media (max-width:600px){
+  #imStuckBtn{right:10px;bottom:10px;padding:8px 12px;font-size:13px;}
+}
+
 /* Print */
 @media print{
   body *{visibility:hidden;}
@@ -390,6 +424,10 @@ body{display:flex;flex-direction:column;}
 <!-- RECEIPT SCREEN -->
 <div id="receiptScreen"></div>
 
+<!-- v3 PATCH — FIX 2: Floating emergency-advance button. Above all overlays.
+     Hidden at start; revealed when the student starts the first level. -->
+<button id="imStuckBtn" type="button" aria-label="I'm stuck — skip this round for 50% credit" style="display:none;"><span class="is-icon">&#9888;&#65039;</span>I'm Stuck</button>
+
 <script>
 // ===== GLOBAL STATE =====
 const TEACHER_NAME = 'Mr. Jawad';
@@ -398,7 +436,32 @@ let studentName = '';
 let audioCtx = null;
 let readAloudOn = true;
 let resumeInterval = null;
-let processing = false;
+// v3 PATCH — FIX 1: Self-healing watchdog on the processing flag.
+// Any code path that sets `processing = true` but forgets to clear it within
+// 3 seconds will have it auto-cleared. This prevents silent lockups where
+// every button checks `if (processing) return;` and drops the student's taps.
+// Implemented as a property on window so existing `processing = true/false`
+// and `if (processing)` references keep working unchanged (non-strict script,
+// no `let processing` binding above to shadow the window property).
+(function installProcessingWatchdog(){
+  let _val = false;
+  let _wd = null;
+  Object.defineProperty(window, 'processing', {
+    configurable: true,
+    get(){ return _val; },
+    set(v){
+      _val = !!v;
+      if (_wd) { clearTimeout(_wd); _wd = null; }
+      if (_val) {
+        _wd = setTimeout(() => {
+          console.warn('[watchdog] processing stuck 3s — auto-clearing');
+          _val = false;
+          _wd = null;
+        }, 3000);
+      }
+    }
+  });
+})();
 let requiredCompleteShown = false;
 let bonusCompleteShown = false;
 let receiptRendered = false;
@@ -868,6 +931,109 @@ function closeAllOverlays() {
   document.querySelectorAll('.overlay, .coaching-bar, .feedback-popup, .completion-screen, .confirmation-dialog, .sbs-overlay, .lockout-overlay').forEach(el => el.remove());
 }
 
+// v3 PATCH — FIX 4 INFRASTRUCTURE: phase dead-man timer.
+// Hard ceiling on how long a student can be stuck in any single phase.
+// If the phase stays the same for too long, silently skip the round.
+let _phaseDeadman = null;
+let _phaseDeadmanPhase = null;
+let _phaseDeadmanLevel = null;
+function armPhaseDeadman(ms) {
+  clearPhaseDeadman();
+  _phaseDeadmanPhase = currentPhase;
+  _phaseDeadmanLevel = currentLevel;
+  _phaseDeadman = setTimeout(() => {
+    // Only fire if we're still in the same phase/level that armed us
+    if (currentPhase === _phaseDeadmanPhase && currentLevel === _phaseDeadmanLevel
+        && !gameState.levels[currentLevel].completed) {
+      try { skipCurrentRound({ confirmFirst: false, reason: 'timeout' }); }
+      catch (e) { console.error('[deadman] skipCurrentRound failed', e); }
+    }
+  }, ms);
+}
+function clearPhaseDeadman() {
+  if (_phaseDeadman) { clearTimeout(_phaseDeadman); _phaseDeadman = null; }
+  _phaseDeadmanPhase = null;
+  _phaseDeadmanLevel = null;
+}
+
+// v3 PATCH — FIX 2: Reusable emergency-advance helper.
+// Called by the floating "I'm Stuck" button and by the phase dead-man timer.
+// Aggressively strips blocking UI, awards 50% credit, advances to next level.
+function skipCurrentRound(opts) {
+  opts = opts || {};
+  const confirmFirst = opts.confirmFirst !== false; // default true
+  const reason = opts.reason || 'manual';
+  const idx = currentLevel;
+  // Already completed? nothing to do.
+  if (!gameState.levels[idx] || gameState.levels[idx].completed) return;
+  if (confirmFirst) {
+    if (!confirm('Skip this round? You will get 50% credit and move on.')) return;
+  }
+  try {
+    // Force-clear every blocking flag
+    processing = false;
+    isAnimating = false;
+    clearPhaseDeadman();
+    // Invalidate every pending arenaTimeout callback
+    arenaGen++;
+    // Kill timeouts/intervals/animations/speech
+    clearAllTimeouts();
+    try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch(e) {}
+    if (resumeInterval) { clearInterval(resumeInterval); resumeInterval = null; }
+    if (activeRAF) { try { cancelAnimationFrame(activeRAF); } catch(e){} activeRAF = null; }
+    // Strip blocking UI
+    try { closeAllOverlays(); } catch(e) {}
+    document.querySelectorAll('.try-again-btn, .tap-continue-btn, #lockInBtn, #proveLockBtn, .coaching-bar, .lockout-overlay').forEach(el => { try { el.remove(); } catch(e){} });
+    document.querySelectorAll('.option-card, .hotspot-zone').forEach(el => {
+      try {
+        el.classList.remove('selected', 'dimmed', 'wrong-reveal', 'hint-glow');
+        el.style.pointerEvents = '';
+      } catch(e) {}
+    });
+    // Cancel any running CSS animations on arena/interaction
+    try {
+      document.querySelectorAll('#arena *, #interactionZone *').forEach(el => {
+        if (el.getAnimations) el.getAnimations().forEach(a => a.cancel());
+      });
+    } catch(e) {}
+    // Award 50% credit for this level/round
+    const gs = gameState.levels[idx];
+    gs.score = 50;
+    gs.completed = true;
+    gs.resets = Math.max(gs.resets || 0, 1);
+    gs.timeSeconds = Math.round((Date.now() - levelStartTime) / 1000);
+    try { updateHUD(); } catch(e) {}
+    try { updatePins(); } catch(e) {}
+    // Show brief "moving on" flash
+    const iz = document.getElementById('interactionZone');
+    if (iz) {
+      iz.innerHTML = '';
+      const msg = document.createElement('div');
+      msg.className = 'pop-in';
+      msg.style.textAlign = 'center';
+      const label = (reason === 'timeout') ? 'Moving on — you will see this idea again.' : "Let's move on — you will see this idea again.";
+      msg.innerHTML = '<div style="font-size:16px;color:var(--accent-yellow);margin-bottom:8px;">' + label + '</div><div style="font-size:13px;color:var(--text-secondary);">50% credit earned</div>';
+      iz.appendChild(msg);
+    }
+    const resetBtn = document.getElementById('resetLevelBtn');
+    if (resetBtn) resetBtn.disabled = true;
+    // Advance after brief pause
+    setTimeout(() => {
+      try { advanceLevel(); }
+      catch (e) {
+        console.error('[skipCurrentRound] advanceLevel failed, last-ditch reload', e);
+        try { loadLevel(Math.min(idx + 1, gameState.levels.length - 1)); }
+        catch (e2) { try { showReceipt(); } catch(e3) {} }
+      }
+    }, 1500);
+  } catch (err) {
+    console.error('[skipCurrentRound] top-level failure — last-ditch reload', err);
+    try { processing = false; } catch(e) {}
+    try { advanceLevel(); }
+    catch (e) { try { showReceipt(); } catch(e2) { try { location.reload(); } catch(e3){} } }
+  }
+}
+
 function safeCall(fn, fallbackMsg) {
   try { fn(); } catch(e) { console.error(fallbackMsg, e); }
 }
@@ -980,6 +1146,9 @@ startBtn.addEventListener('click', () => {
   document.getElementById('mainArea').style.display = 'flex';
   document.getElementById('interactionZone').style.display = 'flex';
   document.getElementById('bottomBar').style.display = 'flex';
+  // v3 PATCH — FIX 2: Reveal floating emergency button now that gameplay starts.
+  const _stuckBtn = document.getElementById('imStuckBtn');
+  if (_stuckBtn) _stuckBtn.style.display = 'flex';
   initParticles();
   setTimeout(() => { processing = false; loadLevel(0); }, 300);
 });
@@ -1040,6 +1209,25 @@ document.getElementById('readAloudBtn').addEventListener('click', () => {
   if (!readAloudOn) { try { speechSynthesis.cancel(); } catch(e) {} }
 });
 
+// v3 PATCH — FIX 2: "I'm Stuck" click handler.
+// Works from ANY phase regardless of the processing flag — this is the
+// guaranteed escape hatch when every other tap is silently dropped.
+(function wireImStuckButton(){
+  const btn = document.getElementById('imStuckBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    try {
+      // Don't act on already-completed rounds or on receipt screen
+      if (receiptRendered) return;
+      if (!gameState.levels[currentLevel] || gameState.levels[currentLevel].completed) return;
+      skipCurrentRound({ confirmFirst: true, reason: 'manual' });
+    } catch (e) {
+      console.error('[imStuckBtn] handler failed — last-ditch reload', e);
+      try { location.reload(); } catch(e2) {}
+    }
+  });
+})();
+
 let activeRAF = null;
 
 function cancelAllAnimations() {
@@ -1062,6 +1250,8 @@ document.addEventListener('visibilitychange', () => {
 // ===== LOAD LEVEL =====
 function loadLevel(idx) {
   if (processing && idx === currentLevel) { processing = false; }
+  // v3 PATCH — FIX 4: Clear phase dead-man at every round/level boundary.
+  clearPhaseDeadman();
   currentLevel = idx;
   currentPhase = '';
   wrongCount = 0;
@@ -1119,14 +1309,20 @@ function showFocusPrompt(text, cb) {
 // ===== WATCH PHASE =====
 function startWatchPhase(idx) {
   if (currentLevel !== idx) return;
+  // v3 PATCH — FIX 3: Defensive clear so any stuck flag from an aborted
+  // previous phase cannot silently block this phase's handlers.
+  processing = false;
   currentPhase = 'watch';
   isAnimating = true;
   const level = levels[idx];
   const iz = document.getElementById('interactionZone');
   iz.innerHTML = '<div class="phase-label">WATCH</div><div style="font-size:14px;color:var(--text-secondary);">Observe the evidence carefully...</div>';
 
-  // Build arena visual
-  buildArenaVisual(idx);
+  // v3 PATCH — FIX 3: Wrap arena build so a graphics/SVG failure cannot leave
+  // processing stuck or the phase without a visual. Students still see WATCH
+  // label and the phase auto-advances to DO via the watch timeout below.
+  try { buildArenaVisual(idx); }
+  catch (e) { console.error('[startWatchPhase] buildArenaVisual failed', e); }
 
   // Narrate
   speakText(level.watchNarration, () => {});
@@ -1501,7 +1697,13 @@ function buildLevel6Arena(arena) {
 }
 function transitionToDo(idx) {
   if (currentLevel !== idx) return;
+  // v3 PATCH — FIX 3: Defensive clear before student starts interacting.
+  processing = false;
   currentPhase = 'do';
+  // v3 PATCH — FIX 4: Phase dead-man timer. Hard ceiling: 4 min in DO phase.
+  // If the student hangs here for any reason (stuck overlay, silent bug,
+  // answer never accepted), auto-advance with 50% credit.
+  armPhaseDeadman(240000);
   phaseStartTime = Date.now();
   const level = levels[idx];
   const iz = document.getElementById('interactionZone');
@@ -1914,7 +2116,11 @@ function handleDoCorrect(idx) {
 // ===== PROVE PHASE =====
 function transitionToProve(idx) {
   if (currentLevel !== idx) return;
+  // v3 PATCH — FIX 3: Defensive clear before student starts PROVE interaction.
+  processing = false;
   currentPhase = 'prove';
+  // v3 PATCH — FIX 4: Phase dead-man timer. Hard ceiling: 4 min in PROVE phase.
+  armPhaseDeadman(240000);
   phaseStartTime = Date.now();
   selectedOption = null;
   const level = levels[idx];
@@ -2374,6 +2580,11 @@ function showBonusComplete() {
 function showReceipt() {
   if (receiptRendered) return;
   receiptRendered = true;
+  // v3 PATCH — FIX 4: Clear phase dead-man at end of run.
+  clearPhaseDeadman();
+  // v3 PATCH — FIX 2: Hide the floating "I'm Stuck" button on receipt screen.
+  const _stuckBtn = document.getElementById('imStuckBtn');
+  if (_stuckBtn) _stuckBtn.style.display = 'none';
 
   // Clear all intervals
   if (ambientInterval) { clearInterval(ambientInterval); ambientInterval = null; }

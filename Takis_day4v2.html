@@ -279,6 +279,28 @@ body{display:flex;flex-direction:column;}
   .coaching-bar{font-size:11px;padding:6px 8px;}
   .try-again-btn{padding:10px 20px;font-size:13px;min-height:44px;}
 }
+/* ---- LOCKUP DEFENSE 2/4: I'm Stuck floating emergency advance button ---- */
+.im-stuck-btn{
+  position:fixed; bottom:14px; right:14px; z-index:9999;
+  background:linear-gradient(135deg,#FFB300,#FF8F00);
+  color:#1A0F00; font-weight:800; font-size:13px;
+  border:2px solid #FFD54F; border-radius:24px;
+  padding:10px 16px; min-height:44px; min-width:110px;
+  box-shadow:0 4px 14px rgba(255,152,0,0.5), 0 0 0 0 rgba(255,179,0,0.6);
+  cursor:pointer; user-select:none;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  animation: imStuckPulse 3s ease-in-out infinite;
+  font-family:inherit; -webkit-tap-highlight-color:transparent;
+}
+.im-stuck-btn:active{ transform:scale(0.96); }
+.im-stuck-btn .is-icon{ font-size:16px; }
+@keyframes imStuckPulse{
+  0%,100%{ box-shadow:0 4px 14px rgba(255,152,0,0.5), 0 0 0 0 rgba(255,179,0,0.5); }
+  50%{ box-shadow:0 4px 14px rgba(255,152,0,0.6), 0 0 0 8px rgba(255,179,0,0); }
+}
+@media (max-height:600px){
+  .im-stuck-btn{ bottom:8px; right:8px; padding:8px 12px; font-size:12px; min-width:96px; }
+}
 </style>
 </head>
 <body>
@@ -389,7 +411,121 @@ const gameState = {
   requiredCompleteShown: false,
   bonusCompleteShown: false,
   processing: false,
+  phase: '',
 };
+// ========== LOCKUP DEFENSE 1/4: Self-healing watchdog on gameState.processing ==========
+// If anything sets processing=true and forgets to clear it (error, missed code path,
+// async failure, swallowed exception), this auto-clears after 3s so the student is
+// never permanently locked out by a stuck flag.
+(function installProcessingWatchdog(){
+  let _val = false;
+  let _wd = null;
+  Object.defineProperty(gameState, 'processing', {
+    configurable: true,
+    enumerable: true,
+    get(){ return _val; },
+    set(v){
+      _val = !!v;
+      if(_wd){ clearTimeout(_wd); _wd = null; }
+      if(_val){
+        _wd = setTimeout(()=>{
+          console.warn('[watchdog] gameState.processing stuck 3s — auto-clearing');
+          _val = false; _wd = null;
+        }, 3000);
+      }
+    }
+  });
+})();
+// ========== LOCKUP DEFENSE 4/4: Phase dead-man timer ==========
+// Hard ceiling per phase. If the student is stuck on the same phase+round past the
+// ceiling, auto-skip with 50% credit. Survives any bug cause (UI freeze, stale callback,
+// stuck flag, unrendered overlay).
+let _phaseDeadman = null;
+let _phaseDeadmanPhase = null;
+let _phaseDeadmanRound = null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  _phaseDeadmanPhase = gameState.phase;
+  _phaseDeadmanRound = gameState.currentRound;
+  _phaseDeadman = setTimeout(()=>{
+    // Only fire if still on the same phase+round we armed for
+    if(gameState.phase === _phaseDeadmanPhase && gameState.currentRound === _phaseDeadmanRound){
+      try { skipCurrentRound({confirmFirst:false, reason:'timeout'}); }
+      catch(e){ console.error('[deadman] skip failed', e); }
+    }
+  }, ms);
+}
+function clearPhaseDeadman(){
+  if(_phaseDeadman){ clearTimeout(_phaseDeadman); _phaseDeadman = null; }
+  _phaseDeadmanPhase = null;
+  _phaseDeadmanRound = null;
+}
+// ========== LOCKUP DEFENSE 2/4: skipCurrentRound (used by I'm Stuck button + deadman) ==========
+// Aggressively strips ALL blocking UI, force-clears the flag, awards 50%, advances.
+// Reusable: I'm Stuck button calls with confirmFirst:true; deadman calls with confirmFirst:false.
+function skipCurrentRound(opts){
+  opts = opts || {};
+  const reason = opts.reason || 'manual';
+  const confirmFirst = opts.confirmFirst !== false;
+  // If already on receipt, do nothing
+  if(gameState.receiptRendered) return;
+  const idx = gameState.currentRound;
+  if(idx == null || idx < 0 || idx >= ROUNDS.length) return;
+  const rs = gameState.rounds[idx];
+  if(!rs || rs.completed) return;
+  function doSkip(){
+    try {
+      // Clear the flag and any deadman
+      gameState.processing = false;
+      clearPhaseDeadman();
+      // Bump generation to invalidate stale callbacks
+      window._arenaGen = (window._arenaGen || 0) + 1;
+      window._doSelectedId = null;
+      window._proveSelectedId = null;
+      // Strip blocking UI everywhere
+      closeAllOverlays();
+      if(typeof celebrationTimeout !== 'undefined' && celebrationTimeout){
+        clearTimeout(celebrationTimeout); celebrationTimeout = null;
+      }
+      // Strip stuck states from any cards in the interaction zone
+      document.querySelectorAll('.option-card,.vocab-match-btn,.tile').forEach(el=>{
+        el.classList.remove('selected','dimmed','wrong','correct','locked','disabled','pulse-hint','wrong-flash','bounce-back');
+        el.style.pointerEvents = '';
+      });
+      // Strip coaching bars, try-again buttons, dynamic lock-in buttons
+      document.querySelectorAll('.coaching-bar,.try-again-btn,#tryAgainDo,#tryAgainProve,#trySCB').forEach(el=>el.remove());
+      // Award 50% and mark completed
+      rs.failedOut = true;
+      rs.score = 50;
+      rs.completed = true;
+      rs.timeEnd = Date.now();
+      try { updateStreak(false); } catch(e){}
+      // Show brief flash if from timeout, otherwise direct advance
+      if(reason === 'timeout'){
+        try { showCelebration("Moving on — you will see this idea again.", null, 1500); } catch(e){}
+        setTimeout(()=>{ try { advanceRound(); } catch(e){ console.error(e); try{ loadRound(idx+1); }catch(e2){} } }, 1700);
+      } else {
+        try { showCelebration("Moving on — you will see this idea again.", null, 1200); } catch(e){}
+        setTimeout(()=>{ try { advanceRound(); } catch(e){ console.error(e); try{ loadRound(idx+1); }catch(e2){} } }, 1400);
+      }
+    } catch(e){
+      console.error('[skipCurrentRound] failed, last-ditch fallback', e);
+      // Last-ditch: force advance
+      try { gameState.processing = false; loadRound(idx+1); } catch(e2){}
+    }
+  }
+  if(confirmFirst){
+    closeAllOverlays();
+    const ov = document.createElement('div');
+    ov.className = 'confirm-overlay';
+    ov.innerHTML = `<div class="confirm-box"><p>Skip this round? You will get 50% credit and move on.</p><div class="btn-row"><button style="background:#FFA500;color:#000;font-weight:700;" id="stuckYes">Yes, Skip</button><button style="background:rgba(100,80,160,0.4);color:var(--text);" id="stuckNo">Cancel</button></div></div>`;
+    document.body.appendChild(ov);
+    document.getElementById('stuckYes').addEventListener('click',()=>{ ov.remove(); doSkip(); });
+    document.getElementById('stuckNo').addEventListener('click',()=>{ ov.remove(); });
+  } else {
+    doSkip();
+  }
+}
 // ========== PARTICLE POOL ==========
 const PARTICLE_POOL = [];
 (function initParticles(){
@@ -1438,6 +1574,16 @@ startBtn.addEventListener('click',()=>{
   document.getElementById('pathwayTracker').style.display='flex';
   document.getElementById('mainArea').style.display='flex';
   document.getElementById('bottomBar').style.display='flex';
+  // ========== LOCKUP DEFENSE 2/4: Create floating I'm Stuck emergency button ==========
+  if(!document.getElementById('imStuckBtn')){
+    const stuck = document.createElement('button');
+    stuck.id = 'imStuckBtn';
+    stuck.className = 'im-stuck-btn';
+    stuck.setAttribute('aria-label','I am stuck — skip this round');
+    stuck.innerHTML = '<span class="is-icon">&#x1F198;</span><span>I&#39;m Stuck</span>';
+    stuck.addEventListener('click',()=>{ try { skipCurrentRound({confirmFirst:true, reason:'manual'}); } catch(e){ console.error(e); } });
+    document.body.appendChild(stuck);
+  }
   buildPathway();
   loadRound(0);
 });
@@ -1461,6 +1607,9 @@ document.getElementById('resetLevelBtn').addEventListener('click',()=>{
 function loadRound(idx){
   // Force-clear processing — never bail. If stuck, student would be stranded.
   gameState.processing = false;
+  // ========== LOCKUP DEFENSE 4/4: Clear deadman on round boundary ==========
+  clearPhaseDeadman();
+  gameState.phase = 'load';
   // Bump generation counter — invalidates any pending stale callbacks
   window._arenaGen++;
   // Clear any stale selected holders from previous round
@@ -1496,26 +1645,39 @@ function loadRound(idx){
 }
 // ========== DO PHASE ==========
 function startDoPhase(idx){
+  // ========== LOCKUP DEFENSE 3/4: Defensive clear + phase tracking ==========
+  gameState.processing = false;
+  gameState.phase = 'do';
+  // ========== LOCKUP DEFENSE 4/4: Arm 3-min phase deadman ==========
+  armPhaseDeadman(180000);
   const rd=ROUNDS[idx];
   const rs=gameState.rounds[idx];
   rs.phaseStartTime=Date.now();
   const iz=document.getElementById('interactionZone');
-  if(rd.doPhase.mechanic==='pickTheMatch'){
-    renderPickTheMatch(iz,rd,rs,idx);
-  } else if(rd.doPhase.mechanic==='coachClickMatch'){
-    renderCoachClickMatch(iz,rd,rs,idx);
-  } else if(rd.doPhase.mechanic==='whatComesNext'){
-    renderWhatComesNext(iz,rd,rs,idx);
-  } else if(rd.doPhase.mechanic==='hotspot'){
-    renderHotspot(iz,rd,rs,idx);
-  } else if(rd.doPhase.mechanic==='coachClick'){
-    renderCoachClick(iz,rd,rs,idx);
-  } else if(rd.doPhase.mechanic==='steppedClaimBuilder'){
-    renderSteppedClaimBuilder(iz,rd,rs,idx);
-  } else if(rd.doPhase.mechanic==='tileBuilder'){
-    renderTileBuilder(iz,rd,rs,idx);
-  } else {
-    iz.innerHTML=`<div class="iz-prompt">${rd.doPhase.prompt}</div><p style="color:var(--text-dim);text-align:center;">Mechanic loading...</p>`;
+  // Wrap mechanic dispatch in try/catch — a graphics/SVG/render error must NOT
+  // leave processing stuck or strand the student on a blank zone.
+  try {
+    if(rd.doPhase.mechanic==='pickTheMatch'){
+      renderPickTheMatch(iz,rd,rs,idx);
+    } else if(rd.doPhase.mechanic==='coachClickMatch'){
+      renderCoachClickMatch(iz,rd,rs,idx);
+    } else if(rd.doPhase.mechanic==='whatComesNext'){
+      renderWhatComesNext(iz,rd,rs,idx);
+    } else if(rd.doPhase.mechanic==='hotspot'){
+      renderHotspot(iz,rd,rs,idx);
+    } else if(rd.doPhase.mechanic==='coachClick'){
+      renderCoachClick(iz,rd,rs,idx);
+    } else if(rd.doPhase.mechanic==='steppedClaimBuilder'){
+      renderSteppedClaimBuilder(iz,rd,rs,idx);
+    } else if(rd.doPhase.mechanic==='tileBuilder'){
+      renderTileBuilder(iz,rd,rs,idx);
+    } else {
+      iz.innerHTML=`<div class="iz-prompt">${rd.doPhase.prompt}</div><p style="color:var(--text-dim);text-align:center;">Mechanic loading...</p>`;
+    }
+  } catch(e){
+    console.error('[startDoPhase] mechanic render error',e);
+    gameState.processing = false;
+    iz.innerHTML = `<div class="iz-prompt">Loading...</div><p style="color:var(--text-dim);text-align:center;padding:12px;">If this stays here, tap "I'm Stuck" in the corner.</p>`;
   }
 }
 // ========== PICK THE MATCH MECHANIC ==========
@@ -1965,6 +2127,11 @@ function renderExplainPhase(iz,rd,rs,idx){
 }
 // ========== PROVE PHASE ==========
 function startProvePhase(idx){
+  // ========== LOCKUP DEFENSE 3/4: Defensive clear + phase tracking ==========
+  gameState.processing = false;
+  gameState.phase = 'prove';
+  // ========== LOCKUP DEFENSE 4/4: Arm 4-min phase deadman ==========
+  armPhaseDeadman(240000);
   const rd=ROUNDS[idx];
   const rs=gameState.rounds[idx];
   rs.phaseStartTime=Date.now();
@@ -2055,6 +2222,9 @@ function startProvePhase(idx){
 function completeRound(idx){
   // Force-clear processing — never bail. Bailing here would strand the student.
   gameState.processing = false;
+  // ========== LOCKUP DEFENSE 4/4: Clear deadman on legitimate round completion ==========
+  clearPhaseDeadman();
+  gameState.phase = 'complete';
   updatePathway();
   const rd=ROUNDS[idx];
   const rs=gameState.rounds[idx];
@@ -2115,12 +2285,17 @@ function advanceRound(){
 function showReceipt(){
   if(gameState.receiptRendered)return;
   gameState.receiptRendered=true;
+  // ========== LOCKUP DEFENSE 4/4: Clear phase deadman on receipt ==========
+  clearPhaseDeadman();
   closeAllOverlays();
   // Hide game UI
   document.getElementById('topBar').style.display='none';
   document.getElementById('pathwayTracker').style.display='none';
   document.getElementById('mainArea').style.display='none';
   document.getElementById('bottomBar').style.display='none';
+  // Hide I'm Stuck button — student is done, no rounds to skip
+  const stuckBtn = document.getElementById('imStuckBtn');
+  if(stuckBtn) stuckBtn.style.display = 'none';
   const overall=calcOverall();
   const totalTime=Math.round((Date.now()-gameState.totalStartTime)/1000);
   const mins=Math.floor(totalTime/60);

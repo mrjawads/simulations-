@@ -511,7 +511,7 @@ function getAudioCtx() {
   return audioCtx;
 }
 let speechResumeInterval = null;
-let processing = false;
+// 'processing' is installed as a watchdog-backed property on window below (after gameState). No let binding here.
 let requiredCompleteShown = false;
 let bonusCompleteShown = false;
 let receiptRendered = false;
@@ -526,6 +526,159 @@ const gameState = {
   rounds: [],
   totalTime: 0, startTime: 0
 };
+
+// ================================================================
+// LOCKUP DEFENSE — installed immediately after state object.
+// FIX 1: self-healing watchdog on `processing`
+// FIX 2: floating I'm Stuck button + skipCurrentRound()
+// FIX 4: phase dead-man timer
+// FIX 3 applied inline at each startXxxPhase() function below.
+// ================================================================
+(function installProcessingWatchdog(){
+  let _val = false;
+  let _wd = null;
+  Object.defineProperty(window, 'processing', {
+    configurable: true,
+    get() { return _val; },
+    set(v) {
+      _val = !!v;
+      if (_wd) { clearTimeout(_wd); _wd = null; }
+      if (_val) {
+        _wd = setTimeout(() => {
+          console.warn('[watchdog] processing stuck 3s — auto-clearing');
+          _val = false; _wd = null;
+        }, 3000);
+      }
+    }
+  });
+})();
+
+// Phase dead-man timer
+let _phaseDeadman = null, _phaseDeadmanPhase = null, _phaseDeadmanRound = null;
+function armPhaseDeadman(ms) {
+  clearPhaseDeadman();
+  _phaseDeadmanPhase = gameState.phase;
+  _phaseDeadmanRound = gameState.currentRound;
+  _phaseDeadman = setTimeout(() => {
+    // Only fire if we are still in the same phase/round we armed for
+    if (gameState.phase === _phaseDeadmanPhase && gameState.currentRound === _phaseDeadmanRound) {
+      try { skipCurrentRound({ confirmFirst: false, reason: 'timeout' }); }
+      catch(e) { console.error('deadman skip fail', e); }
+    }
+  }, ms);
+}
+function clearPhaseDeadman() {
+  if (_phaseDeadman) { clearTimeout(_phaseDeadman); _phaseDeadman = null; }
+  _phaseDeadmanPhase = null;
+  _phaseDeadmanRound = null;
+}
+
+// Emergency skip — used by I'm Stuck button AND dead-man timer
+function skipCurrentRound(opts) {
+  opts = opts || {};
+  if (opts.confirmFirst) {
+    let ok = false;
+    try { ok = window.confirm('Skip this round? You will get 50% credit and move on.'); } catch(e) { ok = true; }
+    if (!ok) return;
+  }
+  try {
+    window.processing = false;
+    clearPhaseDeadman();
+    if (typeof arenaGen !== 'undefined') arenaGen++;
+    try { if (typeof clearPhaseTimeouts === 'function') clearPhaseTimeouts(); } catch(e){}
+    try { if (typeof closeAllOverlays === 'function') closeAllOverlays(); } catch(e){}
+    try { if (typeof cleanupArenaAnimations === 'function') cleanupArenaAnimations(); } catch(e){}
+    try { if (typeof clearArenaHighlights === 'function') clearArenaHighlights(); } catch(e){}
+
+    // Aggressively strip blocking UI
+    try {
+      document.querySelectorAll('.coaching-bar, .hint-overlay, .choice-overlay, .confirm-dialog, .celebration-overlay, .fix-dropdown').forEach(el => el.remove());
+      document.querySelectorAll('.try-again-btn, #tryAgainBtn, #gateOkBtn, .tap-continue').forEach(el => el.remove());
+      const dynLockBtn = document.getElementById('proveLockBtn');
+      if (dynLockBtn) dynLockBtn.classList.remove('visible');
+      document.querySelectorAll('.option-card').forEach(c => {
+        c.classList.remove('selected', 'dimmed', 'wrong', 'correct', 'disabled', 'locked');
+        c.style.pointerEvents = '';
+      });
+    } catch(e){}
+
+    const roundIdx = gameState.currentRound;
+    if (roundIdx >= 0 && roundIdx < ROUNDS.length && gameState.rounds[roundIdx] && !gameState.rounds[roundIdx].completed) {
+      gameState.rounds[roundIdx].score = 50;
+      gameState.rounds[roundIdx].completed = true;
+      gameState.rounds[roundIdx].timeSeconds = Math.round((Date.now() - (gameState.rounds[roundIdx].timeStart || Date.now())) / 1000);
+      // Add a data-table row so the table isn't missing this round
+      try {
+        const wr = ROUNDS[roundIdx].watchResult;
+        if (wr && typeof addDataRow === 'function') {
+          addDataRow(ROUNDS[roundIdx].num, wr, ROUNDS[roundIdx].record && ROUNDS[roundIdx].record.errorCell ? ROUNDS[roundIdx].record.correctValues : null);
+        }
+      } catch(e){}
+      try { if (typeof updateHUD === 'function') updateHUD(); } catch(e){}
+    }
+
+    // Flash "moving on" message for timeout case
+    if (opts.reason === 'timeout') {
+      try {
+        const flash = document.createElement('div');
+        flash.className = 'coaching-bar';
+        flash.textContent = 'Moving on — you will see this idea again.';
+        document.body.appendChild(flash);
+        setTimeout(() => { if (flash.parentNode) flash.remove(); }, 2200);
+      } catch(e){}
+    }
+
+    // Advance
+    const nextIdx = roundIdx + 1;
+    const advanceDelay = opts.reason === 'timeout' ? 2400 : 400;
+    setTimeout(() => {
+      try {
+        if (nextIdx >= ROUNDS.length) {
+          showReceipt();
+        } else {
+          startRound(nextIdx);
+        }
+      } catch(e) {
+        console.error('skip advance fail — last-ditch restart', e);
+        try { window.processing = false; if (nextIdx < ROUNDS.length) startRound(nextIdx); else showReceipt(); }
+        catch(e2) { console.error(e2); }
+      }
+    }, advanceDelay);
+  } catch(outerErr) {
+    console.error('skipCurrentRound outer fail', outerErr);
+    try {
+      window.processing = false;
+      const nextIdx = gameState.currentRound + 1;
+      if (nextIdx < ROUNDS.length) startRound(nextIdx); else showReceipt();
+    } catch(e2){ console.error(e2); }
+  }
+}
+
+// I'm Stuck button (floating, always visible during gameplay)
+(function installStuckButton(){
+  try {
+    const btn = document.createElement('button');
+    btn.id = 'imStuckBtn';
+    btn.type = 'button';
+    btn.textContent = "I'm Stuck";
+    btn.setAttribute('aria-label', "I'm Stuck — skip this round for 50% credit");
+    btn.style.cssText = 'position:fixed;bottom:14px;right:14px;z-index:9999;background:#F59E0B;color:#1F2937;border:2px solid #B45309;border-radius:10px;padding:10px 16px;font-size:0.95rem;font-weight:700;min-height:44px;min-width:44px;box-shadow:0 4px 10px rgba(0,0,0,0.25);cursor:pointer;animation:stuckPulse 3s ease-in-out infinite;display:none;font-family:inherit;';
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      try { skipCurrentRound({ confirmFirst: true, reason: 'user' }); }
+      catch(e) { console.error('stuck btn fail', e); }
+    });
+    (document.body || document.documentElement).appendChild(btn);
+    window._showStuckBtn = function(show) { try { btn.style.display = show ? 'block' : 'none'; } catch(e){} };
+    const st = document.createElement('style');
+    st.textContent = '@keyframes stuckPulse { 0%,100% { transform: scale(1); box-shadow: 0 4px 10px rgba(0,0,0,0.25); } 50% { transform: scale(1.05); box-shadow: 0 6px 16px rgba(245,158,11,0.55); } } @media print { #imStuckBtn { display: none !important; } }';
+    document.head.appendChild(st);
+  } catch(e){ console.error('stuck btn install fail', e); }
+})();
+// ================================================================
+// END LOCKUP DEFENSE
+// ================================================================
 
 function getAffirmations() {
   return [
@@ -1183,35 +1336,45 @@ function clearArenaHighlights() {
 function startRound(roundIdx) {
   if (processing) return;
   processing = true;
+  // FIX 3 + FIX 4: defensive clears at start of a new round
+  clearPhaseDeadman();
+  try { if (window._showStuckBtn) window._showStuckBtn(true); } catch(e){}
   arenaGen++;
-  clearPhaseTimeouts();
-  closeAllOverlays();
-  cleanupArenaAnimations();
-  clearArenaHighlights();
+  try { clearPhaseTimeouts(); } catch(e){ console.error('clearPhaseTimeouts fail', e); }
+  try { closeAllOverlays(); } catch(e){ console.error('closeAllOverlays fail', e); }
+  try { cleanupArenaAnimations(); } catch(e){ console.error('cleanupArenaAnimations fail', e); }
+  try { clearArenaHighlights(); } catch(e){ console.error('clearArenaHighlights fail', e); }
   gameState.currentRound = roundIdx;
   gameState.phase = 'change';
   gameState.rounds[roundIdx].timeStart = Date.now();
-  updateHUD();
+  try { updateHUD(); } catch(e){ console.error('updateHUD fail', e); }
 
   const rd = ROUNDS[roundIdx];
-  interactionZone.innerHTML = '';
+  try { interactionZone.innerHTML = ''; } catch(e){}
 
   // Show focus prompt
-  focusPromptEl.textContent = rd.focusPrompt;
-  focusPromptEl.classList.add('visible');
-  focusPromptEl.classList.remove('subtle');
-  addTimeout(() => { focusPromptEl.classList.add('subtle'); }, 4000);
+  try {
+    focusPromptEl.textContent = rd.focusPrompt;
+    focusPromptEl.classList.add('visible');
+    focusPromptEl.classList.remove('subtle');
+    addTimeout(() => { focusPromptEl.classList.add('subtle'); }, 4000);
+  } catch(e){ console.error('focus prompt fail', e); }
 
-  // Start CHANGE phase
-  if (rd.changeConfig.isComparison) {
-    showComparisonChange(roundIdx);
-  } else {
-    showChangePhase(roundIdx);
+  // Start CHANGE phase (wrapped so a render failure cannot leave processing stuck)
+  try {
+    if (rd.changeConfig.isComparison) {
+      showComparisonChange(roundIdx);
+    } else {
+      showChangePhase(roundIdx);
+    }
+  } catch(e) {
+    console.error('CHANGE phase render fail', e);
   }
   processing = false;
 }
 
 function showChangePhase(roundIdx) {
+  processing = false; // FIX 3: defensive clear at phase start
   const rd = ROUNDS[roundIdx];
   const cfg = rd.changeConfig;
   interactionZone.innerHTML = '';
@@ -1359,6 +1522,7 @@ function showChangePhase(roundIdx) {
 }
 
 function showPredictPhase(roundIdx) {
+  processing = false; // FIX 3: defensive clear at phase start
   const rd = ROUNDS[roundIdx];
   gameState.phase = 'predict';
   interactionZone.innerHTML = '';
@@ -1406,13 +1570,14 @@ function showPredictPhase(roundIdx) {
 }
 
 function startWatchPhase(roundIdx) {
+  processing = false; // FIX 3: defensive clear at phase start
   const rd = ROUNDS[roundIdx];
   gameState.phase = 'watch';
   interactionZone.innerHTML = '<div class="phase-label">Observing...</div><div style="color:var(--mid);font-size:0.9rem;">Watch the pathway carefully.</div>';
 
-  // Animate arena
-  animateCapsaicinParticles(rd.watchResult);
-  addTimeout(() => updateArenaVisuals(rd.watchResult, true), 800);
+  // Animate arena (wrapped so graphics failure cannot freeze the phase)
+  try { animateCapsaicinParticles(rd.watchResult); } catch(e){ console.error('animate fail', e); }
+  addTimeout(() => { try { updateArenaVisuals(rd.watchResult, true); } catch(e){ console.error('arena update fail', e); } }, 800);
 
   // Auto-advance with safety timeout (max 12s)
   const advanceTime = Math.min(rd.watchDuration, 12000);
@@ -1420,6 +1585,8 @@ function startWatchPhase(roundIdx) {
 }
 
 function showRecordPhase(roundIdx) {
+  processing = false; // FIX 3: defensive clear at phase start
+  armPhaseDeadman(180000); // FIX 4: 3-minute hard ceiling on RECORD phase
   const rd = ROUNDS[roundIdx];
   const wr = rd.watchResult;
   interactionZone.innerHTML = '';
@@ -1556,6 +1723,8 @@ function clearDataRowsForRound(roundNum) {
 let proveState = { wrongCount: 0, hintsUsed: 0, resets: 0, selectedIdx: null, dimmedIndices: [], phaseStart: 0, consecutiveFast: 0 };
 
 function showProvePhase(roundIdx) {
+  processing = false; // FIX 3: defensive clear at phase start
+  armPhaseDeadman(240000); // FIX 4: 4-minute hard ceiling on PROVE phase
   const rd = ROUNDS[roundIdx];
   const prove = rd.prove;
   gameState.phase = 'prove';
@@ -1976,6 +2145,9 @@ $('vocabOverlay').addEventListener('click', (e) => {
 function showReceipt() {
   if (receiptRendered) return;
   receiptRendered = true;
+  clearPhaseDeadman(); // FIX 4: no dead-man on the receipt screen
+  try { if (window._showStuckBtn) window._showStuckBtn(false); } catch(e){} // FIX 2: hide stuck btn on receipt
+  processing = false;
   closeAllOverlays();
   clearPhaseTimeouts();
   if (ambientInterval) clearInterval(ambientInterval);
@@ -2062,6 +2234,7 @@ function showReceipt() {
 
 // Round 6: Comparison flow
 function showComparisonChange(roundIdx) {
+  processing = false; // FIX 3: defensive clear at phase start
   const rd = ROUNDS[roundIdx];
   interactionZone.innerHTML = '';
   const wrap = document.createElement('div');
@@ -2147,6 +2320,8 @@ function showComparisonScreen(roundIdx) {
 
 // Enhanced prove phase for claim builder (Round 5)
 function showClaimBuilderProve(roundIdx) {
+  processing = false; // FIX 3: defensive clear at phase start
+  armPhaseDeadman(240000); // FIX 4: 4-minute hard ceiling on PROVE phase
   const rd = ROUNDS[roundIdx];
   const prove = rd.prove;
   proveState = { wrongCount: 0, hintsUsed: gameState.rounds[roundIdx].hintsUsed, resets: gameState.rounds[roundIdx].resets, selectedIdx: null, dimmedIndices: [], phaseStart: Date.now(), consecutiveFast: 0 };
@@ -2207,9 +2382,12 @@ startBtn.addEventListener('click', () => {
   gameState.startTime = Date.now();
   welcomeScreen.style.display = 'none';
   app.classList.remove('hidden');
-  buildArena();
-  initParticles();
-  startRound(0);
+  try { buildArena(); } catch(e){ console.error('buildArena fail', e); }
+  try { initParticles(); } catch(e){ console.error('initParticles fail', e); }
+  try { startRound(0); } catch(e) {
+    console.error('startRound(0) fail — last-ditch retry', e);
+    try { processing = false; startRound(0); } catch(e2){ console.error(e2); }
+  }
 });
 
 // Visibility handler

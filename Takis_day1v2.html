@@ -48,6 +48,7 @@ input, textarea { user-select: text !important; -webkit-user-select: text !impor
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 @keyframes glow { 0%, 100% { box-shadow: 0 0 8px rgba(245,158,11,0.3); } 50% { box-shadow: 0 0 20px rgba(245,158,11,0.7); } }
 @keyframes correctBurst { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); } 100% { box-shadow: 0 0 0 30px rgba(34,197,94,0); } }
+@keyframes stuckPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.6); transform: scale(1); } 50% { box-shadow: 0 0 0 10px rgba(245,158,11,0); transform: scale(1.04); } }
 @keyframes wrongFlash { 0% { background-color: rgba(239,68,68,0.3); } 100% { background-color: transparent; } }
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
@@ -80,6 +81,46 @@ input, textarea { user-select: text !important; -webkit-user-select: text !impor
 .fading { animation: fadeOut 0.5s forwards; }
 .coaching-visible { display: block !important; }
 .hidden { display: none !important; }
+
+/* ===== STUCK BUTTON (LOCKUP DEFENSE 2/4) ===== */
+#stuck-btn {
+  position: fixed; bottom: 72px; right: 14px; z-index: 9999;
+  min-height: 44px; min-width: 44px; padding: 8px 14px;
+  background: #F59E0B; color: #2C1810;
+  border: 2px solid #B45309; border-radius: 22px;
+  font-family: var(--font-body); font-size: 13px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 4px 12px rgba(44,24,16,0.25);
+  animation: stuckPulse 3s ease-in-out infinite;
+  opacity: 0.92;
+}
+#stuck-btn:hover, #stuck-btn:active { opacity: 1; background: #FBBF24; }
+#stuck-btn:focus { outline: 3px solid #2C1810; outline-offset: 2px; }
+@media (max-width: 480px) {
+  #stuck-btn { bottom: 64px; right: 8px; font-size: 12px; padding: 6px 12px; }
+}
+#stuck-confirm-overlay {
+  position: fixed; inset: 0; background: rgba(44,24,16,0.7); z-index: 10000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+#stuck-confirm-overlay .box {
+  background: #FFF8F0; border-radius: 12px; padding: 22px 20px;
+  max-width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center;
+}
+#stuck-confirm-overlay .box p { color: #2C1810; font-size: 16px; margin-bottom: 16px; line-height: 1.4; }
+#stuck-confirm-overlay .box .btns { display: flex; gap: 10px; justify-content: center; }
+#stuck-confirm-overlay .box button {
+  min-height: 48px; padding: 10px 18px; border-radius: 8px; border: none;
+  font-family: var(--font-body); font-size: 14px; font-weight: 700; cursor: pointer;
+}
+#stuck-confirm-overlay .box .yes { background: #F59E0B; color: #2C1810; }
+#stuck-confirm-overlay .box .no { background: #E8D5C4; color: #2C1810; }
+.timeout-flash {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: rgba(44,24,16,0.92); color: #FFF8F0; padding: 18px 26px;
+  border-radius: 10px; font-size: 16px; font-weight: 600; z-index: 9998;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4); animation: fadeIn 0.3s ease;
+  max-width: 320px; text-align: center;
+}
 .scale-in { animation: scaleIn 0.4s ease-out; }
 
 /* ===== LAYOUT ===== */
@@ -584,6 +625,9 @@ input, textarea { user-select: text !important; -webkit-user-select: text !impor
   <div class="vocab-item"><div class="vocab-name">👆 STIMULUS</div><div class="vocab-def">Trigger that activates a receptor</div></div>
 </div>
 
+<!-- I'M STUCK BUTTON (LOCKUP DEFENSE 2/4) -->
+<button id="stuck-btn" class="hidden" type="button" aria-label="I'm stuck — skip this level">I'm Stuck</button>
+
 <!-- RECEIPT SCREEN -->
 <div id="receipt-screen"></div>
 
@@ -603,7 +647,56 @@ let readAloudOn = true;
 let resumeInterval = null;
 let currentLevel = 0; // 0-indexed
 let currentPhase = ''; // watch, do, prove
-let processing = false;
+
+// ===== STATE OBJECT + SELF-HEALING WATCHDOG (LOCKUP DEFENSE 1/4) =====
+// Wraps the GS.processing flag so any missed clear (error, early return, swallowed
+// exception, async failure) auto-resolves within 3 seconds. Every existing
+// GS.processing=true/false assignment routes through this setter.
+const GS = {};
+(function installProcessingWatchdog(){
+  let _val = false;
+  let _wd = null;
+  Object.defineProperty(GS, 'processing', {
+    configurable: true,
+    get(){ return _val; },
+    set(v){
+      _val = !!v;
+      if (_wd) { clearTimeout(_wd); _wd = null; }
+      if (_val) {
+        _wd = setTimeout(() => {
+          console.warn('[watchdog] GS.processing stuck 3s — auto-clearing');
+          _val = false;
+          _wd = null;
+        }, 3000);
+      }
+    }
+  });
+  GS.processing = false;
+})();
+
+// ===== PHASE DEAD-MAN TIMER (LOCKUP DEFENSE 4/4) =====
+// Hard ceiling on how long a student can be stuck regardless of bug cause.
+// On timeout, silently skip the current level (50% credit) and advance.
+let _phaseDeadman = null;
+let _phaseDeadmanPhase = null;
+let _phaseDeadmanLevel = null;
+function armPhaseDeadman(ms) {
+  clearPhaseDeadman();
+  _phaseDeadmanPhase = currentPhase;
+  _phaseDeadmanLevel = currentLevel;
+  _phaseDeadman = setTimeout(() => {
+    if (currentPhase === _phaseDeadmanPhase && currentLevel === _phaseDeadmanLevel) {
+      try { skipCurrentLevel({ confirmFirst: false, reason: 'timeout' }); }
+      catch(e) { console.error('[deadman] skip failed:', e); }
+    }
+  }, ms);
+}
+function clearPhaseDeadman() {
+  if (_phaseDeadman) { clearTimeout(_phaseDeadman); _phaseDeadman = null; }
+  _phaseDeadmanPhase = null;
+  _phaseDeadmanLevel = null;
+}
+
 let requiredCompleteShown = false;
 let bonusCompleteShown = false;
 let receiptRendered = false;
@@ -1871,7 +1964,7 @@ function renderProve(level) {
 
 // ===== OPTION SELECTION =====
 function selectOption(card, id) {
-  if (processing) return;
+  if (GS.processing) return;
   if (card.classList.contains('disabled') ||
       card.classList.contains('locked') ||
       card.classList.contains('dimmed') ||
@@ -1888,8 +1981,8 @@ function selectOption(card, id) {
 // ===== HOTSPOT SUBMISSION =====
 let hotspotWrongCount = 0;
 function submitHotspot(id, isCorrect, tapEl) {
-  if (processing) return;
-  processing = true;
+  if (GS.processing) return;
+  GS.processing = true;
   const now = Date.now();
   const level = LEVELS[currentLevel];
   levelStates[currentLevel].attempts++;
@@ -1902,7 +1995,7 @@ function submitHotspot(id, isCorrect, tapEl) {
     hotspotWrongCount = 0;
     consecutiveFastWrongs = 0;
     const correctGen = animGenId;
-    setTimeout(() => { processing = false; if (animGenId === correctGen) startProve(); }, 2000);
+    setTimeout(() => { GS.processing = false; if (animGenId === correctGen) startProve(); }, 2000);
   } else {
     tapEl.classList.add('wrong-zone');
     playWrongSound();
@@ -1927,15 +2020,15 @@ function submitHotspot(id, isCorrect, tapEl) {
     arenaWrongNudge(currentLevel, id);
     showWrongWithRetry(feedback, () => {
       tapEl.classList.remove('wrong-zone');
-      processing = false;
+      GS.processing = false;
     });
   }
 }
 
 // ===== DO SUBMISSION =====
 function submitDo() {
-  if (processing || !selectedOption) return;
-  processing = true;
+  if (GS.processing || !selectedOption) return;
+  GS.processing = true;
   const now = Date.now();
   const level = LEVELS[currentLevel];
   const opt = level.doOptions.find(o => o.id === selectedOption);
@@ -1949,7 +2042,7 @@ function submitDo() {
     consecutiveFastWrongs = 0;
     wrongCount = 0;
     const correctGen = animGenId;
-    setTimeout(() => { processing = false; if (animGenId === correctGen) startProve(); }, 2000);
+    setTimeout(() => { GS.processing = false; if (animGenId === correctGen) startProve(); }, 2000);
   } else {
     const wrongId = selectedOption;
     markWrong(wrongId);
@@ -1978,7 +2071,7 @@ function submitDo() {
       cards?.forEach(c => c.classList.remove('selected'));
       dimOption(wrongId);
       selectedOption = null;
-      processing = false;
+      GS.processing = false;
       const lockBtn = $('interaction-zone').querySelector('.lock-in-btn');
       if (lockBtn) lockBtn.disabled = true;
     });
@@ -1987,8 +2080,8 @@ function submitDo() {
 
 // ===== PROVE SUBMISSION =====
 function submitProve() {
-  if (processing || !selectedOption) return;
-  processing = true;
+  if (GS.processing || !selectedOption) return;
+  GS.processing = true;
   const level = LEVELS[currentLevel];
   const opt = level.proveOptions.find(o => o.id === selectedOption);
   levelStates[currentLevel].attempts++;
@@ -1998,7 +2091,7 @@ function submitProve() {
     playCorrectSound();
     consecutiveFastWrongs = 0;
     const correctGen = animGenId;
-    setTimeout(() => { processing = false; if (animGenId === correctGen) completeLevel(); }, 1500);
+    setTimeout(() => { GS.processing = false; if (animGenId === correctGen) completeLevel(); }, 1500);
   } else {
     const wrongId = selectedOption;
     markWrong(wrongId);
@@ -2011,7 +2104,7 @@ function submitProve() {
       cards?.forEach(c => c.classList.remove('selected'));
       dimOption(wrongId);
       selectedOption = null;
-      processing = false;
+      GS.processing = false;
       const lockBtn = $('interaction-zone').querySelector('.lock-in-btn');
       if (lockBtn) lockBtn.disabled = true;
     });
@@ -2107,11 +2200,11 @@ function showFastGuessGate() {
   setTimeout(() => {
     try { overlay.remove(); } catch(e) {}
     // Guard: if gate was superseded by another action, bail
-    if (myGateId !== fastGuessGateId || receiptRendered) { processing = false; return; }
+    if (myGateId !== fastGuessGateId || receiptRendered) { GS.processing = false; return; }
     levelResets++;
     if (levelStates[currentLevel]) levelStates[currentLevel].resets++;
-    if (levelResets >= 3) { processing = false; autoAdvance50(); return; }
-    processing = false;
+    if (levelResets >= 3) { GS.processing = false; autoAdvance50(); return; }
+    GS.processing = false;
     _fromFastGuessGate = true;
     resetCurrentLevel();
   }, 5000);
@@ -2206,7 +2299,10 @@ function highlightTarget(target) {
 
 // ===== LEVEL FLOW =====
 function startLevel(idx) {
-  if (processing) return;
+  // LOCKUP DEFENSE 3/4: Force-clear processing as the FIRST line. A stuck flag
+  // from a prior level must never silently block the start of a new level.
+  GS.processing = false;
+  clearPhaseDeadman(); // Reset deadman timer for the new level
   clearAllTimers();
   closeAllOverlays();
   animGenId++; // Invalidate all pending animation timeouts from previous level
@@ -2224,13 +2320,19 @@ function startLevel(idx) {
   const level = LEVELS[idx];
   updateHUD(idx);
   $('hint-btn')?.classList.add('hidden');
-  $('narrative-panel').classList.remove('dimmed-panel');
+  $('narrative-panel')?.classList.remove('dimmed-panel');
+
+  // Show the stuck button now that we are in an active level
+  $('stuck-btn')?.classList.remove('hidden');
 
   // Level intro
   const iz = $('interaction-zone');
   iz.innerHTML = `<div style="text-align:center;animation:scaleIn 0.4s ease"><div style="font-size:14px;color:var(--text-mid)">${level.required ? 'Required' : '⭐ BONUS'}</div><div style="font-size:22px;font-weight:700;color:var(--text-dark);margin-top:4px">Level ${idx+1}: ${level.name}</div><div style="font-size:13px;color:var(--text-mid);margin-top:6px">${level.skill}</div></div>`;
 
-  runArenaSetup(idx);
+  // LOCKUP DEFENSE 3/4: Wrap graphics setup in try/catch so a drawing failure
+  // cannot leave GS.processing stuck or block the WATCH transition.
+  try { runArenaSetup(idx); }
+  catch(e) { console.error('runArenaSetup error:', e); }
 
   const myGen = animGenId;
   setTimeout(() => { if (animGenId === myGen) startWatch(idx); }, 1500);
@@ -2238,7 +2340,11 @@ function startLevel(idx) {
 
 function startWatch(idx) {
   try {
+  // LOCKUP DEFENSE 3/4: first line — force-clear the flag
+  GS.processing = false;
   currentPhase = 'watch';
+  // LOCKUP DEFENSE 4/4: arm a 3-minute ceiling on the WATCH phase
+  armPhaseDeadman(180000);
   const level = LEVELS[idx];
   if (!level) { startDo(idx); return; }
   const iz = $('interaction-zone');
@@ -2272,8 +2378,9 @@ function startWatch(idx) {
 
   if (sentences.length > 0) showNextSentence();
 
-  // Run arena animation
-  runWatchAnimation(idx, () => {});
+  // Run arena animation — wrapped so a graphics failure cannot leave the phase stuck
+  try { runWatchAnimation(idx, () => {}); }
+  catch(e) { console.error('runWatchAnimation error:', e); }
 
   // Safety timeout
   watchTimeout = setTimeout(() => {
@@ -2309,14 +2416,18 @@ function showFocusPrompt(text) {
 
 function startDo(idx) {
   try {
+  // LOCKUP DEFENSE 3/4: first line — force-clear the flag
+  GS.processing = false;
   if (watchTimeout) { clearTimeout(watchTimeout); watchTimeout = null; }
   currentPhase = 'do';
+  // LOCKUP DEFENSE 4/4: arm a 3-minute ceiling on the DO phase
+  armPhaseDeadman(180000);
   phaseStartTime = Date.now();
   selectedOption = null;
   const level = LEVELS[idx];
   if (!level) return;
 
-  $('narrative-panel').classList.add('dimmed-panel');
+  $('narrative-panel')?.classList.add('dimmed-panel');
 
   // "Your Turn" flash
   const iz = $('interaction-zone');
@@ -2345,7 +2456,11 @@ function startDo(idx) {
 
 function startProve() {
   try {
+  // LOCKUP DEFENSE 3/4: first line — force-clear the flag
+  GS.processing = false;
   currentPhase = 'prove';
+  // LOCKUP DEFENSE 4/4: arm a 4-minute ceiling on the PROVE phase
+  armPhaseDeadman(240000);
   phaseStartTime = Date.now();
   selectedOption = null;
   wrongCount = 0;
@@ -2357,7 +2472,7 @@ function startProve() {
 
 function completeLevel() {
   try {
-  processing = false; // Allow reset button during celebrations
+  GS.processing = false; // Allow reset button during celebrations
   const elapsed = Math.round((Date.now() - levelStartTime) / 1000);
   const ls = levelStates[currentLevel];
   if (!ls) return;
@@ -2405,14 +2520,14 @@ function completeLevel() {
   // Next level
   if (currentLevel < TOTAL_LEVELS - 1) {
     transitionTimeout = setTimeout(() => {
-      processing = false;
+      GS.processing = false;
       levelResets = 0; // Reset for new level
       startLevel(currentLevel + 1);
     }, 2500);
   } else {
     transitionTimeout = setTimeout(() => showReceipt(), 2500);
   }
-  } catch(e) { console.error('completeLevel error:', e); processing = false; }
+  } catch(e) { console.error('completeLevel error:', e); GS.processing = false; }
 }
 
 function autoAdvance50() {
@@ -2425,7 +2540,7 @@ function autoAdvance50() {
   const iz = $('interaction-zone');
   iz.innerHTML = '<div style="text-align:center;padding:16px;"><div style="font-size:16px;color:var(--text-mid);">Let\'s move on — you\'ll see this idea again.</div></div>';
 
-  processing = false;
+  GS.processing = false;
   const requiredDone = levelStates.filter(l => l.required && l.completed).length;
   if (requiredDone >= REQUIRED_LEVELS && !requiredCompleteShown) {
     requiredCompleteShown = true;
@@ -2468,7 +2583,7 @@ function showRequiredComplete() {
   overlay.innerHTML = `<h2>You did it!</h2><p>${getAffirmation()}</p><p>You completed all required levels.</p><div class="choice-btns"><button class="keep-going-btn">Keep Going for BONUS</button><button class="see-score-btn">See My Score</button></div>`;
   overlay.querySelector('.keep-going-btn').addEventListener('click', () => {
     overlay.remove();
-    processing = false;
+    GS.processing = false;
     levelResets = 0; // Reset for new level
     // Find next incomplete level
     const next = levelStates.findIndex(l => !l.completed);
@@ -2506,8 +2621,8 @@ function updateHUD(idx) {
 
 // ===== RESET LEVEL =====
 function resetCurrentLevel() {
-  // Force-clear processing FIRST so a stuck callback never blocks reset
-  processing = false;
+  // Force-clear GS.processing FIRST so a stuck callback never blocks reset
+  GS.processing = false;
   clearAllTimers();
   closeAllOverlays();
   // Only increment if NOT called from showFastGuessGate (which already incremented)
@@ -2525,23 +2640,136 @@ function resetCurrentLevel() {
   selectedOption = null;
   consecutiveFastWrongs = 0;
   hotspotWrongCount = 0;
-  processing = false;
+  GS.processing = false;
   startLevel(currentLevel);
 }
 
 $('reset-level-btn')?.addEventListener('click', () => {
   if (receiptRendered) return;
-  // Force-clear processing — Reset must always work, even if a callback got stuck
-  processing = false;
+  // Force-clear GS.processing — Reset must always work, even if a callback got stuck
+  GS.processing = false;
   resetCurrentLevel();
+});
+
+// ===== SKIP CURRENT LEVEL (shared by "I'm Stuck" button + deadman timeout) =====
+// LOCKUP DEFENSE 2/4: Aggressive cleanup that works from ANY phase regardless of
+// flag state. Awards 50% for current level and advances to next level (or receipt
+// if on the last level). Wrapped so a graphics error cannot leave the student stuck.
+function skipCurrentLevel(opts) {
+  opts = opts || {};
+  if (receiptRendered) return;
+  try {
+    if (opts.confirmFirst) {
+      // Confirm with the student before skipping
+      document.querySelectorAll('#stuck-confirm-overlay').forEach(el => el.remove());
+      const overlay = document.createElement('div');
+      overlay.id = 'stuck-confirm-overlay';
+      overlay.innerHTML = '<div class="box"><p>Skip this level? You will get 50% credit and move on.</p><div class="btns"><button class="yes" type="button">Yes, skip</button><button class="no" type="button">Go back</button></div></div>';
+      document.body.appendChild(overlay);
+      overlay.querySelector('.yes').addEventListener('click', () => {
+        overlay.remove();
+        skipCurrentLevel({ confirmFirst: false, reason: 'stuck-btn' });
+      });
+      overlay.querySelector('.no').addEventListener('click', () => overlay.remove());
+      return;
+    }
+
+    // Aggressive strip of all blocking UI + state
+    try { clearPhaseDeadman(); } catch(e){}
+    try { clearAllTimers(); } catch(e){}          // clears watchTimeout, celebrationTimeout, transitionTimeout, intervals, bumps fastGuessGateId
+    try { animGenId++; } catch(e){}               // invalidate any stale animation callbacks
+    try { closeAllOverlays(); } catch(e){}
+    try { document.querySelectorAll('#stuck-confirm-overlay').forEach(el => el.remove()); } catch(e){}
+
+    // Strip coaching bars, try-again buttons, tap-continue cues, dynamic lock-in btns,
+    // selected/dimmed card states, stuck pointer-events
+    try {
+      const iz = $('interaction-zone');
+      if (iz) {
+        iz.querySelectorAll('.coaching-bar, .try-again-btn, .tap-continue, .lock-in-btn').forEach(el => el.remove());
+        iz.querySelectorAll('.option-card').forEach(c => {
+          c.classList.remove('selected');
+          c.classList.remove('dimmed');
+          c.style.pointerEvents = '';
+        });
+      }
+      document.querySelectorAll('.coaching-bar-floating').forEach(el => el.remove());
+    } catch(e){}
+
+    // Force-clear the flag last, after cleanup, so nothing can re-arm it
+    GS.processing = false;
+
+    // Show brief "moving on" flash ONLY on timeout (not manual stuck-btn)
+    if (opts.reason === 'timeout') {
+      try {
+        const flash = document.createElement('div');
+        flash.className = 'timeout-flash';
+        flash.textContent = 'Moving on — you will see this idea again.';
+        document.body.appendChild(flash);
+        setTimeout(() => { try { flash.remove(); } catch(e){} }, 2200);
+      } catch(e){}
+    }
+
+    // Award 50% credit for current level + advance
+    try {
+      const ls = levelStates[currentLevel];
+      if (ls && !ls.completed) {
+        ls.score = 50;
+        ls.completed = true;
+        ls.timeSeconds = Math.round((Date.now() - levelStartTime) / 1000);
+      }
+      updateHUD(currentLevel);
+    } catch(e){ console.error('skipCurrentLevel score error:', e); }
+
+    // Advance
+    const requiredDone = levelStates.filter(l => l.required && l.completed).length;
+    const allDone = levelStates.every(l => l.completed);
+
+    if (allDone && !bonusCompleteShown) {
+      bonusCompleteShown = true;
+      transitionTimeout = setTimeout(() => { try { showBonusComplete(); } catch(e){ showReceipt(); } }, 1800);
+      return;
+    }
+    if (requiredDone >= REQUIRED_LEVELS && !requiredCompleteShown) {
+      requiredCompleteShown = true;
+      transitionTimeout = setTimeout(() => { try { showRequiredComplete(); } catch(e){ showReceipt(); } }, 1800);
+      return;
+    }
+    if (currentLevel < TOTAL_LEVELS - 1) {
+      transitionTimeout = setTimeout(() => {
+        try { levelResets = 0; startLevel(currentLevel + 1); }
+        catch(e) { console.error('skip advance error:', e); showReceipt(); }
+      }, 1800);
+    } else {
+      transitionTimeout = setTimeout(() => showReceipt(), 1800);
+    }
+  } catch(err) {
+    console.error('skipCurrentLevel fatal:', err);
+    // Last-ditch fallback: try to start next level or show receipt
+    try {
+      GS.processing = false;
+      if (currentLevel < TOTAL_LEVELS - 1) startLevel(currentLevel + 1);
+      else showReceipt();
+    } catch(e2) { console.error('skip fallback failed:', e2); }
+  }
+}
+
+$('stuck-btn')?.addEventListener('click', () => {
+  if (receiptRendered) return;
+  skipCurrentLevel({ confirmFirst: true });
 });
 
 // ===== RECEIPT =====
 function showReceipt() {
   if (receiptRendered) return;
   receiptRendered = true;
+  clearPhaseDeadman(); // LOCKUP DEFENSE 4/4: clear any armed deadman timer
   clearAllTimers();
   closeAllOverlays();
+  GS.processing = false; // receipt never blocks on processing
+
+  // Hide the "I'm Stuck" button on receipt screen (per Fix 2)
+  $('stuck-btn')?.classList.add('hidden');
 
   $('app').classList.add('hidden');
   const screen = $('receipt-screen');
