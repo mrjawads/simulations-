@@ -148,6 +148,12 @@ button:focus-visible{outline:2px solid var(--accent1);outline-offset:2px}
 .rst-lv{background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:var(--accent3);padding:5px 12px;border-radius:6px;font-size:11px;margin-left:6px}
 .rst-lv:hover{background:rgba(255,71,87,.2)}
 
+/* === FIX 2: FLOATING "I'M STUCK" EMERGENCY BUTTON === */
+.stuck-btn{position:fixed;right:12px;bottom:12px;z-index:9999;background:linear-gradient(135deg,#F59E0B,#D97706);color:#1A1A2E;font-weight:700;border:2px solid #FCD34D;padding:9px 14px;border-radius:22px;font-size:12px;min-height:44px;min-width:44px;box-shadow:0 4px 14px rgba(245,158,11,.45);animation:stuckPulse 3s ease-in-out infinite;cursor:pointer;display:flex;align-items:center;gap:5px}
+.stuck-btn:hover{filter:brightness(1.08)}
+.stuck-btn.hide{display:none}
+@keyframes stuckPulse{0%,100%{box-shadow:0 4px 14px rgba(245,158,11,.45);transform:scale(1)}50%{box-shadow:0 6px 22px rgba(245,158,11,.75);transform:scale(1.04)}}
+
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
 @keyframes cpulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}100%{box-shadow:0 0 16px 6px rgba(34,197,94,0)}}
 @keyframes wshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
@@ -156,7 +162,7 @@ button:focus-visible{outline:2px solid var(--accent1);outline-offset:2px}
 
 @media(max-width:900px){.ev-side,.eb-side{display:none}.main{flex-direction:column}.arena{min-height:28vh}.iz{min-height:auto;max-height:none;flex:1;overflow-y:auto}}
 @media(max-width:600px){.top-bar{padding:0 6px;gap:4px}.lv-badge{font-size:10px;padding:2px 6px}.lv-name{font-size:11px}.hud-s{font-size:10px;padding:2px 6px}.prog-w{width:45px}.opt{min-width:100px;font-size:13px;padding:10px}.tc{font-size:12px;padding:8px}.iz-p{font-size:14px}}
-@media print{.game-ui,.top-bar,.bot-bar,.main,.cel-ov,.li-ov,.v-ov,.h-ov,.g-ov{display:none!important}.rec-ov{position:static!important;display:block!important;background:#fff!important}.rec{color:#000;border:2px solid #000;max-width:100%}.rec h2,.rec .r-sub,.r-lbl,.r-ft p{color:#333!important}.r-pct.grn,.sc-grn{color:#22C55E!important}.r-pct.ylw,.sc-ylw{color:#B8860B!important}.r-pct.red,.sc-red{color:#C00!important}.r-tbl th{background:#eee!important;color:#000!important}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.r-ft button,.r-rst,.r-nr button{display:none!important}}
+@media print{.game-ui,.top-bar,.bot-bar,.main,.cel-ov,.li-ov,.v-ov,.h-ov,.g-ov,.stuck-btn{display:none!important}.rec-ov{position:static!important;display:block!important;background:#fff!important}.rec{color:#000;border:2px solid #000;max-width:100%}.rec h2,.rec .r-sub,.r-lbl,.r-ft p{color:#333!important}.r-pct.grn,.sc-grn{color:#22C55E!important}.r-pct.ylw,.sc-ylw{color:#B8860B!important}.r-pct.red,.sc-red{color:#C00!important}.r-tbl th{background:#eee!important;color:#000!important}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.r-ft button,.r-rst,.r-nr button{display:none!important}}
 </style>
 </head>
 <body>
@@ -236,6 +242,11 @@ button:focus-visible{outline:2px solid var(--accent1);outline-offset:2px}
 <!-- Receipt -->
 <div class="rec-ov" id="recOv"><div class="rec" id="recC"></div></div>
 
+<!-- FIX 2: Floating "I'm Stuck" emergency advance button -->
+<button class="stuck-btn hide" id="stuckBtn" onclick="imStuckClick()" aria-label="I'm stuck — skip this round">
+  <span style="font-size:14px">&#128712;</span><span>I'm Stuck</span>
+</button>
+
 <script>
 "use strict";
 let T="Mr. Jawad", TOPIC="Volcano", SNAME="";
@@ -258,6 +269,47 @@ function gAff(skill){const s=skill||'thinking';let i;do{i=Math.floor(Math.random
 
 // === GAME STATE ===
 const GS={name:"",locked:false,cur:0,phase:"",levels:[],evCol:0,evBoard:[],conPct:0,reqDone:false,allDone:false,arenaGen:0};
+
+// === FIX 1: SELF-HEALING PROCESSING WATCHDOG ===
+// Auto-clears GS.processing after 3s if any downstream path forgets. Catches
+// missed clears from errors, early returns, async failures, swallowed exceptions.
+(function installProcessingWatchdog(){
+  let _val=false;let _wd=null;
+  Object.defineProperty(GS,'processing',{
+    configurable:true,
+    get(){return _val},
+    set(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null}
+      if(_val){
+        _wd=setTimeout(()=>{
+          console.warn('[watchdog] processing stuck 3s — auto-clearing');
+          _val=false;_wd=null;
+        },3000);
+      }
+    }
+  });
+})();
+
+// === FIX 4: PHASE DEAD-MAN TIMER INFRASTRUCTURE ===
+// Hard ceiling on how long a student can be stuck in any DO/PROVE phase,
+// regardless of root cause. Silently advances with 50% credit if exceeded.
+let _phaseDeadman=null, _phaseDeadmanPhase=null, _phaseDeadmanRound=null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  _phaseDeadmanPhase=GS.phase; _phaseDeadmanRound=GS.cur;
+  _phaseDeadman=setTimeout(()=>{
+    // Only fire if student is STILL in the same phase/round we armed for
+    if(GS.phase===_phaseDeadmanPhase && GS.cur===_phaseDeadmanRound){
+      try{skipCurrentRound({confirmFirst:false,reason:'timeout'})}catch(e){console.error('deadman',e)}
+    }
+  },ms);
+}
+function clearPhaseDeadman(){
+  if(_phaseDeadman){clearTimeout(_phaseDeadman);_phaseDeadman=null}
+  _phaseDeadmanPhase=null; _phaseDeadmanRound=null;
+}
+
 let LS={hints:0,resets:0,att:0,wrongs:0,start:0,elim:[],fastW:0,cfW:0,selCard:null,match:{},seq:[],hsStep:0,hsW:0,pred:null,predOk:null,phaseStart:0,doDone:false,proveDone:false};
 function resetLS(){LS={hints:0,resets:0,att:0,wrongs:0,start:Date.now(),elim:[],fastW:0,cfW:0,selCard:null,match:{},seq:[],hsStep:0,hsW:0,pred:null,predOk:null,phaseStart:Date.now(),doDone:false,proveDone:false}}
 // safeTimeout: callback only fires if arenaGen hasn't changed (i.e., level wasn't reset)
@@ -627,6 +679,12 @@ function upEB(){
 // === LEVEL FLOW ===
 function startLvl(idx){
   try{
+    // FIX 3: defensive clear at phase entry
+    GS.processing=false;
+    // FIX 4: clear any leftover phase deadman from prior round
+    clearPhaseDeadman();
+    // Show "I'm Stuck" button during gameplay (hidden until welcome passes; re-shown each round)
+    try{const sb=document.getElementById('stuckBtn');if(sb)sb.classList.remove('hide')}catch(e){}
     GS.cur=idx;if(idx>=L.length){showReceipt();return}
     GS.arenaGen++; // fresh level — invalidate stale callbacks from previous level
     clearGate();
@@ -645,6 +703,9 @@ function resetCurrentLevel(){
     const idx=GS.cur;if(idx==null||idx<0||idx>=L.length)return;
     const gs=GS.levels[idx];if(!gs||gs.done)return; // already completed
     GS.arenaGen++; // invalidate ALL pending safeTimeout callbacks
+    // FIX 3+4: force-clear processing flag and any pending deadman from prior phase
+    GS.processing=false;
+    clearPhaseDeadman();
     try{speechSynthesis.cancel()}catch(e){}
     clearGate();
     try{$('arenaCont').onclick=null}catch(e){}
@@ -671,11 +732,16 @@ function showPred(){
 }
 
 function showFW(){
-  try{const l=L[GS.cur],fp=$('fp');
+  try{
+    // FIX 3: defensive clear at phase entry
+    GS.processing=false;
+    const l=L[GS.cur],fp=$('fp');
   fp.textContent=l.fp;fp.style.display='block';fp.style.opacity='1';clsR(fp,'subtle');
   $('iz').innerHTML=l.guided?'<div class="coach">Watch carefully — you will be asked about this next.</div>':'<div style="color:var(--textd);font-size:12px;text-align:center">Watch the evidence...</div>';
   safeTimeout(()=>{try{clsA(fp,'subtle')}catch(e){}},3000);
-  GS.phase='watch';speak(l.wNar,()=>{});
+  GS.phase='watch';
+  // FIX 3: wrap speech init in try/catch — a speech failure must not leave the flag stuck
+  try{speak(l.wNar,()=>{})}catch(e){console.warn('speak',e)}
   safeTimeout(()=>{try{if(GS.phase==='watch'){try{speechSynthesis.cancel()}catch(e){}
     if(l.hasPred&&LS.pred!==null)showPredRes();else startDo()}}catch(e){startDo()}},l.wDur);}catch(e){startDo()}
 }
@@ -687,9 +753,25 @@ function showPredRes(){
 }
 
 function startDo(){
-  try{GS.phase='do';LS.phaseStart=Date.now();clsA($('fp'),'subtle');
-  const l=L[GS.cur];
-  switch(l.doM){case 'coach':rCoach(l);break;case 'match':rMatch(l);break;case 'hotspot':rHot(l);break;case 'seq':rSeq(l);break;case 'claim':rClaim(l);break;default:rCoach(l)}}catch(e){console.error('startDo',e)}
+  try{
+    // FIX 3: defensive clear at phase entry
+    GS.processing=false;
+    GS.phase='do';LS.phaseStart=Date.now();clsA($('fp'),'subtle');
+    // FIX 4: arm 3-min dead-man ceiling on DO (the active-work phase in Detective sim)
+    armPhaseDeadman(180000);
+    const l=L[GS.cur];
+    // FIX 3: wrap mechanic renderer in try/catch — graphics/render error must not leave flag stuck
+    try{
+      switch(l.doM){
+        case 'coach':rCoach(l);break;
+        case 'match':rMatch(l);break;
+        case 'hotspot':rHot(l);break;
+        case 'seq':rSeq(l);break;
+        case 'claim':rClaim(l);break;
+        default:rCoach(l);
+      }
+    }catch(e){console.error('startDo render',e);try{rCoach(l)}catch(e2){}}
+  }catch(e){console.error('startDo',e)}
 }
 
 // === COACH-CLICK ===
@@ -878,16 +960,25 @@ function doDone(){
 }
 
 function startPv(){
-  try{GS.phase='prove';LS.phaseStart=Date.now();LS.wrongs=0;LS.selCard=null;
-  const l=L[GS.cur],iz=$('iz');
-  iz.innerHTML=`<div class="iz-p">${l.pvQ}</div><div class="iz-opts" id="pvO"></div><button class="lock-btn" id="lkBtn" onclick="subPv()">Lock In</button><div id="pvFB"></div>`;
-  l.pvOpts.forEach((o,i)=>{
-    const b=document.createElement('button');b.className='opt';b.textContent=o;b.dataset.i=i;
-    if(LS.elim.includes('pv-'+i))clsA(b,'elim');
-    b.onclick=()=>{if(clsH(b,'elim')||clsH(b,'wflash')||clsH(b,'cflash'))return;
-      document.querySelectorAll('#pvO .opt').forEach(x=>clsR(x,'sel'));clsA(b,'sel');LS.selCard=i;
-      const lb=$('lkBtn');if(lb)clsA(lb,'act')};
-    $('pvO').appendChild(b)});}catch(e){console.error('startPv',e)}
+  try{
+    // FIX 3: defensive clear at phase entry
+    GS.processing=false;
+    GS.phase='prove';LS.phaseStart=Date.now();LS.wrongs=0;LS.selCard=null;
+    // FIX 4: arm 4-min dead-man ceiling on PROVE
+    armPhaseDeadman(240000);
+    const l=L[GS.cur],iz=$('iz');
+    // FIX 3: wrap DOM render in try/catch
+    try{
+      iz.innerHTML=`<div class="iz-p">${l.pvQ}</div><div class="iz-opts" id="pvO"></div><button class="lock-btn" id="lkBtn" onclick="subPv()">Lock In</button><div id="pvFB"></div>`;
+      l.pvOpts.forEach((o,i)=>{
+        const b=document.createElement('button');b.className='opt';b.textContent=o;b.dataset.i=i;
+        if(LS.elim.includes('pv-'+i))clsA(b,'elim');
+        b.onclick=()=>{if(clsH(b,'elim')||clsH(b,'wflash')||clsH(b,'cflash'))return;
+          document.querySelectorAll('#pvO .opt').forEach(x=>clsR(x,'sel'));clsA(b,'sel');LS.selCard=i;
+          const lb=$('lkBtn');if(lb)clsA(lb,'act')};
+        $('pvO').appendChild(b)});
+    }catch(e){console.error('startPv render',e)}
+  }catch(e){console.error('startPv',e)}
 }
 
 function subPv(){
@@ -966,6 +1057,82 @@ function forceAdv(){
 function safeAdv(){try{advNext()}catch(e){GS.cur++;if(GS.cur<L.length)startLvl(GS.cur);else showReceipt()}}
 function advNext(){const n=GS.cur+1;if(n>=L.length)showReceipt();else startLvl(n)}
 
+// === FIX 2: "I'M STUCK" EMERGENCY ADVANCE ===
+// Reusable skip used by both the student-facing "I'm Stuck" button and by
+// the phase dead-man timer. Strips blocking UI aggressively, awards 50%,
+// advances to next level (or receipt if last). Works from ANY phase.
+function skipCurrentRound(opts){
+  opts=opts||{};
+  const confirmFirst=opts.confirmFirst!==false; // default true
+  const reason=opts.reason||'stuck';
+  try{
+    if(confirmFirst && !confirm("Skip this round? You will get 50% credit and move on.")) return;
+
+    // 1) Force-clear processing flag and dead-man timer
+    try{GS.processing=false}catch(e){}
+    try{clearPhaseDeadman()}catch(e){}
+
+    // 2) Bump generation counter so stale safeTimeout callbacks no-op
+    GS.arenaGen++;
+
+    // 3) Kill speech, gate intervals, highlights
+    try{speechSynthesis.cancel()}catch(e){}
+    try{clearGate()}catch(e){}
+    try{AS.hlTgt=null}catch(e){}
+    try{$('arenaCont').onclick=null}catch(e){}
+
+    // 4) Aggressively strip blocking UI
+    try{
+      // Close all overlays that might be covering the screen
+      ['liOv','hOv','gOv','celOv','vOv'].forEach(id=>{
+        const el=document.getElementById(id);if(el)el.classList.remove('show');
+      });
+      // Remove any dynamic coaching bars / try-again / tap-continue / lock-in states
+      document.querySelectorAll('.coach, .coaching-bar, .try-again, .tap-continue').forEach(el=>{
+        try{el.remove()}catch(e){}
+      });
+      // Clear selected/dimmed states on any option cards, strip stuck pointer-events
+      document.querySelectorAll('.sel,.selected,.dimmed,.wflash,.cflash').forEach(el=>{
+        el.classList.remove('sel');el.classList.remove('selected');
+        el.classList.remove('dimmed');el.classList.remove('wflash');el.classList.remove('cflash');
+        el.style.pointerEvents='';
+      });
+      // Deactivate dynamic Lock In button
+      try{deactLk()}catch(e){}
+    }catch(e){console.warn('strip UI',e)}
+
+    // 5) Award 50% for current level/round (one-shot guarded)
+    try{
+      const gs=GS.levels[GS.cur],l=L[GS.cur];
+      if(gs && !gs.done && l){
+        gs.done=true;gs.score=50;gs.att=(LS.att||0)+1;
+        gs.hints=LS.hints||0;gs.resets=LS.resets||0;
+        gs.time=Math.round((Date.now()-(LS.start||Date.now()))/1000);
+        if(l.ebE && !GS.evBoard.find(e=>e.label===l.ebE.label)){
+          GS.evBoard.push(l.ebE);if(l.evType)GS.evCol=Math.min(4,GS.evCol+1);
+        }
+        GS.conPct=Math.max(GS.conPct,l.conPct||0);
+        try{upEB();upHUD();upEvSide()}catch(e){}
+      }
+    }catch(e){console.warn('skip award',e)}
+
+    // 6) Timeout path shows brief reassurance flash; manual skip advances immediately
+    if(reason==='timeout'){
+      try{$('iz').innerHTML='<div style="text-align:center;color:var(--accent2);font-size:14px;padding:10px">Moving on — you will see this idea again.</div>'}catch(e){}
+      setTimeout(()=>{try{advNext()}catch(e){safeAdv()}},1500);
+    }else{
+      try{advNext()}catch(e){safeAdv()}
+    }
+  }catch(e){
+    // Last-ditch: force an advance no matter what
+    console.error('skipCurrentRound',e);
+    try{advNext()}catch(e2){
+      try{GS.cur++;if(GS.cur<L.length)startLvl(GS.cur);else showReceipt()}catch(e3){console.error(e3)}
+    }
+  }
+}
+function imStuckClick(){skipCurrentRound({confirmFirst:true,reason:'stuck'})}
+
 // === CELEBRATIONS ===
 function showMiniCel(){showCelOv("Nice work!",gAff(L[GS.cur].skill),1800);safeTimeout(advNext,2000)}
 function showCel(title,choice,final){
@@ -989,6 +1156,10 @@ function confetti(n){
 
 // === RECEIPT ===
 function showReceipt(){
+  // FIX 4: clear any pending deadman when entering receipt
+  try{clearPhaseDeadman()}catch(e){}
+  // FIX 2: hide the "I'm Stuck" button — no more rounds to skip
+  try{const sb=document.getElementById('stuckBtn');if(sb)sb.classList.add('hide')}catch(e){}
   try{const req=GS.levels.filter((l2,i)=>L[i].req&&l2.done),base=req.length?Math.round(req.reduce((s,l2)=>s+l2.score,0)/req.length):0;
   const bon=GS.levels.filter((l2,i)=>!L[i].req&&l2.done).length,overall=Math.min(100,base+bon*5);
   const totT=GS.levels.reduce((s,l2)=>s+l2.time,0);

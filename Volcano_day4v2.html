@@ -248,9 +248,35 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   .hotspot-area{height:180px;}
   .hotspot-btn{width:70px;height:70px;font-size:0.65rem;}
 }
+
+/* STUCK BUTTON (emergency escape hatch) */
+#stuckBtn{
+  position:fixed;bottom:14px;right:14px;z-index:9999;
+  background:linear-gradient(135deg,#FF9F1C,#FF6B35);
+  color:#1A0F2E;border:2px solid #FFD700;border-radius:22px;
+  padding:10px 16px;min-height:44px;min-width:44px;
+  font-family:inherit;font-weight:700;font-size:0.92rem;
+  box-shadow:0 4px 12px rgba(255,107,53,0.5),0 0 0 0 rgba(255,215,0,0.7);
+  cursor:pointer;animation:stuckPulse 3s ease-in-out infinite;
+  display:flex;align-items:center;gap:6px;
+}
+#stuckBtn:hover{transform:scale(1.05);filter:brightness(1.1);}
+#stuckBtn:active{transform:scale(0.97);}
+@keyframes stuckPulse{
+  0%,100%{box-shadow:0 4px 12px rgba(255,107,53,0.5),0 0 0 0 rgba(255,215,0,0.55);}
+  50%{box-shadow:0 4px 16px rgba(255,107,53,0.7),0 0 0 10px rgba(255,215,0,0);}
+}
+#stuckBtn.hidden{display:none;}
+.stuck-flash{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);
+  z-index:10000;background:rgba(15,10,26,0.95);color:#FFD700;
+  padding:18px 28px;border:2px solid #FFD700;border-radius:14px;
+  font-weight:700;font-size:1.1rem;text-align:center;max-width:90%;
+  box-shadow:0 8px 24px rgba(0,0,0,0.6);animation:stuckFlashIn 0.25s ease-out;}
+@keyframes stuckFlashIn{from{opacity:0;transform:translate(-50%,-40%);}to{opacity:1;transform:translate(-50%,-50%);}}
 </style>
 </head>
 <body>
+<button id="stuckBtn" class="hidden" onclick="handleStuckClick()" title="Skip this round for 50% credit">&#x1F198; I'm Stuck</button>
 <div id="app">
   <div class="topbar" id="topbar">
     <span class="round-label" id="roundLabel">Round 1 of 12</span>
@@ -376,8 +402,156 @@ var GS={
   doComplete:false, proveComplete:false, allRequired:false, allBonus:false,
   roundCompleting:false,
   studentName:'', nameLocked:false,
-  lastWrongOption:null, disabled:false
+  lastWrongOption:null
 };
+
+/* ========== LOCKUP DEFENSE 1/4: self-healing watchdog on GS.disabled ==========
+   GS.disabled is this sim's "processing" flag -- every mechanic onclick checks it.
+   If any code path sets it true and forgets to clear it (error, early return,
+   safety-valve path, stale safeTimeout callback dropped by arenaGen bump), every
+   button in the sim silently drops taps. Watchdog arms a 3s timer on set-to-true;
+   set-to-false cancels. Intentional 5s pause in checkFastGuess is trimmed to ~3s
+   by this -- acceptable tradeoff; the student still gets their slow-down nudge. */
+(function installDisabledWatchdog(){
+  var _val=false;var _wd=null;
+  Object.defineProperty(GS,'disabled',{
+    configurable:true,
+    get:function(){return _val;},
+    set:function(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null;}
+      if(_val){
+        _wd=setTimeout(function(){
+          console.warn('[watchdog] GS.disabled stuck 3s -- auto-clearing');
+          _val=false;_wd=null;
+        },3000);
+      }
+    }
+  });
+  GS.disabled=false;
+})();
+
+/* ========== LOCKUP DEFENSE 4/4: phase dead-man timer ==========
+   Hard ceiling on how long a student can spend on one phase. If the phase
+   hangs for any reason (bug, stale callback, graphics error), silently skip
+   the round for 50% credit and advance. NEVER gates on !GS.disabled. */
+var _phaseDeadman=null,_phaseDeadmanPhase=null,_phaseDeadmanRound=null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  _phaseDeadmanPhase=GS.phase;_phaseDeadmanRound=GS.currentRound;
+  _phaseDeadman=setTimeout(function(){
+    if(GS.phase===_phaseDeadmanPhase && GS.currentRound===_phaseDeadmanRound){
+      try{skipCurrentRound({confirmFirst:false,reason:'timeout'});}
+      catch(e){console.error('phase deadman skip fail',e);}
+    }
+  },ms);
+}
+function clearPhaseDeadman(){
+  if(_phaseDeadman){clearTimeout(_phaseDeadman);_phaseDeadman=null;}
+  _phaseDeadmanPhase=null;_phaseDeadmanRound=null;
+}
+
+/* ========== LOCKUP DEFENSE 2/4: reusable skip-current-round ==========
+   Called by the "I'm Stuck" button (confirmFirst:true) and by the phase
+   dead-man timer (confirmFirst:false). Strips EVERY blocking UI state,
+   force-clears all flags, bumps the generation counter to invalidate
+   stale callbacks, awards 50% credit, and advances. Must work from ANY
+   phase regardless of flag state. Wrapped in try/catch with a last-ditch
+   startRound fallback so even a broken arena cannot trap the student. */
+function skipCurrentRound(opts){
+  opts=opts||{};
+  try{
+    if(opts.confirmFirst!==false){
+      if(!confirm('Skip this round? You will get 50% credit and move on.'))return;
+    }
+    /* 1. Force-clear every lock flag (bypass watchdog entirely) */
+    try{GS.disabled=false;}catch(e){}
+    GS.roundCompleting=false;
+    GS.doComplete=false;
+    GS.proveComplete=false;
+    /* 2. Invalidate all pending safeTimeouts and dead-man */
+    try{bumpArenaGen();}catch(e){}
+    try{clearPhaseDeadman();}catch(e){}
+    /* 3. Strip blocking UI aggressively */
+    try{closeAllOverlays();}catch(e){}
+    try{
+      document.querySelectorAll('.cele-overlay,.choice-screen,.sbs-overlay,.vocab-overlay').forEach(function(el){el.remove();});
+    }catch(e){}
+    try{
+      var bar=document.getElementById('coachingBar');
+      if(bar){bar.classList.remove('visible');bar.textContent='';}
+    }catch(e){}
+    try{document.getElementById('btnRow').innerHTML='';}catch(e){}
+    try{
+      // Strip stuck card states from the mechanic area
+      var area=document.getElementById('mechanicArea');
+      if(area){
+        area.querySelectorAll('.selected,.wrong-flash,.dimmed').forEach(function(el){
+          el.classList.remove('selected','wrong-flash','dimmed');
+        });
+        area.querySelectorAll('*').forEach(function(el){
+          if(el.style&&el.style.pointerEvents==='none')el.style.pointerEvents='';
+        });
+      }
+    }catch(e){}
+    try{window._doSelectedId=null;window._proveSelectedIdx=null;}catch(e){}
+    /* 4. Show the "moving on" flash (only for timeout path -- confirmed skip is silent) */
+    if(opts.reason==='timeout'){
+      try{
+        var fl=document.createElement('div');fl.className='stuck-flash';
+        fl.textContent='Moving on -- you will see this idea again.';
+        document.body.appendChild(fl);
+        setTimeout(function(){try{fl.remove();}catch(e){}},1800);
+      }catch(e){}
+    }
+    /* 5. Award 50% for the current round (if not already scored) and advance */
+    if(GS.roundScores[GS.currentRound]===undefined){
+      var elapsed=GS.roundStartTime?Math.round((Date.now()-GS.roundStartTime)/1000):0;
+      GS.roundScores[GS.currentRound]=50;
+      GS.roundAttempts[GS.currentRound]=GS.attemptsThisRound||0;
+      GS.roundHints[GS.currentRound]=GS.hintsUsedThisRound||0;
+      GS.roundResets[GS.currentRound]=GS.resetsThisRound||0;
+      GS.roundTimes[GS.currentRound]=elapsed;
+      GS.score+=50;
+      try{updateScoreDisplay();}catch(e){}
+    }
+    /* 6. Advance (or go to receipt if last round) */
+    GS.phase='roundDone';
+    var nextIdx=GS.currentRound+1;
+    var delay=(opts.reason==='timeout')?1500:200;
+    setTimeout(function(){
+      try{
+        if(nextIdx>=ROUNDS.length){showReceipt();return;}
+        // Handle choice screen trigger (after required rounds complete)
+        if(nextIdx===10 && !GS.allRequired){GS.roundStartTime=Date.now();showChoiceScreen();return;}
+        GS.roundStartTime=Date.now();
+        startRound(nextIdx);
+      }catch(e){
+        console.error('skipCurrentRound advance fail, last-ditch receipt',e);
+        try{showReceipt();}catch(e2){location.reload();}
+      }
+    },delay);
+  }catch(outerErr){
+    console.error('skipCurrentRound outer fail',outerErr);
+    // Last-ditch: try to move on at all costs
+    try{
+      GS.disabled=false;GS.roundCompleting=false;
+      var ni=GS.currentRound+1;
+      if(ni>=ROUNDS.length){showReceipt();}else{GS.currentRound=ni;startRound(ni);}
+    }catch(e3){location.reload();}
+  }
+}
+
+function handleStuckClick(){skipCurrentRound({confirmFirst:true});}
+
+function showStuckBtn(){
+  var b=document.getElementById('stuckBtn');
+  if(b)b.classList.remove('hidden');
+}
+function hideStuckBtn(){
+  var b=document.getElementById('stuckBtn');
+  if(b)b.classList.add('hidden');
+}
 
 /* ========== ROUND DATA ========== */
 var ROUNDS=[
@@ -1475,6 +1649,7 @@ function checkAutoAdvance(){
 function startRound(idx){
   try{
     bumpArenaGen(); // any pending safeTimeouts from prior round are now stale
+    clearPhaseDeadman(); // FIX 4: clear any dead-man from previous round before starting
     closeAllOverlays();
     GS.currentRound=idx;
     GS.phase='do';GS.doComplete=false;GS.proveComplete=false;
@@ -1486,6 +1661,7 @@ function startRound(idx){
     GS.phaseStartTime=Date.now();GS.roundStartTime=GS.roundStartTime||Date.now();GS.disabled=false;
     GS.roundCompleting=false;GS.lastWrongOption=null;
     window._doSelectedId=null;window._proveSelectedIdx=null;
+    showStuckBtn(); // FIX 2: stuck button visible throughout gameplay
 
     var rd=ROUNDS[idx];
     document.getElementById('roundLabel').textContent='Round '+rd.num+' of 12';
@@ -1500,9 +1676,11 @@ function startRound(idx){
     },3500);
 
     document.getElementById('contextCaption').textContent=rd.contextCaption;
-    drawArena();
-    renderSourceDay(rd.source);
-    renderProgressDots();
+    // FIX 3: wrap every graphics call in try/catch so canvas failures on low-RAM
+    // Chromebooks cannot leave flags stuck or block render of interactive UI.
+    try{drawArena();}catch(e){console.error('drawArena fail',e);}
+    try{renderSourceDay(rd.source);}catch(e){}
+    try{renderProgressDots();}catch(e){}
     document.getElementById('coachingBar').classList.remove('visible');
     document.getElementById('btnRow').innerHTML='';
 
@@ -1513,6 +1691,8 @@ function startRound(idx){
     updateScoreDisplay();
     // Scroll interaction zone to top
     document.getElementById('interactionZone').scrollTop=0;
+    // FIX 4: arm 3-minute dead-man on DO phase -- student cannot be stuck forever.
+    armPhaseDeadman(180000);
   }catch(e){
     console.error('startRound fail',e);
     setTimeout(function(){if(GS.currentRound===idx)completeRound(50);},3000);
@@ -1531,14 +1711,21 @@ function renderMechanic(rd){
 
 function completeDO(rd){
   if(GS.doComplete)return;
+  // FIX 3: defensive clear -- any hangover disabled state from fast-guess or
+  // anti-guess gates must not carry into PROVE phase and silently block taps.
+  GS.disabled=false;
   GS.doComplete=true;GS.phase='prove';GS.phaseStartTime=Date.now();
   GS.wrongCountPROVE=0;
-  drawArena('all');
-  document.getElementById('phaseLabel').innerHTML='<span class="iz-phase-label iz-phase-prove">PROVE</span>';
-  document.getElementById('izPrompt').textContent=rd.prove.question;
-  document.getElementById('btnRow').innerHTML='';
-  document.getElementById('coachingBar').classList.remove('visible');
-  renderProve(rd);
+  // FIX 3: wrap graphics in try/catch -- a canvas failure on low-RAM Chromebook
+  // must not leave the phase half-built with no way forward.
+  try{drawArena('all');}catch(e){console.error('drawArena in completeDO fail',e);}
+  try{document.getElementById('phaseLabel').innerHTML='<span class="iz-phase-label iz-phase-prove">PROVE</span>';}catch(e){}
+  try{document.getElementById('izPrompt').textContent=rd.prove.question;}catch(e){}
+  try{document.getElementById('btnRow').innerHTML='';}catch(e){}
+  try{document.getElementById('coachingBar').classList.remove('visible');}catch(e){}
+  try{renderProve(rd);}catch(e){console.error('renderProve fail',e);}
+  // FIX 4: arm 3-minute dead-man timer -- student can't be stuck on PROVE forever.
+  armPhaseDeadman(180000);
 }
 
 function renderProve(rd){
@@ -1678,6 +1865,8 @@ function createParticles(container,count){
 /* ========== RECEIPT ========== */
 function showReceipt(){
   GS.phase='receipt';
+  clearPhaseDeadman(); // FIX 4: no phase to guard against once at receipt
+  hideStuckBtn();      // FIX 2: no round to skip once at receipt
   document.getElementById('app').classList.add('hidden');
   var rs=document.getElementById('receiptScreen');rs.style.display='block';
   document.getElementById('receiptTitle').textContent=teacherName+'\'s Simulations';

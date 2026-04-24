@@ -256,9 +256,61 @@ button:focus-visible{outline:3px solid var(--accent-amber);outline-offset:2px;}
   .receipt-inner{padding:20px;}
   .receipt-grade .big-pct{font-size:44px;}
 }
+/* ===== FIX 2: "I'M STUCK" FLOATING ESCAPE BUTTON ===== */
+#stuckBtn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 9999;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 2px solid #B45309;
+  border-radius: 22px;
+  background: #F59E0B;
+  color: #1F2937;
+  font-weight: 700;
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  animation: stuckPulse 3s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#stuckBtn:hover { background: #FBBF24; }
+@keyframes stuckPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 14px rgba(245,158,11,0.35); }
+  50% { transform: scale(1.04); box-shadow: 0 4px 22px rgba(245,158,11,0.6); }
+}
+.skip-flash {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000;
+  background: rgba(15,23,42,0.95);
+  color: #F59E0B;
+  padding: 18px 32px;
+  border-radius: 14px;
+  font-size: 20px;
+  font-weight: 600;
+  border: 2px solid #F59E0B;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  animation: skipFlashFade 1.6s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes skipFlashFade {
+  0% { opacity: 0; transform: translate(-50%, -60%); }
+  15% { opacity: 1; transform: translate(-50%, -50%); }
+  75% { opacity: 1; transform: translate(-50%, -50%); }
+  100% { opacity: 0; transform: translate(-50%, -40%); }
+}
 </style>
 </head>
 <body>
+<!-- FIX 2: Floating "I'm Stuck" escape button — works from any phase, any state.
+     Starts hidden; shown when first level begins, hidden on receipt. -->
+<button id="stuckBtn" style="display:none;" onclick="skipCurrentRound({confirmFirst:true, reason:'manual'})" aria-label="I'm stuck, move on">I'm Stuck</button>
 <div id="app">
   <!-- TOP BAR -->
   <div class="top-bar">
@@ -376,6 +428,56 @@ const gameState = {
   requiredComplete: false,
   allComplete: false
 };
+
+// ===== FIX 1: SELF-HEALING WATCHDOG ON gameState.processing =====
+// If any handler ever sets gameState.processing = true and forgets to clear it
+// (thrown error, missed code path, swallowed async exception), this watchdog
+// auto-clears after 3s so every "if(gameState.processing) return;" guard
+// stops silently dropping student taps.
+(function installProcessingWatchdog(){
+  let _val = false;
+  let _wd = null;
+  Object.defineProperty(gameState, 'processing', {
+    configurable: true,
+    get(){ return _val; },
+    set(v){
+      _val = !!v;
+      if(_wd){ clearTimeout(_wd); _wd = null; }
+      if(_val){
+        _wd = setTimeout(()=>{
+          console.warn('[watchdog] gameState.processing stuck 3s — auto-clearing');
+          _val = false;
+          _wd = null;
+        }, 3000);
+      }
+    }
+  });
+})();
+
+// ===== FIX 4: PHASE DEAD-MAN TIMER INFRASTRUCTURE =====
+// Hard ceiling: DO phase = 3 min, PROVE phase = 4 min.
+// If the student is stuck on a phase longer than that (regardless of cause),
+// silently skip the level for 50% credit. Safety timeouts NEVER gate on any
+// processing flag — they are the last-resort rescue and fire unconditionally.
+let _phaseDeadman = null;
+let _phaseDeadmanPhase = null;
+let _phaseDeadmanLevel = null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  _phaseDeadmanPhase = levelState.phase;
+  _phaseDeadmanLevel = gameState.currentLevel;
+  _phaseDeadman = setTimeout(()=>{
+    if(levelState.phase === _phaseDeadmanPhase && gameState.currentLevel === _phaseDeadmanLevel){
+      try { skipCurrentRound({confirmFirst:false, reason:'timeout'}); }
+      catch(e){ console.error('phase deadman skip failed', e); }
+    }
+  }, ms);
+}
+function clearPhaseDeadman(){
+  if(_phaseDeadman){ clearTimeout(_phaseDeadman); _phaseDeadman = null; }
+  _phaseDeadmanPhase = null;
+  _phaseDeadmanLevel = null;
+}
 
 // Per-level tracking
 let levelState = {
@@ -1519,6 +1621,13 @@ function typewriterText(container, html, speed=30){
 
 // ===== MAIN GAME FLOW =====
 async function startLevel(idx){
+  // FIX 3: Defensive clear — first line of every phase-start function
+  try { gameState.processing = false; } catch(e){}
+  // FIX 4: Clear any deadman from prior level
+  clearPhaseDeadman();
+  // FIX 2: Ensure "I'm Stuck" button is visible during gameplay
+  setStuckBtnVisible(true);
+
   gameState.currentLevel = idx;
   const level = levels[idx];
 
@@ -1584,9 +1693,14 @@ async function startLevel(idx){
 }
 
 async function transitionToDo(){
+  // FIX 3: Defensive clear — first line of every phase-start function
+  try { gameState.processing = false; } catch(e){}
   if(levelState.phase === 'do' || levelState.phase === 'prove' || levelState.phase === 'transition') return;
   levelState.phase = 'transition';
   const level = levels[gameState.currentLevel];
+
+  // FIX 4: Arm phase dead-man — 3 min hard ceiling on DO phase
+  armPhaseDeadman(180000);
 
   // Dim narrative
   addCls($('narrativePanel'), 'narrative-dimmed');
@@ -1872,6 +1986,7 @@ function selectDtmZone(zoneIdx){
 }
 
 function lockInDtm(){
+  try {
   const level = levels[gameState.currentLevel];
   const data = level.doData;
   const placements = levelState.dtmState.placements;
@@ -1900,6 +2015,7 @@ function lockInDtm(){
     applyAutoHint();
     checkResetAdvance();
   }
+  } catch(e){ console.error('lockInDtm error',e); }
 }
 
 // --- SEQUENCE BUILDER ---
@@ -2006,6 +2122,7 @@ function clearSeq(){
 }
 
 function lockInSequence(){
+  try {
   const level = levels[gameState.currentLevel];
   const data = level.doData;
   const ss = levelState.seqState;
@@ -2047,6 +2164,7 @@ function lockInSequence(){
     applyAutoHint();
     checkResetAdvance();
   }
+  } catch(e){ console.error('lockInSequence error',e); }
 }
 
 // --- CLAIM BUILDER ---
@@ -2103,6 +2221,7 @@ function clearClaim(){
 }
 
 function lockInClaim(){
+  try {
   const level = levels[gameState.currentLevel];
   const data = level.doData;
   const cs = levelState.claimState;
@@ -2131,10 +2250,16 @@ function lockInClaim(){
     applyAutoHint();
     checkResetAdvance();
   }
+  } catch(e){ console.error('lockInClaim error',e); }
 }
 
 // ===== PROVE PHASE =====
 async function startProve(){
+  // FIX 3: Defensive clear — first line of every phase-start function
+  try { gameState.processing = false; } catch(e){}
+  // FIX 4: Arm phase dead-man — 4 min hard ceiling on PROVE phase
+  armPhaseDeadman(240000);
+
   levelState.phase = 'prove';
   levelState.phaseStartTime = Date.now();
   levelState.wrongCount = 0;
@@ -2358,6 +2483,10 @@ function renderCurrentMechanic(){
 // guards are stuck true and reset would be permanently disabled.
 function resetCurrentLevel(){
   try {
+    // FIX 4: Clear any deadman from the crashed/abandoned run
+    clearPhaseDeadman();
+    // FIX 3: Defensive clear of processing flag
+    try { gameState.processing = false; } catch(e){}
     // Force-clear any stuck overlays / intervals
     closeAllOverlays();
     // Cancel any speech in flight
@@ -2377,6 +2506,103 @@ function resetCurrentLevel(){
   }
 }
 
+// ===== FIX 2 (continued): skipCurrentRound — universal escape hatch =====
+// Called by:
+//   - The floating "I'm Stuck" button (confirmFirst:true, reason:'manual')
+//   - The phase dead-man timer when DO > 3min or PROVE > 4min (confirmFirst:false, reason:'timeout')
+// Works from ANY phase regardless of flag state. Force-strips blocking UI,
+// awards 50% credit, advances to next level (or receipt if last).
+function skipCurrentRound(opts){
+  opts = opts || {};
+  const confirmFirst = opts.confirmFirst !== false;
+  const reason = opts.reason || 'manual';
+
+  if(confirmFirst){
+    if(!confirm('Skip this level? You will get 50% credit and move on.')) return;
+  }
+
+  try {
+    // Force-clear watchdog flag and dead-man timer
+    try { gameState.processing = false; } catch(e){}
+    clearPhaseDeadman();
+
+    // Bump generation so every in-flight safeTimeout from this level dies
+    window.arenaGen++;
+
+    // Kill speech
+    if(window.speechSynthesis){ try { speechSynthesis.cancel(); } catch(e){} }
+
+    // Kill anti-guess countdown interval + screen
+    if(window._agInterval){ clearInterval(window._agInterval); window._agInterval = null; }
+    if(window._agScreenEl && window._agScreenEl.parentNode){ window._agScreenEl.remove(); window._agScreenEl = null; }
+
+    // Strip all overlays, coaching bars, try-again, lock-in buttons
+    closeAllOverlays();
+    document.querySelectorAll('.coaching-bar, .try-again-btn, .lock-in-btn, .sbs-overlay, .celebration-overlay').forEach(el=>{
+      try { el.remove(); } catch(e){}
+    });
+
+    // Strip stuck selected/dimmed/disabled states and restore pointer-events
+    document.querySelectorAll('.iz-option, .dtm-draggable, .seq-card, .claim-evidence, .claim-supports').forEach(el=>{
+      el.classList.remove('selected','dimmed','disabled','wrong-flash','correct-flash','eliminated');
+      el.style.pointerEvents = '';
+    });
+
+    // Hide hotspot overlay if active
+    const hs = document.getElementById('hotspotOverlay');
+    if(hs){ hs.style.display = 'none'; hs.onclick = null; }
+
+    // Clear arena highlight
+    if(typeof arenaState !== 'undefined'){
+      arenaState.highlightZone = null;
+    }
+
+    // Timeout flash (manual skips don't get one — the confirm covered it)
+    if(reason === 'timeout'){
+      showSkipFlash('Moving on — you will see this idea again');
+    }
+
+    // Award 50% and mark both phases complete so completeLevel doesn't re-gate
+    levelState.score = 50;
+    levelState.resets = Math.max(levelState.resets || 0, 1);
+    levelState.doComplete = true;
+    levelState.proveComplete = true;
+
+    // Advance — completeLevel handles all-complete / receipt transitions
+    completeLevel();
+  } catch(e){
+    console.error('skipCurrentRound failed — using last-ditch advance', e);
+    // Last-ditch: try to move to next level directly
+    try {
+      const next = gameState.currentLevel + 1;
+      if(next >= levels.length){
+        showReceipt();
+      } else {
+        startLevel(next);
+      }
+    } catch(err){
+      console.error('last-ditch advance also failed', err);
+    }
+  }
+}
+
+function showSkipFlash(msg){
+  try {
+    const el = document.createElement('div');
+    el.className = 'skip-flash';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(()=>{ try { el.remove(); } catch(e){} }, 1800);
+  } catch(e){}
+}
+
+// Hide "I'm Stuck" button on receipt screen only
+function setStuckBtnVisible(show){
+  const b = document.getElementById('stuckBtn');
+  if(b) b.style.display = show ? '' : 'none';
+}
+
+// (Anti-guess screen logic below)
 function showAntiGuessScreen(){
   // Close any prior anti-guess overlay (prevents stacking + ghost intervals)
   if(window._agInterval){ clearInterval(window._agInterval); window._agInterval = null; }
@@ -2430,12 +2656,19 @@ function checkResetAdvance(){
     setIZ('<div class="coaching-bar">Let\'s move on — you\'ll see this idea again.</div>');
     levelState.doComplete = true;
     levelState.proveComplete = true;
-    safeTimeout(()=>completeLevel(), 2000);
+    // FIX: Raw setTimeout (not safeTimeout) — last-resort rescue must fire
+    // unconditionally. A gen bump during this 2s window must NOT drop the advance.
+    setTimeout(()=>{ try { completeLevel(); } catch(e){ console.error('reset-advance completeLevel failed',e); } }, 2000);
   }
 }
 
 // ===== LEVEL COMPLETE =====
 async function completeLevel(){
+  // FIX 3: Defensive clear
+  try { gameState.processing = false; } catch(e){}
+  // FIX 4: Clear dead-man — level is resolving
+  clearPhaseDeadman();
+
   const idx = gameState.currentLevel;
   const level = levels[idx];
   const gs = gameState.levels[idx];
@@ -2588,6 +2821,12 @@ function stopConfetti(){
 
 // ===== SCORE RECEIPT =====
 function showReceipt(){
+  // FIX 4: Clear dead-man — simulation is ending
+  clearPhaseDeadman();
+  // FIX 2: Hide "I'm Stuck" button on receipt screen only
+  setStuckBtnVisible(false);
+  try { gameState.processing = false; } catch(e){}
+
   stopConfetti();
   const requiredLevels = gameState.levels.filter(l=>levels[l.levelNum-1].required && l.completed);
   const bonusLevels = gameState.levels.filter(l=>!levels[l.levelNum-1].required && l.completed);

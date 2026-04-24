@@ -260,6 +260,12 @@ button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px;}
   .dtm-drag,.seq-card,.claim-card{font-size:11px;padding:8px 10px;}
   .interaction-zone{max-height:60vh;}
 }
+/* FIX 2: Floating emergency advance button — always accessible escape hatch */
+.stuck-btn{position:fixed;bottom:14px;right:14px;z-index:9999;min-height:44px;padding:10px 16px;border-radius:10px;border:2px solid #B45309;background:linear-gradient(180deg,#FCD34D 0%,#F59E0B 100%);color:#78350F;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25);display:none;animation:stuckPulse 3s ease-in-out infinite;font-family:inherit;letter-spacing:0.3px;}
+.stuck-btn:hover{filter:brightness(1.05);}
+.stuck-btn:active{transform:scale(0.97);}
+@keyframes stuckPulse{0%,100%{box-shadow:0 4px 12px rgba(0,0,0,.25),0 0 0 0 rgba(245,158,11,.55);}50%{box-shadow:0 4px 16px rgba(0,0,0,.3),0 0 0 10px rgba(245,158,11,0);}}
+@media(max-width:500px){.stuck-btn{bottom:10px;right:10px;padding:9px 12px;font-size:12px;}}
 </style>
 </head>
 <body>
@@ -365,6 +371,9 @@ button:focus-visible{outline:3px solid var(--accent1);outline-offset:2px;}
 <!-- RECEIPT -->
 <div class="receipt-overlay" id="receiptOverlay"></div>
 
+<!-- FIX 2: EMERGENCY ADVANCE — always visible during gameplay, hidden on start/receipt -->
+<button class="stuck-btn" id="stuckBtn" onclick="skipCurrentRound({confirmFirst:true})" title="Stuck? Skip this round for 50% credit">I'm Stuck — Skip</button>
+
 <script>
 // ====== SAFE UTILITIES ======
 function safeCall(fn,msg){try{fn();}catch(e){console.error(msg,e);}}
@@ -465,6 +474,108 @@ const GS={
   _claimSelected:null,_claimEliminated:null,
   _hsClickCount:0,_hsDone:false
 };
+
+// ====== FIX 1: PROCESSING-FLAG SELF-HEALING WATCHDOG ======
+// Auto-clears GS._lockProcessing after 3s if any code path forgets to.
+// Installed via Object.defineProperty so EVERY existing
+// "GS._lockProcessing=true/false" assignment routes through the setter
+// with no other source edits required.
+(function installProcessingWatchdog(){
+  let _val=false, _wd=null;
+  Object.defineProperty(GS,'_lockProcessing',{
+    configurable:true,
+    get(){return _val;},
+    set(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null;}
+      if(_val){
+        _wd=setTimeout(()=>{
+          console.warn('[watchdog] GS._lockProcessing stuck 3s — auto-clearing');
+          _val=false;_wd=null;
+        },3000);
+      }
+    }
+  });
+})();
+
+// ====== FIX 4: PHASE DEAD-MAN TIMER ======
+// Hard ceiling on how long a student can be stuck in RECORD (3 min) or PROVE (4 min).
+// NEVER gates on !_lockProcessing — safety timeouts must fire unconditionally.
+let _phaseDeadman=null, _phaseDeadmanPhase=null, _phaseDeadmanRound=null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  _phaseDeadmanPhase=GS.phase; _phaseDeadmanRound=GS.currentRound;
+  _phaseDeadman=setTimeout(()=>{
+    // Only fire if the student is STILL in the same phase of the same round
+    if(GS.phase===_phaseDeadmanPhase && GS.currentRound===_phaseDeadmanRound){
+      try{skipCurrentRound({confirmFirst:false,reason:'timeout'});}
+      catch(e){console.error('[deadman] skip failed',e);}
+    }
+  },ms);
+}
+function clearPhaseDeadman(){
+  if(_phaseDeadman){clearTimeout(_phaseDeadman);_phaseDeadman=null;}
+  _phaseDeadmanPhase=null; _phaseDeadmanRound=null;
+}
+
+// ====== FIX 2: EMERGENCY ADVANCE — SKIP CURRENT ROUND ======
+// Reusable skip logic used by both the floating "I'm Stuck" button and the
+// phase dead-man timer. Awards 50% credit, force-clears every blocking piece
+// of UI, invalidates stale safeTimeouts, and advances. Must work from ANY
+// phase regardless of flag state. Wrapped in try/catch with last-ditch fallback.
+function skipCurrentRound(opts){
+  opts=opts||{};
+  try{
+    if(opts.confirmFirst!==false){
+      if(!confirm('Skip this round? You will get 50% credit and move on.'))return;
+    }
+    // 1. Force-clear every blocking mechanism
+    try{GS._lockProcessing=false;}catch(e){}
+    clearPhaseDeadman();
+    GS.arenaGen=(GS.arenaGen||0)+1; // invalidate any stale safeTimeouts
+    try{closeAntiGuess();}catch(e){}
+    try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}
+    try{if(typeof resumeInterval!=='undefined')clearInterval(resumeInterval);}catch(e){}
+    // 2. Aggressively strip blocking UI — overlays, coaching bars, try-again,
+    //    tap-continue, dynamic lock-in, selected/dimmed states, pointer-events
+    try{
+      document.querySelectorAll('.coaching-bar,.try-again-btn').forEach(el=>el.remove());
+      document.querySelectorAll('.selected').forEach(el=>el.classList.remove('selected'));
+      document.querySelectorAll('.dimmed').forEach(el=>el.classList.remove('dimmed'));
+      document.querySelectorAll('[style*="pointer-events"]').forEach(el=>{el.style.pointerEvents='';});
+      // Close all overlays except receipt/start
+      ['celebOverlay','sbsOverlay','agScreen','vocabOverlay'].forEach(id=>{const o=$(id);if(o)o.classList.remove('show');});
+    }catch(e){console.error('[skip] UI strip failed',e);}
+    // 3. Award 50% credit for this round
+    try{
+      const idx=GS.currentRound;const level=GS.levels[idx];
+      if(level && !level.completed){
+        level.completed=true;level.score=50;level.attempts=(level.attempts||0)+1;
+        level.hintsUsed=GS.hintsUsed||0;level.resets=GS.resets||0;
+        level.timeMs=Date.now()-(GS.roundStartTime||Date.now());
+        try{updateHUD();}catch(e){}
+      }
+    }catch(e){console.error('[skip] scoring failed',e);}
+    // 4. Advance — timeout path shows a gentle flash, manual path advances immediately
+    if(opts.confirmFirst===false && opts.reason==='timeout'){
+      try{
+        const iz=$('interactionZone');
+        if(iz){iz.innerHTML='<div style="text-align:center;font-size:14px;color:var(--textLight);font-weight:600">Moving on — you will see this idea again.</div>';show(iz);}
+      }catch(e){}
+      safeTimeout(()=>{
+        try{hide('interactionZone');checkMilestone();}
+        catch(e){try{if(GS.currentRound<ROUNDS.length-1)loadRound(GS.currentRound+1);else showReceipt();}catch(e2){}}
+      },1500);
+    } else {
+      try{hide('interactionZone');}catch(e){}
+      try{checkMilestone();}
+      catch(e){try{if(GS.currentRound<ROUNDS.length-1)loadRound(GS.currentRound+1);else showReceipt();}catch(e2){}}
+    }
+  }catch(err){
+    console.error('[skipCurrentRound] outer failure — last-ditch advance',err);
+    try{if(GS.currentRound<ROUNDS.length-1)loadRound(GS.currentRound+1);else showReceipt();}catch(e){}
+  }
+}
 
 // ====== ROUND DATA ======
 const ROUNDS=[
@@ -854,7 +965,7 @@ function startGame(){
   teacherName=$('startTeacherName').value.trim()||"Mr. Jawad";
   GS.studentName=studentName;
   document.title=teacherName+"'s Simulation — Volcano";
-  $('startScreen').classList.add('hidden');show('topBar');show('bottomBar');$('mainArea').style.display='flex';
+  $('startScreen').classList.add('hidden');show('topBar');show('bottomBar');$('mainArea').style.display='flex';show('stuckBtn');
   safeCall(()=>initSpeech(),'speech init');resizeCanvas();
   ROUNDS.forEach(r=>{GS.levels.push({num:r.num,name:r.name,required:r.required,completed:false,score:0,attempts:0,hintsUsed:0,resets:0,timeMs:0});});
   animLoop();loadRound(0);
@@ -862,6 +973,7 @@ function startGame(){
 
 // ====== LOAD ROUND ======
 function loadRound(idx){
+  clearPhaseDeadman(); // FIX 4: new round invalidates any in-flight deadman
   safeCall(()=>{
     GS.arenaGen=(GS.arenaGen||0)+1;
     GS._lockProcessing=false;
@@ -912,13 +1024,16 @@ function resetCurrentRound(){
 
 // ====== PREDICTION ======
 function startPredictPhase(r){
-  setPhase('predict');$('testBtn').disabled=true;
-  const iz=$('interactionZone');iz.innerHTML='';
-  const pred=r.prediction;
-  let h='<div class="predict-container"><div class="predict-prompt">'+pred.prompt+'</div><div class="predict-cards">';
-  pred.options.forEach((o,i)=>{h+='<div class="predict-card" data-idx="'+i+'" onclick="selectPrediction('+i+')">'+String.fromCharCode(65+i)+') '+o+'</div>';});
-  h+='</div><button class="lock-in-btn" id="predLockBtn" disabled onclick="lockPrediction()">Lock In Prediction</button></div>';
-  iz.innerHTML=h;show(iz);showFocus(r.focusPrompt,4000);speak(pred.prompt);
+  GS._lockProcessing=false; // FIX 3: defensive clear
+  safeCall(()=>{
+    setPhase('predict');$('testBtn').disabled=true;
+    const iz=$('interactionZone');iz.innerHTML='';
+    const pred=r.prediction;
+    let h='<div class="predict-container"><div class="predict-prompt">'+pred.prompt+'</div><div class="predict-cards">';
+    pred.options.forEach((o,i)=>{h+='<div class="predict-card" data-idx="'+i+'" onclick="selectPrediction('+i+')">'+String.fromCharCode(65+i)+') '+o+'</div>';});
+    h+='</div><button class="lock-in-btn" id="predLockBtn" disabled onclick="lockPrediction()">Lock In Prediction</button></div>';
+    iz.innerHTML=h;show(iz);showFocus(r.focusPrompt,4000);speak(pred.prompt);
+  },'startPredictPhase');
 }
 function selectPrediction(idx){
   document.querySelectorAll('.predict-card').forEach(c=>c.classList.remove('selected'));
@@ -936,11 +1051,14 @@ function lockPrediction(){
 
 // ====== REVERSE ENGINEER ======
 function startReversePhase(r){
-  setPhase('change');hide('guidedMsg');
-  eruptTypeLabel=r.reverseTarget;eruptionPhase=1;showFocus(r.focusPrompt,3000);
-  const iz=$('interactionZone');
-  iz.innerHTML='<div style="text-align:center;font-size:14px;font-weight:600;color:var(--text)">This volcano produced: <strong>'+r.reverseTarget+'</strong>. Set the sliders to match, then press TEST.</div>';
-  show(iz);$('testBtn').disabled=true;GS.prevThick=-1;GS.prevGas=-1;
+  GS._lockProcessing=false; // FIX 3: defensive clear
+  safeCall(()=>{
+    setPhase('change');hide('guidedMsg');
+    eruptTypeLabel=r.reverseTarget;eruptionPhase=1;showFocus(r.focusPrompt,3000);
+    const iz=$('interactionZone');
+    iz.innerHTML='<div style="text-align:center;font-size:14px;font-weight:600;color:var(--text)">This volcano produced: <strong>'+r.reverseTarget+'</strong>. Set the sliders to match, then press TEST.</div>';
+    show(iz);$('testBtn').disabled=true;GS.prevThick=-1;GS.prevGas=-1;
+  },'startReversePhase');
 }
 function retryReverse(){
   setPhase('change');GS.prevThick=-1;GS.prevGas=-1;$('testBtn').disabled=true;
@@ -966,34 +1084,42 @@ function pressTest(){
 
 // ====== WATCH ======
 function startWatchPhase(th,gs){
-  setPhase('watch');const key=th+'-'+gs,out=OUTCOME_MATRIX[key],r=ROUNDS[GS.currentRound];
-  showFocus(r.focusPrompt,2000);targetPressure=out.pressN;targetDanger=out.dangerN;
-  eruptTypeLabel=out.eruption;warningCracks=(out.eruption==='Warning State');
-  setTimeout(()=>{eruptionPhase=1;if(out.pressN>=0.88)shakeIntensity=6;else if(out.pressN>=0.7)shakeIntensity=3;},3000);
-  if(GS.predictionCorrect!==null){
-    setTimeout(()=>{const iz=$('interactionZone');iz.innerHTML=GS.predictionCorrect?'<div style="color:var(--correct);font-size:16px;font-weight:700;text-align:center">Prediction Correct!</div>':'<div style="color:var(--warn);font-size:16px;font-weight:700;text-align:center">Let\'s see why...</div>';show(iz);},2000);
-  }
-  const dur=out.pressN>=0.88?8000:6000;
-  setTimeout(()=>{GS._lastOutcome=out;GS._lastTh=th;GS._lastGs=gs;startRecordPhase(out,th,gs);},dur);
+  GS._lockProcessing=false; // FIX 3: defensive clear
+  safeCall(()=>{
+    setPhase('watch');const key=th+'-'+gs,out=OUTCOME_MATRIX[key],r=ROUNDS[GS.currentRound];
+    showFocus(r.focusPrompt,2000);targetPressure=out.pressN;targetDanger=out.dangerN;
+    eruptTypeLabel=out.eruption;warningCracks=(out.eruption==='Warning State');
+    setTimeout(()=>{eruptionPhase=1;if(out.pressN>=0.88)shakeIntensity=6;else if(out.pressN>=0.7)shakeIntensity=3;},3000);
+    if(GS.predictionCorrect!==null){
+      setTimeout(()=>{const iz=$('interactionZone');iz.innerHTML=GS.predictionCorrect?'<div style="color:var(--correct);font-size:16px;font-weight:700;text-align:center">Prediction Correct!</div>':'<div style="color:var(--warn);font-size:16px;font-weight:700;text-align:center">Let\'s see why...</div>';show(iz);},2000);
+    }
+    const dur=out.pressN>=0.88?8000:6000;
+    setTimeout(()=>{GS._lastOutcome=out;GS._lastTh=th;GS._lastGs=gs;startRecordPhase(out,th,gs);},dur);
+  },'startWatchPhase');
 }
 
 // ====== RECORD ======
 function startRecordPhase(out,th,gs){
-  setPhase('record');const r=ROUNDS[GS.currentRound],row=r.num;
-  let rd={round:row,thick:thickLabels[th],gas:gasLabels[gs],pressure:out.pressure,eruption:out.eruption,danger:out.danger};
-  let hasErr=false;
-  if(r.recordError){hasErr=true;rd[r.recordError.col]=r.recordError.wrongVal;if(r.recordError.col==='gas'&&r.recordError.correctVal===null)r.recordError.correctVal=gasLabels[gs];}
-  const tbody=$('dataBody'),tr=document.createElement('tr');tr.className='current';tr.id='dataRow'+row;
-  ['round','thick','gas','pressure','eruption','danger'].forEach(c=>{
-    const td=document.createElement('td');td.textContent=rd[c];td.dataset.col=c;
-    if(hasErr&&c===r.recordError.col){td.classList.add('error-cell');td.onclick=function(){correctErrorCell(this,r.recordError.correctVal,row);};}
-    tr.appendChild(td);
-  });
-  tbody.appendChild(tr);$('rightPanel').scrollTop=$('rightPanel').scrollHeight;
-  GS.confirmDisabledUntil=Date.now()+2000;
-  $('interactionZone').innerHTML='<div class="record-zone"><div class="record-msg">Check your data table row. Does everything look right?</div><button class="confirm-btn" id="confirmBtn" disabled onclick="confirmRecord('+row+','+hasErr+')">Confirm</button></div>';
-  show('interactionZone');
-  setTimeout(()=>{const b=$('confirmBtn');if(b)b.disabled=false;},2000);
+  GS._lockProcessing=false; // FIX 3: defensive clear
+  safeCall(()=>{
+    setPhase('record');
+    armPhaseDeadman(180000); // FIX 4: 3-minute hard ceiling on RECORD
+    const r=ROUNDS[GS.currentRound],row=r.num;
+    let rd={round:row,thick:thickLabels[th],gas:gasLabels[gs],pressure:out.pressure,eruption:out.eruption,danger:out.danger};
+    let hasErr=false;
+    if(r.recordError){hasErr=true;rd[r.recordError.col]=r.recordError.wrongVal;if(r.recordError.col==='gas'&&r.recordError.correctVal===null)r.recordError.correctVal=gasLabels[gs];}
+    const tbody=$('dataBody'),tr=document.createElement('tr');tr.className='current';tr.id='dataRow'+row;
+    ['round','thick','gas','pressure','eruption','danger'].forEach(c=>{
+      const td=document.createElement('td');td.textContent=rd[c];td.dataset.col=c;
+      if(hasErr&&c===r.recordError.col){td.classList.add('error-cell');td.onclick=function(){correctErrorCell(this,r.recordError.correctVal,row);};}
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);$('rightPanel').scrollTop=$('rightPanel').scrollHeight;
+    GS.confirmDisabledUntil=Date.now()+2000;
+    $('interactionZone').innerHTML='<div class="record-zone"><div class="record-msg">Check your data table row. Does everything look right?</div><button class="confirm-btn" id="confirmBtn" disabled onclick="confirmRecord('+row+','+hasErr+')">Confirm</button></div>';
+    show('interactionZone');
+    setTimeout(()=>{const b=$('confirmBtn');if(b)b.disabled=false;},2000);
+  },'startRecordPhase');
 }
 function correctErrorCell(td,cv,row){td.textContent=cv;td.classList.remove('error-cell');td.classList.add('corrected');td.onclick=null;GS.recordCorrected=true;playCorrect();}
 function confirmRecord(row,hasErr){
@@ -1011,15 +1137,20 @@ function confirmRecord(row,hasErr){
 
 // ====== PROVE PHASE ======
 function startProvePhase(){
-  setPhase('prove');GS.wrongCount=0;GS.phaseStartTime=Date.now();show('hintBtn');
-  const r=ROUNDS[GS.currentRound],p=r.prove;
-  switch(p.mechanic){
-    case 'coach-click':renderCoachClick(p,r);break;
-    case 'drag-to-match':renderDragToMatch(p,r);break;
-    case 'hotspot':renderHotspot(p,r);break;
-    case 'sequence':renderSequence(p,r);break;
+  GS._lockProcessing=false; // FIX 3: defensive clear
+  safeCall(()=>{
+    setPhase('prove');
+    armPhaseDeadman(240000); // FIX 4: 4-minute hard ceiling on PROVE
+    GS.wrongCount=0;GS.phaseStartTime=Date.now();show('hintBtn');
+    const r=ROUNDS[GS.currentRound],p=r.prove;
+    switch(p.mechanic){
+      case 'coach-click':renderCoachClick(p,r);break;
+      case 'drag-to-match':renderDragToMatch(p,r);break;
+      case 'hotspot':renderHotspot(p,r);break;
+      case 'sequence':renderSequence(p,r);break;
     case 'claim-builder':renderClaimBuilder(p,r);break;
   }
+  },'startProvePhase');
 }
 
 // ====== COACH-CLICK ======
@@ -1325,6 +1456,9 @@ function fireConfetti(){
 
 // ====== RECEIPT ======
 function showReceipt(){
+  clearPhaseDeadman(); // FIX 4: no deadman can fire on the receipt screen
+  try{GS._lockProcessing=false;}catch(e){}
+  hide('stuckBtn'); // FIX 2: hide emergency advance on receipt — student is done
   const ov=$('receiptOverlay');
   const reqS=GS.levels.filter((l,i)=>ROUNDS[i].required&&l.completed).map(l=>l.score);
   const base=reqS.length?Math.round(reqS.reduce((a,b)=>a+b,0)/reqS.length):0;
