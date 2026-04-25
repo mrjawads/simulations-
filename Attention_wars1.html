@@ -1842,6 +1842,164 @@ setInterval(() => {
     G.meters[m] = clamp(G.meters[m]);
   }
 }, 2000);
+
+
+// ===== EXECUTOR HOTFIX: WATCHDOG + I'M STUCK + RESTART + INACTIVITY DEADMAN =====
+// Adds safety nets only. No gameplay, decision text, or title/name changes.
+(function installHotfix(){
+  try {
+    var css = document.createElement('style');
+    css.textContent = ''
+      + '.hf-btn{position:fixed;z-index:9000;font-family:inherit;cursor:pointer;border:none;border-radius:6px;font-weight:700;letter-spacing:.5px;-webkit-tap-highlight-color:transparent;}'
+      + '.hf-stuck{bottom:18px;right:18px;background:#7d3a0e;color:#ffd33d;padding:10px 14px;font-size:13px;box-shadow:0 3px 0 #4a1f00;min-height:44px;}'
+      + '.hf-stuck:hover{background:#9a4d18;}'
+      + '.hf-stuck.pulse{animation:hf-pulse 1.1s infinite;}'
+      + '@keyframes hf-pulse{0%,100%{transform:scale(1);box-shadow:0 3px 0 #4a1f00;}50%{transform:scale(1.06);box-shadow:0 3px 14px rgba(255,170,51,.55);}}'
+      + '.hf-restart{top:14px;right:14px;background:rgba(0,0,0,.45);color:#f3e6c8;padding:6px 10px;font-size:11px;border:1px solid #7a5a3a;}'
+      + '.hf-restart:hover{background:rgba(0,0,0,.7);}';
+    document.head.appendChild(css);
+    var lockedSince = 0, popupSince = 0;
+    var lastInteraction = Date.now();
+    var nudgeFired = false, autoSkipFired = false;
+    function bumpActivity(){
+      lastInteraction = Date.now();
+      nudgeFired = false; autoSkipFired = false;
+      var s = document.getElementById('hf-stuck-btn');
+      if (s) s.classList.remove('pulse');
+    }
+    document.addEventListener('click', bumpActivity, true);
+    document.addEventListener('keydown', bumpActivity, true);
+    document.addEventListener('touchstart', bumpActivity, true);
+    setInterval(function(){
+      try {
+        var now = Date.now();
+        var locked = (typeof state !== 'undefined' && state && 'choiceLocked' in state)
+          ? state.choiceLocked
+          : (typeof choiceLocked !== 'undefined' ? choiceLocked : false);
+        if (locked) {
+          if (!lockedSince) lockedSince = now;
+          else if (now - lockedSince > 15000) {
+            console.warn('[watchdog] clearing stuck choiceLocked');
+            if (typeof state !== 'undefined' && state && 'choiceLocked' in state) state.choiceLocked = false;
+            try { if (typeof choiceLocked !== 'undefined') choiceLocked = false; } catch(e){}
+            lockedSince = 0;
+          }
+        } else lockedSince = 0;
+        if (typeof popupOpen !== 'undefined') {
+          var ov = document.getElementById('popup-overlay');
+          var overlayShown = ov && ov.classList.contains('show');
+          if (popupOpen && !overlayShown) {
+            if (!popupSince) popupSince = now;
+            else if (now - popupSince > 4000) {
+              console.warn('[watchdog] clearing stuck popupOpen');
+              popupOpen = false; popupSince = 0;
+              if (typeof popupQueue !== 'undefined' && popupQueue.length && typeof drainPopup === 'function') drainPopup();
+            }
+          } else popupSince = 0;
+        }
+      } catch(e){}
+    }, 1500);
+    function isPlaying(){
+      try {
+        var btns = document.querySelectorAll('.choice-btn, #choiceA, #choiceB, #opt-a, #opt-b, .btn-a, .btn-b');
+        for (var i = 0; i < btns.length; i++) {
+          if (btns[i].offsetParent !== null) return true;
+        }
+      } catch(e){}
+      return false;
+    }
+    function skipCurrentRound(){
+      try {
+        if (!isPlaying()) return;
+        if (typeof state !== 'undefined' && state && 'choiceLocked' in state) state.choiceLocked = false;
+        try { if (typeof choiceLocked !== 'undefined') choiceLocked = false; } catch(e){}
+        try { if (typeof popupOpen !== 'undefined') popupOpen = false; } catch(e){}
+        try { if (typeof popupQueue !== 'undefined') popupQueue.length = 0; } catch(e){}
+        var ov = document.getElementById('popup-overlay');
+        if (ov) ov.classList.remove('show');
+        var firstBtn = document.querySelector('#choices .choice-btn')
+                    || document.getElementById('choiceA')
+                    || document.getElementById('opt-a')
+                    || document.querySelector('.choice-btn')
+                    || document.querySelector('.btn-a');
+        if (firstBtn && firstBtn.offsetParent !== null) {
+          firstBtn.click();
+        } else if (typeof state !== 'undefined' && state) {
+          state.round = (state.round || 1) + 1;
+          var maxR = (typeof TOTAL_ROUNDS !== 'undefined') ? TOTAL_ROUNDS : 7;
+          if (state.round > maxR) {
+            if (typeof endGame === 'function') endGame();
+            else if (typeof finishGame === 'function') finishGame();
+          } else if (typeof loadRound === 'function') loadRound();
+            else if (typeof runRound === 'function') runRound();
+        }
+        bumpActivity();
+      } catch(e){ console.error('stuck-skip', e); }
+    }
+    function confirmAndRestart(){
+      try {
+        if (window.confirm('Restart from Round 1? Your current run will reset.')) {
+          if (typeof state !== 'undefined' && state) state._roundGen = (state._roundGen || 0) + 1;
+          var ov = document.getElementById('popup-overlay');
+          if (ov) ov.classList.remove('show');
+          if (typeof startGame === 'function') startGame();
+          else if (typeof startMission === 'function') startMission();
+          bumpActivity();
+        }
+      } catch(e){ console.error('restart', e); }
+    }
+    function ensureButtons(){
+      if (!document.getElementById('hf-stuck-btn')){
+        var b = document.createElement('button');
+        b.id = 'hf-stuck-btn'; b.className = 'hf-btn hf-stuck';
+        b.textContent = "I'M STUCK — SKIP";
+        b.onclick = skipCurrentRound;
+        document.body.appendChild(b);
+      }
+      if (!document.getElementById('hf-restart-btn')){
+        var r = document.createElement('button');
+        r.id = 'hf-restart-btn'; r.className = 'hf-btn hf-restart';
+        r.textContent = '↺ RESTART';
+        r.onclick = confirmAndRestart;
+        document.body.appendChild(r);
+      }
+    }
+    function syncButtonVisibility(){
+      try {
+        var active = isPlaying();
+        var s = document.getElementById('hf-stuck-btn');
+        var r = document.getElementById('hf-restart-btn');
+        if (s) s.style.display = active ? 'block' : 'none';
+        if (r) r.style.display = active ? 'block' : 'none';
+      } catch(e){}
+    }
+    setInterval(function(){
+      try {
+        if (!isPlaying()) {
+          lastInteraction = Date.now();
+          nudgeFired = false; autoSkipFired = false;
+          return;
+        }
+        var idle = Date.now() - lastInteraction;
+        var s = document.getElementById('hf-stuck-btn');
+        if (idle > 180000 && !nudgeFired) { nudgeFired = true; if (s) s.classList.add('pulse'); }
+        if (idle > 480000 && !autoSkipFired) {
+          autoSkipFired = true;
+          console.warn('[deadman] auto-skipping after 8 min idle');
+          skipCurrentRound();
+        }
+      } catch(e){}
+    }, 5000);
+    function bootHotfix(){ try { ensureButtons(); syncButtonVisibility(); } catch(e){} }
+    setInterval(bootHotfix, 800);
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(bootHotfix, 50);
+    } else {
+      document.addEventListener('DOMContentLoaded', function(){ setTimeout(bootHotfix, 50); });
+    }
+  } catch(e){ console.error('hotfix install', e); }
+})();
+
 </script>
 </body>
 </html>
