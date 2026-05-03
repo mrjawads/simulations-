@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Market: Market Moves — S1</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; color: #f5f1e6; overflow-x: hidden; }
+  body {
+    background: linear-gradient(160deg, #0c1d33 0%, #112a4a 50%, #0a1628 100%);
+    min-height: 100vh;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .screen { display: none; min-height: 100vh; padding: 12px; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ===== TITLE SCREEN ===== */
+  #title-screen {
+    align-items: center; justify-content: center; text-align: center;
+    background: radial-gradient(ellipse at center, #16335c 0%, #0a1628 70%);
+  }
+  .brand-tag {
+    color: #d4a84b; font-size: 14px; letter-spacing: 4px;
+    border: 1px solid #d4a84b; padding: 6px 14px; border-radius: 4px;
+    margin-bottom: 30px; text-transform: uppercase;
+  }
+  #title-screen h1 {
+    font-size: 64px; font-weight: 900; letter-spacing: 6px;
+    background: linear-gradient(180deg, #ffd76b 0%, #d4a84b 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; color: #d4a84b;
+    text-shadow: 0 4px 20px rgba(212,168,75,0.3);
+    margin-bottom: 8px;
+  }
+  #title-screen h2 {
+    font-size: 28px; color: #f5f1e6; letter-spacing: 8px;
+    font-weight: 300; margin-bottom: 30px;
+  }
+  .ticker-strip {
+    display: flex; gap: 16px; margin: 20px 0 30px; flex-wrap: wrap; justify-content: center;
+  }
+  .ticker {
+    background: rgba(0,0,0,0.4); padding: 8px 14px; border-radius: 4px;
+    font-family: 'Courier New', monospace; font-size: 14px;
+    border-left: 3px solid #4ec46a;
+  }
+  .ticker.down { border-left-color: #e85a5a; }
+  .ticker .sym { color: #ffd76b; font-weight: bold; margin-right: 8px; }
+  .ticker .price { color: #4ec46a; }
+  .ticker.down .price { color: #e85a5a; }
+  #title-screen p {
+    font-size: 18px; max-width: 540px; margin-bottom: 30px; line-height: 1.5;
+    color: #d4d8e0;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, #ffd76b 0%, #d4a84b 100%);
+    color: #0a1628; font-size: 22px; font-weight: 800; letter-spacing: 2px;
+    padding: 18px 50px; border: none; border-radius: 8px; cursor: pointer;
+    text-transform: uppercase; box-shadow: 0 6px 20px rgba(212,168,75,0.4);
+    transition: transform 0.15s, box-shadow 0.15s; min-height: 56px;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(212,168,75,0.6); }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* ===== GAME SCREEN ===== */
+  #game-screen { padding: 8px 12px; }
+  #hud {
+    background: linear-gradient(180deg, rgba(15,30,55,0.95) 0%, rgba(10,22,40,0.9) 100%);
+    border: 1px solid rgba(212,168,75,0.3);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 10px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  }
+  .hud-top {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 10px; margin-bottom: 8px;
+  }
+  .pv-display { display: flex; align-items: baseline; gap: 8px; }
+  .pv-label { font-size: 11px; letter-spacing: 2px; color: #d4a84b; text-transform: uppercase; }
+  .pv-value {
+    font-size: 28px; font-weight: 800; color: #ffd76b;
+    font-family: 'Courier New', monospace;
+    transition: color 0.4s;
+  }
+  .pv-value.up-flash { color: #4ec46a; text-shadow: 0 0 16px rgba(78,196,106,0.7); }
+  .pv-value.down-flash { color: #e85a5a; text-shadow: 0 0 16px rgba(232,90,90,0.7); }
+
+  .side-indicators { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .side-ind {
+    background: rgba(0,0,0,0.35); padding: 5px 10px; border-radius: 6px;
+    font-size: 12px; border: 1px solid rgba(255,255,255,0.08);
+  }
+  .side-ind .lbl { color: #aab1bc; margin-right: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .side-ind .val { color: #ffd76b; font-weight: bold; font-family: 'Courier New', monospace; }
+
+  .round-info { display: flex; align-items: center; gap: 10px; }
+  .round-badge {
+    background: rgba(212,168,75,0.2); border: 1px solid #d4a84b;
+    padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;
+    color: #ffd76b; letter-spacing: 1px;
+  }
+  .xp-bar {
+    width: 90px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;
+    border: 1px solid rgba(212,168,75,0.4);
+  }
+  .xp-fill { height: 100%; background: linear-gradient(90deg, #4ec46a 0%, #ffd76b 100%); transition: width 0.6s ease; width: 0%; }
+  .level-badge {
+    background: linear-gradient(180deg, #4ec46a 0%, #2a8842 100%);
+    color: #0a1628; padding: 3px 10px; border-radius: 14px;
+    font-weight: 800; font-size: 12px; letter-spacing: 1px;
+  }
+
+  .meters-row {
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
+    gap: 8px; align-items: stretch;
+  }
+  .meter {
+    background: rgba(0,0,0,0.25); border-radius: 8px; padding: 8px 10px;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: opacity 0.5s, transform 0.5s, border-color 0.5s, box-shadow 0.5s;
+    opacity: 0.95; position: relative;
+  }
+  .meter.hidden { display: none; }
+  .meter.revealing { animation: meterReveal 0.9s ease forwards; }
+  @keyframes meterReveal {
+    0% { transform: scale(0.85); opacity: 0; box-shadow: 0 0 0 rgba(212,168,75,0); }
+    50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 22px rgba(212,168,75,0.7); }
+    100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 rgba(212,168,75,0); }
+  }
+  .meter.primary {
+    border: 2px solid #d4a84b;
+    background: linear-gradient(180deg, rgba(212,168,75,0.1) 0%, rgba(0,0,0,0.3) 100%);
+    box-shadow: 0 0 18px rgba(212,168,75,0.25);
+  }
+  .meter-label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+    color: #aab1bc; margin-bottom: 6px;
+  }
+  .meter.primary .meter-label { color: #ffd76b; font-weight: bold; }
+  .meter-state { font-size: 11px; color: #f5f1e6; font-weight: bold; }
+  .meter-bar { height: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; overflow: hidden; position: relative; }
+  .meter-fill { height: 100%; transition: width 0.5s ease, background 0.5s; border-radius: 5px; }
+  .meter-fill.zone-low { background: linear-gradient(90deg, #e85a5a 0%, #ff8a65 100%); }
+  .meter-fill.zone-mid { background: linear-gradient(90deg, #ffb84a 0%, #ffd76b 100%); }
+  .meter-fill.zone-high { background: linear-gradient(90deg, #4ec46a 0%, #6dd99c 100%); }
+
+  .meter-pulse {
+    position: absolute; top: -4px; right: -4px;
+    width: 14px; height: 14px; border-radius: 50%;
+    pointer-events: none; opacity: 0;
+  }
+  .meter.flash-up .meter-pulse { background: #4ec46a; animation: pulseGlow 0.9s ease; }
+  .meter.flash-down .meter-pulse { background: #e85a5a; animation: pulseGlow 0.9s ease; }
+  @keyframes pulseGlow {
+    0% { opacity: 1; transform: scale(0.5); }
+    100% { opacity: 0; transform: scale(2.5); }
+  }
+
+  .powerup-icons { display: flex; gap: 6px; align-items: center; }
+  .powerup-icon {
+    background: linear-gradient(180deg, #4ec46a 0%, #2a8842 100%);
+    color: #0a1628; padding: 4px 8px; border-radius: 12px;
+    font-size: 11px; font-weight: bold;
+    box-shadow: 0 0 14px rgba(78,196,106,0.5);
+    animation: pwrPulse 2.2s ease-in-out infinite;
+  }
+  .powerup-icon.brain { background: linear-gradient(180deg, #b16dff 0%, #6a3dab 100%); box-shadow: 0 0 14px rgba(177,109,255,0.5); }
+  @keyframes pwrPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+  /* Arena */
+  #arena {
+    flex: 1;
+    display: grid; grid-template-columns: 1.2fr 1fr;
+    gap: 12px; min-height: 320px;
+    margin-bottom: 10px;
+  }
+  .arena-left {
+    background: linear-gradient(180deg, rgba(15,30,55,0.6) 0%, rgba(10,22,40,0.6) 100%);
+    border: 1px solid rgba(212,168,75,0.2);
+    border-radius: 10px; padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    position: relative;
+  }
+  .pie-block { display: flex; align-items: center; gap: 14px; }
+  .pie-wrap { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+  .pie-svg { width: 130px; height: 130px; transition: transform 0.4s; }
+  .pie-wrap.shielded::before {
+    content: ''; position: absolute; top: -8px; left: -8px;
+    width: 146px; height: 146px; border-radius: 50%;
+    border: 3px solid #6dd99c;
+    box-shadow: 0 0 20px rgba(78,196,106,0.5), inset 0 0 20px rgba(78,196,106,0.2);
+    animation: shieldRing 2.5s ease-in-out infinite;
+  }
+  @keyframes shieldRing {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+  .pie-center-label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    text-align: center; pointer-events: none;
+  }
+  .pie-center-label .num { font-size: 24px; font-weight: 800; color: #ffd76b; display: block; }
+  .pie-center-label .lbl { font-size: 9px; color: #aab1bc; letter-spacing: 1px; text-transform: uppercase; }
+  .sector-tags-block { flex: 1; }
+  .sector-tags-title { font-size: 10px; color: #aab1bc; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .sector-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+  .sector-tag {
+    padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: bold;
+    color: #f5f1e6; animation: tagPop 0.5s ease;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  @keyframes tagPop {
+    0% { transform: scale(0); }
+    60% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  .sector-tag.empty { background: rgba(255,255,255,0.06); color: #6c7480; border: 1px dashed rgba(255,255,255,0.15); }
+
+  .chart-block {
+    flex: 1; min-height: 140px;
+    background: rgba(0,0,0,0.35); border-radius: 8px; padding: 10px;
+    position: relative;
+  }
+  .chart-title {
+    font-size: 11px; color: #aab1bc; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 4px;
+    display: flex; justify-content: space-between;
+  }
+  .chart-svg { width: 100%; height: 100px; display: block; }
+
+  .arena-right {
+    background: linear-gradient(180deg, rgba(15,30,55,0.6) 0%, rgba(10,22,40,0.6) 100%);
+    border: 1px solid rgba(212,168,75,0.2);
+    border-radius: 10px; padding: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+    overflow-y: auto; max-height: 400px;
+  }
+  .stocks-title {
+    font-size: 11px; color: #aab1bc; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 4px;
+    display: flex; justify-content: space-between;
+  }
+  .stock-card {
+    background: rgba(0,0,0,0.3); border-left: 4px solid;
+    border-radius: 6px; padding: 8px 10px;
+    display: flex; align-items: center; gap: 10px;
+    position: relative;
+    transition: transform 0.3s, opacity 0.3s;
+    animation: cardSlide 0.5s ease;
+  }
+  @keyframes cardSlide {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .stock-card.flash-up { animation: cardFlashUp 1s; }
+  .stock-card.flash-down { animation: cardFlashDown 1s; }
+  @keyframes cardFlashUp {
+    0% { background: rgba(78,196,106,0.4); }
+    100% { background: rgba(0,0,0,0.3); }
+  }
+  @keyframes cardFlashDown {
+    0% { background: rgba(232,90,90,0.4); }
+    100% { background: rgba(0,0,0,0.3); }
+  }
+  .stock-logo {
+    width: 36px; height: 36px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 14px; color: #0a1628;
+    flex-shrink: 0;
+  }
+  .stock-info { flex: 1; min-width: 0; }
+  .stock-name { font-size: 12px; font-weight: bold; color: #f5f1e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stock-meta { font-size: 10px; color: #aab1bc; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .stock-value { font-family: 'Courier New', monospace; color: #ffd76b; font-weight: bold; }
+  .stock-delta { font-size: 10px; font-weight: bold; }
+  .stock-delta.up { color: #4ec46a; }
+  .stock-delta.down { color: #e85a5a; }
+  .stock-tag {
+    display: inline-block; font-size: 8px; font-weight: bold;
+    padding: 1px 5px; border-radius: 3px; letter-spacing: 1px;
+    background: rgba(255,255,255,0.15); color: #f5f1e6;
+  }
+  .stock-tag.big-stake { background: #d4a84b; color: #0a1628; }
+  .stock-tag.protected { background: #4ec46a; color: #0a1628; }
+
+  /* Decision panel */
+  #decision-panel {
+    background: linear-gradient(180deg, rgba(15,30,55,0.95) 0%, rgba(10,22,40,0.95) 100%);
+    border: 1px solid rgba(212,168,75,0.4);
+    border-radius: 10px; padding: 14px;
+    box-shadow: 0 -4px 18px rgba(0,0,0,0.4);
+  }
+  .situation {
+    font-size: 17px; line-height: 1.4; color: #f5f1e6;
+    margin-bottom: 12px; font-weight: 500;
+  }
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .choice-btn {
+    background: linear-gradient(180deg, #1f4068 0%, #142a44 100%);
+    color: #f5f1e6; border: 2px solid rgba(212,168,75,0.4);
+    padding: 14px 16px; font-size: 16px; font-weight: bold;
+    border-radius: 8px; cursor: pointer; min-height: 64px;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    text-align: left; position: relative; line-height: 1.3;
+    font-family: inherit;
+  }
+  .choice-btn:hover {
+    transform: translateY(-2px); border-color: #d4a84b;
+    box-shadow: 0 8px 22px rgba(212,168,75,0.3);
+  }
+  .choice-btn:active { transform: translateY(0); }
+  .choice-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+  .trend-arrow {
+    position: absolute; top: 6px; right: 8px;
+    font-size: 14px; font-weight: 900;
+    padding: 2px 7px; border-radius: 4px;
+    animation: arrowFade 0.6s ease;
+  }
+  @keyframes arrowFade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .trend-arrow.up { background: rgba(78,196,106,0.25); color: #6dd99c; }
+  .trend-arrow.down { background: rgba(232,90,90,0.25); color: #ff8a65; }
+  .trend-arrow.flat { background: rgba(255,184,74,0.25); color: #ffd76b; }
+
+  /* Popup */
+  #popup-overlay {
+    position: fixed; left: 0; top: 0; width: 100%; height: 100%;
+    background: rgba(5,12,24,0.7); display: none;
+    align-items: center; justify-content: center; z-index: 200;
+    padding: 20px;
+  }
+  #popup-overlay.show { display: flex; animation: fadeIn 0.3s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .popup-box {
+    background: linear-gradient(180deg, #1a3258 0%, #0f1f3b 100%);
+    border: 2px solid #d4a84b; border-radius: 12px;
+    padding: 22px 28px; max-width: 520px; text-align: center;
+    box-shadow: 0 12px 50px rgba(0,0,0,0.7);
+    animation: popupIn 0.4s ease;
+  }
+  @keyframes popupIn {
+    from { transform: scale(0.7); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .popup-box h3 { color: #ffd76b; font-size: 22px; margin-bottom: 10px; letter-spacing: 1px; }
+  .popup-box p { font-size: 17px; color: #f5f1e6; margin-bottom: 16px; line-height: 1.4; }
+  .popup-meters { display: flex; justify-content: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .popup-meter {
+    background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 12px;
+    font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 4px;
+  }
+  .popup-meter.up { color: #6dd99c; border: 1px solid #4ec46a; }
+  .popup-meter.down { color: #ff8a65; border: 1px solid #e85a5a; }
+  .popup-meter.neutral { color: #d4a84b; border: 1px solid #d4a84b; }
+  .popup-btn {
+    background: linear-gradient(180deg, #ffd76b 0%, #d4a84b 100%);
+    color: #0a1628; border: none; padding: 12px 30px; font-size: 16px;
+    font-weight: 800; border-radius: 6px; cursor: pointer; min-height: 48px;
+    text-transform: uppercase; letter-spacing: 1px; font-family: inherit;
+  }
+  .popup-btn:hover { filter: brightness(1.1); }
+  .short-popup-toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,30,55,0.95); border: 1px solid #d4a84b;
+    color: #ffd76b; padding: 10px 22px; border-radius: 22px;
+    font-size: 15px; font-weight: bold; z-index: 150;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    animation: toastIn 0.4s ease;
+  }
+  @keyframes toastIn {
+    from { transform: translate(-50%, 30px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+  }
+
+  /* Event overlay */
+  #event-overlay {
+    position: fixed; left: 0; top: 0; width: 100%; height: 100%;
+    background: linear-gradient(135deg, rgba(80,30,30,0.9) 0%, rgba(10,22,40,0.95) 100%);
+    display: none; align-items: center; justify-content: center; z-index: 180;
+    padding: 20px;
+  }
+  #event-overlay.show { display: flex; animation: fadeIn 0.4s; }
+  .event-box {
+    background: linear-gradient(180deg, #2a1a3a 0%, #1a0f28 100%);
+    border: 3px solid #ff8a65; border-radius: 14px;
+    padding: 28px; max-width: 560px; width: 100%;
+    box-shadow: 0 20px 60px rgba(232,90,90,0.4);
+    text-align: center; animation: eventIn 0.5s ease;
+  }
+  @keyframes eventIn {
+    from { transform: scale(0.6) rotate(-3deg); opacity: 0; }
+    to { transform: scale(1) rotate(0); opacity: 1; }
+  }
+  .event-label {
+    background: #e85a5a; color: #fff; padding: 4px 14px; border-radius: 4px;
+    display: inline-block; font-weight: 800; letter-spacing: 3px; font-size: 12px;
+    margin-bottom: 14px; animation: alertPulse 1s infinite;
+  }
+  @keyframes alertPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .event-title { font-size: 28px; color: #ffd76b; margin-bottom: 14px; font-weight: 800; }
+  .event-visual {
+    margin: 16px 0;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 110px; flex-direction: column; gap: 10px;
+  }
+  .phone {
+    width: 160px; height: 240px; background: #0a0a14;
+    border: 4px solid #444; border-radius: 22px;
+    padding: 14px 8px; position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    animation: phoneBuzz 1.2s ease-in-out infinite;
+  }
+  @keyframes phoneBuzz {
+    0%, 100% { transform: rotate(-2deg); }
+    25% { transform: rotate(2deg); }
+    75% { transform: rotate(-3deg); }
+  }
+  .phone-screen {
+    background: #1a2a3a; border-radius: 12px; height: 100%;
+    padding: 10px; display: flex; flex-direction: column;
+  }
+  .phone-bubble {
+    background: #2a8842; color: #fff;
+    padding: 6px 10px; border-radius: 12px 12px 12px 2px;
+    font-size: 11px; margin-top: 8px; text-align: left;
+    animation: bubblePop 0.5s ease;
+    box-shadow: 0 0 8px rgba(78,196,106,0.4);
+  }
+  @keyframes bubblePop { from { transform: scale(0); } to { transform: scale(1); } }
+  .phone-bubble .sender { font-size: 9px; color: rgba(255,255,255,0.7); margin-bottom: 2px; display: block; }
+
+  .ticker-banner {
+    background: #0a0a0a; border: 2px solid #ff8a65;
+    color: #ffd76b; padding: 10px 16px; border-radius: 4px;
+    font-family: 'Courier New', monospace; font-size: 14px;
+    overflow: hidden; white-space: nowrap; position: relative;
+    box-shadow: 0 0 16px rgba(255,138,101,0.4);
+    width: 100%;
+  }
+  .ticker-text { display: inline-block; animation: tickerScroll 15s linear infinite; }
+  @keyframes tickerScroll { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+  .countdown-clock {
+    font-family: 'Courier New', monospace; font-size: 36px;
+    color: #ff8a65; font-weight: 800; margin: 12px 0;
+    animation: countdownPulse 1s ease-in-out infinite;
+  }
+  @keyframes countdownPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+  .event-text { font-size: 16px; color: #f5f1e6; line-height: 1.5; margin-bottom: 18px; }
+  .event-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Power-up notification */
+  #powerup-notif {
+    position: fixed; top: 80px; right: 20px;
+    background: linear-gradient(135deg, #ffd76b 0%, #d4a84b 100%);
+    color: #0a1628; padding: 14px 18px; border-radius: 10px;
+    font-weight: bold; max-width: 280px; display: none; z-index: 170;
+    box-shadow: 0 10px 30px rgba(212,168,75,0.5);
+    animation: pwrSlide 0.5s ease;
+  }
+  #powerup-notif.show { display: block; }
+  @keyframes pwrSlide {
+    from { transform: translateX(120%); }
+    to { transform: translateX(0); }
+  }
+  #powerup-notif .pwr-title { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  #powerup-notif .pwr-msg { font-size: 13px; line-height: 1.3; font-weight: 500; }
+
+  /* Meter reveal toast */
+  .reveal-toast {
+    position: fixed; top: 110px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, #1a3258 0%, #0f1f3b 100%);
+    border: 2px solid #d4a84b; color: #ffd76b;
+    padding: 12px 22px; border-radius: 8px;
+    font-weight: bold; z-index: 160;
+    box-shadow: 0 10px 30px rgba(212,168,75,0.4);
+    animation: revealToast 0.5s ease;
+    text-align: center;
+  }
+  @keyframes revealToast {
+    from { transform: translate(-50%, -30px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+  }
+  .reveal-toast .new-label { font-size: 11px; color: #d4a84b; letter-spacing: 2px; text-transform: uppercase; }
+  .reveal-toast .new-name { font-size: 18px; }
+
+  .patience-badge {
+    position: fixed; top: 100px; left: 20px;
+    background: linear-gradient(135deg, #b16dff 0%, #6a3dab 100%);
+    color: #fff; padding: 10px 18px; border-radius: 20px;
+    font-weight: bold; z-index: 160; display: none;
+    box-shadow: 0 0 20px rgba(177,109,255,0.6);
+    animation: badgeBurst 0.8s ease;
+  }
+  .patience-badge.show { display: block; }
+  @keyframes badgeBurst {
+    0% { transform: scale(0) rotate(-180deg); }
+    60% { transform: scale(1.2) rotate(10deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
+
+  /* End screen */
+  #end-screen { padding: 20px; }
+  .end-wrap { max-width: 1100px; margin: 0 auto; width: 100%; }
+  .end-title {
+    text-align: center; font-size: 38px; font-weight: 900;
+    color: #ffd76b; margin-bottom: 8px;
+    text-shadow: 0 4px 20px rgba(212,168,75,0.4);
+  }
+  .end-title.comeback { color: #ff8a65; text-shadow: 0 4px 20px rgba(255,138,101,0.4); }
+  .end-subtitle { text-align: center; color: #aab1bc; margin-bottom: 24px; font-size: 16px; }
+  .headline-number {
+    text-align: center; font-size: 72px; font-weight: 900;
+    font-family: 'Courier New', monospace; color: #ffd76b;
+    margin-bottom: 30px; animation: numCount 1.5s ease;
+    text-shadow: 0 6px 30px rgba(212,168,75,0.4);
+  }
+  @keyframes numCount {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .headline-number.profit { color: #6dd99c; text-shadow: 0 6px 30px rgba(78,196,106,0.4); }
+  .headline-number.loss { color: #ff8a65; text-shadow: 0 6px 30px rgba(255,138,101,0.4); }
+
+  .end-meters {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px; margin-bottom: 24px;
+  }
+  .end-meter {
+    background: rgba(0,0,0,0.4); border: 1px solid rgba(212,168,75,0.3);
+    border-radius: 10px; padding: 14px;
+  }
+  .end-meter.glow { border-color: #6dd99c; box-shadow: 0 0 16px rgba(78,196,106,0.3); }
+  .end-meter-label { font-size: 11px; color: #aab1bc; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .end-meter-state { font-size: 18px; font-weight: bold; color: #ffd76b; margin-bottom: 8px; }
+  .end-meter-bar { height: 12px; background: rgba(0,0,0,0.6); border-radius: 6px; overflow: hidden; }
+  .end-meter-fill { height: 100%; transition: width 1.5s ease; border-radius: 6px; }
+
+  .highlight-reel {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px; margin-bottom: 24px;
+  }
+  .highlight-card {
+    background: linear-gradient(135deg, rgba(212,168,75,0.18) 0%, rgba(0,0,0,0.4) 100%);
+    border: 1px solid #d4a84b; border-radius: 10px; padding: 14px;
+  }
+  .highlight-label { font-size: 10px; color: #d4a84b; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .highlight-text { font-size: 14px; color: #f5f1e6; line-height: 1.4; }
+
+  .level-display { text-align: center; margin-bottom: 24px; }
+  .level-display .lvl-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #ffd76b 0%, #d4a84b 100%);
+    color: #0a1628; padding: 12px 32px; border-radius: 30px;
+    font-weight: 900; font-size: 18px; letter-spacing: 2px;
+    box-shadow: 0 8px 26px rgba(212,168,75,0.5);
+    text-transform: uppercase;
+  }
+
+  .replay-banner {
+    background: linear-gradient(135deg, rgba(78,196,106,0.2) 0%, rgba(0,0,0,0.4) 100%);
+    border: 2px dashed #4ec46a; border-radius: 10px;
+    padding: 16px; margin-bottom: 24px; text-align: center;
+  }
+  .replay-banner .rb-label { font-size: 11px; color: #6dd99c; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .replay-banner .rb-text { font-size: 16px; color: #f5f1e6; line-height: 1.4; }
+
+  .end-buttons {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .end-buttons button {
+    padding: 14px 32px; font-size: 16px; font-weight: bold;
+    border-radius: 8px; cursor: pointer; min-height: 50px; border: none;
+    font-family: inherit;
+  }
+  .play-again-btn { background: linear-gradient(180deg, #4ec46a 0%, #2a8842 100%); color: #fff; }
+  .toggle-data-btn { background: rgba(255,255,255,0.1); color: #f5f1e6; border: 1px solid rgba(212,168,75,0.4) !important; }
+
+  #data-layer { display: none; }
+  #data-layer.show { display: block; animation: fadeIn 0.4s; }
+  .data-block {
+    background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 16px; margin-bottom: 14px;
+  }
+  .data-block h4 { color: #ffd76b; margin-bottom: 10px; font-size: 16px; letter-spacing: 1px; }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.data-table th, table.data-table td {
+    border: 1px solid rgba(255,255,255,0.1); padding: 6px 8px; text-align: left;
+  }
+  table.data-table th { background: rgba(212,168,75,0.2); color: #ffd76b; font-size: 11px; }
+  table.data-table td { color: #d4d8e0; }
+  .copy-btn {
+    background: #1f4068; color: #f5f1e6; border: 1px solid #d4a84b;
+    padding: 8px 16px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; margin-top: 10px; font-family: inherit;
+  }
+  .copy-btn.copied { background: #2a8842; }
+
+  .hf-stuck, .hf-restart {
+    position: fixed; right: 14px; padding: 8px 14px;
+    border-radius: 20px; font-size: 12px; font-weight: bold;
+    cursor: pointer; z-index: 250; opacity: 0.7; border: none;
+    font-family: inherit;
+  }
+  .hf-stuck { bottom: 14px; background: #d4a84b; color: #0a1628; }
+  .hf-stuck:hover { opacity: 1; }
+  .hf-stuck.pulse { animation: pulseGlow 1.5s ease-in-out infinite; opacity: 1; box-shadow: 0 0 14px #ffd76b; }
+  .hf-restart { bottom: 56px; background: rgba(232,90,90,0.85); color: #fff; font-size: 11px; }
+  .hf-restart:hover { opacity: 1; }
+  .hf-stuck.hide, .hf-restart.hide { display: none; }
+
+  .brand-footer {
+    position: fixed; bottom: 6px; left: 12px;
+    color: rgba(212,168,75,0.4); font-size: 9px;
+    letter-spacing: 2px; text-transform: uppercase;
+    pointer-events: none;
+  }
+
+  .comeback-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+  .comeback-card {
+    background: linear-gradient(180deg, rgba(232,90,90,0.15) 0%, rgba(0,0,0,0.4) 100%);
+    border: 1px solid #ff8a65; border-radius: 10px; padding: 16px;
+  }
+  .comeback-card.fix { border-color: #6dd99c; background: linear-gradient(180deg, rgba(78,196,106,0.15) 0%, rgba(0,0,0,0.4) 100%); }
+  .comeback-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .comeback-card .comeback-label { color: #ff8a65; }
+  .comeback-card.fix .comeback-label { color: #6dd99c; }
+  .comeback-text { font-size: 15px; color: #f5f1e6; line-height: 1.4; }
+
+  @media (max-width: 900px) {
+    #arena { grid-template-columns: 1fr; }
+    .meters-row { grid-template-columns: repeat(2, 1fr); }
+    .meter.primary { grid-column: span 2; }
+    .choices, .event-choices { grid-template-columns: 1fr; }
+    #title-screen h1 { font-size: 44px; }
+    .headline-number { font-size: 50px; }
+    .comeback-cards { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 1366px) and (min-width: 901px) {
+    .pv-value { font-size: 24px; }
+    #arena { min-height: 280px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="title-screen" class="screen active">
+    <div class="brand-tag">Mr. Jawad's Simulations</div>
+    <h1>STOCK MARKET</h1>
+    <h2>MARKET MOVES</h2>
+    <div class="ticker-strip">
+      <div class="ticker"><span class="sym">BBC</span><span class="price">+2.4%</span></div>
+      <div class="ticker down"><span class="sym">EGD</span><span class="price">-0.8%</span></div>
+      <div class="ticker"><span class="sym">PXL</span><span class="price">+1.7%</span></div>
+      <div class="ticker"><span class="sym">PWR</span><span class="price">+5.2%</span></div>
+      <div class="ticker down"><span class="sym">LUM</span><span class="price">-3.1%</span></div>
+    </div>
+    <p>Your money loses value just sitting there. Time to make it move.</p>
+    <button id="start-btn" class="btn-primary">Start Mission</button>
+  </div>
+
+  <div id="game-screen" class="screen">
+    <div id="hud">
+      <div class="hud-top">
+        <div class="pv-display">
+          <div class="pv-label">Portfolio Value</div>
+          <div class="pv-value" id="pv-value">$1,000</div>
+        </div>
+        <div class="side-indicators">
+          <div class="side-ind"><span class="lbl">Cash</span><span class="val" id="cash-val">$1,000</span></div>
+          <div class="side-ind"><span class="lbl">Stocks</span><span class="val" id="stocks-count">0</span></div>
+          <div class="powerup-icons" id="powerup-icons"></div>
+        </div>
+        <div class="round-info">
+          <div class="round-badge" id="round-badge">ROUND 1 / 8</div>
+          <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
+          <div class="level-badge" id="level-badge">LV 1</div>
+        </div>
+      </div>
+      <div class="meters-row" id="meters-row"></div>
+    </div>
+
+    <div id="arena">
+      <div class="arena-left">
+        <div class="pie-block">
+          <div class="pie-wrap" id="pie-wrap">
+            <svg class="pie-svg" viewBox="-65 -65 130 130" id="pie-svg">
+              <circle cx="0" cy="0" r="55" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+            </svg>
+            <div class="pie-center-label">
+              <span class="num" id="pie-sector-num">0</span>
+              <span class="lbl">Sectors</span>
+            </div>
+          </div>
+          <div class="sector-tags-block">
+            <div class="sector-tags-title">Your Sectors</div>
+            <div class="sector-tags" id="sector-tags">
+              <span class="sector-tag empty">none yet</span>
+            </div>
+          </div>
+        </div>
+        <div class="chart-block">
+          <div class="chart-title">
+            <span>Portfolio Trend</span>
+            <span id="chart-trend-tag"></span>
+          </div>
+          <svg class="chart-svg" viewBox="0 0 300 100" id="chart-svg" preserveAspectRatio="none">
+            <line x1="0" y1="50" x2="300" y2="50" stroke="rgba(255,255,255,0.1)" stroke-dasharray="2,4"/>
+          </svg>
+        </div>
+      </div>
+      <div class="arena-right">
+        <div class="stocks-title">
+          <span>Your Holdings</span>
+          <span id="holdings-count" style="color:#ffd76b;">$0</span>
+        </div>
+        <div id="stock-cards"></div>
+      </div>
+    </div>
+
+    <div id="decision-panel">
+      <div class="situation" id="situation-text">Loading...</div>
+      <div class="choices" id="choices-row"></div>
+    </div>
+  </div>
+
+  <div id="end-screen" class="screen">
+    <div class="end-wrap"><div id="end-content"></div></div>
+  </div>
+
+  <div id="popup-overlay">
+    <div class="popup-box" id="popup-box">
+      <h3 id="popup-title"></h3>
+      <p id="popup-text"></p>
+      <div class="popup-meters" id="popup-meters"></div>
+      <button class="popup-btn" id="popup-close">Continue</button>
+    </div>
+  </div>
+  <div id="event-overlay">
+    <div class="event-box" id="event-box">
+      <div class="event-label">! EVENT !</div>
+      <div class="event-title" id="event-title"></div>
+      <div class="event-visual" id="event-visual"></div>
+      <div class="event-text" id="event-text"></div>
+      <div class="event-choices" id="event-choices"></div>
+    </div>
+  </div>
+  <div id="powerup-notif">
+    <div class="pwr-title" id="pwr-title">Power-Up!</div>
+    <div class="pwr-msg" id="pwr-msg"></div>
+  </div>
+
+  <div class="brand-footer">Mr. Jawad's Simulations</div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var STOCKS_DEF = {
+    burger:    { id:'burger',    name:"Bigger Burger Co.", short:'BBC', sector:'Food',      color:'#ff8a4a', logoBg:'#ff8a4a' },
+    energrid:  { id:'energrid',  name:'EnerGrid',          short:'EGD', sector:'Energy',    color:'#3aa9e8', logoBg:'#3aa9e8' },
+    pixellab:  { id:'pixellab',  name:'PixelLab',          short:'PXL', sector:'Tech',      color:'#a87ce8', logoBg:'#a87ce8' },
+    powercell: { id:'powercell', name:'PowerCell',         short:'PWR', sector:'GreenTech', color:'#6dd99c', logoBg:'#6dd99c' },
+    roadflex:  { id:'roadflex',  name:'RoadFlex',          short:'RFL', sector:'Auto',      color:'#e85a5a', logoBg:'#e85a5a' },
+    lumicoin:  { id:'lumicoin',  name:'LumiCoin',          short:'LUM', sector:null,        color:'#e8d63a', logoBg:'#e8d63a', wildcard:true }
+  };
+
+  var state;
+  var audioCtx = null;
+  var popupOpen = false;
+  var eventOpen = false;
+  var choiceLocked = false;
+  var lastActivity = Date.now();
+
+  function initState(){
+    state = {
+      round: 0, cash: 1000, pvTotal: 1000,
+      stocks: {}, sectors: {},
+      riskPts: 0, panicPts: 0, conceptPts: 0,
+      xp: 0, level: 1,
+      pvHistory: [1000],
+      decisionLog: [],
+      revealedMeters: { portfolio:true, diversification:true, risk:false, panic:false, knowledge:false },
+      spreadShield: { armCount: 0, active: false, firstActivation: false },
+      knowledgeCompound: { active: false, roundsRemaining: 0, firstActivation: false },
+      pendingDeltas: [],
+      r3Dip: null, hotTip: null, r5Wave: null, r6Chase: null, r7Earnings: null, r8End: null,
+      patienceBadge: false,
+      bestSingleRoundDrop: { round: -1, amount: 0, choice: null },
+      _roundGen: 0
+    };
+  }
+
+  document.getElementById('start-btn').addEventListener('click', function(){
+    safe(function(){ tryAudio(); startGame(); });
+  });
+
+  function safe(fn){ try { fn(); } catch(e){ console.error('safe err:', e); } }
+  function tryAudio(){
+    try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { audioCtx = null; }
+  }
+  function blip(freq, dur, type){
+    if (!audioCtx) return;
+    try {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = type || 'sine';
+      o.frequency.value = freq;
+      g.gain.value = 0.05;
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch(e){}
+  }
+
+  function startGame(){
+    initState();
+    document.getElementById('title-screen').classList.remove('active');
+    document.getElementById('end-screen').classList.remove('active');
+    document.getElementById('game-screen').classList.add('active');
+    closePopup(); closeEvent(); hidePowerupNotif();
+    syncHotfixVisibility();
+    renderMetersRow();
+    renderHUD();
+    renderArena();
+    nextRound();
+  }
+
+  var METER_DEFS = [
+    { id:'diversification', name:'Diversification', primary:true, getZone: getDivZone, getPercent: getDivPercent, getStateLabel: getDivLabel },
+    { id:'portfolio',       name:'Portfolio Value',              getZone: getPVZone,  getPercent: getPVPercent,  getStateLabel: getPVLabel  },
+    { id:'risk',            name:'Risk Level',                   getZone: getRiskZone,getPercent: getRiskPercent,getStateLabel: getRiskLabel},
+    { id:'panic',           name:'Panic Level',                  getZone: getPanicZone,getPercent:getPanicPercent,getStateLabel:getPanicLabel},
+    { id:'knowledge',       name:'Knowledge',                    getZone: getKnowZone,getPercent: getKnowPercent,getStateLabel: getKnowLabel}
+  ];
+
+  function getDivZone(){ var n = sectorCount(); if (n <= 1) return 'low'; if (n === 2) return 'mid'; return 'high'; }
+  function getDivPercent(){ var n = sectorCount(); if (n >= 4) return 100; return Math.min(100, n * 25); }
+  function getDivLabel(){ var n = sectorCount(); if (n <= 1) return 'concentrated'; if (n === 2) return 'balanced'; return 'protected'; }
+  function sectorCount(){ var c = 0; for (var k in state.sectors) if (state.sectors[k] > 0) c++; return c; }
+
+  function getPVZone(){ if (state.pvTotal >= 2001) return 'high'; if (state.pvTotal >= 1201) return 'mid'; return 'low'; }
+  function getPVPercent(){
+    var v = Math.max(0, state.pvTotal);
+    if (v >= 2500) return 100;
+    if (v >= 2001) return 75 + ((v-2001)/499)*25;
+    if (v >= 1201) return 40 + ((v-1201)/800)*35;
+    return Math.max(2, (v / 1200) * 40);
+  }
+  function getPVLabel(){ if (state.pvTotal >= 2001) return 'rich'; if (state.pvTotal >= 1201) return 'growing'; return 'building'; }
+
+  function getRiskZone(){ if (state.riskPts <= 2) return 'high'; if (state.riskPts <= 5) return 'mid'; return 'low'; }
+  function getRiskPercent(){ return Math.min(100, (state.riskPts / 8) * 100); }
+  function getRiskLabel(){ if (state.riskPts <= 2) return 'safe'; if (state.riskPts <= 5) return 'moderate'; return 'aggressive'; }
+
+  function getPanicZone(){ if (state.panicPts <= 2) return 'high'; if (state.panicPts <= 5) return 'mid'; return 'low'; }
+  function getPanicPercent(){ return Math.min(100, (state.panicPts / 8) * 100); }
+  function getPanicLabel(){ if (state.panicPts <= 2) return 'calm'; if (state.panicPts <= 5) return 'nervous'; return 'freaking out'; }
+
+  function getKnowZone(){ if (state.conceptPts >= 6) return 'high'; if (state.conceptPts >= 3) return 'mid'; return 'low'; }
+  function getKnowPercent(){ return Math.min(100, (state.conceptPts / 8) * 100); }
+  function getKnowLabel(){ if (state.conceptPts >= 6) return 'expert'; if (state.conceptPts >= 3) return 'informed'; return 'learning'; }
+
+  function renderMetersRow(){
+    var row = document.getElementById('meters-row');
+    row.innerHTML = '';
+    for (var i=0; i<METER_DEFS.length; i++){
+      var m = METER_DEFS[i];
+      var div = document.createElement('div');
+      div.className = 'meter ' + (m.primary ? 'primary' : '') + ' ' + (state.revealedMeters[m.id] ? '' : 'hidden');
+      div.id = 'meter-' + m.id;
+      div.innerHTML =
+        '<div class="meter-label"><span>' + (m.primary ? '★ ' : '') + m.name + '</span><span class="meter-state" id="state-' + m.id + '"></span></div>' +
+        '<div class="meter-bar"><div class="meter-fill" id="fill-' + m.id + '"></div></div>' +
+        '<div class="meter-pulse"></div>';
+      row.appendChild(div);
+    }
+    refreshMeters();
+  }
+
+  function refreshMeters(){
+    for (var i=0; i<METER_DEFS.length; i++){
+      var m = METER_DEFS[i];
+      var fill = document.getElementById('fill-' + m.id);
+      var lbl = document.getElementById('state-' + m.id);
+      if (!fill || !lbl) continue;
+      fill.style.width = m.getPercent() + '%';
+      fill.className = 'meter-fill zone-' + m.getZone();
+      lbl.textContent = m.getStateLabel();
+    }
+  }
+
+  function flashMeter(id, dir){
+    var el = document.getElementById('meter-' + id);
+    if (!el) return;
+    el.classList.remove('flash-up','flash-down');
+    void el.offsetWidth;
+    el.classList.add(dir === 'up' ? 'flash-up' : 'flash-down');
+  }
+
+  function revealMeter(id, label){
+    if (state.revealedMeters[id]) return;
+    state.revealedMeters[id] = true;
+    var el = document.getElementById('meter-' + id);
+    if (el) {
+      el.classList.remove('hidden');
+      el.classList.add('revealing');
+      setTimeout(function(){ el.classList.remove('revealing'); }, 1000);
+    }
+    showRevealToast(label || id);
+  }
+
+  function showRevealToast(name){
+    // Clear any existing toast so multiple reveals don't stack at the same position
+    var existing = document.querySelectorAll('.reveal-toast');
+    for (var i=0; i<existing.length; i++){
+      if (existing[i].parentNode) existing[i].parentNode.removeChild(existing[i]);
+    }
+    var t = document.createElement('div');
+    t.className = 'reveal-toast';
+    t.innerHTML = '<div class="new-label">New Meter</div><div class="new-name">' + name + '</div>';
+    document.body.appendChild(t);
+    setTimeout(function(){ if (t.parentNode) t.parentNode.removeChild(t); }, 2400);
+  }
+
+  function buyStock(id, amount){
+    var def = STOCKS_DEF[id];
+    if (!def) return;
+    if (!state.stocks[id]) {
+      state.stocks[id] = { def: def, value: 0, basePrice: 0, doubledDown: false, sold: false };
+    }
+    state.stocks[id].value += amount;
+    state.stocks[id].basePrice += amount;
+    state.stocks[id].sold = false;
+    if (def.sector){
+      state.sectors[def.sector] = (state.sectors[def.sector] || 0) + 1;
+    }
+    state.cash -= amount;
+  }
+  function sellStock(id, portion){
+    var s = state.stocks[id];
+    if (!s) return 0;
+    portion = Math.min(1, Math.max(0, portion));
+    var sellAmt = s.value * portion;
+    state.cash += sellAmt;
+    s.value -= sellAmt;
+    if (portion >= 0.999) {
+      s.sold = true;
+      s.value = 0;
+      if (s.def.sector && state.sectors[s.def.sector]) {
+        state.sectors[s.def.sector]--;
+        if (state.sectors[s.def.sector] <= 0) delete state.sectors[s.def.sector];
+      }
+    }
+    return sellAmt;
+  }
+  function calcPV(){
+    var total = state.cash;
+    for (var id in state.stocks) {
+      var s = state.stocks[id];
+      if (!s.sold) total += s.value;
+    }
+    state.pvTotal = Math.round(total);
+    return state.pvTotal;
+  }
+
+  function applyPendingDeltas(){
+    var applied = [];
+    for (var i=0; i<state.pendingDeltas.length; i++){
+      var d = state.pendingDeltas[i];
+      var s = state.stocks[d.stockId];
+      if (s && !s.sold) {
+        // Spread Shield: halve negative deltas (stock losses) when active
+        var amt = d.amount;
+        if (state.spreadShield.active && amt < 0) {
+          amt = Math.round(amt / 2);
+        }
+        s.value += amt;
+        if (s.value < 0) s.value = 0;
+        applied.push({ stockId: d.stockId, amount: amt, reason: d.reason });
+      }
+    }
+    state.pendingDeltas = [];
+    return applied;
+  }
+  function queueDelta(stockId, amount, reason){
+    state.pendingDeltas.push({ stockId: stockId, amount: amount, reason: reason });
+  }
+
+  function renderHUD(){
+    var prevPV = state.pvTotal || 1000;
+    var newPV = calcPV();
+    var pv = document.getElementById('pv-value');
+    pv.textContent = '$' + newPV.toLocaleString();
+    if (state.round > 1) {
+      if (newPV > prevPV) { pv.classList.remove('down-flash'); pv.classList.add('up-flash'); setTimeout(function(){ pv.classList.remove('up-flash'); }, 800); }
+      else if (newPV < prevPV) { pv.classList.remove('up-flash'); pv.classList.add('down-flash'); setTimeout(function(){ pv.classList.remove('down-flash'); }, 800); }
+    }
+    document.getElementById('cash-val').textContent = '$' + Math.round(state.cash).toLocaleString();
+    var stockN = 0;
+    for (var id in state.stocks){ if (!state.stocks[id].sold && state.stocks[id].value > 0) stockN++; }
+    document.getElementById('stocks-count').textContent = stockN;
+    document.getElementById('round-badge').textContent = state.round > 0 ? ('ROUND ' + state.round + ' / 8') : 'ROUND 1 / 8';
+    var xpPct = Math.min(100, (state.xp / 80) * 100);
+    document.getElementById('xp-fill').style.width = xpPct + '%';
+    document.getElementById('level-badge').textContent = state.level >= 4 ? 'STEADY' : ('LV ' + state.level);
+
+    var icons = document.getElementById('powerup-icons');
+    icons.innerHTML = '';
+    if (state.spreadShield.active) {
+      var s = document.createElement('div');
+      s.className = 'powerup-icon'; s.innerHTML = '◈ SHIELD';
+      s.title = 'Spread Shield active — losses cut in half';
+      icons.appendChild(s);
+    }
+    if (state.knowledgeCompound.active && state.knowledgeCompound.roundsRemaining > 0) {
+      var k = document.createElement('div');
+      k.className = 'powerup-icon brain'; k.innerHTML = '◉ INSIGHT';
+      k.title = 'Knowledge Compounding — trend hints active';
+      icons.appendChild(k);
+    }
+    refreshMeters();
+  }
+
+  function renderArena(){ renderPie(); renderSectorTags(); renderStockCards(); renderChart(); }
+
+  function renderPie(){
+    var svg = document.getElementById('pie-svg');
+    svg.innerHTML = '';
+    var bg = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    bg.setAttribute('cx', '0'); bg.setAttribute('cy', '0'); bg.setAttribute('r', '55');
+    bg.setAttribute('fill', 'rgba(255,255,255,0.04)');
+    bg.setAttribute('stroke', 'rgba(255,255,255,0.12)');
+    bg.setAttribute('stroke-width', '1');
+    svg.appendChild(bg);
+
+    var stocksOwned = [];
+    var totalVal = 0;
+    for (var id in state.stocks) {
+      var s = state.stocks[id];
+      if (!s.sold && s.value > 0) { stocksOwned.push(s); totalVal += s.value; }
+    }
+    if (totalVal === 0) {
+      document.getElementById('pie-sector-num').textContent = '0';
+      document.getElementById('pie-wrap').classList.toggle('shielded', state.spreadShield.active);
+      return;
+    }
+    var startAngle = -Math.PI / 2;
+    for (var i=0; i<stocksOwned.length; i++){
+      var s2 = stocksOwned[i];
+      var portion = s2.value / totalVal;
+      var endAngle = startAngle + portion * 2 * Math.PI;
+      var path = makePieSlice(0, 0, 55, startAngle, endAngle);
+      var p = document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d', path);
+      p.setAttribute('fill', s2.def.color);
+      p.setAttribute('stroke', '#0a1628');
+      p.setAttribute('stroke-width', '2');
+      svg.appendChild(p);
+      startAngle = endAngle;
+    }
+    document.getElementById('pie-sector-num').textContent = sectorCount();
+    document.getElementById('pie-wrap').classList.toggle('shielded', state.spreadShield.active);
+  }
+
+  function makePieSlice(cx, cy, r, a1, a2){
+    if (a2 - a1 >= Math.PI * 2 - 0.001) {
+      return 'M ' + (cx - r) + ',' + cy +
+             ' a ' + r + ',' + r + ' 0 1,0 ' + (r*2) + ',0' +
+             ' a ' + r + ',' + r + ' 0 1,0 ' + (-r*2) + ',0';
+    }
+    var x1 = cx + r * Math.cos(a1);
+    var y1 = cy + r * Math.sin(a1);
+    var x2 = cx + r * Math.cos(a2);
+    var y2 = cy + r * Math.sin(a2);
+    var large = (a2 - a1) > Math.PI ? 1 : 0;
+    return 'M ' + cx + ',' + cy + ' L ' + x1 + ',' + y1 +
+           ' A ' + r + ',' + r + ' 0 ' + large + ',1 ' + x2 + ',' + y2 + ' Z';
+  }
+
+  function renderSectorTags(){
+    var container = document.getElementById('sector-tags');
+    container.innerHTML = '';
+    var any = false;
+    for (var id in state.stocks) {
+      var s = state.stocks[id];
+      if (!s.sold && s.value > 0 && s.def.sector) {
+        var tag = document.createElement('span');
+        tag.className = 'sector-tag';
+        tag.style.background = s.def.color;
+        tag.textContent = s.def.sector;
+        container.appendChild(tag);
+        any = true;
+      }
+    }
+    if (state.stocks.lumicoin && !state.stocks.lumicoin.sold && state.stocks.lumicoin.value > 0) {
+      var w = document.createElement('span');
+      w.className = 'sector-tag';
+      w.style.background = STOCKS_DEF.lumicoin.color;
+      w.style.color = '#0a1628';
+      w.textContent = 'WILDCARD';
+      container.appendChild(w);
+      any = true;
+    }
+    if (!any) {
+      var e = document.createElement('span');
+      e.className = 'sector-tag empty';
+      e.textContent = 'none yet';
+      container.appendChild(e);
+    }
+  }
+
+  function renderStockCards(){
+    var container = document.getElementById('stock-cards');
+    container.innerHTML = '';
+    var totalHoldings = 0;
+    var any = false;
+    for (var id in state.stocks) {
+      var s = state.stocks[id];
+      if (s.sold || s.value <= 0) continue;
+      any = true;
+      totalHoldings += s.value;
+      var card = document.createElement('div');
+      card.className = 'stock-card';
+      card.style.borderLeftColor = s.def.color;
+      card.id = 'card-' + id;
+      var pl = s.value - s.basePrice;
+      var plClass = pl >= 0 ? 'up' : 'down';
+      var plSign = pl >= 0 ? '+' : '';
+      var tags = '';
+      if (s.doubledDown) tags += '<span class="stock-tag big-stake">BIG STAKE</span>';
+      if (state.spreadShield.active && s.def.sector) tags += '<span class="stock-tag protected">PROTECTED</span>';
+      card.innerHTML =
+        '<div class="stock-logo" style="background:' + s.def.logoBg + '">' + s.def.short + '</div>' +
+        '<div class="stock-info">' +
+          '<div class="stock-name">' + s.def.name + '</div>' +
+          '<div class="stock-meta">' +
+            '<span class="stock-value">$' + Math.round(s.value) + '</span>' +
+            '<span class="stock-delta ' + plClass + '">' + plSign + '$' + Math.round(pl) + '</span>' +
+            tags +
+          '</div>' +
+        '</div>';
+      container.appendChild(card);
+    }
+    document.getElementById('holdings-count').textContent = '$' + Math.round(totalHoldings);
+    if (!any) {
+      var empty = document.createElement('div');
+      empty.style.cssText = 'color:#6c7480; font-size:13px; text-align:center; padding:20px 0;';
+      empty.textContent = 'No stocks yet — buy your first below';
+      container.appendChild(empty);
+    }
+  }
+
+  function renderChart(){
+    var svg = document.getElementById('chart-svg');
+    svg.innerHTML = '';
+    var ref = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ref.setAttribute('x1','0'); ref.setAttribute('y1','50'); ref.setAttribute('x2','300'); ref.setAttribute('y2','50');
+    ref.setAttribute('stroke','rgba(255,255,255,0.1)'); ref.setAttribute('stroke-dasharray','2,4');
+    svg.appendChild(ref);
+    if (state.pvHistory.length < 2) {
+      var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx','10'); dot.setAttribute('cy','50'); dot.setAttribute('r','3'); dot.setAttribute('fill','#ffd76b');
+      svg.appendChild(dot);
+      return;
+    }
+    var min = 700, max = 1500;
+    for (var i=0; i<state.pvHistory.length; i++){
+      if (state.pvHistory[i] < min) min = state.pvHistory[i];
+      if (state.pvHistory[i] > max) max = state.pvHistory[i];
+    }
+    var range = max - min;
+    if (range < 100) range = 100;
+    var step = state.pvHistory.length > 1 ? (290 / (state.pvHistory.length - 1)) : 0;
+    var pts = '';
+    for (var j=0; j<state.pvHistory.length; j++){
+      var x = 5 + j * step;
+      var y = 90 - ((state.pvHistory[j] - min) / range) * 80;
+      pts += (j === 0 ? 'M ' : ' L ') + x + ',' + y;
+    }
+    var path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', pts);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#ffd76b');
+    path.setAttribute('stroke-width', '2.5');
+    path.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(path);
+    var lastIdx = state.pvHistory.length - 1;
+    var lx = 5 + lastIdx * step;
+    var ly = 90 - ((state.pvHistory[lastIdx] - min) / range) * 80;
+    var lastDot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    lastDot.setAttribute('cx', lx); lastDot.setAttribute('cy', ly); lastDot.setAttribute('r', '4');
+    lastDot.setAttribute('fill', '#ffd76b');
+    svg.appendChild(lastDot);
+  }
+
+  function logHistory(){
+    state.pvHistory.push(state.pvTotal);
+    if (state.pvHistory.length > 12) state.pvHistory.shift();
+  }
+
+  function showShortToast(text){
+    var t = document.createElement('div');
+    t.className = 'short-popup-toast';
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(function(){
+      if (t.parentNode) {
+        t.style.transition = 'opacity 0.4s';
+        t.style.opacity = '0';
+        setTimeout(function(){ if (t.parentNode) t.parentNode.removeChild(t); }, 400);
+      }
+    }, 2200);
+  }
+
+  function showFullPopup(opts, cb){
+    popupOpen = true;
+    document.getElementById('popup-title').textContent = opts.title || '';
+    document.getElementById('popup-text').textContent = opts.text || '';
+    var meters = document.getElementById('popup-meters');
+    meters.innerHTML = '';
+    if (opts.meters && opts.meters.length) {
+      for (var i=0; i<opts.meters.length; i++){
+        var m = opts.meters[i];
+        var el = document.createElement('span');
+        el.className = 'popup-meter ' + m.dir;
+        el.textContent = (m.dir === 'up' ? '▲ ' : (m.dir === 'down' ? '▼ ' : '● ')) + m.label;
+        meters.appendChild(el);
+      }
+    }
+    var ov = document.getElementById('popup-overlay');
+    ov.classList.add('show');
+    var btn = document.getElementById('popup-close');
+    btn.textContent = opts.btn || 'Continue';
+    btn.onclick = function(){ closePopup(); if (cb) safe(cb); };
+    blip(700, 0.15, 'square');
+  }
+
+  function closePopup(){
+    popupOpen = false;
+    var ov = document.getElementById('popup-overlay');
+    if (ov) ov.classList.remove('show');
+  }
+
+  function showEvent(opts){
+    eventOpen = true;
+    document.getElementById('event-title').textContent = opts.title || '';
+    document.getElementById('event-visual').innerHTML = opts.visual || '';
+    document.getElementById('event-text').textContent = opts.text || '';
+    var ec = document.getElementById('event-choices');
+    ec.innerHTML = '';
+    var picked = false;
+    for (var i=0; i<opts.choices.length; i++){
+      (function(c){
+        var b = document.createElement('button');
+        b.className = 'choice-btn';
+        b.textContent = c.label;
+        b.onclick = function(){
+          if (picked) return;
+          picked = true;
+          touchActivity();
+          closeEvent();
+          safe(function(){ c.fn(); });
+        };
+        ec.appendChild(b);
+      })(opts.choices[i]);
+    }
+    document.getElementById('event-overlay').classList.add('show');
+    blip(440, 0.3, 'sawtooth');
+  }
+  function closeEvent(){
+    eventOpen = false;
+    var ov = document.getElementById('event-overlay');
+    if (ov) ov.classList.remove('show');
+  }
+
+  function hidePowerupNotif(){
+    var n = document.getElementById('powerup-notif');
+    if (n) n.classList.remove('show');
+  }
+
+  function showPatienceBadge(){
+    var b = document.createElement('div');
+    b.className = 'patience-badge show';
+    b.textContent = '✦ PATIENCE';
+    document.body.appendChild(b);
+    setTimeout(function(){
+      b.style.transition = 'opacity 0.6s';
+      b.style.opacity = '0';
+      setTimeout(function(){ if (b.parentNode) b.parentNode.removeChild(b); }, 600);
+    }, 3000);
+  }
+
+  function checkPowerups(){
+    var fired = null;
+    if (sectorCount() >= 2) state.spreadShield.armCount++;
+    else state.spreadShield.armCount = 0;
+    if (state.spreadShield.armCount >= 2 && !state.spreadShield.active && sectorCount() >= 2) {
+      state.spreadShield.active = true;
+      if (!state.spreadShield.firstActivation) {
+        state.spreadShield.firstActivation = true;
+        fired = { type: 'shield' };
+      }
+    }
+    if (sectorCount() < 2) state.spreadShield.active = false;
+
+    if (state.conceptPts >= 3 && !state.knowledgeCompound.firstActivation) {
+      state.knowledgeCompound.firstActivation = true;
+      state.knowledgeCompound.active = true;
+      state.knowledgeCompound.roundsRemaining = 2;
+      revealMeter('knowledge', 'Knowledge');
+      if (fired) return [fired, { type:'knowledge' }];
+      return { type: 'knowledge' };
+    }
+    return fired;
+  }
+
+  function nextRound(){
+    state._roundGen++;
+    var gen = state._roundGen;
+    function alive(){ return state._roundGen === gen; }
+
+    state.round++;
+    choiceLocked = false;
+    if (state.round > 8) { return endGame(); }
+
+    var applied = applyPendingDeltas();
+    if (applied.length) {
+      for (var i=0; i<applied.length; i++){
+        (function(a){
+          setTimeout(function(){
+            var card = document.getElementById('card-' + a.stockId);
+            if (card) {
+              card.classList.remove('flash-up','flash-down');
+              void card.offsetWidth;
+              card.classList.add(a.amount >= 0 ? 'flash-up' : 'flash-down');
+            }
+          }, 250);
+        })(applied[i]);
+      }
+    }
+    renderHUD(); renderArena();
+    if (!alive()) return;
+    runRound(state.round, alive);
+  }
+
+  function runRound(r, alive){
+    if (r === 1) return roundOne(alive);
+    if (r === 2) return roundTwo(alive);
+    if (r === 3) return roundThree(alive);
+    if (r === 4) return roundFour(alive);
+    if (r === 5) return roundFive(alive);
+    if (r === 6) return roundSix(alive);
+    if (r === 7) return roundSeven(alive);
+    if (r === 8) return roundEight(alive);
+  }
+
+  function presentDecision(opts){
+    document.getElementById('situation-text').textContent = opts.situation;
+    var row = document.getElementById('choices-row');
+    row.innerHTML = '';
+    choiceLocked = false;
+    for (var i=0; i<opts.choices.length; i++){
+      (function(c){
+        var b = document.createElement('button');
+        b.className = 'choice-btn';
+        b.innerHTML = c.label;
+        if (state.knowledgeCompound.active && state.knowledgeCompound.roundsRemaining > 0 && c.trend) {
+          var arrow = document.createElement('span');
+          arrow.className = 'trend-arrow ' + c.trend;
+          arrow.textContent = c.trend === 'up' ? '▲' : (c.trend === 'down' ? '▼' : '—');
+          b.appendChild(arrow);
+        }
+        b.onclick = function(){
+          if (choiceLocked) return;
+          choiceLocked = true;
+          touchActivity();
+          var btns = row.querySelectorAll('.choice-btn');
+          for (var k=0; k<btns.length; k++) btns[k].disabled = true;
+          safe(function(){ c.fn(); });
+        };
+        row.appendChild(b);
+      })(opts.choices[i]);
+    }
+    if (state.knowledgeCompound.active && state.knowledgeCompound.roundsRemaining > 0) {
+      state.knowledgeCompound.roundsRemaining--;
+      if (state.knowledgeCompound.roundsRemaining <= 0) {
+        state.knowledgeCompound.active = false;
+        renderHUD();
+      }
+    }
+  }
+
+  function roundOne(alive){
+    presentDecision({
+      situation: "You have $1,000. Two starter stocks at $500 each. Pick how to spend your first half.",
+      choices: [
+        {
+          label: "<strong>All-In on One Stock</strong><br><small style='color:#aab1bc; font-weight:normal;'>$500 in Bigger Burger Co.</small>",
+          fn: function(){
+            buyStock('burger', 500);
+            state.riskPts += 2;
+            state.conceptPts += 1;
+            state.xp += 10;
+            queueDelta('burger', 25, 'concentrated momentum');
+            logChoice(1, 'A', 'All-in $500 Bigger Burger');
+            renderHUD(); renderArena(); flashMeter('diversification','up'); flashMeter('risk','down');
+            showShortToast('All in. One stock to watch.');
+            setTimeout(function(){ if(alive()) endRound1(alive); }, 1800);
+          }
+        },
+        {
+          label: "<strong>Split Into Two Stocks</strong><br><small style='color:#aab1bc; font-weight:normal;'>$250 each — Burger + EnerGrid</small>",
+          fn: function(){
+            buyStock('burger', 250);
+            buyStock('energrid', 250);
+            state.conceptPts += 1;
+            state.xp += 10;
+            queueDelta('burger', 12, 'split gain');
+            queueDelta('energrid', 12, 'split gain');
+            logChoice(1, 'B', 'Split $250 Burger + $250 EnerGrid');
+            renderHUD(); renderArena(); flashMeter('diversification','up');
+            showShortToast('Two stocks. Less risk. Slower wins.');
+            setTimeout(function(){ if(alive()) endRound1(alive); }, 1800);
+          }
+        }
+      ]
+    });
+  }
+  function endRound1(alive){
+    var pwr = checkPowerups();
+    logHistory();
+    handlePowerupOrAdvance(pwr, alive);
+  }
+
+  function roundTwo(alive){
+    var best = pickMostInvestedOwned();
+    var doubleLabel = best ? best.def.name : 'your stock';
+    presentDecision({
+      situation: "You still have $500. A new tech stock — PixelLab — just hit the market. Steady growth, no wild swings expected.",
+      choices: [
+        {
+          label: "<strong>Double Down</strong><br><small style='color:#aab1bc; font-weight:normal;'>$500 more into " + doubleLabel + "</small>",
+          fn: function(){
+            if (best) {
+              best.value += 500;
+              best.basePrice += 500;
+              best.doubledDown = true;
+              state.cash -= 500;
+              queueDelta(best.def.id, 40, 'double-down winner');
+            }
+            state.riskPts += 2;
+            state.xp += 10;
+            logChoice(2, 'A', 'Double down on ' + doubleLabel);
+            renderHUD(); renderArena(); flashMeter('risk','down');
+            setTimeout(function(){ if(alive()) endRound2(alive); }, 1500);
+          }
+        },
+        {
+          label: "<strong>Buy PixelLab</strong><br><small style='color:#aab1bc; font-weight:normal;'>$500 — adds Tech sector</small>",
+          fn: function(){
+            buyStock('pixellab', 500);
+            state.conceptPts += 2;
+            state.xp += 10;
+            queueDelta('pixellab', 15, 'split gain');
+            logChoice(2, 'B', 'Buy PixelLab (added Tech)');
+            renderHUD(); renderArena(); flashMeter('diversification','up');
+            setTimeout(function(){ if(alive()) endRound2(alive); }, 1500);
+          }
+        }
+      ]
+    });
+  }
+  function endRound2(alive){
+    revealMeter('risk','Risk Level');
+    var pwr = checkPowerups();
+    logHistory();
+    handlePowerupOrAdvance(pwr, alive);
+  }
+
+  function roundThree(alive){
+    var dipStock = pickMostInvestedOwned();
+    if (!dipStock) { return safeAdvance(alive); }
+    dipStock.value -= 40;
+    if (dipStock.value < 0) dipStock.value = 0;
+    state.r3Dip = { stockId: dipStock.def.id, rebound: Math.random() < 0.7 };
+    renderHUD(); renderArena();
+    flashMeter('portfolio','down');
+    showShortToast(dipStock.def.short + ' dipped -$40 on no news.');
+
+    setTimeout(function(){
+      if (!alive()) return;
+      presentDecision({
+        situation: dipStock.def.name + " just dipped 8%. Portfolio dropped $40. Your gut says do something.",
+        choices: [
+          {
+            label: "<strong>Sell Now</strong><br><small style='color:#aab1bc; font-weight:normal;'>Cut your losses, free up cash</small>",
+            trend: 'down',
+            fn: function(){
+              sellStock(state.r3Dip.stockId, 1);
+              state.panicPts = Math.max(0, state.panicPts - 2);
+              state.xp += 10;
+              logChoice(3, 'A', 'Sold ' + dipStock.def.short + ' on dip');
+              renderHUD(); renderArena(); flashMeter('panic','up');
+              var ghostText = state.r3Dip.rebound
+                ? "Sold. Watching it bounce back without you."
+                : "Sold. Saved your money — that one kept dropping.";
+              if (state.r3Dip.rebound) trackBigDrop(3, 50, 'A');
+              setTimeout(function(){
+                if (!alive()) return;
+                showShortToast(ghostText);
+                setTimeout(function(){ if(alive()) endRound3(alive); }, 1800);
+              }, 600);
+            }
+          },
+          {
+            label: "<strong>Hold and Wait</strong><br><small style='color:#aab1bc; font-weight:normal;'>Trust the dip will pass</small>",
+            trend: 'up',
+            fn: function(){
+              state.conceptPts += 2;
+              state.panicPts += 2;
+              state.xp += 10;
+              if (state.r3Dip.rebound) queueDelta(state.r3Dip.stockId, 50, 'rebound');
+              else queueDelta(state.r3Dip.stockId, -30, 'further drop');
+              logChoice(3, 'B', 'Held ' + dipStock.def.short + ' through dip');
+              renderHUD(); renderArena(); flashMeter('panic','down');
+              showShortToast('Heart racing. Money still in the game.');
+              setTimeout(function(){ if(alive()) endRound3(alive); }, 1800);
+            }
+          }
+        ]
+      });
+    }, 900);
+  }
+  function endRound3(alive){
+    revealMeter('panic','Panic Level');
+    var pwr = checkPowerups();
+    logHistory();
+    handlePowerupOrAdvance(pwr, alive);
+  }
+
+  function roundFour(alive){
+    showEvent({
+      title: 'Hot Tip From a Friend',
+      visual:
+        '<div class="phone"><div class="phone-screen">' +
+          '<div style="font-size:9px; color:#aab1bc; text-align:center;">Today 3:42 PM</div>' +
+          '<div class="phone-bubble"><span class="sender">Cousin\'s Coworker</span>YO. LumiCoin. Buy NOW. Going to the moon</div>' +
+          '<div class="phone-bubble"><span class="sender">Cousin\'s Coworker</span>I made $5K last week. Don\'t miss it.</div>' +
+        '</div></div>',
+      text: "Your phone buzzes. A friend swears LumiCoin is a guaranteed hit. They say buy NOW.",
+      choices: [
+        {
+          label: "Buy In Fast — Don't Miss Out",
+          fn: function(){
+            // Hot tip: net outcome applied at resolution. No pre-debit (avoids negative cash display).
+            // Win = +$200, Lose = -$150. If loss exceeds cash, drain biggest stock for remainder.
+            state.riskPts += 3;
+            state.panicPts += 2;
+            state.xp += 10;
+            var win = Math.random() < 0.30;
+            state.hotTip = { taken: true, win: win };
+            logChoice(4, 'A', win ? 'Took hot tip — won $200' : 'Took hot tip — lost $150');
+            renderHUD();
+            setTimeout(function(){
+              if (!alive()) return;
+              showFullPopup({
+                title: win ? 'LumiCoin Spiked!' : 'LumiCoin Tanked.',
+                text: win
+                  ? "Your friend was right. LumiCoin pumped — portfolio jumps +$200."
+                  : "Your friend was wrong. LumiCoin crashed — portfolio drops $150.",
+                meters: win
+                  ? [{ dir:'up', label:'Portfolio +$200' }, { dir:'down', label:'Risk → aggressive' }]
+                  : [{ dir:'down', label:'Portfolio -$150' }, { dir:'down', label:'Risk → aggressive' }]
+              }, function(){
+                if (win) {
+                  state.cash += 200;
+                } else {
+                  var loss = 150;
+                  if (state.cash >= loss) {
+                    state.cash -= loss;
+                  } else {
+                    loss -= state.cash;
+                    state.cash = 0;
+                    var biggest = pickMostInvestedOwned();
+                    if (biggest) biggest.value = Math.max(0, biggest.value - loss);
+                  }
+                }
+                renderHUD(); renderArena();
+                flashMeter('portfolio', win ? 'up' : 'down');
+                if (!win) trackBigDrop(4, 150, 'A');
+                setTimeout(function(){ if(alive()) endRound4(alive); }, 600);
+              });
+            }, 700);
+          }
+        },
+        {
+          label: "Pass — Stick With Your Plan",
+          fn: function(){
+            state.conceptPts += 3;
+            state.xp += 10;
+            var ghostWin = Math.random() < 0.30;
+            state.hotTip = { taken: false, ghostWin: ghostWin };
+            state.patienceBadge = true;
+            showPatienceBadge();
+            logChoice(4, 'B', 'Passed on hot tip');
+            renderHUD();
+            setTimeout(function(){
+              if (!alive()) return;
+              showFullPopup({
+                title: 'You Passed.',
+                text: ghostWin
+                  ? "LumiCoin actually spiked — you missed +$200. But pulling back is real skill."
+                  : "LumiCoin tanked — you saved $150. Recognizing a hot tip IS the skill.",
+                meters: [
+                  { dir:'up', label:'Knowledge +3' },
+                  { dir:'neutral', label: ghostWin ? 'Ghost: missed +$200' : 'Ghost: saved $150' }
+                ]
+              }, function(){ if(alive()) endRound4(alive); });
+            }, 600);
+          }
+        }
+      ]
+    });
+  }
+  function endRound4(alive){
+    var pwr = checkPowerups();
+    logHistory();
+    handlePowerupOrAdvance(pwr, alive);
+  }
+
+  function roundFive(alive){
+    var winner = pickWinningStock() || pickMostInvestedOwned();
+    if (!winner) { return safeAdvance(alive); }
+    winner.value += 75;
+    state.r5Wave = { stockId: winner.def.id, ranOnPullback: Math.random() < 0.40 };
+    renderHUD(); renderArena();
+    flashMeter('portfolio','up');
+    showShortToast(winner.def.short + ' hit a new high. +$75 paper gain.');
+
+    setTimeout(function(){
+      if (!alive()) return;
+      presentDecision({
+        situation: winner.def.name + " just hit a new high — up 15%. Your gut says lock in the gains.",
+        choices: [
+          {
+            label: "<strong>Sell Now</strong><br><small style='color:#aab1bc; font-weight:normal;'>Take the win, free cash</small>",
+            trend: 'flat',
+            fn: function(){
+              sellStock(state.r5Wave.stockId, 1);
+              state.conceptPts += 1;
+              state.xp += 10;
+              logChoice(5, 'A', 'Sold ' + winner.def.short + ' at high');
+              renderHUD(); renderArena();
+              showShortToast('Locked in. Watching it climb without you.');
+              setTimeout(function(){ if(alive()) endRound5(alive); }, 1600);
+            }
+          },
+          {
+            label: "<strong>Hold</strong><br><small style='color:#aab1bc; font-weight:normal;'>Let it keep running</small>",
+            trend: 'up',
+            fn: function(){
+              state.conceptPts += 1;
+              state.xp += 10;
+              if (state.r5Wave.ranOnPullback) {
+                queueDelta(state.r5Wave.stockId, -75, 'pullback wiped paper gain');
+                state.panicPts += 2;
+                trackBigDrop(5, 75, 'B');
+              } else {
+                queueDelta(state.r5Wave.stockId, 50, 'wave continues');
+              }
+              logChoice(5, 'B', 'Held ' + winner.def.short + ' (paper gain)');
+              renderHUD(); renderArena();
+              showShortToast('Riding the wave. Paper money only.');
+              setTimeout(function(){ if(alive()) endRound5(alive); }, 1600);
+            }
+          }
+        ]
+      });
+    }, 900);
+  }
+  function endRound5(alive){
+    var pwr = checkPowerups();
+    logHistory();
+    handlePowerupOrAdvance(pwr, alive);
+  }
+
+  function roundSix(alive){
+    state.r6Chase = { faded: Math.random() < 0.50 };
+    var ownsPwr = state.stocks.powercell && !state.stocks.powercell.sold && state.stocks.powercell.value > 0;
+    var newsLabel = ownsPwr ? 'an Auto stock (RoadFlex)' : 'PowerCell (green energy)';
+    var buyId = ownsPwr ? 'roadflex' : 'powercell';
+    presentDecision({
+      situation: "Breaking news — " + newsLabel + " just announced a battery breakthrough. The chart is climbing fast. You don't own it.",
+      choices: [
+        {
+          label: "<strong>Buy In Now</strong><br><small style='color:#aab1bc; font-weight:normal;'>Chase the news</small>",
+          trend: 'flat',
+          fn: function(){
+            var amt = Math.min(150, Math.max(0, state.cash));
+            if (amt >= 50) {
+              buyStock(buyId, amt);
+              queueDelta(buyId, state.r6Chase.faded ? -30 : 20, 'news outcome');
+            }
+            state.riskPts += 1;
+            state.xp += 10;
+            logChoice(6, 'A', 'Chased news (' + (state.r6Chase.faded ? 'faded' : 'climbed') + ')');
+            renderHUD(); renderArena();
+            if (state.r6Chase.faded && amt >= 50) trackBigDrop(6, 30, 'A');
+            setTimeout(function(){ if(alive()) endRound6(alive); }, 1500);
+          }
+        },
+        {
+          label: "<strong>Wait It Out</strong><br><small style='color:#aab1bc; font-weight:normal;'>See what happens</small>",
+          trend: 'flat',
+          fn: function(){
+            state.conceptPts += 2;
+            state.xp += 10;
+            logChoice(6, 'B', 'Waited on news');
+            renderHUD(); renderArena();
+            setTimeout(function(){ if(alive()) endRound6(alive); }, 1500);
+          }
+        }
+      ]
+    });
+  }
+  function endRound6(alive){
+    var pwr = checkPowerups();
+    logHistory();
+    handlePowerupOrAdvance(pwr, alive);
+  }
+
+  function roundSeven(alive){
+    var earnStock = (state.stocks.burger && !state.stocks.burger.sold && state.stocks.burger.value > 0) ? state.stocks.burger : pickMostInvestedOwned();
+    if (!earnStock) { return safeAdvance(alive); }
+    var beat = Math.random() < 0.60;
+    state.r7Earnings = { stockId: earnStock.def.id, beat: beat };
+    showEvent({
+      title: 'Earnings Day — ' + earnStock.def.name,
+      visual:
+        '<div class="ticker-banner"><div class="ticker-text">EARNINGS TONIGHT • ' + earnStock.def.short + ' • ANALYSTS SAY BEAT OR MISS • RESULTS AFTER CLOSE</div></div>' +
+        '<div class="countdown-clock">00:01:00</div>',
+      text: earnStock.def.name + " reports earnings tomorrow. Beat means a pop. Miss means a drop. You decide BEFORE the report.",
+      choices: [
+        {
+          label: 'Sell Before Earnings — Avoid the Risk',
+          fn: function(){
+            sellStock(state.r7Earnings.stockId, 1);
+            state.panicPts = Math.max(0, state.panicPts - 2);
+            state.conceptPts += 1;
+            state.xp += 10;
+            logChoice(7, 'A', 'Sold before earnings (' + (beat ? 'missed pop' : 'avoided miss') + ')');
+            renderHUD(); renderArena();
+            setTimeout(function(){
+              if (!alive()) return;
+              showFullPopup({
+                title: beat ? 'Earnings Beat!' : 'Earnings Missed.',
+                text: beat
+                  ? earnStock.def.name + " beat earnings. Stock popped +$60. You sold — missed it."
+                  : earnStock.def.name + " missed earnings. Stock dropped $40. You sold — saved $40.",
+                meters: beat
+                  ? [{ dir:'down', label:'Ghost: missed +$60' }, { dir:'up', label:'Panic relief' }]
+                  : [{ dir:'up', label:'Saved $40' }, { dir:'up', label:'Panic relief' }]
+              }, function(){
+                if (beat) trackBigDrop(7, 60, 'A');
+                if(alive()) endRound7(alive);
+              });
+            }, 600);
+          }
+        },
+        {
+          label: 'Hold Through Earnings — Trust the Stock',
+          fn: function(){
+            state.panicPts += 2;
+            state.conceptPts += 2;
+            state.xp += 10;
+            // Always queue raw deltas; Spread Shield handled in applyPendingDeltas
+            var rawDelta = beat ? 60 : -40;
+            var shieldedDelta = (!beat && state.spreadShield.active) ? -20 : rawDelta;
+            queueDelta(state.r7Earnings.stockId, rawDelta, beat ? 'earnings beat' : 'earnings miss');
+            logChoice(7, 'B', beat ? 'Held — earnings beat (+$60)' : ('Held — earnings missed (' + shieldedDelta + ')'));
+            renderHUD(); renderArena();
+            setTimeout(function(){
+              if (!alive()) return;
+              showFullPopup({
+                title: beat ? 'Earnings Beat!' : 'Earnings Missed.',
+                text: beat
+                  ? earnStock.def.name + " beat earnings. Stock popped +$60 — and you held it."
+                  : (state.spreadShield.active
+                    ? earnStock.def.name + " missed. Drop was -$40 but your Shield cut it to -$20."
+                    : earnStock.def.name + " missed. Stock dropped $40 — full hit."),
+                meters: beat
+                  ? [{ dir:'up', label:'Portfolio +$60' }, { dir:'up', label:'Knowledge +2' }]
+                  : [{ dir:'down', label:'Portfolio ' + shieldedDelta }, { dir:'down', label:'Panic +2' }]
+              }, function(){
+                if (!beat) trackBigDrop(7, Math.abs(shieldedDelta), 'B');
+                if(alive()) endRound7(alive);
+              });
+            }, 600);
+          }
+        }
+      ]
+    });
+  }
+  function endRound7(alive){
+    var pwr = checkPowerups();
+    logHistory();
+    handlePowerupOrAdvance(pwr, alive);
+  }
+
+  function roundEight(alive){
+    presentDecision({
+      situation: "It's the end of your investing year. Cash out now — or stay in for Year 2?",
+      choices: [
+        {
+          label: "<strong>Cash Out</strong><br><small style='color:#aab1bc; font-weight:normal;'>Take it all home</small>",
+          trend: 'flat',
+          fn: function(){
+            for (var id in state.stocks) {
+              if (!state.stocks[id].sold && state.stocks[id].value > 0) sellStock(id, 1);
+            }
+            state.panicPts = 0;
+            state.conceptPts += 2;
+            state.xp += 12;
+            state.r8End = { cashedOut: true };
+            logChoice(8, 'A', 'Cashed out');
+            renderHUD(); renderArena();
+            showShortToast('Cashed out. Final number locked.');
+            setTimeout(function(){ if(alive()) endRound8(alive); }, 1500);
+          }
+        },
+        {
+          label: "<strong>Stay Invested</strong><br><small style='color:#aab1bc; font-weight:normal;'>Let it keep growing</small>",
+          trend: 'up',
+          fn: function(){
+            state.conceptPts += 3;
+            state.xp += 12;
+            if (state.riskPts >= 6) state.panicPts += 2;
+            state.r8End = { cashedOut: false };
+            logChoice(8, 'B', 'Stayed invested');
+            renderHUD(); renderArena();
+            showShortToast('Still in the game. Bigger waves coming.');
+            setTimeout(function(){ if(alive()) endRound8(alive); }, 1500);
+          }
+        }
+      ]
+    });
+  }
+  function endRound8(alive){
+    logHistory();
+    setTimeout(function(){ if(alive()) endGame(); }, 800);
+  }
+
+  function handlePowerupOrAdvance(pwr, alive){
+    updateXPandLevel();
+    renderHUD();
+    if (!pwr) { return safeAdvance(alive); }
+    var queue = Object.prototype.toString.call(pwr) === '[object Array]' ? pwr : [pwr];
+    function fireNext(){
+      if (queue.length === 0) { return safeAdvance(alive); }
+      var p = queue.shift();
+      if (p.type === 'shield') {
+        showFullPopup({
+          title: '◈ Spread Shield Active',
+          text: "Your spread-out portfolio blocks half the damage from now on.",
+          meters: [{ dir:'up', label:'Losses cut 50%' }]
+        }, function(){ renderHUD(); renderArena(); fireNext(); });
+      } else if (p.type === 'knowledge') {
+        showFullPopup({
+          title: '◉ Knowledge Compounding',
+          text: "Bonus info unlocked for your next 2 choices. Watch for trend arrows.",
+          meters: [{ dir:'up', label:'Insight unlocked' }]
+        }, function(){ renderHUD(); renderArena(); fireNext(); });
+      } else { fireNext(); }
+    }
+    fireNext();
+  }
+
+  function safeAdvance(alive){
+    var attempts = 0;
+    function tryAdvance(){
+      attempts++;
+      if (popupOpen || eventOpen) {
+        if (attempts > 60) {
+          closePopup(); closeEvent();
+          if (alive()) nextRound();
+          return;
+        }
+        setTimeout(tryAdvance, 300);
+        return;
+      }
+      if (alive()) nextRound();
+    }
+    setTimeout(tryAdvance, 600);
+  }
+
+  function updateXPandLevel(){
+    if (state.round >= 8) state.level = 4;
+    else if (state.round >= 6) state.level = 3;
+    else if (state.round >= 3) state.level = 2;
+    else state.level = 1;
+  }
+
+  function pickMostInvestedOwned(){
+    var best = null;
+    for (var id in state.stocks){
+      var s = state.stocks[id];
+      if (!s.sold && s.value > 0) { if (!best || s.value > best.value) best = s; }
+    }
+    return best;
+  }
+  function pickWinningStock(){
+    var best = null, bestPL = 0;
+    for (var id in state.stocks){
+      var s = state.stocks[id];
+      if (!s.sold && s.value > 0) {
+        var pl = s.value - s.basePrice;
+        if (pl > bestPL) { bestPL = pl; best = s; }
+      }
+    }
+    return best;
+  }
+  function logChoice(round, opt, desc){
+    state.decisionLog.push({
+      round: round, choice: opt, desc: desc,
+      pv: calcPV(),
+      sectors: sectorCount(),
+      risk: getRiskLabel(),
+      panic: getPanicLabel(),
+      knowledge: getKnowLabel()
+    });
+  }
+  function trackBigDrop(round, amount, choice){
+    if (amount > state.bestSingleRoundDrop.amount) {
+      state.bestSingleRoundDrop = { round: round, amount: amount, choice: choice };
+    }
+  }
+
+  function endGame(){
+    var finalPV = calcPV();
+    var loseCondition = (getPVLabel() === 'building') && (getPanicLabel() === 'freaking out');
+    var content = '';
+    if (loseCondition) content += renderComebackFrame(finalPV);
+    else content += renderCelebration(finalPV);
+    content += renderEndButtons();
+    content += '<div id="data-layer">' + renderDataLayer() + '</div>';
+
+    document.getElementById('game-screen').classList.remove('active');
+    document.getElementById('end-screen').classList.add('active');
+    document.getElementById('end-content').innerHTML = content;
+
+    var pa = document.getElementById('end-play-again');
+    if (pa) pa.onclick = function(){ touchActivity(); startGame(); };
+    var td = document.getElementById('end-toggle-data');
+    if (td) td.onclick = function(){
+      var dl = document.getElementById('data-layer');
+      dl.classList.toggle('show');
+      td.textContent = dl.classList.contains('show') ? 'Hide Details' : 'Show Details';
+    };
+    var cb = document.getElementById('end-copy');
+    if (cb) cb.onclick = function(){
+      var rows = state.decisionLog.map(function(l){
+        return [l.round, l.desc, l.choice, '$'+l.pv, l.risk, l.sectors+' sectors', l.panic, l.knowledge].join('\t');
+      });
+      var header = 'Round\tDecision\tChoice\tPortfolio Value\tRisk Level\tDiversification\tPanic Level\tKnowledge';
+      var text = header + '\n' + rows.join('\n') + '\n\nFinal Portfolio: $' + finalPV + '\nLevel: ' + (state.level >= 4 ? 'Steady Investor' : 'Lv ' + state.level);
+      copyText(text, cb);
+    };
+    syncHotfixVisibility();
+  }
+
+  function renderCelebration(finalPV){
+    var profit = finalPV >= 1000;
+    var rich = finalPV >= 2001;
+    var pvClass = rich ? 'profit' : (finalPV >= 1200 ? 'profit' : (finalPV >= 1000 ? '' : 'loss'));
+    var levelLabel = state.level >= 4 ? 'STEADY INVESTOR' : 'LV ' + state.level;
+    var meters = '';
+    var defs = [
+      { id:'portfolio', name:'Portfolio Value' },
+      { id:'diversification', name:'Diversification' },
+      { id:'risk', name:'Risk Level' },
+      { id:'panic', name:'Panic Level' },
+      { id:'knowledge', name:'Knowledge' }
+    ];
+    for (var i=0; i<defs.length; i++){
+      var d = defs[i];
+      var def = METER_DEFS.filter(function(m){return m.id === d.id;})[0];
+      var glow = (d.id === 'portfolio' || d.id === 'diversification' || d.id === 'knowledge') && profit ? 'glow' : '';
+      meters +=
+        '<div class="end-meter ' + glow + '">' +
+          '<div class="end-meter-label">' + d.name + '</div>' +
+          '<div class="end-meter-state">' + def.getStateLabel() + '</div>' +
+          '<div class="end-meter-bar"><div class="end-meter-fill zone-' + def.getZone() + '" style="width:' + def.getPercent() + '%; background:' + zoneToColor(def.getZone()) + '"></div></div>' +
+        '</div>';
+    }
+    var highlights = buildHighlights();
+    return '' +
+      '<div class="end-title">' + (profit ? 'YEAR 1 COMPLETE' : 'YEAR 1 — FINISHED') + '</div>' +
+      '<div class="end-subtitle">Stock Market: Market Moves — Session 1</div>' +
+      '<div class="headline-number ' + pvClass + '">$' + finalPV.toLocaleString() + '</div>' +
+      '<div class="level-display"><div class="lvl-badge">' + levelLabel + ' • ' + state.xp + ' XP</div></div>' +
+      '<div class="end-meters">' + meters + '</div>' +
+      '<div class="highlight-reel">' + highlights + '</div>' +
+      '<div class="replay-banner">' +
+        '<div class="rb-label">Replay Challenge</div>' +
+        '<div class="rb-text">Hit "rich" AND keep Diversification "protected" (4+ sectors). Think you can?</div>' +
+      '</div>';
+  }
+
+  function renderComebackFrame(finalPV){
+    var msg = detectComebackMessages();
+    var levelLabel = state.level >= 4 ? 'STEADY INVESTOR' : 'LV ' + state.level;
+    return '' +
+      '<div class="end-title comeback">YEAR 1 WAS ROUGH</div>' +
+      "<div class=\"end-subtitle\">Here's what to fix.</div>" +
+      '<div class="headline-number loss">$' + finalPV.toLocaleString() + '</div>' +
+      '<div class="level-display"><div class="lvl-badge">' + levelLabel + ' • ' + state.xp + ' XP</div></div>' +
+      '<div class="comeback-cards">' +
+        '<div class="comeback-card">' +
+          '<div class="comeback-label">One Move That Hurt</div>' +
+          '<div class="comeback-text">' + msg.hurt + '</div>' +
+        '</div>' +
+        '<div class="comeback-card fix">' +
+          '<div class="comeback-label">Try Next Time</div>' +
+          '<div class="comeback-text">' + msg.fix + '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function detectComebackMessages(){
+    var bd = state.bestSingleRoundDrop;
+    if (bd.round === 4 && bd.choice === 'A') return { hurt: "Taking the hot tip cost you $150.", fix: "Pass next time. Tips like that lose 70% of the time." };
+    if (bd.round === 3 && bd.choice === 'A') return { hurt: "Selling on the dip locked in your loss — most dips bounce back.", fix: "Hold through small dips — they bounce back most of the time." };
+    if (bd.round === 7 && bd.choice === 'A') return { hurt: "Selling before earnings cost you the +$60 pop.", fix: "Hold through earnings if Spread Shield is up — it cuts the downside in half." };
+    if (bd.round === 7 && bd.choice === 'B') return { hurt: "Holding through earnings cost you on a miss.", fix: "Sell before earnings if Spread Shield isn't up — you have nothing to absorb a miss." };
+    if (bd.round === 6 && bd.choice === 'A') return { hurt: "Chasing the news cost you — bought high, dropped after.", fix: "Wait when news hits. The crowd already moved the price." };
+    if (bd.round === 5 && bd.choice === 'B') return { hurt: "Holding your winner past the high cost you the $75 paper gain.", fix: "Take wins when paper gains hit +15%. Reinvest the cash in a new sector." };
+    return { hurt: "Risk Level reached aggressive — your portfolio couldn't absorb the swings.", fix: "Add a third sector before Round 4 — Spread Shield cushions the swings." };
+  }
+
+  function buildHighlights(){
+    var cards = [];
+    var bestGain = 0, bestRound = -1;
+    for (var i=1; i<state.pvHistory.length; i++){
+      var d = state.pvHistory[i] - state.pvHistory[i-1];
+      if (d > bestGain) { bestGain = d; bestRound = i; }
+    }
+    if (bestGain > 0) cards.push({ label:'Biggest Gain', text:'+$' + bestGain + ' jump in Round ' + (bestRound+1) + '.' });
+    else cards.push({ label:'Steady Player', text:'No huge gains — but no huge losses either.' });
+
+    var divMilestone = sectorCount() >= 3 ? ('Hit ' + sectorCount() + ' sectors — protected portfolio.') :
+                       sectorCount() >= 2 ? 'Reached "balanced" Diversification — Spread Shield in reach.' :
+                       'Stayed concentrated — bigger swings, no shield.';
+    cards.push({ label:'Smartest Move', text: divMilestone });
+
+    if (state.hotTip) {
+      if (state.hotTip.taken) cards.push({ label:'Hot Tip', text: state.hotTip.win ? 'You took the tip — it spiked +$200. Lucky.' : 'You took the tip — it tanked -$150.' });
+      else cards.push({ label:'Hot Tip', text: state.hotTip.ghostWin ? 'You passed. The tip actually spiked — but pulling back is a real skill.' : 'You passed. The tip tanked — saved $150.' });
+    }
+    return cards.map(function(c){
+      return '<div class="highlight-card"><div class="highlight-label">' + c.label + '</div><div class="highlight-text">' + c.text + '</div></div>';
+    }).join('');
+  }
+
+  function renderEndButtons(){
+    return '' +
+      '<div class="end-buttons">' +
+        '<button class="play-again-btn" id="end-play-again">↺ Play Again</button>' +
+        '<button class="toggle-data-btn" id="end-toggle-data">Show Details</button>' +
+      '</div>';
+  }
+
+  function renderDataLayer(){
+    var rows = '';
+    for (var i=0; i<state.decisionLog.length; i++){
+      var l = state.decisionLog[i];
+      rows += '<tr><td>' + l.round + '</td><td>' + l.desc + '</td><td>' + l.choice + '</td><td>$' + l.pv + '</td><td>' + l.risk + '</td><td>' + l.sectors + '</td><td>' + l.panic + '</td><td>' + l.knowledge + '</td></tr>';
+    }
+    return '' +
+      '<div class="data-block">' +
+        '<h4>Decision Log</h4>' +
+        '<table class="data-table">' +
+          '<thead><tr><th>Round</th><th>Decision</th><th>Choice</th><th>Portfolio Value</th><th>Risk Level</th><th>Diversification</th><th>Panic Level</th><th>Knowledge</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+        '<button class="copy-btn" id="end-copy">Copy Data</button>' +
+      '</div>';
+  }
+
+  function zoneToColor(zone){
+    if (zone === 'low') return 'linear-gradient(90deg, #e85a5a 0%, #ff8a65 100%)';
+    if (zone === 'mid') return 'linear-gradient(90deg, #ffb84a 0%, #ffd76b 100%)';
+    return 'linear-gradient(90deg, #4ec46a 0%, #6dd99c 100%)';
+  }
+
+  function copyText(text, btn){
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function(){
+          btn.textContent = 'Copied'; btn.classList.add('copied');
+          setTimeout(function(){ btn.textContent = 'Copy Data'; btn.classList.remove('copied'); }, 2000);
+        }).catch(function(){ fallbackCopy(text, btn); });
+      } else fallbackCopy(text, btn);
+    } catch(e){ fallbackCopy(text, btn); }
+  }
+  function fallbackCopy(text, btn){
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = 'Copied'; btn.classList.add('copied');
+      setTimeout(function(){ btn.textContent = 'Copy Data'; btn.classList.remove('copied'); }, 2000);
+    } catch(e){ btn.textContent = 'Copy failed'; }
+  }
+
+  function touchActivity(){ lastActivity = Date.now(); }
+  document.addEventListener('click', touchActivity, true);
+  document.addEventListener('keydown', touchActivity, true);
+  document.addEventListener('touchstart', touchActivity, true);
+
+  function ensureHotfixButtons(){
+    if (!document.getElementById('hf-stuck-btn')){
+      var s = document.createElement('button');
+      s.id = 'hf-stuck-btn'; s.className = 'hf-stuck'; s.textContent = 'STUCK?';
+      s.title = 'Skip this round (defaults to first choice)';
+      s.onclick = function(){ touchActivity(); skipCurrentRound(); };
+      document.body.appendChild(s);
+    }
+    if (!document.getElementById('hf-restart-btn')){
+      var r = document.createElement('button');
+      r.id = 'hf-restart-btn'; r.className = 'hf-restart'; r.textContent = 'RESTART';
+      r.onclick = function(){
+        touchActivity();
+        if (confirm('Restart from Round 1?')) { state._roundGen++; startGame(); }
+      };
+      document.body.appendChild(r);
+    }
+  }
+  ensureHotfixButtons();
+
+  function syncHotfixVisibility(){
+    var gameActive = document.getElementById('game-screen').classList.contains('active');
+    var s = document.getElementById('hf-stuck-btn');
+    var r = document.getElementById('hf-restart-btn');
+    if (s) s.classList.toggle('hide', !gameActive);
+    if (r) r.classList.toggle('hide', !gameActive);
+  }
+
+  function skipCurrentRound(){
+    closePopup(); closeEvent();
+    var firstChoice = document.querySelector('#choices-row .choice-btn:not([disabled])');
+    if (firstChoice) { choiceLocked = false; firstChoice.click(); return; }
+    var firstEvent = document.querySelector('#event-choices .choice-btn');
+    if (firstEvent) { firstEvent.click(); return; }
+    if (state && state.round > 0 && state.round < 8) {
+      state._roundGen++;
+      nextRound();
+    }
+  }
+
+  var lastChoiceLockedTime = 0;
+  setInterval(function(){
+    if (choiceLocked) {
+      if (lastChoiceLockedTime === 0) lastChoiceLockedTime = Date.now();
+      else if (Date.now() - lastChoiceLockedTime > 15000) {
+        choiceLocked = false; lastChoiceLockedTime = 0;
+        console.warn('Watchdog: cleared choiceLocked');
+      }
+    } else lastChoiceLockedTime = 0;
+    var ov = document.getElementById('popup-overlay');
+    if (popupOpen && ov && !ov.classList.contains('show')) popupOpen = false;
+    var ev = document.getElementById('event-overlay');
+    if (eventOpen && ev && !ev.classList.contains('show')) eventOpen = false;
+  }, 1500);
+
+  setInterval(function(){
+    var idle = Date.now() - lastActivity;
+    var stuckBtn = document.getElementById('hf-stuck-btn');
+    if (!stuckBtn) return;
+    if (!document.getElementById('game-screen').classList.contains('active')) {
+      stuckBtn.classList.remove('pulse'); return;
+    }
+    if (idle > 180000) stuckBtn.classList.add('pulse');
+    else stuckBtn.classList.remove('pulse');
+    if (idle > 480000) { lastActivity = Date.now(); skipCurrentRound(); }
+  }, 5000);
+
+  syncHotfixVisibility();
+
+})();
+</script>
+</body>
+</html>
