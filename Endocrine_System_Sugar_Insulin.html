@@ -291,9 +291,13 @@ function finalizeRound(result){
     life:60, vy:-2
   });
   renderTable(); updateHUD();
+  // Guard against stale timeout firing after newRun (generation bump in newRun invalidates myGen2)
+  const myGen2 = state.generation;
   setTimeout(()=>{
-    advanceRound(); state.busy = false;
-    if(state.rounds.length < 8) $('btn-release').disabled = false;
+    try{ if(state.generation !== myGen2) return;
+      advanceRound(); state.busy = false;
+      if(state.rounds.length < 8) $('btn-release').disabled = false;
+    }catch(e){}
   }, 1300);
 }
 
@@ -532,6 +536,7 @@ function draw(){
     drawPancreas();
     drawGlucoseDots();
     drawCells();
+    drawPreview();
     drawParticles();
     drawSparkles();
     drawScorePopups();
@@ -926,6 +931,40 @@ function drawCells(){
     ctx.restore();
   });
   drawLabel('CELLS', W*0.66, H*0.78, '#A5D6A7');
+}
+
+function drawPreview(){
+  try{
+    if(state.busy) return;
+    // Stomach preview — orange food orbs orbiting stomach, count scales with state.food (1=Low, 2=Med, 3=High)
+    const sx = W*0.5, sy = H*0.55;
+    const fcount = (state.food||1) * 3;
+    for(let i=0;i<fcount;i++){
+      const ang = (i/fcount)*Math.PI*2 + pulsePhase*0.25;
+      const r = 55 + Math.sin(pulsePhase*1.2 + i)*5;
+      const px = sx + Math.cos(ang)*r;
+      const py = sy + Math.sin(ang)*r*0.55;
+      const a = 0.32 + Math.sin(pulsePhase*1.8 + i)*0.13;
+      ctx.fillStyle = 'rgba(255,140,80,' + a + ')';
+      ctx.beginPath();
+      ctx.arc(px, py, 4 + Math.sin(pulsePhase + i)*1.4, 0, Math.PI*2);
+      ctx.fill();
+    }
+    // Pancreas preview — blue insulin keys orbiting pancreas, count scales with state.insulin
+    const px2 = W*0.34, py2 = H*0.55;
+    const icount = (state.insulin||1) * 3;
+    for(let i=0;i<icount;i++){
+      const ang = (i/icount)*Math.PI*2 - pulsePhase*0.3;
+      const r = 65 + Math.cos(pulsePhase + i)*5;
+      const ix = px2 + Math.cos(ang)*r;
+      const iy = py2 + Math.sin(ang)*r*0.5;
+      const a = 0.36 + Math.sin(pulsePhase*1.6 + i)*0.13;
+      ctx.fillStyle = 'rgba(66,165,245,' + a + ')';
+      ctx.beginPath();
+      ctx.arc(ix, iy, 3.5 + Math.sin(pulsePhase + i)*1.1, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }catch(e){}
 }
 
 function drawSugarMeter(){

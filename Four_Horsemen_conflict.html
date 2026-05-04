@@ -196,9 +196,11 @@ const SCENARIOS = [
   {bubbleL:'🌋',bubbleR:'😶',bg:'A friend chose someone else\'s side in an argument.'}
 ];
 let S={};let particles=[],ambParts=[];let cvs,cx,W,H,raf;
+let _runGen=0; // generation counter for stale-timeout protection (rule 8)
 let thinkCallback=null; // callback after think overlay closes
 
 function initState(){
+  _runGen++;
   S={round:1,meter:75,score:0,streak:0,calmStreak:0,
     floodCount:0,isFlooded:false,sel:null,consHorse:0,
     data:[],over:false,phase:'choose',puActive:false,
@@ -525,8 +527,8 @@ function drawArena(){
   drawParticles();
 }
 function drawBubble(bx,by,emoji){const r=Math.max(16,Math.min(W,H)*0.035);cx.fillStyle='rgba(0,0,0,0.2)';cx.beginPath();cx.arc(bx+1,by+2,r,0,Math.PI*2);cx.fill();cx.fillStyle='rgba(255,255,255,0.92)';cx.beginPath();cx.arc(bx,by,r,0,Math.PI*2);cx.fill();cx.beginPath();cx.moveTo(bx-r*0.3,by+r*0.7);cx.lineTo(bx,by+r*1.4);cx.lineTo(bx+r*0.3,by+r*0.7);cx.fill();cx.font=`${r*1.1}px 'Segoe UI'`;cx.textAlign='center';cx.textBaseline='middle';cx.fillStyle='#000';cx.fillText(emoji,bx,by);cx.textBaseline='alphabetic';}
-function getYouEmo(){if(!S.sel||S.phase==='choose')return'neutral';if(S.sel==='calm')return'calm';if(S.sel==='contempt')return'contempt';if(S.sel==='defensiveness')return'defensive';return'angry';}
-function getThemEmo(){if(S.isFlooded)return'shutdown';if(!S.sel||S.phase==='choose')return'neutral';if(S.sel==='calm')return'calm';if(S.sel==='contempt')return'contempt';if(S.sel==='defensiveness')return'defensive';if(S.sel==='stonewalling')return'stonewall';return'angry';}
+function getYouEmo(){if(!S.sel)return'neutral';if(S.sel==='calm')return'calm';if(S.sel==='contempt')return'contempt';if(S.sel==='defensiveness')return'defensive';return'angry';}
+function getThemEmo(){if(S.isFlooded)return'shutdown';if(!S.sel)return'neutral';if(S.sel==='calm')return'calm';if(S.sel==='contempt')return'contempt';if(S.sel==='defensiveness')return'defensive';if(S.sel==='stonewalling')return'stonewall';return'angry';}
 
 // ============================================================
 // GAME LOOP
@@ -590,7 +592,10 @@ function executeMove(){
   setStatus(msg,md.horse?'#ff5252':'#4CAF50');
 
   // STEP 2: Record data, then COMPARE prompt, then pattern check
+  const _myG=_runGen;
   setTimeout(()=>{
+    if(_runGen!==_myG)return; // stale: reset fired during 900ms wait
+    if(!S.data.length)return; // defensive: no row to render
     addRow(S.data[S.data.length-1]);
     S.phase='recorded';
     updateHUD();

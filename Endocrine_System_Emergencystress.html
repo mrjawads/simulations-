@@ -399,6 +399,8 @@ var state = {
   lockedVar: null, rows: [], busy: false,
   ambientPulseTimer: null
 };
+// Generation counter for stale-timeout protection (rule 8). Bumped in newRun + resetRound.
+var _runGen = 0;
 
 var INTENSITY_VAL = {None:0, Small:1, Big:2, Extreme:3};
 var DURATION_VAL = {Seconds:0, Hours:1, Days:2};
@@ -450,6 +452,7 @@ function selectVar(varName, val){
   }
   $('goBtn').disabled = !(state.intensity && state.duration);
   $('statusMsg').textContent = state.intensity && state.duration ? 'Press GO!' : 'Pick threat & duration!';
+  try{ applyPreview(); }catch(e){}
 }
 
 function setMeter(id, pct, label, color, isActive){
@@ -707,6 +710,8 @@ function runRound(){
   state.busy = true;
   $('goBtn').disabled = true;
 
+  var myGen = _runGen; // capture for stale-timeout guards below
+
   var iN = INTENSITY_VAL[state.intensity];
   var dN = DURATION_VAL[state.duration];
   var resp = computeResponse(iN, dN);
@@ -728,6 +733,7 @@ function runRound(){
   }
 
   setTimeout(function(){
+    if(_runGen !== myGen) return; // stale: reset/newRun fired between schedule and now
     setMeter('heart', resp.heart, iN===0?'Calm':iN===1?'Quick':iN===2?'Racing':'Pounding', colorFor(resp.heart, true), iN>0);
     setMeter('breath', resp.breath, iN===0?'Slow':iN===1?'Faster':iN===2?'Hard':'Gasping', colorFor(resp.breath, true), iN>0);
     setMeter('muscle', resp.muscle, iN===0?'Relaxed':iN===1?'Tight':iN===2?'Strong':'Surging', colorFor(resp.muscle, true), iN>0);
@@ -739,6 +745,7 @@ function runRound(){
   }, 300);
 
   setTimeout(function(){
+    if(_runGen !== myGen) return; // stale: reset/newRun fired during 2-second wait
     var row = {r:state.round,threat:state.intensity,dur:state.duration,resp:resp.desc,green:resp.isGreen};
     state.rows.push(row);
     state.done++;
@@ -786,6 +793,7 @@ function runRound(){
   }, 2000);
 
   setTimeout(function(){
+    if(_runGen !== myGen) return; // stale: reset/newRun fired during 6.5s safety window
     if(state.busy){
       state.busy = false;
       $('goBtn').disabled = !(state.intensity && state.duration);
@@ -827,6 +835,7 @@ function useBoost(){
 
 function resetRound(){
   if(state.busy) return;
+  _runGen++; // invalidate any stale round-flow setTimeouts
   state.intensity = null;
   state.duration = null;
   state.lockedVar = null;
@@ -835,9 +844,11 @@ function resetRound(){
   updateLockUI();
   $('goBtn').disabled = true;
   $('statusMsg').textContent = 'Pick threat & duration!';
+  try{ applyPreview(); }catch(e){}
 }
 
 function newRun(){
+  _runGen++; // invalidate any stale round-flow setTimeouts before swapping state
   state = {round:1,score:0,streak:0,done:0,level:1,greenCount:0,boostAvailable:false,intensity:null,duration:null,prevIntensity:null,prevDuration:null,lockedVar:null,rows:[],busy:false};
   $('tbody').innerHTML = '';
   $('roundNum').textContent = '1';
@@ -856,6 +867,7 @@ function newRun(){
   renderProgress();
   $('goBtn').disabled = true;
   $('statusMsg').textContent = 'Pick threat & duration!';
+  try{ applyPreview(); }catch(e){}
 }
 
 function copyTable(){
@@ -889,6 +901,32 @@ function fallbackCopy(text){
   btn.textContent = '✓ Copied!';
   btn.classList.add('copied');
   setTimeout(function(){btn.textContent='📋 Copy Table';btn.classList.remove('copied');},2000);
+}
+
+// Preview overlay — reflects student's current intensity/duration pick before GO
+function applyPreview(){
+  try{
+    var iN = (state.intensity in INTENSITY_VAL) ? INTENSITY_VAL[state.intensity] : -1;
+    var dN = (state.duration in DURATION_VAL) ? DURATION_VAL[state.duration] : -1;
+    var glowL = $('adrenalLGlow'), glowR = $('adrenalRGlow');
+    var ambient = $('ambientPulse');
+    var ring = $('heartPulseRing');
+    var glowOpacity = 0.5, glowRadius = 14, ambientOp = 0.6;
+    var ringR = 0, ringStroke = '#10b981', ringOp = 0;
+    if(iN >= 0){
+      glowOpacity = 0.55 + iN*0.13;
+      glowRadius = 14 + iN*4;
+      var colors = ['#10b981','#f59e0b','#f97316','#dc2626'];
+      ringStroke = colors[iN];
+      ringR = 22 + iN*6;
+      ringOp = 0.18 + iN*0.10;
+    }
+    if(dN >= 0){ ambientOp = 0.45 + dN*0.18; }
+    if(glowL){ glowL.style.opacity = glowOpacity; glowL.setAttribute('r', glowRadius); }
+    if(glowR){ glowR.style.opacity = glowOpacity; glowR.setAttribute('r', glowRadius); }
+    if(ambient){ ambient.setAttribute('opacity', ambientOp); }
+    if(ring){ ring.setAttribute('r', ringR); ring.setAttribute('stroke', ringStroke); ring.setAttribute('opacity', ringOp); }
+  }catch(e){}
 }
 
 // Ambient idle pulse on heart (slow baseline)
