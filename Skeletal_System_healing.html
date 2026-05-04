@@ -236,6 +236,15 @@ let bloodCells=[],callusP=[],calciumP=[],wbcP=[],ambientP=[];
 let vesselFlow=[];
 // Osteoblast workers
 let osteoWorkers=[];
+// === ADDITIVE UPGRADE LAYERS (do not depend on existing logic) ===
+let floaters=[];      // floating "+100" / "✓" score popups
+let confetti=[];      // milestone celebration confetti
+let cellLabels=[];    // {x,y,text,life,decay,color}
+let dayCount=0;       // visible heal-timeline day counter
+let dayTarget=0;
+let healActive=false; // mirrors `healing` for safe label timing
+let resultFlash=null; // {text,color,life}
+let roundFlash=null;  // {text,life}
 
 function init(){
   canvas=document.getElementById('arena');
@@ -353,14 +362,21 @@ function startHeal(){
   resultObj=calc();
   const dur=resultObj.sp>=70?2200:resultObj.sp>=40?3200:4200;
 
+  // Day timeline target (faster heal = fewer real-world weeks)
+  try{
+    healActive=true;
+    dayCount=0;
+    dayTarget=resultObj.sp>=70?42:resultObj.sp>=40?56:84;
+  }catch(e){}
+
   // STAGE 1: Blood clot
-  setTimeout(()=>{if(gen!==myGen)return;stage=1;document.getElementById('stg1').classList.add('active');spawnBlood(resultObj);},350);
+  setTimeout(()=>{if(gen!==myGen)return;stage=1;document.getElementById('stg1').classList.add('active');spawnBlood(resultObj);try{spawnCellLabel('RBC',W*.5,H*.42,'#f85149');}catch(e){}},350);
 
   // STAGE 2: Callus
-  setTimeout(()=>{if(gen!==myGen)return;stage=2;document.getElementById('stg2').classList.add('active');growCallus(myGen,resultObj);spawnOsteo(resultObj);},dur*.42);
+  setTimeout(()=>{if(gen!==myGen)return;stage=2;document.getElementById('stg2').classList.add('active');growCallus(myGen,resultObj);spawnOsteo(resultObj);try{spawnCellLabel('Osteoblast',W*.5,H*.4,'#ffb74d');}catch(e){}},dur*.42);
 
   // STAGE 3: Harden
-  setTimeout(()=>{if(gen!==myGen)return;stage=3;document.getElementById('stg3').classList.add('active');spawnCalcium(resultObj);setGlow(resultObj);},dur*.78);
+  setTimeout(()=>{if(gen!==myGen)return;stage=3;document.getElementById('stg3').classList.add('active');spawnCalcium(resultObj);setGlow(resultObj);try{spawnCellLabel('Ca²⁺',W*.5,H*.42,'#fff59d');}catch(e){}},dur*.78);
 
   // Random event
   if(Math.random()<.3){
@@ -458,6 +474,7 @@ function showEvent(help){
 function finishHeal(r){
   if(!healing)return;
   healing=false;resultObj=r;
+  try{healActive=false;}catch(e){}
 
   // Speed meter
   const sf=document.getElementById('speedFill');
@@ -472,8 +489,13 @@ function finishHeal(r){
   else{qb.textContent='Failed';qb.style.background='#da3633';qb.style.color='#fff';}
 
   // Score
-  score+=r.qu>=70?100:r.qu>=40?50:10;
+  const gain=r.qu>=70?100:r.qu>=40?50:10;
+  score+=gain;
   document.getElementById('hudScore').textContent=score;
+  // Floating "+gain" popup over the bone (additive — try-catch protected)
+  try{spawnFloater('+'+gain,W*.5,H*.55,r.qu>=70?'#3fb950':r.qu>=40?'#e3b341':'#f85149');}catch(e){}
+  // Result flash overlay text
+  try{resultFlash={text:r.qu>=70?'STRONG! 💪':r.qu>=40?'WEAK 🤕':'FAILED ❌',color:r.qu>=70?'#3fb950':r.qu>=40?'#e3b341':'#f85149',life:1.4};}catch(e){}
 
   // Streak
   if(r.qu>=70){streak++;if(streak>=3&&!hasPow){hasPow=true;document.getElementById('powerup').classList.add('show');}}
@@ -499,8 +521,8 @@ function finishHeal(r){
 
   // Message
   const mb=document.getElementById('msgBanner');
-  if(round===5){mb.className='msg-banner complete';mb.textContent='✅ Required Complete! Continue for Extra Credit?';}
-  else if(round===8){mb.className='msg-banner extra';mb.textContent='🏆 Extra Credit Complete!';}
+  if(round===5){mb.className='msg-banner complete';mb.textContent='✅ Required Complete! Continue for Extra Credit?';try{spawnConfetti(60);}catch(e){}}
+  else if(round===8){mb.className='msg-banner extra';mb.textContent='🏆 Extra Credit Complete!';try{spawnConfetti(120);}catch(e){}}
   else{mb.className='msg-banner';mb.style.display='none';}
 
   if(round<8) document.getElementById('nextBtn').style.display='block';
@@ -512,6 +534,12 @@ function nextRound(){
   round++;healing=false;stage=0;callusAmt=0;fractGap=20;shake=0;
   glowColor={r:0,g:0,b:0,a:0};
   bloodCells=[];callusP=[];calciumP=[];osteoWorkers=[];wbcP=[];resultObj=null;
+  // Additive: clear day counter + flash the round banner
+  try{
+    healActive=false;dayCount=0;dayTarget=0;
+    const sub=round<=3?'TEST: BLOOD':round<=5?'TEST: MOVEMENT':'FREE EXPLORE';
+    roundFlash={text:'ROUND '+round+' — '+sub,life:1};
+  }catch(e){}
   document.getElementById('callusFill').style.width='0%';
   document.getElementById('speedFill').style.width='0%';
   document.getElementById('speedLbl').textContent='—';
@@ -539,6 +567,8 @@ function resetAll(){
   rows=[];stage=0;callusAmt=0;fractGap=20;shake=0;
   glowColor={r:0,g:0,b:0,a:0};resultObj=null;
   bloodCells=[];callusP=[];calciumP=[];osteoWorkers=[];wbcP=[];
+  // Additive layers reset
+  try{floaters=[];confetti=[];cellLabels=[];dayCount=0;dayTarget=0;healActive=false;resultFlash=null;roundFlash=null;}catch(e){}
   document.getElementById('eventOverlay').className='event-overlay';
   document.getElementById('tbody').innerHTML='';
   document.getElementById('hudScore').textContent='0';
@@ -584,9 +614,137 @@ function render(){
   ctx.save();
   if(shake>0){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.9;if(shake<.2)shake=0;}
 
-  const draws=[drawBone,drawVesselFlow,drawBloodCells,drawCallusParticles,drawOsteoWorkers,drawCalciumParticles,drawWBC,drawAmbient,drawLabels];
+  const draws=[drawBone,drawVesselFlow,drawBloodCells,drawCallusParticles,drawOsteoWorkers,drawCalciumParticles,drawWBC,drawAmbient,drawLabels,drawCellLabels,drawDayCounter,drawFloaters,drawConfetti,drawResultFlash,drawRoundFlash];
   for(const fn of draws){try{fn();ctx.globalAlpha=1;}catch(e){ctx.globalAlpha=1;}}
 
+  ctx.restore();
+}
+
+// ===== ADDITIVE UPGRADE: spawn helpers =====
+function spawnFloater(text,x,y,color){
+  floaters.push({text:text,x:x,y:y,vy:-0.7,life:1,decay:.012,color:color||'#3fb950',size:18+Math.random()*6});
+}
+function spawnConfetti(n){
+  const colors=['#f85149','#ffd93d','#3fb950','#58a6ff','#bc8cff','#ffa56b'];
+  for(let i=0;i<n;i++){
+    confetti.push({
+      x:Math.random()*W,
+      y:-10-Math.random()*40,
+      vx:(Math.random()-.5)*2.4,
+      vy:1.8+Math.random()*2.2,
+      r:3+Math.random()*4,
+      rot:Math.random()*Math.PI*2,
+      vrot:(Math.random()-.5)*.2,
+      color:colors[Math.floor(Math.random()*colors.length)],
+      life:1,decay:.005+Math.random()*.004,
+      shape:Math.random()<.5?'rect':'circle'
+    });
+  }
+}
+function spawnCellLabel(text,x,y,color){
+  cellLabels.push({text:text,x:x,y:y,life:1,decay:.006,color:color||'#fff'});
+}
+
+// ===== ADDITIVE UPGRADE: draw functions =====
+function drawFloaters(){
+  for(let i=floaters.length-1;i>=0;i--){
+    const f=floaters[i];
+    f.y+=f.vy; f.vy*=.985; f.life-=f.decay;
+    if(f.life<=0){floaters.splice(i,1);continue;}
+    ctx.globalAlpha=Math.min(f.life*1.4,1);
+    ctx.font='bold '+f.size+'px Segoe UI, Arial';
+    ctx.textAlign='center';
+    ctx.fillStyle='rgba(0,0,0,.4)';
+    ctx.fillText(f.text,f.x+1,f.y+1);
+    ctx.fillStyle=f.color;
+    ctx.fillText(f.text,f.x,f.y);
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawConfetti(){
+  for(let i=confetti.length-1;i>=0;i--){
+    const c=confetti[i];
+    c.x+=c.vx; c.y+=c.vy; c.vy+=.04; c.rot+=c.vrot; c.life-=c.decay;
+    if(c.life<=0||c.y>H+30){confetti.splice(i,1);continue;}
+    ctx.save();
+    ctx.globalAlpha=Math.min(c.life*1.3,1);
+    ctx.translate(c.x,c.y);
+    ctx.rotate(c.rot);
+    ctx.fillStyle=c.color;
+    if(c.shape==='rect') ctx.fillRect(-c.r,-c.r*.5,c.r*2,c.r);
+    else { ctx.beginPath(); ctx.arc(0,0,c.r,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawCellLabels(){
+  for(let i=cellLabels.length-1;i>=0;i--){
+    const l=cellLabels[i];
+    l.life-=l.decay; l.y-=.3;
+    if(l.life<=0){cellLabels.splice(i,1);continue;}
+    ctx.save();
+    ctx.globalAlpha=Math.min(l.life*1.3,1);
+    ctx.font='bold 13px Segoe UI, Arial';
+    ctx.textAlign='center';
+    const tw=ctx.measureText(l.text).width;
+    ctx.fillStyle='rgba(13,17,23,.78)';
+    rr(ctx,l.x-tw/2-7,l.y-13,tw+14,18,4); ctx.fill();
+    ctx.fillStyle=l.color;
+    ctx.fillText(l.text,l.x,l.y);
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawDayCounter(){
+  if(!healActive||dayTarget<=0)return;
+  // smoothly tick dayCount toward target
+  dayCount=Math.min(dayCount+(dayTarget-dayCount)*.012+.05,dayTarget);
+  const day=Math.floor(dayCount);
+  const x=W-90, y=20;
+  ctx.save();
+  ctx.font='bold 11px Segoe UI, Arial';
+  ctx.textAlign='left';
+  ctx.fillStyle='rgba(13,17,23,.75)';
+  rr(ctx,x-8,y-14,82,22,5); ctx.fill();
+  ctx.fillStyle='#ffd93d';
+  ctx.fillText('🦴 Day '+day,x,y+2);
+  ctx.restore();
+}
+
+function drawResultFlash(){
+  if(!resultFlash)return;
+  resultFlash.life-=.012;
+  if(resultFlash.life<=0){resultFlash=null;return;}
+  const a=Math.min(resultFlash.life*1.4,1);
+  ctx.save();
+  ctx.globalAlpha=a*.85;
+  ctx.font='bold 38px Segoe UI, Arial';
+  ctx.textAlign='center';
+  const tw=ctx.measureText(resultFlash.text).width;
+  ctx.fillStyle='rgba(13,17,23,.75)';
+  rr(ctx,W*.5-tw/2-18,H*.18-26,tw+36,42,8); ctx.fill();
+  ctx.fillStyle=resultFlash.color;
+  ctx.fillText(resultFlash.text,W*.5,H*.18+8);
+  ctx.restore();
+}
+
+function drawRoundFlash(){
+  if(!roundFlash)return;
+  roundFlash.life-=.014;
+  if(roundFlash.life<=0){roundFlash=null;return;}
+  const a=Math.min(roundFlash.life*1.4,1);
+  ctx.save();
+  ctx.globalAlpha=a*.9;
+  ctx.font='bold 22px Segoe UI, Arial';
+  ctx.textAlign='center';
+  const tw=ctx.measureText(roundFlash.text).width;
+  ctx.fillStyle='rgba(31,111,235,.85)';
+  rr(ctx,W*.5-tw/2-22,H*.5-22,tw+44,44,10); ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.fillText(roundFlash.text,W*.5,H*.5+8);
   ctx.restore();
 }
 
