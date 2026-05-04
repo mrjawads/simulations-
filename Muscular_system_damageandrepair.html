@@ -520,6 +520,82 @@ function draw(){
     ctx.restore();
     g.x+=g.vx;g.y+=g.vy;g.life-=g.decay;
   });
+
+  // ===== Preview overlay — visual feedback BEFORE startRound runs =====
+  try{
+    if(state.phase!=='animating' && state.intensity && !state.gameOver){
+      var intent=state.intensity;
+      var dmgCol = intent==='intense' ? 'rgba(255,60,60,' : (intent==='moderate' ? 'rgba(255,170,40,' : 'rgba(120,220,140,');
+      var dmgPulse = 0.25 + Math.sin(ambientTime*1.4)*0.12;
+      // Ghost rim around each fiber tinted by intensity
+      fibers.forEach(function(f){
+        var cy=f.y+f.contractOffset;
+        var hw=f.width+f.thickenAnim+4;
+        var x1=24,x2=W-24;
+        ctx.save();
+        ctx.strokeStyle=dmgCol+(dmgPulse)+')';
+        ctx.lineWidth=2;
+        ctx.beginPath();
+        ctx.moveTo(x1,cy-hw);
+        for(var x=x1;x<=x2;x+=6){ ctx.lineTo(x, cy-hw+Math.sin(x*0.015+ambientTime*0.8+f.phase)*1.5); }
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x1,cy+hw);
+        for(var x=x1;x<=x2;x+=6){ ctx.lineTo(x, cy+hw+Math.sin(x*0.015+ambientTime*0.8+f.phase)*1.5); }
+        ctx.stroke();
+        ctx.restore();
+      });
+      // Ghost tear marks for higher intensity
+      if(intent==='moderate' || intent==='intense'){
+        var tears = intent==='intense' ? 3 : 1;
+        fibers.forEach(function(f, fi){
+          var cy=f.y+f.contractOffset;
+          for(var t=0;t<tears;t++){
+            var tx = 60 + ((fi*73 + t*131) % (W-120));
+            ctx.save();
+            ctx.strokeStyle = dmgCol + (0.35 + Math.sin(ambientTime*2 + fi + t)*0.1) + ')';
+            ctx.lineWidth=1.5;
+            ctx.setLineDash([3,3]);
+            ctx.beginPath();
+            ctx.moveTo(tx, cy - f.width - 2);
+            ctx.lineTo(tx + 4, cy + f.width + 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+          }
+        });
+      }
+      // Ghost repair-glow indicator if rest is selected (>=1 day)
+      if(state.restDays && state.restDays>=1){
+        var rDays=state.restDays;
+        var rPulse = 0.18 + Math.sin(ambientTime*2)*0.10;
+        fibers.forEach(function(f, fi){
+          if(fi % Math.max(1, 4-rDays) !== 0) return;
+          var cy=f.y+f.contractOffset;
+          var rx = 80 + ((fi*97) % (W-160));
+          ctx.save();
+          ctx.fillStyle='rgba(120,220,160,'+rPulse+')';
+          ctx.shadowColor='#7CFC9F';
+          ctx.shadowBlur=12;
+          ctx.beginPath();
+          ctx.arc(rx, cy, 4 + Math.sin(ambientTime*2 + fi)*1.5, 0, Math.PI*2);
+          ctx.fill();
+          ctx.restore();
+        });
+      }
+      // Top label
+      ctx.save();
+      ctx.font='bold 12px Segoe UI, Arial';
+      ctx.textAlign='center';
+      ctx.shadowColor='rgba(0,0,0,0.85)';
+      ctx.shadowBlur=4;
+      ctx.fillStyle = intent==='intense' ? '#ff6b6b' : (intent==='moderate' ? '#ffb84a' : '#9be7a8');
+      var lbl = '⚡ Preview: ' + (intent==='bedrest'?'BEDREST':intent.toUpperCase());
+      if(state.restDays!==null && state.restDays!==undefined) lbl += '  •  REST ' + state.restDays + 'd';
+      ctx.fillText(lbl, W/2, 18);
+      ctx.restore();
+    }
+  }catch(e){}
 }
 
 // ===== PARTICLE SPAWNERS =====

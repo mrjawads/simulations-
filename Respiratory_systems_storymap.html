@@ -579,7 +579,7 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
         ];
         let currentScenario = null, currentStep = 'welcome', readingLevel = 'medium';
         let completedScenarios = [], predictions = {}, score = 0, streak = 0, correctPredictions = 0, totalPredictions = 0;
-        let isSpeaking = false, speechSynth = window.speechSynthesis;
+        let isSpeaking = false, speechSynth = window.speechSynthesis, speechResumeInterval = null;
         function init() { renderScenarios(); setupReadingLevels(); createAmbientParticles(); initDataTable(); }
         function initDataTable() {
             const tbody = document.getElementById('dataTableBody'); tbody.innerHTML = '';
@@ -606,7 +606,7 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
         function selectPrediction(el) { document.querySelectorAll('.predict-option').forEach(function(o) { o.classList.remove('selected'); }); el.classList.add('selected'); predictions[currentScenario.id] = el.dataset.prediction; document.getElementById('btnPredict').disabled = false; }
         function goToRead() { currentStep = 'read'; updateTabs('read'); updateReadingText(); showCard('read'); }
         function updateReadingText() { document.getElementById('readingText').innerHTML = currentScenario.readings[readingLevel]; document.getElementById('triggerText').textContent = currentScenario.triggerChain.trigger; document.getElementById('airwaysText').textContent = currentScenario.triggerChain.airways; document.getElementById('resultText').textContent = currentScenario.triggerChain.result; }
-        function toggleReadAloud() { if (isSpeaking) { speechSynth.cancel(); isSpeaking = false; document.getElementById('speakerIcon').textContent = '🔊'; } else { var u = new SpeechSynthesisUtterance(document.getElementById('readingText').textContent); u.rate = 0.9; u.onend = function() { isSpeaking = false; document.getElementById('speakerIcon').textContent = '🔊'; }; speechSynth.speak(u); isSpeaking = true; document.getElementById('speakerIcon').textContent = '⏸️'; } }
+        function toggleReadAloud() { try { if (isSpeaking) { speechSynth.cancel(); if(speechResumeInterval){clearInterval(speechResumeInterval);speechResumeInterval=null;} isSpeaking = false; document.getElementById('speakerIcon').textContent = '🔊'; } else { var u = new SpeechSynthesisUtterance(document.getElementById('readingText').textContent); u.rate = 0.9; u.onend = function() { if(speechResumeInterval){clearInterval(speechResumeInterval);speechResumeInterval=null;} isSpeaking = false; document.getElementById('speakerIcon').textContent = '🔊'; }; speechSynth.speak(u); isSpeaking = true; if(speechResumeInterval){clearInterval(speechResumeInterval);} speechResumeInterval=setInterval(function(){try{if(isSpeaking&&speechSynth&&speechSynth.speaking){speechSynth.resume();}}catch(e){}},10000); document.getElementById('speakerIcon').textContent = '⏸️'; } } catch(e){} }
         function goToWatch() { currentStep = 'watch'; updateTabs('watch'); document.getElementById('watchTrigger').textContent = currentScenario.triggerChain.trigger; document.getElementById('watchAirways').textContent = currentScenario.triggerChain.airways; document.getElementById('watchResult').textContent = currentScenario.triggerChain.result; showCard('watch'); animateBody(); }
         function animateBody() {
             var endValue = currentScenario.meterEnd;
