@@ -423,15 +423,17 @@ document.getElementById('actionBar').innerHTML=`<button class="action-btn purple
 }
 
 function toggleReadAloud(){
-if(state.speaking){state.speechSynth.cancel();state.speaking=false;document.getElementById('readAloudBtn').classList.remove('speaking');document.getElementById('readAloudBtn').innerHTML='🔊 Read Aloud';document.querySelectorAll('.sentence').forEach(s=>s.classList.remove('speaking-active'));return;}
+if(state.speaking){state.speechSynth.cancel();if(state.speechResumeInterval){clearInterval(state.speechResumeInterval);state.speechResumeInterval=null;}state.speaking=false;document.getElementById('readAloudBtn').classList.remove('speaking');document.getElementById('readAloudBtn').innerHTML='🔊 Read Aloud';document.querySelectorAll('.sentence').forEach(s=>s.classList.remove('speaking-active'));return;}
 const sentences=document.querySelectorAll('.read-text .sentence');
 if(!sentences.length)return;
 state.speaking=true;
+if(state.speechResumeInterval){clearInterval(state.speechResumeInterval);}
+state.speechResumeInterval=setInterval(function(){try{if(state.speaking&&state.speechSynth&&state.speechSynth.speaking){state.speechSynth.resume();}}catch(e){}},10000);
 document.getElementById('readAloudBtn').classList.add('speaking');
 document.getElementById('readAloudBtn').innerHTML='⏹ Stop';
 let idx=0;
 function speakNext(){
-if(idx>=sentences.length||!state.speaking){state.speaking=false;document.getElementById('readAloudBtn')?.classList.remove('speaking');if(document.getElementById('readAloudBtn'))document.getElementById('readAloudBtn').innerHTML='🔊 Read Aloud';sentences.forEach(s=>s.classList.remove('speaking-active'));return;}
+if(idx>=sentences.length||!state.speaking){if(state.speechResumeInterval){clearInterval(state.speechResumeInterval);state.speechResumeInterval=null;}state.speaking=false;document.getElementById('readAloudBtn')?.classList.remove('speaking');if(document.getElementById('readAloudBtn'))document.getElementById('readAloudBtn').innerHTML='🔊 Read Aloud';sentences.forEach(s=>s.classList.remove('speaking-active'));return;}
 sentences.forEach(s=>s.classList.remove('speaking-active'));
 sentences[idx].classList.add('speaking-active');
 const u=new SpeechSynthesisUtterance(sentences[idx].textContent);
@@ -442,7 +444,7 @@ speakNext();
 }
 
 function goToWatch(){
-state.speechSynth.cancel();state.speaking=false;
+state.speechSynth.cancel();if(state.speechResumeInterval){clearInterval(state.speechResumeInterval);state.speechResumeInterval=null;}state.speaking=false;
 state.step='watch';
 updateStepTabs();
 showWatch();
@@ -600,7 +602,7 @@ document.body.appendChild(overlay);
 }
 
 function resetAll(){
-state.speechSynth.cancel();
+state.speechSynth.cancel();if(state.speechResumeInterval){clearInterval(state.speechResumeInterval);state.speechResumeInterval=null;}
 state={currentScenario:null,step:null,level:state.level,completed:new Set(),score:0,streak:0,predictions:0,correctPredictions:0,selectedPrediction:null,badgeShown:false,mapShown:false,speechSynth:window.speechSynthesis,speaking:false};
 document.querySelectorAll('.scenario-card').forEach(c=>{c.classList.remove('active','completed');});
 document.getElementById('dataBody').innerHTML='';

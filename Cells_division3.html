@@ -427,6 +427,62 @@ function drawFx(t){
   if(G.over&&G.wound<=0&&G.damaged<5){
     c.fillStyle=`rgba(255,215,0,${0.02+Math.sin(t/400)*0.02})`;c.fillRect(0,0,AW,AH);
   }
+
+  // Preview risk overlay — visual feedback for picked variables BEFORE DIVIDE runs
+  try{
+    if(!G.busy && !G.over && !G.crit){
+      let risk=0, warn='', col='';
+      if(G.growth==='High'){risk+=2;warn='Fast division';col='#ff6b35';}
+      else if(G.growth==='Low'){risk-=1;}
+      if(G.checkpoint==='OFF'){risk+=2;if(!warn){warn='Errors slip by';col='#ffb300';}}
+      else if(G.checkpoint==='DAMAGED'){risk+=1;if(!warn){warn='Some errors';col='#ffb300';}}
+      if(G.repair==='Low'){risk+=2;if(!warn){warn='Damage piles up';col='#e53935';}}
+      else if(G.repair==='High'){risk-=1;}
+      if(risk>=2 && warn){
+        const pulse=0.14+Math.sin(t/350)*0.06;
+        c.fillStyle='rgba(255,80,40,'+(pulse*0.4)+')';c.fillRect(0,0,AW,AH);
+        c.strokeStyle=col;c.lineWidth=3;
+        c.strokeRect(3,3,AW-6,AH-6);
+        c.font='bold 11px Segoe UI';c.fillStyle=col;c.textAlign='center';
+        c.shadowColor='rgba(0,0,0,0.85)';c.shadowBlur=4;
+        c.fillText('⚠ '+warn.toUpperCase(),AW/2,16);
+        c.shadowBlur=0;c.textAlign='start';
+      } else if(risk<=-1){
+        c.strokeStyle='rgba(76,175,80,'+(0.45+Math.sin(t/300)*0.12)+')';c.lineWidth=2;
+        c.strokeRect(3,3,AW-6,AH-6);
+      } else if(risk===1){
+        c.strokeStyle='rgba(255,193,7,'+(0.4+Math.sin(t/320)*0.12)+')';c.lineWidth=2;
+        c.strokeRect(3,3,AW-6,AH-6);
+      }
+    }
+  }catch(e){}
+  // Always-on pick-status indicator (top-right): 3 colored dots reflecting current G.growth / G.checkpoint / G.repair so every pick produces immediate visible change
+  try{
+    if(!G.over){
+      const dotR=4, gap=14, pad=10;
+      const items=[
+        {label:'G', val:G.growth,    map:{Low:'#4caf50',Medium:'#cbd5e1',High:'#ff5722'}},
+        {label:'C', val:G.checkpoint,map:{ON:'#4caf50',DAMAGED:'#ffb300',OFF:'#e53935'}},
+        {label:'R', val:G.repair,    map:{Low:'#e53935',Medium:'#cbd5e1',High:'#4caf50'}}
+      ];
+      c.save();
+      c.font='bold 9px Segoe UI';
+      c.textAlign='center';
+      for(let i=0;i<3;i++){
+        const it=items[i];
+        const col=(it.map[it.val])||'#777';
+        const cx=AW-pad-(2-i)*gap-dotR;
+        const cy=pad+dotR;
+        c.fillStyle='rgba(15,23,42,0.55)';
+        c.beginPath();c.arc(cx,cy,dotR+3,0,6.28);c.fill();
+        c.fillStyle=col;
+        c.beginPath();c.arc(cx,cy,dotR,0,6.28);c.fill();
+        c.fillStyle='#0f172a';
+        c.fillText(it.label,cx,cy+3);
+      }
+      c.restore();
+    }
+  }catch(e){}
 }
 
 function emit(x,y,col,n,sp){

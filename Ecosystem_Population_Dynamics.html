@@ -251,7 +251,7 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
 </div>
 
 <script>
-const S={round:0,food:'medium',pred:'few',hab:'medium',pop:50,hp:75,score:0,streak:0,greenStreak:0,guardianEarned:false,boostReady:false,boostUsed:false,boostActive:false,lastEventRound:-2,pendingVar:null,pendingVal:null,done:false,data:[]};
+const S={round:0,food:'medium',pred:'few',hab:'medium',pop:50,hp:75,score:0,streak:0,greenStreak:0,guardianEarned:false,boostReady:false,boostUsed:false,boostActive:false,lastEventRound:-2,pendingVar:null,pendingVal:null,done:false,data:[],gen:0};
 const SEASONS=['🌸 Spring','☀️ Summer','🍂 Fall','❄️ Winter','🌸 Spring','☀️ Summer','🍂 Fall','❄️ Winter'];
 const CAP=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const cvs=document.getElementById('main-canvas');
@@ -406,7 +406,65 @@ function drawHabBoundary(){
 
 function frame(){
   cx.clearRect(0,0,W,H);drawSky();drawGround();drawHabBoundary();drawTrees();drawDeer();drawWolves();updateParticles();drawHealthRing();drawPopCounter();
+  try{ drawPickPreview(); }catch(e){}
   requestAnimationFrame(frame);
+}
+
+// === PICK PREVIEW (additive) — shows what S.pendingVar/S.pendingVal will do BEFORE GO ===
+function drawPickPreview(){
+  if(!S.pendingVar || S.done) return;
+  // Map pending pick to a delta sign + label
+  let sign=0, label='', emoji='', col='#ffffff';
+  if(S.pendingVar==='food'){
+    sign = (S.pendingVal==='high')?+1:(S.pendingVal==='medium')?0:-1;
+    emoji = '🌿'; label = 'FOOD '+S.pendingVal.toUpperCase();
+    col = sign>0?'#7CFC9F':sign<0?'#FF8A65':'#E0E0E0';
+  } else if(S.pendingVar==='pred'){
+    sign = (S.pendingVal==='many')?-1:(S.pendingVal==='few')?0:+1;
+    emoji = '🐺'; label = 'PRED '+S.pendingVal.toUpperCase();
+    col = sign>0?'#7CFC9F':sign<0?'#FF8A65':'#E0E0E0';
+  } else {
+    sign = (S.pendingVal==='large')?+1:(S.pendingVal==='medium')?0:-1;
+    emoji = '🌳'; label = 'HAB '+S.pendingVal.toUpperCase();
+    col = sign>0?'#7CFC9F':sign<0?'#FF8A65':'#E0E0E0';
+  }
+  const t = performance.now()/1000;
+  const pulse = 0.55 + 0.30*Math.sin(t*3.2);
+  // Top-center preview chip
+  cx.save();
+  cx.font='bold 13px Segoe UI, Arial';
+  const text = emoji+'  PREVIEW: '+label;
+  const tw = cx.measureText(text).width;
+  const cxp = W/2, cyp = 32;
+  const w = tw+30, h = 30;
+  cx.fillStyle = 'rgba(0,0,0,0.65)';
+  cx.beginPath();
+  if(cx.roundRect){ cx.roundRect(cxp-w/2,cyp-h/2,w,h,15); } else { cx.rect(cxp-w/2,cyp-h/2,w,h); }
+  cx.fill();
+  cx.strokeStyle = col;
+  cx.lineWidth = 2.5;
+  cx.shadowColor = col;
+  cx.shadowBlur = 12*pulse;
+  cx.stroke();
+  cx.shadowBlur=0;
+  cx.fillStyle = col;
+  cx.textAlign='center'; cx.textBaseline='middle';
+  cx.fillText(text, cxp, cyp);
+  cx.restore();
+  // Direction arrow on the targeted area
+  cx.save();
+  cx.globalAlpha = pulse;
+  cx.font='bold 26px Segoe UI, Arial';
+  cx.textAlign='center';
+  cx.fillStyle = col;
+  cx.shadowColor = col; cx.shadowBlur = 14;
+  let arrow = sign>0?'▲':sign<0?'▼':'≈';
+  let ax, ay;
+  if(S.pendingVar==='food'){ ax = W*0.2; ay = H*0.55; }
+  else if(S.pendingVar==='pred'){ ax = W*0.5; ay = H*0.55; }
+  else { ax = W*0.8; ay = H*0.55; }
+  cx.fillText(arrow, ax, ay);
+  cx.restore();
 }
 
 // ===== UI =====
@@ -474,12 +532,15 @@ function executeRound(){
   document.getElementById('w-car').classList.toggle('active',S.pop>100);
   S.data.push({r:S.round,ch:changeLabel,pop:S.pop,hp:S.hp,color:hColor});
   spawnBurst(inGreen);initDeer();initWolves();initTrees();
+  const _myGen=S.gen|0;
   setTimeout(()=>{
-    updateAllHUD(hHex);addRow(S.data.at(-1),hHex);markCurrentButtons();clearSectionStates();
-    document.getElementById('round-badge').textContent='Season '+S.round+' / 8';
-    if(S.round===5)showPopup('✅ Required Complete!','Continue for extra credit?');
-    else if(S.round===8){showPopup('🏆 All 8 Complete!','Final Score: '+S.score);S.done=true;}
-    updateProgressNote();
+    try{ if((S.gen|0)!==_myGen) return; // stale: fullReset fired during 500ms wait
+      updateAllHUD(hHex);addRow(S.data.at(-1),hHex);markCurrentButtons();clearSectionStates();
+      document.getElementById('round-badge').textContent='Season '+S.round+' / 8';
+      if(S.round===5)showPopup('✅ Required Complete!','Continue for extra credit?');
+      else if(S.round===8){showPopup('🏆 All 8 Complete!','Final Score: '+S.score);S.done=true;}
+      updateProgressNote();
+    }catch(e){}
   },500);
 }
 
@@ -497,7 +558,7 @@ function addRow(d,hHex){let tb=document.getElementById('dtbody');let tr=document
 function showPopup(t,s){document.getElementById('cp-title').textContent=t;document.getElementById('cp-sub').textContent=s;document.getElementById('complete-popup').style.display='block';}
 function dismissPopup(){document.getElementById('complete-popup').style.display='none';}
 function activateBoost(){if(!S.boostReady||S.boostUsed)return;S.boostActive=true;S.boostUsed=true;S.boostReady=false;document.getElementById('boost-btn').disabled=true;document.getElementById('boost-status').textContent='Used!';document.getElementById('boost-status').style.color='#e74c3c';for(let i=0;i<3;i++)wolves.push({x:W*.3+Math.random()*W*.4,y:H*.5+Math.random()*H*.2,sz:20,vx:(-1+Math.random()*2)*.5});spawnBurst(true);}
-function fullReset(){Object.assign(S,{round:0,food:'medium',pred:'few',hab:'medium',pop:50,hp:75,score:0,streak:0,greenStreak:0,guardianEarned:false,boostReady:false,boostUsed:false,boostActive:false,lastEventRound:-2,pendingVar:null,pendingVal:null,done:false,data:[]});document.getElementById('dtbody').innerHTML='';document.getElementById('complete-popup').style.display='none';document.getElementById('guardian-popup').classList.remove('show');document.getElementById('round-badge').textContent='Season 0 / 8';document.getElementById('w-tick').classList.remove('active');document.getElementById('w-car').classList.remove('active');document.getElementById('boost-btn').disabled=true;document.getElementById('boost-status').textContent='Earn after 3 rounds';document.getElementById('boost-status').style.color='#5a7a9a';markCurrentButtons();clearSectionStates();updateAllHUD('#2ecc71');updateProgressNote();particles=[];initDeer();initWolves();initTrees();}
+function fullReset(){S.gen=(S.gen|0)+1;Object.assign(S,{round:0,food:'medium',pred:'few',hab:'medium',pop:50,hp:75,score:0,streak:0,greenStreak:0,guardianEarned:false,boostReady:false,boostUsed:false,boostActive:false,lastEventRound:-2,pendingVar:null,pendingVal:null,done:false,data:[],gen:S.gen});document.getElementById('dtbody').innerHTML='';document.getElementById('complete-popup').style.display='none';document.getElementById('guardian-popup').classList.remove('show');document.getElementById('round-badge').textContent='Season 0 / 8';document.getElementById('w-tick').classList.remove('active');document.getElementById('w-car').classList.remove('active');document.getElementById('boost-btn').disabled=true;document.getElementById('boost-status').textContent='Earn after 3 rounds';document.getElementById('boost-status').style.color='#5a7a9a';markCurrentButtons();clearSectionStates();updateAllHUD('#2ecc71');updateProgressNote();particles=[];initDeer();initWolves();initTrees();}
 
 function copyTable(){
   if(S.data.length===0){alert('No data to copy yet! Run some rounds first.');return;}
