@@ -257,6 +257,12 @@ let dispStr=7,targStr=7;
 let animWeekProg=0,animTotalWeeks=4,isWeekAnim=false;
 let shockwaveR=0,shockwaveActive=false;
 let overuseGlow=0;
+// === PREVIEW STATE (updated on activity/week selection, drawn as overlay) ===
+let previewMass=null;     // predicted target mass for current selection
+let previewStr=null;       // predicted target strength
+let previewPulse=0;        // 0..1, decays each frame
+let previewArrow=0;        // -1 shrink, 0 same, +1 grow
+let previewBumpR=0;        // muscle scale bump (visual cue), decays each frame
 
 function resize(){
     dpr=window.devicePixelRatio||1;
@@ -590,6 +596,56 @@ function draw(){
         c.fillStyle=targMass>=100?'rgba(102,187,106,0.15)':'rgba(239,83,80,0.15)';c.fill();
     }
 
+    // === PREVIEW OVERLAY: show predicted target on selection (fixes "no visual change" bug) ===
+    try{
+        if(previewBumpR){previewBumpR*=0.86;if(Math.abs(previewBumpR)<0.002)previewBumpR=0;}
+        if(previewPulse>0&&previewMass!=null&&!isWeekAnim){
+            const previewR=R*Math.sqrt(previewMass/100);
+            const animR=outerR+(previewR-outerR)*0.3*(1+Math.sin(ambientT*4)*0.18);
+            // Dashed predicted-target ring
+            c.save();
+            c.beginPath();c.arc(cx,cy,previewR,0,Math.PI*2);
+            c.setLineDash([10,7]);
+            const pCol=previewArrow>0?'rgba(102,187,106,0.85)':previewArrow<0?'rgba(239,83,80,0.85)':'rgba(255,213,79,0.7)';
+            c.strokeStyle=pCol;c.lineWidth=2.4;c.stroke();
+            c.setLineDash([]);
+            // Soft fill between current and target
+            const between=c.createRadialGradient(cx,cy,Math.min(outerR,previewR),cx,cy,Math.max(outerR,previewR));
+            between.addColorStop(0,'rgba(255,255,255,0)');
+            between.addColorStop(1,previewArrow>0?'rgba(102,187,106,0.10)':previewArrow<0?'rgba(239,83,80,0.10)':'rgba(255,213,79,0.08)');
+            c.fillStyle=between;
+            c.beginPath();c.arc(cx,cy,Math.max(outerR,previewR),0,Math.PI*2);c.fill();
+            c.restore();
+
+            // Direction arrow + predicted % above the muscle
+            const diff=previewMass-currentMass;
+            const arrow=previewArrow>0?'▲':previewArrow<0?'▼':'●';
+            const label=(diff>0?'+':'')+diff.toFixed(0)+'% mass';
+            c.save();
+            c.font='bold 22px Segoe UI';c.textAlign='center';
+            c.fillStyle='rgba(0,0,0,0.55)';
+            const labelY=cy-Math.max(outerR,previewR)-22;
+            const tw=c.measureText(arrow+'  '+label).width;
+            roundRect(c,cx-tw/2-12,labelY-20,tw+24,30,8);c.fill();
+            c.fillStyle=pCol;
+            c.fillText(arrow+'  '+label,cx,labelY);
+            // Sub-label
+            c.font='600 11px Segoe UI';
+            c.fillStyle='rgba(220,220,230,0.7)';
+            c.fillText('PREVIEW — press RUN to simulate',cx,labelY+14);
+            c.restore();
+
+            // Subtle pulse on the muscle to confirm the selection registered
+            if(previewBumpR){
+                c.save();
+                c.beginPath();c.arc(cx,cy,outerR*(1+Math.abs(previewBumpR)),0,Math.PI*2);
+                c.strokeStyle=previewArrow>0?'rgba(102,187,106,0.4)':previewArrow<0?'rgba(239,83,80,0.4)':'rgba(255,213,79,0.4)';
+                c.lineWidth=3;c.stroke();
+                c.restore();
+            }
+        }
+    }catch(e){}
+
     c.restore();
     if(myGen===gen)requestAnimationFrame(draw);
 }
@@ -694,6 +750,7 @@ function selectActivity(lv){
     btns.forEach(b=>b.classList.remove('selected'));
     btns[lv].classList.add('selected');
     selectedActivity=lv;
+    try{updatePreview();}catch(e){}
     updateRunBtn();
 }
 
@@ -705,7 +762,22 @@ function selectWeeks(w){
     btns.forEach(b=>b.classList.remove('selected'));
     btn.classList.add('selected');
     selectedWeeks=w;
+    try{updatePreview();}catch(e){}
     updateRunBtn();
+}
+
+// === Preview: instant visual feedback when activity/week changes ===
+function updatePreview(){
+    if(selectedActivity<0){previewMass=null;previewStr=null;previewArrow=0;previewPulse=0;return;}
+    const key=selectedActivity+'-'+selectedWeeks;
+    const out=OUT[key];
+    if(!out){previewMass=null;previewStr=null;previewArrow=0;previewPulse=0;return;}
+    previewMass=out[0];
+    previewStr=out[1];
+    const diff=previewMass-currentMass;
+    previewArrow=diff>0.5?1:diff<-0.5?-1:0;
+    previewPulse=1;
+    previewBumpR=previewArrow*0.06; // brief size cue
 }
 
 function updateRunBtn(){document.getElementById('runBtn').disabled=(selectedActivity<0||isAnimating);}
@@ -737,6 +809,8 @@ function runSimulation(){
     if(isAnimating||selectedActivity<0||round>8)return;
     if(!enforceOneVar())return;
     isAnimating=true;
+    // Clear preview overlay; the real animation takes over now
+    try{previewMass=null;previewStr=null;previewPulse=0;previewArrow=0;previewBumpR=0;}catch(e){}
     document.getElementById('runBtn').disabled=true;
     lockControls(true);
 
@@ -939,6 +1013,7 @@ function fullReset(){
     currentMass=100;currentStrength=7;dispMass=100;dispStr=7;targMass=100;targStr=7;ghostMass=100;
     roundData=[];completedRounds=0;isAnimating=false;xrayUnlocked=false;showXray=false;
     particles=[];satCells=[];isWeekAnim=false;shockwaveActive=false;overuseGlow=0;
+    try{previewMass=null;previewStr=null;previewPulse=0;previewArrow=0;previewBumpR=0;}catch(e){}
 
     document.getElementById('resultsBody').innerHTML='';
     document.getElementById('roundNum').textContent='1';
