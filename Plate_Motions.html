@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<title>Plate Motions Simulation — Station 3</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    background: #0F172A;
+    color: #F1F5F9;
+    overflow-x: hidden;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 12px 16px 16px;
+    background: radial-gradient(circle at top, #1E293B 0%, #0F172A 60%);
+  }
+
+  /* ==== HEADER ==== */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background: linear-gradient(90deg, #1565C0, #00897B);
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    margin-bottom: 14px;
+  }
+  header .title {
+    font-size: 22px;
+    font-weight: 800;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+  header .title small {
+    font-weight: 500;
+    opacity: 0.85;
+    font-size: 14px;
+    margin-left: 8px;
+  }
+  .round-pill {
+    background: rgba(0,0,0,0.35);
+    padding: 8px 20px;
+    border-radius: 28px;
+    font-size: 18px;
+    font-weight: 800;
+    border: 2px solid rgba(255,255,255,0.25);
+  }
+  .round-pill .num { color: #FFEB3B; font-size: 22px; }
+
+  /* ==== MAIN GRID ==== */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+  }
+  .left-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .right-col { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ==== ARENA ==== */
+  .arena {
+    background: #0B1220;
+    border-radius: 16px;
+    border: 3px solid #334155;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.6);
+    aspect-ratio: 16 / 9;
+    max-height: 600px;
+  }
+  .arena svg { width: 100%; height: 100%; display: block; }
+
+  /* result banner — appears at TOP of arena, doesn't obscure features below */
+  .result-overlay {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px) scale(0.8);
+    background: rgba(0,0,0,0.88);
+    color: white;
+    padding: 14px 32px;
+    border-radius: 18px;
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 32px rgba(255,235,59,0.4);
+    border: 3px solid #FFEB3B;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .result-overlay.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  .result-overlay.success { border-color: #4CAF50; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 32px rgba(76,175,80,0.5); }
+  .result-overlay.warn    { border-color: #FF9800; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 32px rgba(255,152,0,0.5); }
+  .result-overlay.fail    { border-color: #F44336; box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 32px rgba(244,67,54,0.5); }
+  .result-overlay .sub { font-size: 14px; font-weight: 500; margin-top: 4px; opacity: 0.85; letter-spacing: 0.5px; }
+
+  /* particle layer */
+  .particles {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .particle {
+    position: absolute;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    opacity: 0;
+  }
+
+  /* ==== HUD ==== */
+  .hud {
+    background: linear-gradient(135deg, #1E293B, #0F172A);
+    border-radius: 14px;
+    padding: 16px;
+    border: 2px solid #334155;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .hud-stat {
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    border-left: 4px solid #4CAF50;
+  }
+  .hud-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #94A3B8;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .hud-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #F1F5F9;
+  }
+  .hud-value.green { color: #4ADE80; }
+
+  .progress-track {
+    grid-column: 1 / -1;
+    height: 16px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #334155;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4ADE80, #22D3EE, #A78BFA, #F472B6, #FACC15);
+    width: 0;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 10px rgba(255,235,59,0.5);
+  }
+
+  /* ==== CONTROL PANELS ==== */
+  .controls {
+    background: linear-gradient(135deg, #1E293B, #0F172A);
+    border-radius: 14px;
+    padding: 16px;
+    border: 2px solid #334155;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .control-step { margin-bottom: 14px; }
+  .control-step:last-child { margin-bottom: 0; }
+  .step-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #94A3B8;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  .step-num {
+    background: #6366F1;
+    color: white;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 900;
+  }
+  .step-num.done { background: #4ADE80; }
+
+  .button-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .opt-btn {
+    flex: 1;
+    min-width: 90px;
+    padding: 14px 10px;
+    border: 2px solid #475569;
+    background: rgba(15,23,42,0.6);
+    color: #E2E8F0;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    transition: all 0.18s ease;
+    font-family: inherit;
+  }
+  .opt-btn:hover:not(:disabled) {
+    border-color: #6366F1;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99,102,241,0.25);
+  }
+  .opt-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .opt-btn.selected {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+  }
+  .opt-btn.selected[data-mantle="Hard Solid"]   { background: linear-gradient(135deg, #475569, #1E293B); border-color: #94A3B8; }
+  .opt-btn.selected[data-mantle="Soft Solid"]   { background: linear-gradient(135deg, #DC2626, #7F1D1D); border-color: #FCA5A5; color: white; }
+  .opt-btn.selected[data-mantle="Liquid"]       { background: linear-gradient(135deg, #F59E0B, #B45309); border-color: #FCD34D; color: white; }
+  .opt-btn.selected[data-direction="Together"]  { background: linear-gradient(135deg, #1565C0, #0D47A1); border-color: #93C5FD; color: white; }
+  .opt-btn.selected[data-direction="Apart"]     { background: linear-gradient(135deg, #00897B, #004D40); border-color: #5EEAD4; color: white; }
+
+  .emoji-icon { display: block; font-size: 26px; margin-bottom: 4px; }
+
+  .run-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #FACC15, #F59E0B);
+    color: #1E293B;
+    border: none;
+    border-radius: 14px;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 6px 18px rgba(245,158,11,0.4);
+    font-family: inherit;
+  }
+  .run-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(245,158,11,0.6);
+  }
+  .run-btn:disabled {
+    background: #374151;
+    color: #6B7280;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .run-btn.armed { animation: pulse-glow 1.6s infinite; }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 6px 18px rgba(245,158,11,0.4); }
+    50%      { box-shadow: 0 6px 28px rgba(245,158,11,0.85); }
+  }
+
+  /* ==== RESULTS TABLE ==== */
+  .results {
+    background: linear-gradient(135deg, #1E293B, #0F172A);
+    border-radius: 14px;
+    padding: 16px;
+    border: 2px solid #334155;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .results-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #94A3B8;
+    font-weight: 700;
+  }
+  .copy-btn {
+    background: #6366F1;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .copy-btn:hover { background: #4F46E5; }
+  .copy-btn.copied { background: #4ADE80; color: #1E293B; }
+
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    flex: 1;
+  }
+  .results-table th {
+    background: #334155;
+    color: #E2E8F0;
+    padding: 8px 6px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .results-table th:first-child { border-radius: 8px 0 0 0; }
+  .results-table th:last-child { border-radius: 0 8px 0 0; }
+  .results-table td {
+    padding: 8px 6px;
+    border-top: 1px solid rgba(148, 163, 184, 0.15);
+    color: #CBD5E1;
+  }
+  .results-table tr.highlight td {
+    background: rgba(74, 222, 128, 0.12);
+    color: #F1F5F9;
+    animation: row-flash 0.8s;
+  }
+  @keyframes row-flash {
+    0%   { background: rgba(74, 222, 128, 0.6); }
+    100% { background: rgba(74, 222, 128, 0.12); }
+  }
+  .results-table .empty-row td {
+    color: #64748B;
+    font-style: italic;
+  }
+
+  /* ==== FOOTER ==== */
+  footer {
+    margin-top: 14px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .secondary-btn {
+    padding: 10px 18px;
+    background: transparent;
+    color: #94A3B8;
+    border: 2px solid #475569;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .secondary-btn:hover {
+    background: rgba(99,102,241,0.15);
+    border-color: #6366F1;
+    color: #E2E8F0;
+  }
+
+  /* ==== STATION COMPLETE BADGE ==== */
+  .complete-badge {
+    position: absolute;
+    inset: 0;
+    background: rgba(15,23,42,0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    border-radius: 14px;
+    backdrop-filter: blur(4px);
+    z-index: 10;
+  }
+  .complete-badge.show { display: flex; animation: badge-in 0.5s; }
+  @keyframes badge-in {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .complete-emoji { font-size: 80px; margin-bottom: 8px; animation: bounce 1s infinite; }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+  .complete-title {
+    font-size: 32px; font-weight: 900;
+    background: linear-gradient(90deg, #4ADE80, #22D3EE, #A78BFA, #FACC15);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 12px;
+  }
+  .complete-msg {
+    font-size: 16px;
+    color: #94A3B8;
+    margin-bottom: 18px;
+    text-align: center;
+    max-width: 300px;
+  }
+
+  /* ============================================================
+     SVG ANIMATION CLASSES (set via JS)
+     ============================================================ */
+
+  /* Plates: smooth slow motion so kids can track the change */
+  .plate {
+    transition: transform 1.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  /* Mantle color smoothly fades */
+  .mantle-fill { transition: fill 0.6s ease; }
+
+  /* Convection currents (Soft Solid) */
+  .convection-loop { opacity: 0; transition: opacity 0.6s; }
+  .convection-loop.active { opacity: 1; }
+  .convection-loop .conv-up   { animation: conv-glide-up   3.5s ease-in-out infinite; }
+  .convection-loop .conv-down { animation: conv-glide-down 3.5s ease-in-out infinite; }
+  @keyframes conv-glide-up {
+    0%, 100% { opacity: 0.55; transform: translateY(0); }
+    50%      { opacity: 1;    transform: translateY(-8px); }
+  }
+  @keyframes conv-glide-down {
+    0%, 100% { opacity: 0.55; transform: translateY(0); }
+    50%      { opacity: 1;    transform: translateY(8px); }
+  }
+
+  /* Liquid bubbles */
+  .liquid-bubble { opacity: 0; animation: none; }
+  .liquid-bubble.active { animation: bubble-rise 3s linear infinite; }
+  @keyframes bubble-rise {
+    0%   { transform: translateY(0)    scale(0.6); opacity: 0; }
+    20%  { opacity: 1; }
+    100% { transform: translateY(-200px) scale(1.2); opacity: 0; }
+  }
+  .liquid-flow { opacity: 0; animation: none; }
+  .liquid-flow.active { opacity: 0.45; animation: liquid-swirl 5s linear infinite; }
+  @keyframes liquid-swirl {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-40px); }
+  }
+
+  /* Ocean wave gentle motion */
+  .ocean-wave { animation: ocean-wave 4s ease-in-out infinite; }
+  @keyframes ocean-wave {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-2px); }
+  }
+
+  /* Volcano / Ridge / Magma column / subducting slab — fade in */
+  .scene-feature {
+    opacity: 0;
+    transition: opacity 0.7s ease 0.4s, transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s;
+    transform-box: fill-box;
+    transform-origin: center bottom;
+  }
+  .scene-feature.show { opacity: 1; }
+  .scene-feature.scale-up.show { transform: scale(1); }
+  .scene-feature.scale-up      { transform: scale(0.3); }
+
+  /* Magma column rises */
+  #magma-column { transform-origin: 50% 100%; transform: scaleY(0); transition: transform 1.4s ease-out 0.4s; }
+  #magma-column.show { transform: scaleY(1); }
+
+  /* Volcano smoke pulses */
+  .smoke-puff { animation: smoke-rise 2.4s ease-out infinite; opacity: 0; }
+  #volcano.show .smoke-puff { opacity: 1; }
+  @keyframes smoke-rise {
+    0%   { transform: translateY(0) scale(0.6); opacity: 0.7; }
+    100% { transform: translateY(-30px) scale(1.4); opacity: 0; }
+  }
+  /* Stagger smoke puffs */
+  .smoke-puff.s2 { animation-delay: 0.8s; }
+  .smoke-puff.s3 { animation-delay: 1.6s; }
+
+  /* Volcano glow pulse */
+  .volcano-glow { animation: vol-glow 1.4s ease-in-out infinite; }
+  @keyframes vol-glow {
+    0%, 100% { opacity: 0.7; }
+    50%      { opacity: 1;   }
+  }
+
+  /* Magma plumes rising from ridge */
+  .magma-plume {
+    opacity: 0;
+    animation: none;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  #ridge.show .magma-plume    { animation: plume-rise 1.4s ease-out infinite; }
+  #ridge.show .magma-plume.p2 { animation-delay: 0.3s; }
+  #ridge.show .magma-plume.p3 { animation-delay: 0.6s; }
+  #ridge.show .magma-plume.p4 { animation-delay: 0.9s; }
+  #ridge.show .magma-plume.p5 { animation-delay: 1.2s; }
+  @keyframes plume-rise {
+    0%   { transform: translateY(0)    scale(1);   opacity: 0.95; }
+    100% { transform: translateY(-65px) scale(0.4); opacity: 0; }
+  }
+
+  /* Ridge glow */
+  .ridge-glow { animation: ridge-glow 2s ease-in-out infinite; }
+  @keyframes ridge-glow {
+    0%, 100% { opacity: 0.6; }
+    50%      { opacity: 1;   }
+  }
+
+  /* Earthquake bolts */
+  .quake-bolt { opacity: 0; }
+  .quake-bolt.flash { animation: bolt-flash 0.5s 4; }
+  @keyframes bolt-flash {
+    0%, 100% { opacity: 0; }
+    50%      { opacity: 1; }
+  }
+
+  /* Seismic wave rings expanding outward from the boundary */
+  .seismic-wave { opacity: 0; }
+  .seismic-wave.expand { animation: wave-expand 1.5s ease-out 2; }
+  @keyframes wave-expand {
+    0%   { r: 10;  opacity: 0.9; stroke-width: 4; }
+    100% { r: 200; opacity: 0;   stroke-width: 1; }
+  }
+
+  /* Feature labels */
+  .feature-label { opacity: 0; transition: opacity 0.5s ease; }
+  .feature-label.show { opacity: 1; }
+
+  /* Direction arrows pulse so students notice them */
+  .direction-arrow { animation: arrow-pulse 1.4s ease-in-out infinite; }
+  @keyframes arrow-pulse {
+    0%, 100% { opacity: 0.8; }
+    50%      { opacity: 1;   }
+  }
+
+  /* Scene shake during earthquake */
+  .arena.shake .scene-group { animation: scene-shake 0.5s linear 4; }
+  @keyframes scene-shake {
+    0%, 100% { transform: translate(0,0); }
+    20% { transform: translate(-4px, 2px); }
+    40% { transform: translate(4px, -2px); }
+    60% { transform: translate(-3px, -1px); }
+    80% { transform: translate(3px, 1px); }
+  }
+
+  /* Wobble for liquid mantle */
+  .plate.wobble { animation: plate-wobble 0.9s ease-in-out infinite; }
+  @keyframes plate-wobble {
+    0%, 100% { transform: rotate(0deg) translateY(0); }
+    25%      { transform: rotate(-3deg) translateY(2px); }
+    50%      { transform: rotate(0deg) translateY(-3px); }
+    75%      { transform: rotate(3deg) translateY(2px); }
+  }
+
+  @media (max-width: 1100px) {
+    main { grid-template-columns: 1fr; }
+    .right-col { flex-direction: row; flex-wrap: wrap; }
+    .controls, .results { flex: 1 1 360px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">🌍 Plate Motions Simulation <small>Science Department · Station 3</small></div>
+  <div class="round-pill">Round <span class="num" id="round-num">1</span> / 5</div>
+</header>
+
+<main>
+  <div class="left-col">
+    <div class="arena" id="arena">
+      <svg viewBox="0 0 800 450" preserveAspectRatio="xMidYMid meet" id="scene">
+        <defs>
+          <!-- ocean -->
+          <linearGradient id="grad-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#7DD3FC"/>
+            <stop offset="1" stop-color="#0EA5E9"/>
+          </linearGradient>
+          <linearGradient id="grad-ocean" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#0EA5E9"/>
+            <stop offset="0.6" stop-color="#0C4A6E"/>
+            <stop offset="1" stop-color="#082F49"/>
+          </linearGradient>
+
+          <!-- mantle states -->
+          <linearGradient id="grad-hard" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#475569"/>
+            <stop offset="0.5" stop-color="#334155"/>
+            <stop offset="1" stop-color="#1E293B"/>
+          </linearGradient>
+          <linearGradient id="grad-soft" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#EF4444"/>
+            <stop offset="0.5" stop-color="#991B1B"/>
+            <stop offset="1" stop-color="#450A0A"/>
+          </linearGradient>
+          <linearGradient id="grad-liquid" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#FCD34D"/>
+            <stop offset="0.4" stop-color="#F59E0B"/>
+            <stop offset="0.8" stop-color="#DC2626"/>
+            <stop offset="1" stop-color="#7F1D1D"/>
+          </linearGradient>
+
+          <!-- plates -->
+          <linearGradient id="grad-plate-1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#A16207"/>
+            <stop offset="0.15" stop-color="#92400E"/>
+            <stop offset="1" stop-color="#451A03"/>
+          </linearGradient>
+          <linearGradient id="grad-plate-2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#92400E"/>
+            <stop offset="0.15" stop-color="#7C2D12"/>
+            <stop offset="1" stop-color="#431407"/>
+          </linearGradient>
+
+          <!-- magma column gradient -->
+          <linearGradient id="grad-magma-col" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stop-color="#7F1D1D"/>
+            <stop offset="0.3" stop-color="#DC2626"/>
+            <stop offset="0.7" stop-color="#F97316"/>
+            <stop offset="1" stop-color="#FCD34D"/>
+          </linearGradient>
+
+          <!-- volcano lava -->
+          <radialGradient id="grad-lava" cx="0.5" cy="0.5" r="0.7">
+            <stop offset="0" stop-color="#FEF3C7"/>
+            <stop offset="0.3" stop-color="#F97316"/>
+            <stop offset="1" stop-color="#7F1D1D"/>
+          </radialGradient>
+
+          <!-- soft glow filter -->
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          <filter id="strong-glow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="6" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        <g class="scene-group">
+          <!-- SKY -->
+          <rect x="0" y="0" width="800" height="50" fill="url(#grad-sky)"/>
+
+          <!-- OCEAN -->
+          <rect x="0" y="50" width="800" height="150" fill="url(#grad-ocean)"/>
+
+          <!-- ocean wave overlays -->
+          <g class="ocean-wave" opacity="0.55">
+            <path d="M 0 70 Q 100 64, 200 70 T 400 70 T 600 70 T 800 70" stroke="#BAE6FD" stroke-width="2.5" fill="none"/>
+            <path d="M 0 100 Q 100 94, 200 100 T 400 100 T 600 100 T 800 100" stroke="#BAE6FD" stroke-width="2" fill="none" opacity="0.7"/>
+            <path d="M 0 135 Q 100 130, 200 135 T 400 135 T 600 135 T 800 135" stroke="#7DD3FC" stroke-width="1.5" fill="none" opacity="0.5"/>
+            <path d="M 0 170 Q 100 165, 200 170 T 400 170 T 600 170 T 800 170" stroke="#0EA5E9" stroke-width="1" fill="none" opacity="0.4"/>
+          </g>
+
+          <!-- MANTLE (color-coded) -->
+          <rect id="mantle" class="mantle-fill" x="0" y="200" width="800" height="250" fill="url(#grad-hard)"/>
+
+          <!-- LIQUID FLOW PATTERNS (visible only when Liquid) -->
+          <g class="liquid-flow" id="liquid-flow">
+            <path d="M -40 250 Q 100 240, 200 260 T 400 250 T 600 260 T 840 250" stroke="#FEF3C7" stroke-width="2" fill="none" opacity="0.5"/>
+            <path d="M -40 320 Q 100 310, 200 330 T 400 320 T 600 330 T 840 320" stroke="#FCD34D" stroke-width="2" fill="none" opacity="0.5"/>
+            <path d="M -40 390 Q 100 380, 200 400 T 400 390 T 600 400 T 840 390" stroke="#FEF3C7" stroke-width="2" fill="none" opacity="0.4"/>
+          </g>
+
+          <!-- LIQUID BUBBLES -->
+          <g id="bubbles">
+            <circle class="liquid-bubble" cx="100" cy="430" r="8" fill="#FEF3C7" style="animation-delay: 0s;"/>
+            <circle class="liquid-bubble" cx="180" cy="430" r="6" fill="#FEF3C7" style="animation-delay: 0.4s;"/>
+            <circle class="liquid-bubble" cx="260" cy="430" r="9" fill="#FEF3C7" style="animation-delay: 0.8s;"/>
+            <circle class="liquid-bubble" cx="340" cy="430" r="7" fill="#FEF3C7" style="animation-delay: 1.2s;"/>
+            <circle class="liquid-bubble" cx="460" cy="430" r="8" fill="#FEF3C7" style="animation-delay: 1.6s;"/>
+            <circle class="liquid-bubble" cx="540" cy="430" r="6" fill="#FEF3C7" style="animation-delay: 2s;"/>
+            <circle class="liquid-bubble" cx="620" cy="430" r="9" fill="#FEF3C7" style="animation-delay: 0.2s;"/>
+            <circle class="liquid-bubble" cx="700" cy="430" r="7" fill="#FEF3C7" style="animation-delay: 0.6s;"/>
+          </g>
+
+          <!-- CONVECTION CURRENTS (visible only when Soft Solid) -->
+          <g class="convection-loop" id="convection">
+            <!-- Cell 1: ~150,420 going up to ~150,260, looping right to 250 then down -->
+            <g class="conv-up">
+              <path d="M 150 420 C 150 350, 150 290, 150 270" stroke="#FCD34D" stroke-width="3.5" fill="none" opacity="0.85" stroke-linecap="round"/>
+              <polygon points="142,278 158,278 150,260" fill="#FCD34D" opacity="0.95"/>
+            </g>
+            <g class="conv-down">
+              <path d="M 250 270 C 250 320, 250 380, 250 420" stroke="#FB923C" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+              <polygon points="242,408 258,408 250,425" fill="#FB923C" opacity="0.85"/>
+            </g>
+            <!-- top arc -->
+            <path d="M 150 270 Q 200 250, 250 270" stroke="#FCD34D" stroke-width="3" fill="none" opacity="0.75"/>
+
+            <!-- Cell 2 -->
+            <g class="conv-up" style="animation-delay: 0.6s;">
+              <path d="M 350 420 C 350 350, 350 290, 350 270" stroke="#FCD34D" stroke-width="3.5" fill="none" opacity="0.85" stroke-linecap="round"/>
+              <polygon points="342,278 358,278 350,260" fill="#FCD34D" opacity="0.95"/>
+            </g>
+            <g class="conv-down" style="animation-delay: 0.6s;">
+              <path d="M 450 270 C 450 320, 450 380, 450 420" stroke="#FB923C" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+              <polygon points="442,408 458,408 450,425" fill="#FB923C" opacity="0.85"/>
+            </g>
+            <path d="M 350 270 Q 400 250, 450 270" stroke="#FCD34D" stroke-width="3" fill="none" opacity="0.75"/>
+
+            <!-- Cell 3 -->
+            <g class="conv-up" style="animation-delay: 1.2s;">
+              <path d="M 550 420 C 550 350, 550 290, 550 270" stroke="#FCD34D" stroke-width="3.5" fill="none" opacity="0.85" stroke-linecap="round"/>
+              <polygon points="542,278 558,278 550,260" fill="#FCD34D" opacity="0.95"/>
+            </g>
+            <g class="conv-down" style="animation-delay: 1.2s;">
+              <path d="M 650 270 C 650 320, 650 380, 650 420" stroke="#FB923C" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>
+              <polygon points="642,408 658,408 650,425" fill="#FB923C" opacity="0.85"/>
+            </g>
+            <path d="M 550 270 Q 600 250, 650 270" stroke="#FCD34D" stroke-width="3" fill="none" opacity="0.75"/>
+          </g>
+
+          <!-- MAGMA COLUMN (rises in divergent) -->
+          <g id="magma-column" class="scene-feature">
+            <!-- broad base in mantle, narrowing at top -->
+            <path d="M 360 440 L 440 440 L 425 200 L 375 200 Z" fill="url(#grad-magma-col)" opacity="0.85"/>
+            <!-- glowing core -->
+            <ellipse cx="400" cy="220" rx="22" ry="60" fill="#FCD34D" opacity="0.75" filter="url(#glow)"/>
+          </g>
+
+          <!-- SUBDUCTING SLAB (extends down from plate-right when convergent — drawn BEHIND plates) -->
+          <g id="subducting-slab" class="scene-feature">
+            <path d="M 380 200 L 410 200 L 460 280 L 480 360 L 470 380 L 440 290 L 400 220 Z"
+                  fill="url(#grad-plate-2)" opacity="0.95"/>
+            <!-- friction glow -->
+            <ellipse cx="430" cy="270" rx="20" ry="40" fill="#FCD34D" opacity="0.4" filter="url(#glow)"/>
+          </g>
+
+          <!-- RIGHT PLATE (drawn FIRST so it renders BEHIND plate-left during subduction) -->
+          <g class="plate" id="plate-right">
+            <path d="M 420 200 L 740 200 L 740 240 Q 730 244, 720 240 Q 700 248, 680 240 Q 660 248, 640 240 Q 620 248, 600 240 Q 580 248, 560 240 Q 540 248, 520 240 Q 500 248, 480 240 Q 460 248, 440 240 Q 430 244, 420 240 Z"
+                  fill="url(#grad-plate-2)"/>
+            <rect x="420" y="200" width="320" height="6" fill="#92400E"/>
+            <line x1="450" y1="216" x2="500" y2="216" stroke="#431407" stroke-width="1" opacity="0.55"/>
+            <line x1="540" y1="220" x2="610" y2="220" stroke="#431407" stroke-width="1" opacity="0.55"/>
+            <line x1="640" y1="218" x2="710" y2="218" stroke="#431407" stroke-width="1" opacity="0.55"/>
+            <rect x="510" y="208" width="100" height="22" rx="11" fill="rgba(0,0,0,0.55)"/>
+            <text x="560" y="223" text-anchor="middle" fill="#FEF3C7" font-size="13" font-weight="bold">PLATE 2</text>
+          </g>
+
+          <!-- LEFT PLATE (drawn AFTER plate-right so it renders ON TOP — clearly showing subduction) -->
+          <g class="plate" id="plate-left">
+            <!-- main body with jagged underside -->
+            <path d="M 60 200 L 380 200 L 380 240 Q 365 246, 350 240 Q 330 248, 310 240 Q 290 248, 270 240 Q 250 248, 230 240 Q 210 248, 190 240 Q 170 248, 150 240 Q 130 248, 110 240 Q 90 248, 70 240 Q 65 244, 60 240 Z"
+                  fill="url(#grad-plate-1)"/>
+            <!-- top surface (lighter strip) -->
+            <rect x="60" y="200" width="320" height="6" fill="#A16207"/>
+            <!-- texture cracks -->
+            <line x1="100" y1="216" x2="140" y2="216" stroke="#451A03" stroke-width="1" opacity="0.55"/>
+            <line x1="180" y1="220" x2="240" y2="220" stroke="#451A03" stroke-width="1" opacity="0.55"/>
+            <line x1="280" y1="218" x2="350" y2="218" stroke="#451A03" stroke-width="1" opacity="0.55"/>
+            <!-- label -->
+            <rect x="170" y="208" width="100" height="22" rx="11" fill="rgba(0,0,0,0.55)"/>
+            <text x="220" y="223" text-anchor="middle" fill="#FEF3C7" font-size="13" font-weight="bold">PLATE 1</text>
+          </g>
+
+          <!-- TRENCH V-shape carved at the boundary (drawn ABOVE plates so it's clearly visible) -->
+          <g id="trench-notch" class="scene-feature">
+            <!-- dark V-cut where plate 1's right edge meets the boundary -->
+            <polygon points="395,200 460,200 450,225 440,245 430,255 420,245 410,225" fill="#0F172A"/>
+            <!-- inner darker shadow -->
+            <polygon points="412,210 448,210 442,228 434,242 430,248 426,242 418,228" fill="#000000" opacity="0.85"/>
+            <!-- subtle highlight on left rim of notch -->
+            <line x1="395" y1="200" x2="430" y2="252" stroke="#475569" stroke-width="2" opacity="0.5"/>
+            <line x1="460" y1="200" x2="430" y2="252" stroke="#1E293B" stroke-width="1.5" opacity="0.6"/>
+          </g>
+
+          <!-- VOLCANO (much bigger and more dramatic) -->
+          <g id="volcano" class="scene-feature scale-up">
+            <!-- broad outer base shadow -->
+            <polygon points="245,200 320,108 395,200" fill="#2C1108" opacity="0.6"/>
+            <!-- main cone -->
+            <polygon points="255,200 320,115 385,200" fill="#451A03"/>
+            <!-- shadow side (right) -->
+            <polygon points="320,115 385,200 360,200 335,150" fill="#1C0A02" opacity="0.75"/>
+            <!-- highlight side (left) -->
+            <polygon points="320,115 255,200 280,200 305,150" fill="#78350F" opacity="0.4"/>
+            <!-- crater opening -->
+            <ellipse cx="320" cy="115" rx="18" ry="6" fill="#0F172A"/>
+            <!-- glowing lava in crater -->
+            <ellipse class="volcano-glow" cx="320" cy="115" rx="15" ry="4.5" fill="url(#grad-lava)" filter="url(#strong-glow)"/>
+            <!-- multiple lava streams flowing down both sides -->
+            <path d="M 308 118 Q 296 145, 290 175 Q 287 190, 287 198" stroke="#F97316" stroke-width="4.5" fill="none" opacity="0.92" stroke-linecap="round"/>
+            <path d="M 314 118 Q 308 145, 304 175 Q 302 190, 302 198" stroke="#DC2626" stroke-width="3.5" fill="none" opacity="0.88" stroke-linecap="round"/>
+            <path d="M 326 118 Q 332 145, 336 175 Q 339 190, 339 198" stroke="#F97316" stroke-width="4.5" fill="none" opacity="0.92" stroke-linecap="round"/>
+            <path d="M 332 118 Q 344 148, 350 178 Q 353 192, 353 198" stroke="#FCD34D" stroke-width="3" fill="none" opacity="0.95" stroke-linecap="round"/>
+            <!-- glowing droplets on streams -->
+            <circle class="volcano-glow" cx="297" cy="160" r="3" fill="#FCD34D" filter="url(#glow)"/>
+            <circle class="volcano-glow" cx="343" cy="165" r="2.5" fill="#FCD34D" filter="url(#glow)"/>
+            <!-- big multi-puff smoke plume -->
+            <ellipse class="smoke-puff"    cx="320" cy="100" rx="22" ry="14" fill="#94A3B8" opacity="0.85"/>
+            <ellipse class="smoke-puff s2" cx="312" cy="88"  rx="28" ry="16" fill="#64748B" opacity="0.7"/>
+            <ellipse class="smoke-puff s3" cx="328" cy="78"  rx="34" ry="19" fill="#94A3B8" opacity="0.55"/>
+            <ellipse class="smoke-puff s4" cx="318" cy="65"  rx="40" ry="22" fill="#64748B" opacity="0.4"/>
+          </g>
+
+          <!-- RIDGE (much bigger mountain with visible magma core) -->
+          <g id="ridge" class="scene-feature scale-up">
+            <!-- left peak (medium) -->
+            <polygon points="350,205 380,150 410,205" fill="#92400E"/>
+            <polygon points="380,150 410,205 395,205 388,170" fill="#451A03" opacity="0.6"/>
+            <!-- right peak (medium) -->
+            <polygon points="390,205 420,150 450,205" fill="#92400E"/>
+            <polygon points="420,150 450,205 435,205 428,170" fill="#451A03" opacity="0.6"/>
+            <!-- center peak (TALLEST) -->
+            <polygon points="370,205 400,115 430,205" fill="#A16207"/>
+            <polygon points="400,115 430,205 415,205 408,140" fill="#451A03" opacity="0.55"/>
+            <polygon points="400,115 370,205 385,205 393,140" fill="#78350F" opacity="0.35"/>
+            <!-- exposed magma core (the ridge is BUILT from upwelling magma) -->
+            <polygon points="392,205 400,160 408,205" fill="url(#grad-magma-col)"/>
+            <!-- bright glowing peak -->
+            <ellipse class="ridge-glow" cx="400" cy="120" rx="8" ry="12" fill="#FEF3C7" filter="url(#strong-glow)"/>
+            <circle class="ridge-glow" cx="400" cy="115" r="5" fill="#FFFBEB" filter="url(#strong-glow)"/>
+            <!-- molten rock on slopes -->
+            <path d="M 393 168 L 391 200" stroke="#F97316" stroke-width="2.5" opacity="0.8" stroke-linecap="round"/>
+            <path d="M 407 168 L 409 200" stroke="#F97316" stroke-width="2.5" opacity="0.8" stroke-linecap="round"/>
+            <!-- rising magma plumes above the ridge -->
+            <circle class="magma-plume" cx="398" cy="115" r="3" fill="#FCD34D" filter="url(#glow)"/>
+            <circle class="magma-plume p2" cx="402" cy="115" r="2.5" fill="#F97316" filter="url(#glow)"/>
+            <circle class="magma-plume p3" cx="395" cy="115" r="2" fill="#FCD34D" filter="url(#glow)"/>
+            <circle class="magma-plume p4" cx="405" cy="115" r="2.5" fill="#F97316" filter="url(#glow)"/>
+            <circle class="magma-plume p5" cx="400" cy="115" r="3" fill="#FEF3C7" filter="url(#glow)"/>
+          </g>
+
+          <!-- EARTHQUAKE BOLTS (4) -->
+          <g id="quake-effects">
+            <path id="bolt-1" class="quake-bolt" d="M 380 80 L 396 115 L 380 115 L 408 165 L 396 130 L 412 130 Z" fill="#FCD34D" filter="url(#strong-glow)"/>
+            <path id="bolt-2" class="quake-bolt" d="M 420 80 L 404 115 L 420 115 L 392 165 L 404 130 L 388 130 Z" fill="#FCD34D" filter="url(#strong-glow)"/>
+            <path id="bolt-3" class="quake-bolt" d="M 350 95 L 364 125 L 350 125 L 374 170 L 364 138 L 378 138 Z" fill="#FBBF24" filter="url(#glow)"/>
+            <path id="bolt-4" class="quake-bolt" d="M 450 95 L 436 125 L 450 125 L 426 170 L 436 138 L 422 138 Z" fill="#FBBF24" filter="url(#glow)"/>
+          </g>
+
+          <!-- SEISMIC WAVES (rings expand from boundary) -->
+          <g id="seismic-waves">
+            <circle id="wave-1" class="seismic-wave" cx="400" cy="200" r="10" fill="none" stroke="#FCD34D" stroke-width="4"/>
+            <circle id="wave-2" class="seismic-wave" cx="400" cy="200" r="10" fill="none" stroke="#FB923C" stroke-width="3"/>
+          </g>
+
+          <!-- MANTLE label (always visible) -->
+          <text x="60" y="430" fill="#FEF3C7" font-size="14" font-weight="bold" opacity="0.85">MANTLE</text>
+          <text x="60" y="105" fill="#FFFFFF" font-size="13" font-weight="bold" opacity="0.7">OCEAN</text>
+        </g>
+
+        <!-- DIRECTION ARROWS (during selection) -->
+        <g id="direction-arrows" opacity="0">
+          <g id="arrow-together" class="direction-arrow">
+            <path d="M 160 215 L 230 215" stroke="#FCD34D" stroke-width="7" stroke-linecap="round" filter="url(#strong-glow)"/>
+            <polygon points="226,206 246,215 226,224" fill="#FCD34D" filter="url(#strong-glow)"/>
+            <path d="M 640 215 L 570 215" stroke="#FCD34D" stroke-width="7" stroke-linecap="round" filter="url(#strong-glow)"/>
+            <polygon points="574,206 554,215 574,224" fill="#FCD34D" filter="url(#strong-glow)"/>
+          </g>
+          <g id="arrow-apart" class="direction-arrow">
+            <path d="M 240 215 L 170 215" stroke="#FCD34D" stroke-width="7" stroke-linecap="round" filter="url(#strong-glow)"/>
+            <polygon points="174,206 154,215 174,224" fill="#FCD34D" filter="url(#strong-glow)"/>
+            <path d="M 560 215 L 630 215" stroke="#FCD34D" stroke-width="7" stroke-linecap="round" filter="url(#strong-glow)"/>
+            <polygon points="626,206 646,215 626,224" fill="#FCD34D" filter="url(#strong-glow)"/>
+          </g>
+        </g>
+
+        <!-- FEATURE LABELS -->
+        <g id="feature-labels">
+          <!-- TRENCH label (points down to V on surface) -->
+          <g class="feature-label" id="label-trench">
+            <line x1="400" y1="270" x2="400" y2="225" stroke="#FCD34D" stroke-width="2.5" stroke-dasharray="5,3"/>
+            <rect x="335" y="275" width="130" height="32" rx="16" fill="#FCD34D" filter="url(#glow)"/>
+            <text x="400" y="297" text-anchor="middle" fill="#1E293B" font-size="16" font-weight="900">⬇ TRENCH</text>
+          </g>
+          <!-- VOLCANO label (upper-left, clear of banner) -->
+          <g class="feature-label" id="label-volcano">
+            <line x1="200" y1="90" x2="320" y2="135" stroke="#EF4444" stroke-width="2.5" stroke-dasharray="5,3"/>
+            <rect x="35" y="62" width="170" height="32" rx="16" fill="#EF4444" filter="url(#glow)"/>
+            <text x="120" y="84" text-anchor="middle" fill="#FFFFFF" font-size="15" font-weight="900">🌋 VOLCANO</text>
+          </g>
+          <!-- RIDGE label (upper-right, clear of banner) -->
+          <g class="feature-label" id="label-ridge">
+            <line x1="600" y1="90" x2="400" y2="145" stroke="#22D3EE" stroke-width="2.5" stroke-dasharray="5,3"/>
+            <rect x="600" y="62" width="160" height="32" rx="16" fill="#22D3EE" filter="url(#glow)"/>
+            <text x="680" y="84" text-anchor="middle" fill="#1E293B" font-size="15" font-weight="900">⬆ RIDGE</text>
+          </g>
+          <!-- MAGMA label (for divergent — points to magma column) -->
+          <g class="feature-label" id="label-magma">
+            <line x1="400" y1="320" x2="540" y2="370" stroke="#FB923C" stroke-width="2.5" stroke-dasharray="5,3"/>
+            <rect x="540" y="380" width="180" height="32" rx="16" fill="#FB923C" filter="url(#glow)"/>
+            <text x="630" y="402" text-anchor="middle" fill="#FFFFFF" font-size="15" font-weight="900">🔥 MAGMA RISES</text>
+          </g>
+          <!-- SUBDUCTION label (for convergent — points to subducting slab) -->
+          <g class="feature-label" id="label-subduction">
+            <line x1="460" y1="290" x2="600" y2="350" stroke="#A78BFA" stroke-width="2.5" stroke-dasharray="5,3"/>
+            <rect x="600" y="360" width="180" height="32" rx="16" fill="#A78BFA" filter="url(#glow)"/>
+            <text x="690" y="382" text-anchor="middle" fill="#1E293B" font-size="14" font-weight="900">⬊ PLATE SINKS</text>
+          </g>
+        </g>
+      </svg>
+
+      <div class="particles" id="particles"></div>
+
+      <div class="result-overlay" id="result-overlay">RESULT</div>
+
+      <div class="complete-badge" id="complete-badge">
+        <div class="complete-emoji">🏆</div>
+        <div class="complete-title">Station Complete!</div>
+        <div class="complete-msg">All 5 rounds finished. Copy your data table to your recording sheet.</div>
+        <button class="copy-btn" id="copy-btn-2" style="padding:10px 22px; font-size:14px;">📋 Copy Data Table</button>
+      </div>
+    </div>
+
+    <div class="hud">
+      <div class="hud-stat">
+        <div class="hud-label">Mantle</div>
+        <div class="hud-value" id="hud-mantle">—</div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-label">Direction</div>
+        <div class="hud-value" id="hud-direction">—</div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-label">Boundaries Found</div>
+        <div class="hud-value green" id="hud-discoveries">0 / 2</div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+  </div>
+
+  <div class="right-col">
+    <div class="controls">
+      <div class="control-step">
+        <div class="step-label"><span class="step-num" id="step-num-1">1</span>CHOOSE MANTLE</div>
+        <div class="button-row" id="mantle-buttons">
+          <button class="opt-btn" data-mantle="Hard Solid"><span class="emoji-icon">🪨</span>Hard Solid</button>
+          <button class="opt-btn" data-mantle="Soft Solid"><span class="emoji-icon">🔥</span>Soft Solid</button>
+          <button class="opt-btn" data-mantle="Liquid"><span class="emoji-icon">🌋</span>Liquid</button>
+        </div>
+      </div>
+      <div class="control-step">
+        <div class="step-label"><span class="step-num" id="step-num-2">2</span>CHOOSE DIRECTION</div>
+        <div class="button-row" id="direction-buttons">
+          <button class="opt-btn" data-direction="Together"><span class="emoji-icon">→ ←</span>Together</button>
+          <button class="opt-btn" data-direction="Apart"><span class="emoji-icon">← →</span>Apart</button>
+        </div>
+      </div>
+      <div class="control-step">
+        <button class="run-btn" id="run-btn" disabled>▶ RUN ROUND</button>
+      </div>
+    </div>
+
+    <div class="results">
+      <div class="results-header">
+        <div class="results-title">Your Data</div>
+        <button class="copy-btn" id="copy-btn">📋 Copy Table</button>
+      </div>
+      <table class="results-table">
+        <thead>
+          <tr><th>#</th><th>Mantle Type</th><th>Plate Direction</th><th>Boundary Formed</th><th>Earthquakes</th></tr>
+        </thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <button class="secondary-btn" id="reset-btn">↻ Reset All Rounds</button>
+</footer>
+
+<script>
+  // ============================================================
+  // GLOBAL ERROR PROTECTION
+  // ============================================================
+  window.addEventListener('error', function(e) {
+    console.warn('Caught error (continuing):', e.message);
+  });
+
+  // ============================================================
+  // CONSTANTS
+  // ============================================================
+  var SCENARIOS = {
+    'Hard Solid|Together': { boundary: 'None',     earthquakes: 'No',  status: 'fail',    label: '🚫 NO MOVEMENT', sub: 'Mantle too rigid' },
+    'Hard Solid|Apart':    { boundary: 'None',     earthquakes: 'No',  status: 'fail',    label: '🚫 NO MOVEMENT', sub: 'Mantle too rigid' },
+    'Soft Solid|Together': { boundary: 'Trench',   earthquakes: 'Yes', status: 'success', label: '✓ TRENCH FORMED!', sub: 'Convergent boundary' },
+    'Soft Solid|Apart':    { boundary: 'Ridge',    earthquakes: 'Yes', status: 'success', label: '✓ RIDGE FORMED!', sub: 'Divergent boundary' },
+    'Liquid|Together':     { boundary: 'Unstable', earthquakes: 'No',  status: 'warn',    label: '⚠ UNSTABLE!', sub: 'Plates cannot stay aligned' },
+    'Liquid|Apart':        { boundary: 'Unstable', earthquakes: 'No',  status: 'warn',    label: '⚠ UNSTABLE!', sub: 'Plates cannot stay aligned' }
+  };
+
+  var TOTAL_ROUNDS = 5;
+
+  // ============================================================
+  // STATE
+  // ============================================================
+  var state = {
+    round: 1,
+    mantle: null,
+    direction: null,
+    phase: 'setup',
+    results: [],
+    discoveries: new Set()
+  };
+
+  // ============================================================
+  // DOM REFS
+  // ============================================================
+  var $ = function(id) { return document.getElementById(id); };
+  var els = {
+    arena:           $('arena'),
+    scene:           $('scene'),
+    mantle:          $('mantle'),
+    convection:      $('convection'),
+    bubbles:         document.querySelectorAll('.liquid-bubble'),
+    liquidFlow:      $('liquid-flow'),
+    plateLeft:       $('plate-left'),
+    plateRight:      $('plate-right'),
+    magmaColumn:     $('magma-column'),
+    subductingSlab:  $('subducting-slab'),
+    trenchNotch:     $('trench-notch'),
+    volcano:         $('volcano'),
+    ridge:           $('ridge'),
+    bolts:           [$('bolt-1'), $('bolt-2'), $('bolt-3'), $('bolt-4')],
+    wave1:           $('wave-1'),
+    wave2:           $('wave-2'),
+    labelTrench:     $('label-trench'),
+    labelRidge:      $('label-ridge'),
+    labelVolcano:    $('label-volcano'),
+    labelMagma:      $('label-magma'),
+    labelSubduction: $('label-subduction'),
+    arrowTogether:   $('arrow-together'),
+    arrowApart:      $('arrow-apart'),
+    directionArrows: $('direction-arrows'),
+    overlay:         $('result-overlay'),
+    particles:       $('particles'),
+    completeBadge:   $('complete-badge'),
+    roundNum:        $('round-num'),
+    hudMantle:       $('hud-mantle'),
+    hudDirection:    $('hud-direction'),
+    hudDiscoveries:  $('hud-discoveries'),
+    progressFill:    $('progress-fill'),
+    mantleButtons:   $('mantle-buttons'),
+    directionButtons:$('direction-buttons'),
+    runBtn:          $('run-btn'),
+    resetBtn:        $('reset-btn'),
+    copyBtn:         $('copy-btn'),
+    copyBtn2:        $('copy-btn-2'),
+    stepNum1:        $('step-num-1'),
+    stepNum2:        $('step-num-2'),
+    resultsTbody:    $('results-tbody')
+  };
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  function init() {
+    try {
+      buildEmptyTable();
+      attachListeners();
+      updateHUD();
+    } catch (err) { console.error('init error:', err); }
+  }
+
+  function buildEmptyTable() {
+    try {
+      els.resultsTbody.innerHTML = '';
+      for (var i = 1; i <= TOTAL_ROUNDS; i++) {
+        var tr = document.createElement('tr');
+        tr.className = 'empty-row';
+        tr.id = 'row-' + i;
+        tr.innerHTML = '<td>' + i + '</td><td>—</td><td>—</td><td>—</td><td>—</td>';
+        els.resultsTbody.appendChild(tr);
+      }
+    } catch (err) { console.error('buildEmptyTable:', err); }
+  }
+
+  function attachListeners() {
+    try {
+      var mBtns = els.mantleButtons.querySelectorAll('.opt-btn');
+      for (var i = 0; i < mBtns.length; i++) mBtns[i].addEventListener('click', onMantleClick);
+      var dBtns = els.directionButtons.querySelectorAll('.opt-btn');
+      for (var j = 0; j < dBtns.length; j++) dBtns[j].addEventListener('click', onDirectionClick);
+      els.runBtn.addEventListener('click', onRunClick);
+      els.resetBtn.addEventListener('click', onResetClick);
+      els.copyBtn.addEventListener('click', onCopyClick);
+      els.copyBtn2.addEventListener('click', onCopyClick);
+    } catch (err) { console.error('attachListeners:', err); }
+  }
+
+  // ============================================================
+  // BUTTON HANDLERS
+  // ============================================================
+  function onMantleClick(e) {
+    try {
+      if (state.phase !== 'setup') return;
+      var btn = e.currentTarget;
+      var val = btn.getAttribute('data-mantle');
+      state.mantle = val;
+      var all = els.mantleButtons.querySelectorAll('.opt-btn');
+      for (var i = 0; i < all.length; i++) all[i].classList.remove('selected');
+      btn.classList.add('selected');
+      els.stepNum1.classList.add('done');
+      previewMantle(val);
+      updateHUD();
+      checkRunReady();
+    } catch (err) { console.error('onMantleClick:', err); }
+  }
+
+  function onDirectionClick(e) {
+    try {
+      if (state.phase !== 'setup') return;
+      var btn = e.currentTarget;
+      var val = btn.getAttribute('data-direction');
+      state.direction = val;
+      var all = els.directionButtons.querySelectorAll('.opt-btn');
+      for (var i = 0; i < all.length; i++) all[i].classList.remove('selected');
+      btn.classList.add('selected');
+      els.stepNum2.classList.add('done');
+      previewDirection(val);
+      updateHUD();
+      checkRunReady();
+    } catch (err) { console.error('onDirectionClick:', err); }
+  }
+
+  function checkRunReady() {
+    if (state.mantle && state.direction) {
+      els.runBtn.disabled = false;
+      els.runBtn.classList.add('armed');
+    }
+  }
+
+  function onRunClick() {
+    try {
+      if (state.phase !== 'setup' || !state.mantle || !state.direction) return;
+      state.phase = 'animating';
+      els.runBtn.disabled = true;
+      els.runBtn.classList.remove('armed');
+      lockControls(true);
+      runScenario();
+    } catch (err) { console.error('onRunClick:', err); recover(); }
+  }
+
+  function onResetClick() {
+    try {
+      state = { round: 1, mantle: null, direction: null, phase: 'setup', results: [], discoveries: new Set() };
+      resetScene();
+      var all = document.querySelectorAll('.opt-btn');
+      for (var i = 0; i < all.length; i++) all[i].classList.remove('selected');
+      els.stepNum1.classList.remove('done');
+      els.stepNum2.classList.remove('done');
+      els.completeBadge.classList.remove('show');
+      buildEmptyTable();
+      lockControls(false);
+      els.runBtn.disabled = true;
+      updateHUD();
+    } catch (err) { console.error('onResetClick:', err); }
+  }
+
+  function onCopyClick(e) {
+    try {
+      var btn = e.currentTarget;
+      var headers = ['Round','Mantle Type','Plate Direction','Boundary Formed','Earthquakes'];
+      var lines = [headers.join('\t')];
+      for (var i = 0; i < state.results.length; i++) {
+        var r = state.results[i];
+        lines.push([i+1, r.mantle, r.direction, r.boundary, r.earthquakes].join('\t'));
+      }
+      copyToClipboard(lines.join('\n'));
+      var orig = btn.textContent;
+      btn.classList.add('copied');
+      btn.textContent = 'Copied!';
+      setTimeout(function() {
+        btn.classList.remove('copied');
+        btn.textContent = orig;
+      }, 2000);
+    } catch (err) { console.error('onCopyClick:', err); }
+  }
+
+  function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(function() { fallbackCopy(text); });
+      } else { fallbackCopy(text); }
+    } catch (err) { fallbackCopy(text); }
+  }
+  function fallbackCopy(text) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch (err) { console.warn('fallbackCopy failed:', err); }
+  }
+
+  // ============================================================
+  // PREVIEW
+  // ============================================================
+  function previewMantle(type) {
+    try {
+      if (type === 'Hard Solid')      els.mantle.setAttribute('fill', 'url(#grad-hard)');
+      else if (type === 'Soft Solid') els.mantle.setAttribute('fill', 'url(#grad-soft)');
+      else if (type === 'Liquid')     els.mantle.setAttribute('fill', 'url(#grad-liquid)');
+
+      els.convection.classList.toggle('active', type === 'Soft Solid');
+      els.liquidFlow.classList.toggle('active', type === 'Liquid');
+      var bubblesActive = (type === 'Liquid');
+      for (var i = 0; i < els.bubbles.length; i++) els.bubbles[i].classList.toggle('active', bubblesActive);
+    } catch (err) { console.error('previewMantle:', err); }
+  }
+
+  function previewDirection(dir) {
+    try {
+      els.directionArrows.setAttribute('opacity', '1');
+      els.arrowTogether.setAttribute('opacity', dir === 'Together' ? '1' : '0');
+      els.arrowApart.setAttribute('opacity', dir === 'Apart' ? '1' : '0');
+    } catch (err) { console.error('previewDirection:', err); }
+  }
+
+  // ============================================================
+  // SCENARIO RUNNER
+  // ============================================================
+  function runScenario() {
+    try {
+      var key = state.mantle + '|' + state.direction;
+      var sc = SCENARIOS[key];
+      if (!sc) { recover(); return; }
+
+      els.directionArrows.setAttribute('opacity', '0');
+
+      var ANIM_MS = 1800;
+      var SHOW_MS = 2800;
+
+      if (sc.status === 'success') {
+        if (sc.boundary === 'Trench') animateConvergent();
+        else if (sc.boundary === 'Ridge') animateDivergent();
+      } else if (sc.status === 'warn') {
+        animateUnstable();
+      } else {
+        animateNoMove();
+      }
+
+      setTimeout(function() {
+        try { showResultBanner(sc); } catch (err) { console.error('showResultBanner:', err); recover(); }
+      }, ANIM_MS);
+
+      setTimeout(function() {
+        try { finalizeRound(sc); } catch (err) { console.error('finalizeRound:', err); recover(); }
+      }, ANIM_MS + SHOW_MS);
+    } catch (err) {
+      console.error('runScenario:', err); recover();
+    }
+  }
+
+  // ============================================================
+  // ANIMATIONS — UPGRADED
+  // ============================================================
+  function animateConvergent() {
+    try {
+      // Plates collide: P1 nudges right, P2 slides left and tilts down dramatically
+      els.plateLeft.style.transform = 'translateX(50px)';
+      els.plateRight.style.transform = 'translateX(-90px) rotate(22deg) translateY(35px)';
+      // Subducting slab + trench notch appear at surface
+      setTimeout(function() {
+        els.subductingSlab.classList.add('show');
+        els.trenchNotch.classList.add('show');
+      }, 600);
+      // Volcano grows on plate 1
+      setTimeout(function() {
+        els.volcano.classList.add('show');
+      }, 800);
+      // Earthquake bolts + seismic waves + screen shake
+      setTimeout(function() {
+        for (var i = 0; i < els.bolts.length; i++) els.bolts[i].classList.add('flash');
+        els.wave1.classList.add('expand');
+        setTimeout(function() { els.wave2.classList.add('expand'); }, 250);
+        els.arena.classList.add('shake');
+        spawnParticles(28, '#FCD34D', 400, 200);
+      }, 900);
+      // Labels appear
+      setTimeout(function() {
+        els.labelTrench.classList.add('show');
+        els.labelVolcano.classList.add('show');
+      }, 1400);
+    } catch (err) { console.error('animateConvergent:', err); }
+  }
+
+  function animateDivergent() {
+    try {
+      els.plateLeft.style.transform = 'translateX(-70px)';
+      els.plateRight.style.transform = 'translateX(70px)';
+      // Magma column rises through gap
+      setTimeout(function() {
+        els.magmaColumn.classList.add('show');
+      }, 500);
+      // Ridge mountain appears
+      setTimeout(function() {
+        els.ridge.classList.add('show');
+      }, 900);
+      // Earthquakes + seismic waves
+      setTimeout(function() {
+        for (var i = 0; i < els.bolts.length; i++) els.bolts[i].classList.add('flash');
+        els.wave1.classList.add('expand');
+        setTimeout(function() { els.wave2.classList.add('expand'); }, 250);
+        els.arena.classList.add('shake');
+        spawnParticles(28, '#F97316', 400, 180);
+      }, 800);
+      // Labels
+      setTimeout(function() {
+        els.labelRidge.classList.add('show');
+        els.labelMagma.classList.add('show');
+      }, 1400);
+    } catch (err) { console.error('animateDivergent:', err); }
+  }
+
+  function animateNoMove() {
+    try {
+      // tiny twitch suggesting the plates TRY to move but can't
+      els.plateLeft.style.transform  = 'translateX(3px)';
+      els.plateRight.style.transform = 'translateX(-3px)';
+      setTimeout(function() {
+        els.plateLeft.style.transform  = 'translateX(-3px)';
+        els.plateRight.style.transform = 'translateX(3px)';
+      }, 300);
+      setTimeout(function() {
+        els.plateLeft.style.transform  = 'translateX(0)';
+        els.plateRight.style.transform = 'translateX(0)';
+      }, 600);
+    } catch (err) { console.error('animateNoMove:', err); }
+  }
+
+  function animateUnstable() {
+    try {
+      els.plateLeft.classList.add('wobble');
+      els.plateRight.classList.add('wobble');
+    } catch (err) { console.error('animateUnstable:', err); }
+  }
+
+  function spawnParticles(n, color, cx, cy) {
+    try {
+      var rect = els.arena.getBoundingClientRect();
+      var px = (cx / 800) * rect.width;
+      var py = (cy / 450) * rect.height;
+      for (var i = 0; i < n; i++) {
+        var p = document.createElement('div');
+        p.className = 'particle';
+        p.style.background = color;
+        p.style.boxShadow = '0 0 12px ' + color + ', 0 0 20px ' + color;
+        p.style.left = px + 'px';
+        p.style.top = py + 'px';
+        els.particles.appendChild(p);
+        animateParticle(p);
+      }
+      setTimeout(function() {
+        try {
+          while (els.particles.firstChild) els.particles.removeChild(els.particles.firstChild);
+        } catch (e) {}
+      }, 1800);
+    } catch (err) { console.error('spawnParticles:', err); }
+  }
+
+  function animateParticle(p) {
+    try {
+      var angle = Math.random() * Math.PI * 2;
+      var dist = 80 + Math.random() * 100;
+      var dx = Math.cos(angle) * dist;
+      var dy = Math.sin(angle) * dist - 40;
+      var dur = 900 + Math.random() * 700;
+      p.animate([
+        { opacity: 1, transform: 'translate(0,0) scale(1)' },
+        { opacity: 0, transform: 'translate(' + dx + 'px,' + dy + 'px) scale(0.3)' }
+      ], { duration: dur, easing: 'cubic-bezier(0.2, 0.6, 0.4, 1)', fill: 'forwards' });
+    } catch (err) { p.style.opacity = '0'; }
+  }
+
+  function showResultBanner(sc) {
+    try {
+      els.overlay.innerHTML = sc.label + '<div class="sub">' + sc.sub + '</div>';
+      els.overlay.classList.remove('success', 'warn', 'fail');
+      els.overlay.classList.add(sc.status);
+      els.overlay.classList.add('show');
+    } catch (err) { console.error('showResultBanner:', err); }
+  }
+
+  // ============================================================
+  // FINALIZE ROUND
+  // ============================================================
+  function finalizeRound(sc) {
+    try {
+      state.results.push({
+        mantle: state.mantle,
+        direction: state.direction,
+        boundary: sc.boundary,
+        earthquakes: sc.earthquakes
+      });
+      if (sc.boundary === 'Trench' || sc.boundary === 'Ridge') {
+        state.discoveries.add(sc.boundary);
+      }
+      var row = document.getElementById('row-' + state.round);
+      if (row) {
+        row.classList.remove('empty-row');
+        row.classList.add('highlight');
+        row.innerHTML =
+          '<td>' + state.round + '</td>' +
+          '<td>' + state.mantle + '</td>' +
+          '<td>' + state.direction + '</td>' +
+          '<td>' + sc.boundary + '</td>' +
+          '<td>' + sc.earthquakes + '</td>';
+        setTimeout(function() {
+          try { row.classList.remove('highlight'); } catch (e) {}
+        }, 1200);
+      }
+      els.overlay.classList.remove('show');
+      if (state.round >= TOTAL_ROUNDS) finishStation();
+      else nextRound();
+    } catch (err) { console.error('finalizeRound:', err); recover(); }
+  }
+
+  function nextRound() {
+    try {
+      state.round += 1;
+      state.mantle = null;
+      state.direction = null;
+      state.phase = 'setup';
+      var all = document.querySelectorAll('.opt-btn');
+      for (var i = 0; i < all.length; i++) all[i].classList.remove('selected');
+      els.stepNum1.classList.remove('done');
+      els.stepNum2.classList.remove('done');
+      lockControls(false);
+      els.runBtn.disabled = true;
+      resetScene();
+      updateHUD();
+    } catch (err) { console.error('nextRound:', err); }
+  }
+
+  function finishStation() {
+    try {
+      state.phase = 'complete';
+      lockControls(true);
+      els.completeBadge.classList.add('show');
+      updateHUD();
+    } catch (err) { console.error('finishStation:', err); }
+  }
+
+  // ============================================================
+  // RESET SCENE
+  // ============================================================
+  function resetScene() {
+    try {
+      els.plateLeft.style.transform  = 'translateX(0)';
+      els.plateRight.style.transform = 'translateX(0)';
+      els.plateLeft.classList.remove('wobble');
+      els.plateRight.classList.remove('wobble');
+      els.volcano.classList.remove('show');
+      els.ridge.classList.remove('show');
+      els.magmaColumn.classList.remove('show');
+      els.subductingSlab.classList.remove('show');
+      els.trenchNotch.classList.remove('show');
+      for (var i = 0; i < els.bolts.length; i++) els.bolts[i].classList.remove('flash');
+      els.wave1.classList.remove('expand');
+      els.wave2.classList.remove('expand');
+      els.arena.classList.remove('shake');
+      els.labelTrench.classList.remove('show');
+      els.labelRidge.classList.remove('show');
+      els.labelVolcano.classList.remove('show');
+      els.labelMagma.classList.remove('show');
+      els.labelSubduction.classList.remove('show');
+      els.directionArrows.setAttribute('opacity', '0');
+      els.mantle.setAttribute('fill', 'url(#grad-hard)');
+      els.convection.classList.remove('active');
+      els.liquidFlow.classList.remove('active');
+      for (var j = 0; j < els.bubbles.length; j++) els.bubbles[j].classList.remove('active');
+      while (els.particles.firstChild) {
+        try { els.particles.removeChild(els.particles.firstChild); } catch (e) { break; }
+      }
+    } catch (err) { console.error('resetScene:', err); }
+  }
+
+  // ============================================================
+  // HUD
+  // ============================================================
+  function updateHUD() {
+    try {
+      els.roundNum.textContent = state.round;
+      els.hudMantle.textContent = state.mantle || '—';
+      els.hudDirection.textContent = state.direction || '—';
+      els.hudDiscoveries.textContent = state.discoveries.size + ' / 2';
+      var pct = (state.results.length / TOTAL_ROUNDS) * 100;
+      els.progressFill.style.width = pct + '%';
+    } catch (err) { console.error('updateHUD:', err); }
+  }
+
+  function lockControls(locked) {
+    try {
+      var all = document.querySelectorAll('.opt-btn');
+      for (var i = 0; i < all.length; i++) all[i].disabled = locked;
+    } catch (err) { console.error('lockControls:', err); }
+  }
+
+  function recover() {
+    try {
+      console.warn('Recovery triggered.');
+      state.phase = 'setup';
+      lockControls(false);
+      els.overlay.classList.remove('show');
+    } catch (err) {}
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+</script>
+
+</body>
+</html>
