@@ -2602,8 +2602,9 @@ function skipCurrentRound(opts){
       showSkipFlash('Moving on — you will see this idea again');
     }
 
-    // Award 50% and mark both phases complete so completeLevel doesn't re-gate
-    levelState.score = 50;
+    // Award AT LEAST 50% — never demote a student who already earned a higher score
+    // and got stranded on a transition screen (e.g. Level 6 choice overlay timed out).
+    levelState.score = Math.max(levelState.score || 0, 50);
     levelState.resets = Math.max(levelState.resets || 0, 1);
     levelState.doComplete = true;
     levelState.proveComplete = true;
@@ -2741,6 +2742,30 @@ async function completeLevel(){
     if(izEl2) izEl2.appendChild(affirmEl);
   }
 
+  // SAFETY NET — always-visible inline advance buttons in the IZ.
+  // If the celebration overlay fails to render or auto-dismisses (15s safety timeout),
+  // students must STILL have a clearly visible path forward. Without these, a student who
+  // takes >15s to read the choice overlay gets locked at the "Level X Complete" screen.
+  try {
+    const izEl3 = $('interactionZone');
+    if(izEl3){
+      const advBtns = document.createElement('div');
+      advBtns.id = 'inlineAdvanceBtns';
+      advBtns.style.cssText = 'display:flex;justify-content:center;gap:12px;margin-top:14px;flex-wrap:wrap;';
+      if(idx === 5){
+        advBtns.innerHTML = '<button style="padding:12px 22px;border-radius:24px;font-size:15px;font-weight:700;border:2px solid var(--accent-amber);background:#fff;color:var(--accent-amber);cursor:pointer;min-height:44px;" onclick="document.querySelectorAll(\'.celebration-overlay\').forEach(o=>o.remove());stopConfetti();showReceipt();">View Score</button>'
+          + '<button style="padding:12px 22px;border-radius:24px;font-size:15px;font-weight:700;border:none;background:linear-gradient(135deg,#22C55E,#16A34A);color:#fff;cursor:pointer;min-height:44px;box-shadow:var(--shadow-md);" onclick="document.querySelectorAll(\'.celebration-overlay\').forEach(o=>o.remove());stopConfetti();startLevel(6);">Continue to Bonus &rarr;</button>';
+        izEl3.appendChild(advBtns);
+      } else if(idx === 7){
+        advBtns.innerHTML = '<button style="padding:12px 22px;border-radius:24px;font-size:15px;font-weight:700;border:none;background:linear-gradient(135deg,#22C55E,#16A34A);color:#fff;cursor:pointer;min-height:44px;box-shadow:var(--shadow-md);" onclick="document.querySelectorAll(\'.celebration-overlay\').forEach(o=>o.remove());stopConfetti();showReceipt();">View Final Score</button>';
+        izEl3.appendChild(advBtns);
+      } else if(idx < levels.length - 1){
+        advBtns.innerHTML = '<button style="padding:12px 22px;border-radius:24px;font-size:15px;font-weight:700;border:none;background:linear-gradient(135deg,#22C55E,#16A34A);color:#fff;cursor:pointer;min-height:44px;box-shadow:var(--shadow-md);" onclick="document.querySelectorAll(\'.celebration-overlay\').forEach(o=>o.remove());stopConfetti();startLevel(' + (idx+1) + ');">Next Level &rarr;</button>';
+        izEl3.appendChild(advBtns);
+      }
+    }
+  } catch(e){ console.error('inline advance buttons failed', e); }
+
   await sleep(2000);
 
   // Milestone celebration every 2 levels
@@ -2799,10 +2824,23 @@ async function showCelebration(message, duration=2000, showChoice=false, isFinal
         resolve();
       }, duration);
     } else {
-      // Safety timeout
+      // Safety timeout — if the student doesn't click within 30 seconds, default-advance
+      // to "Continue to Bonus" rather than just removing the overlay (which previously
+      // stranded the student with no path forward). The IZ inline advance buttons are
+      // the primary safety net; this is the secondary one.
       setTimeout(()=>{
-        if(document.body.contains(overlay)){ overlay.remove(); stopConfetti(); resolve(); }
-      }, 15000);
+        try {
+          if(document.body.contains(overlay)){
+            overlay.remove();
+            stopConfetti();
+            // Only auto-advance if the student is still on Level 6 (idx 5).
+            // If they already advanced via the inline buttons, do nothing.
+            if(typeof gameState !== 'undefined' && gameState.currentLevel === 5 && !document.getElementById('receiptScreen')){
+              try { startLevel(6); } catch(e){ console.error('safety auto-advance failed', e); }
+            }
+          }
+        } catch(e){ console.error('cel safety timeout error', e); }
+      }, 30000);
       resolve();
     }
   });
