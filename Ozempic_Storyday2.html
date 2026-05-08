@@ -943,18 +943,27 @@ function onLevelComplete(){const idx=GS.currentLevel;const done=GS.levels.filter
   if(done%2===0&&done>0)showCelebration(getAffirmation(),2000,()=>checkMilestones(idx));else checkMilestones(idx);}
 function checkMilestones(idx){
   const rd=GS.levels.filter((l,i)=>LEVELS[i].required&&l.completed).length;const ar=LEVELS.filter(l=>l.required).length;const td=GS.levels.filter(l=>l.completed).length;
-  if(rd>=ar&&!GS.requiredCompleteShown){GS.requiredCompleteShown=true;showChoiceScreen("You did it!","You finished the required levels. Try the BONUS levels for extra credit?",()=>{hide($('choiceOverlay'));startLevel(idx+1);},()=>{hide($('choiceOverlay'));showReceipt();});return;}
+  if(rd>=ar&&!GS.requiredCompleteShown){GS.requiredCompleteShown=true;
+    /* SAFETY NET — inline IZ buttons before the overlay, so a failed overlay or click handler can't strand the student. */
+    try{
+      const iz=$('interactionZone');if(iz){
+        const wrap=document.createElement('div');wrap.id='inlineChoiceBtns';wrap.style.cssText='display:flex;justify-content:center;gap:10px;margin-top:10px;flex-wrap:wrap;width:100%';
+        wrap.innerHTML='<button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:2px solid var(--accent1);background:#fff;color:var(--accent1);cursor:pointer;min-height:44px" onclick="(function(){var o=document.getElementById(\'choiceOverlay\');if(o)o.style.display=\'none\';showReceipt();})()">See My Score</button><button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:none;background:linear-gradient(135deg,var(--correct),#16A34A);color:#fff;cursor:pointer;min-height:44px" onclick="(function(){var o=document.getElementById(\'choiceOverlay\');if(o)o.style.display=\'none\';startLevel('+(idx+1)+');})()">Continue to Bonus &rarr;</button>';
+        iz.appendChild(wrap);show(iz,'flex');
+      }
+    }catch(e){console.error('inline choice buttons',e);}
+    showChoiceScreen("You did it!","You finished the required levels. Try the BONUS levels for extra credit?",()=>{hide($('choiceOverlay'));startLevel(idx+1);},()=>{hide($('choiceOverlay'));showReceipt();});return;}
   if(td>=LEVELS.length&&!GS.bonusCompleteShown){GS.bonusCompleteShown=true;showCelebration("BONUS COMPLETE!",3000,()=>showReceipt());fireConfetti(15);return;}
   startLevel(idx+1);
 }
 function showCelebration(msg,dur,cb){closeAllOverlays();$('celebTitle').textContent=msg;$('celebSub').textContent=getAffirmation();show($('celebOverlay'),'flex');fireConfetti(12);celebTimeout=setTimeout(()=>{hide($('celebOverlay'));if(cb)cb();},dur);}
-function showChoiceScreen(title,sub,onKeep,onScore){closeAllOverlays();$('choiceTitle').textContent=title;$('choiceSub').textContent=sub;show($('choiceOverlay'),'flex');fireConfetti(15);$('choiceKeepGoing').onclick=onKeep;$('choiceSeeScore').onclick=onScore;}
+function showChoiceScreen(title,sub,onKeep,onScore){try{closeAllOverlays();$('choiceTitle').textContent=title;$('choiceSub').textContent=sub;show($('choiceOverlay'),'flex');fireConfetti(15);$('choiceKeepGoing').onclick=onKeep;$('choiceSeeScore').onclick=onScore;}catch(e){console.error('showChoiceScreen failed — relying on inline IZ buttons',e);}}
 
-function advanceAfterFail(){showCoachingBrief("Let's move on — you'll see this idea again.",()=>{const ls=GS.levels[GS.currentLevel];ls.completed=true;ls.score=50;ls.timeMs=Date.now()-GS.levelStartTime;ls.attempts=GS.attempts;ls.hintsUsed=GS.hintsUsed;ls.resets=GS.levelResets;onLevelComplete();});}
+function advanceAfterFail(){showCoachingBrief("Let's move on — you'll see this idea again.",()=>{const ls=GS.levels[GS.currentLevel];ls.completed=true;ls.score=Math.max(ls.score||0,50);ls.timeMs=Date.now()-GS.levelStartTime;ls.attempts=GS.attempts;ls.hintsUsed=GS.hintsUsed;ls.resets=GS.levelResets;onLevelComplete();});}
 
 /* ===== RESET ===== */
 function resetCurrentLevel(){GS.levelResets++;clearAllTimers();closeAllOverlays();$('arena').style.cursor='default';if($('arena')._hotspotHandler)$('arena').removeEventListener('click',$('arena')._hotspotHandler);GS.wrongCount=0;GS.selectedOption=null;GS.processing=false;GS.consecutiveFastWrongs=0;
-  if(GS.levelResets>=3){const ls=GS.levels[GS.currentLevel];ls.score=50;ls.completed=true;ls.timeMs=Date.now()-GS.levelStartTime;ls.attempts=GS.attempts;ls.hintsUsed=GS.hintsUsed;ls.resets=GS.levelResets;advanceAfterFail();return;}
+  if(GS.levelResets>=3){const ls=GS.levels[GS.currentLevel];ls.score=Math.max(ls.score||0,50);ls.completed=true;ls.timeMs=Date.now()-GS.levelStartTime;ls.attempts=GS.attempts;ls.hintsUsed=GS.hintsUsed;ls.resets=GS.levelResets;advanceAfterFail();return;}
   startLevel(GS.currentLevel);
 }
 $('resetLevelBtn').addEventListener('click',()=>{if(GS.levels[GS.currentLevel]&&GS.levels[GS.currentLevel].completed)return;resetCurrentLevel();});
@@ -1036,7 +1045,7 @@ $('startBtn').addEventListener('click',()=>{GS.studentName=escHtml($('studentNam
       try{
         if(GS.levels&&GS.levels[idx]&&!GS.levels[idx].completed){
           GS.levels[idx].completed=true;
-          GS.levels[idx].score=50;
+          GS.levels[idx].score=Math.max(GS.levels[idx].score||0,50);
           GS.levels[idx].timeMs=Date.now()-(GS.levelStartTime||GS.startTime||Date.now());
           GS.levels[idx].attempts=GS.attempts||1;
           GS.levels[idx].hintsUsed=GS.hintsUsed||0;

@@ -1084,7 +1084,18 @@ function completeRound(r){
   const requiredDone=gameState.rounds.filter((r,i)=>ROUNDS[i].required&&r.completed).length;
   const allDone=gameState.rounds.every(r=>r.completed);
   safeTimeout(()=>{processing=false;
-    if(requiredDone===6&&!requiredCompleteShown){requiredCompleteShown=true;showRequiredComplete(isFirstTry);}
+    if(requiredDone===6&&!requiredCompleteShown){requiredCompleteShown=true;
+      /* SAFETY NET — inline IZ buttons before the choice overlay, so a failed overlay or click handler can't strand the student. */
+      try{
+        const iz=document.getElementById('interactionZone');
+        if(iz){
+          const wrap=document.createElement('div');wrap.id='inlineChoiceBtns';wrap.style.cssText='display:flex;justify-content:center;gap:10px;margin-top:10px;flex-wrap:wrap;width:100%';
+          wrap.innerHTML='<button class="btn btn-secondary" style="min-height:44px" onclick="closeChoice();showReceipt();">See Score</button><button class="btn btn-gold" style="min-height:44px" onclick="closeChoice();advanceToNext();">Keep Going &rarr;</button>';
+          iz.appendChild(wrap);
+        }
+      }catch(e){console.error('inline choice buttons',e);}
+      showRequiredComplete(isFirstTry);
+    }
     else if(allDone&&!bonusCompleteShown){bonusCompleteShown=true;showBonusComplete();}
     else if(completedCount%2===0){showMilestoneCelebration(isFirstTry,()=>advanceToNext());}
     else if(isFirstTry){showQuickAffirmation(()=>advanceToNext());}
@@ -1101,7 +1112,7 @@ function showRequiredComplete(isFirstTry){const co=document.getElementById('choi
 function showBonusComplete(){const cel=document.getElementById('celebOverlay'),cc=document.getElementById('celebContent');burstParticles(15,['#FFD700','#39FF14','#FF1493','#00D4FF','#FF6B35']);cc.innerHTML=`<h2>BOSS DEFEATED! ⭐</h2><div class="affirm">${escHtml(getAffirmation())}</div>`;cel.style.display='block';celebTimeout=setTimeout(()=>{cel.style.display='none';showReceipt();},3000);}
 function closeChoice(){document.getElementById('choiceOverlay').style.display='none';}
 
-function safetyAdvance(r){processing=true;const gs=gameState.rounds[currentRound];gs.score=50;gs.completed=true;gs.timeSeconds=Math.round((Date.now()-roundStartTime)/1000);totalScore=calcOverallScore();updateScore();updateProgress();const iz=document.getElementById('interactionZone');iz.innerHTML=`<div class="coaching-bar hint-fb" style="max-width:420px;">Let's move on — you'll see this idea again.</div>`;safeTimeout(()=>{processing=false;advanceToNext();},2500);}
+function safetyAdvance(r){processing=true;const gs=gameState.rounds[currentRound];gs.score=Math.max(gs.score||0,50);gs.completed=true;gs.timeSeconds=Math.round((Date.now()-roundStartTime)/1000);totalScore=calcOverallScore();updateScore();updateProgress();const iz=document.getElementById('interactionZone');iz.innerHTML=`<div class="coaching-bar hint-fb" style="max-width:420px;">Let's move on — you'll see this idea again.</div>`;safeTimeout(()=>{processing=false;advanceToNext();},2500);}
 
 // ===== FEEDBACK =====
 function showFeedback(containerId,cls,text){const el=document.getElementById(containerId);if(el)el.innerHTML=`<div class="coaching-bar ${cls}">${text}</div>`;}
