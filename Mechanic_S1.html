@@ -1,0 +1,3622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mechanic — Under the Hood | Mr. Jawad's Simulations</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep: #14171d;
+  --bg-mid: #1f232b;
+  --bg-light: #2a2f3a;
+  --bg-card: #303542;
+  --accent: #ff8a3d;
+  --accent-glow: #ffb74d;
+  --primary: #ffc857;
+  --primary-glow: #ffe28a;
+  --green: #6cc24a;
+  --green-soft: #4a8c33;
+  --yellow: #ffd166;
+  --red: #ef476f;
+  --red-soft: #b8334d;
+  --blue: #4cc9f0;
+  --text: #f5f0e8;
+  --text-muted: #9ba0ad;
+  --text-dim: #6b7080;
+  --border: #3d4250;
+  --border-strong: #5a6070;
+  --shop-floor: #2a2e38;
+}
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background: radial-gradient(ellipse at top, #1f232b 0%, #14171d 60%, #0e1115 100%);
+  background-attachment: fixed;
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+body { padding: 0; min-width: 320px; }
+
+button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+button:disabled { cursor: not-allowed; opacity: 0.6; }
+
+#title-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background:
+    radial-gradient(ellipse at center top, rgba(255,138,61,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at center, #1f232b 0%, #14171d 70%, #0a0c10 100%);
+  z-index: 100;
+  text-align: center;
+}
+
+.brand-top {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  text-transform: uppercase;
+  border: 1px solid var(--accent);
+  padding: 6px 18px;
+  border-radius: 2px;
+  margin-bottom: 32px;
+  background: rgba(255,138,61,0.08);
+  text-shadow: 0 0 12px rgba(255,138,61,0.4);
+}
+
+#title-screen h1 {
+  font-size: clamp(48px, 9vw, 96px);
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: var(--text);
+  margin: 0;
+  line-height: 0.95;
+  text-shadow: 0 4px 24px rgba(255,138,61,0.3);
+  background: linear-gradient(180deg, #ffe5b8 0%, #ffc857 60%, #ff8a3d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.title-subtitle {
+  font-size: clamp(18px, 2.8vw, 26px);
+  color: var(--text);
+  letter-spacing: 6px;
+  margin-top: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.title-tagline {
+  margin-top: 36px;
+  font-size: clamp(15px, 2vw, 18px);
+  color: var(--text-muted);
+  max-width: 540px;
+  line-height: 1.55;
+}
+
+.title-shop-art {
+  margin: 36px 0 28px;
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  height: 140px;
+}
+
+.title-lift {
+  width: 220px;
+  height: 100px;
+  position: relative;
+}
+.title-lift .car {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 64px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+  animation: car-bob 3.5s ease-in-out infinite;
+}
+.title-lift .lift-bar {
+  position: absolute;
+  bottom: 30px;
+  left: 10%;
+  right: 10%;
+  height: 8px;
+  background: linear-gradient(90deg, #5a6070, #8a9098, #5a6070);
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.title-lift .lift-post {
+  position: absolute;
+  bottom: 0;
+  width: 12px;
+  height: 36px;
+  background: linear-gradient(180deg, #5a6070, #3d4250);
+  border-radius: 2px;
+}
+.title-lift .lift-post.left { left: 12%; }
+.title-lift .lift-post.right { right: 12%; }
+.title-toolset {
+  display: flex;
+  gap: 10px;
+  font-size: 36px;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+}
+.title-toolset .tool {
+  animation: tool-spin 4s ease-in-out infinite;
+}
+.title-toolset .tool:nth-child(2) { animation-delay: 0.5s; }
+.title-toolset .tool:nth-child(3) { animation-delay: 1s; }
+
+@keyframes car-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-3px); }
+}
+@keyframes tool-spin {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg); }
+}
+
+.cta-btn {
+  margin-top: 32px;
+  padding: 18px 48px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  background: linear-gradient(180deg, var(--accent-glow) 0%, var(--accent) 100%);
+  color: #1a1208;
+  border-radius: 6px;
+  box-shadow:
+    0 6px 0 #b85a1f,
+    0 12px 24px rgba(255,138,61,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.4);
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+  border: 2px solid #ffe2b8;
+}
+.cta-btn:hover { filter: brightness(1.08); }
+.cta-btn:active {
+  transform: translateY(4px);
+  box-shadow:
+    0 2px 0 #b85a1f,
+    0 4px 12px rgba(255,138,61,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.4);
+}
+
+.brand-bottom {
+  margin-top: 48px;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+#game-screen {
+  display: none;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 12px;
+  gap: 12px;
+}
+
+#game-screen.active { display: flex; }
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.brand-mini {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-transform: uppercase;
+  border: 1px solid var(--accent);
+  padding: 3px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.day-timeline {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.day-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.timeline-track {
+  flex: 1;
+  position: relative;
+  height: 24px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.timeline-bar {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  background: linear-gradient(90deg, #ffd166 0%, #ff8a3d 100%);
+  width: 0%;
+  transition: width 0.6s ease-out;
+  border-radius: 12px;
+  box-shadow: 0 0 12px rgba(255,138,61,0.5);
+}
+
+.timeline-stage {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--bg-deep);
+  z-index: 2;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+}
+
+.round-indicator {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-glow);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.meter {
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  position: relative;
+  transition: opacity 0.4s, transform 0.4s, border-color 0.4s, box-shadow 0.4s;
+}
+
+.meter.hidden {
+  opacity: 0.18;
+  filter: grayscale(0.8);
+  pointer-events: none;
+}
+.meter.revealing {
+  animation: meter-reveal 1.2s ease-out;
+}
+@keyframes meter-reveal {
+  0% { opacity: 0; transform: scale(0.8); box-shadow: 0 0 0 rgba(76,201,240,0); }
+  40% { opacity: 1; transform: scale(1.06); box-shadow: 0 0 30px rgba(76,201,240,0.7); border-color: var(--blue); }
+  100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(76,201,240,0); }
+}
+
+.meter.primary {
+  border: 2px solid var(--primary);
+  background: linear-gradient(180deg, #3a3525 0%, #2a2618 100%);
+  box-shadow: 0 0 18px rgba(255,200,87,0.18);
+  grid-column: span 1;
+}
+.meter.primary::before {
+  content: '⭐ PRIMARY';
+  position: absolute;
+  top: -10px;
+  left: 8px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  background: var(--primary);
+  color: #1a1208;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-weight: 800;
+}
+
+.meter-name {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.meter.primary .meter-name { color: var(--primary-glow); font-size: 12px; }
+
+.meter-bar {
+  height: 12px;
+  background: var(--bg-deep);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border);
+}
+.meter.primary .meter-bar { height: 16px; }
+
+.meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green-soft), var(--green));
+  width: 50%;
+  transition: width 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 0.4s;
+  border-radius: 6px;
+  position: relative;
+}
+.meter-fill.zone-low { background: linear-gradient(90deg, var(--red-soft), var(--red)); }
+.meter-fill.zone-mid { background: linear-gradient(90deg, #b88f33, var(--yellow)); }
+.meter-fill.zone-high { background: linear-gradient(90deg, var(--green-soft), var(--green)); }
+.meter.primary .meter-fill.zone-high { background: linear-gradient(90deg, #c9a040, var(--primary)); box-shadow: 0 0 12px rgba(255,200,87,0.5); }
+
+.meter-state {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 5px;
+  color: var(--text-muted);
+}
+.meter-state.zone-low { color: var(--red); }
+.meter-state.zone-mid { color: var(--yellow); }
+.meter-state.zone-high { color: var(--green); }
+.meter.primary .meter-state.zone-high { color: var(--primary); }
+
+.meter-bump {
+  animation: meter-bump 0.5s ease-out;
+}
+@keyframes meter-bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.06); box-shadow: 0 0 20px rgba(255,200,87,0.5); }
+  100% { transform: scale(1); }
+}
+
+.meter-delta {
+  position: absolute;
+  top: 8px; right: 10px;
+  font-weight: 800;
+  font-size: 14px;
+  opacity: 0;
+  transform: translateY(0);
+  pointer-events: none;
+}
+.meter-delta.up { color: var(--green); }
+.meter-delta.down { color: var(--red); }
+.meter-delta.show { animation: delta-rise 1.6s ease-out forwards; }
+@keyframes delta-rise {
+  0% { opacity: 0; transform: translateY(10px); }
+  20% { opacity: 1; }
+  80% { opacity: 1; transform: translateY(-22px); }
+  100% { opacity: 0; transform: translateY(-30px); }
+}
+
+.game-body {
+  display: grid;
+  grid-template-columns: 200px 1fr 200px;
+  gap: 12px;
+  flex: 1;
+  min-height: 540px;
+}
+
+@media (max-width: 1100px) {
+  .game-body { grid-template-columns: 160px 1fr 160px; }
+}
+@media (max-width: 900px) {
+  .game-body { grid-template-columns: 1fr; }
+  .side-rail { order: 3; }
+  .left-rail { order: 4; }
+  .main-stage { order: 1; }
+}
+
+.side-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.side-card {
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+  position: relative;
+}
+.side-card .side-title {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.side-card .side-value {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.side-card.alert {
+  border-color: var(--red);
+  background: linear-gradient(180deg, #4a1f2a 0%, #2a141a 100%);
+  animation: alert-pulse 2.5s ease-in-out infinite;
+}
+.side-card.warn {
+  border-color: var(--yellow);
+}
+.side-card.good {
+  border-color: var(--green);
+}
+.side-card.appearing {
+  animation: side-pop 0.6s ease-out;
+}
+@keyframes side-pop {
+  0% { opacity: 0; transform: translateX(-20px) scale(0.9); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes alert-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(239,71,111,0); }
+  50% { box-shadow: 0 0 16px rgba(239,71,111,0.5); }
+}
+
+.cash-tracker {
+  background: linear-gradient(180deg, #2a3a26 0%, #1f2a1a 100%);
+  border: 1px solid var(--green-soft);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  position: relative;
+}
+.cash-tracker .cash-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #9bbb88;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.cash-tracker .cash-amount {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--green);
+  text-shadow: 0 0 12px rgba(108,194,74,0.4);
+  letter-spacing: 1px;
+}
+.cash-tracker.chime {
+  animation: cash-chime 0.6s ease-out;
+}
+@keyframes cash-chime {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.08); box-shadow: 0 0 24px rgba(108,194,74,0.6); }
+  100% { transform: scale(1); }
+}
+
+.xp-track {
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+.xp-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.xp-label .lvl {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 14px;
+}
+.xp-bar {
+  height: 8px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.xp-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-glow));
+  transition: width 0.6s ease-out;
+  box-shadow: 0 0 8px rgba(255,138,61,0.4);
+}
+
+.powerup-card {
+  background: linear-gradient(180deg, #3a2f4a 0%, #2a2238 100%);
+  border: 1px solid #8a6fc7;
+  border-radius: 8px;
+  padding: 10px;
+  position: relative;
+  animation: powerup-glow 2.5s ease-in-out infinite;
+}
+@keyframes powerup-glow {
+  0%, 100% { box-shadow: 0 0 0 rgba(138,111,199,0); }
+  50% { box-shadow: 0 0 16px rgba(138,111,199,0.6); }
+}
+.powerup-card .pu-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #c9b6f0;
+  text-transform: uppercase;
+}
+.powerup-card .pu-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.pattern-badge {
+  background: linear-gradient(180deg, #3a3525 0%, #2a2618 100%);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pattern-badge .pb-name {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--primary);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.pattern-badge .pb-count {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+.pattern-badge.unlocked {
+  background: linear-gradient(180deg, #3d3d24 0%, #2a2a18 100%);
+  box-shadow: 0 0 16px rgba(255,200,87,0.5);
+}
+.pattern-badge.unlocked .pb-count { color: var(--primary-glow); }
+.pattern-badge.appearing { animation: side-pop 0.6s ease-out; }
+
+.main-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.context-tag {
+  background: linear-gradient(180deg, #2a3344 0%, #1f2530 100%);
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  position: relative;
+}
+.context-tag::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 4px;
+  background: var(--blue);
+  border-radius: 8px 0 0 8px;
+}
+.context-avatar {
+  font-size: 36px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+}
+.context-body {
+  flex: 1;
+  min-width: 0;
+}
+.context-name {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--blue);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+.context-text {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.context-tag.appearing { animation: context-slide 0.6s ease-out; }
+@keyframes context-slide {
+  0% { opacity: 0; transform: translateY(-12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.arena {
+  flex: 1;
+  background:
+    radial-gradient(ellipse at center bottom, rgba(255,138,61,0.1) 0%, transparent 70%),
+    linear-gradient(180deg, #2a2f3a 0%, #1f232b 100%);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.arena::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 36%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0, transparent 38px, rgba(0,0,0,0.18) 38px, rgba(0,0,0,0.18) 40px),
+    linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 100%);
+  pointer-events: none;
+}
+
+.arena-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.arena-scene.fade-in { animation: arena-fade 0.7s ease-out; }
+@keyframes arena-fade {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.scene-car {
+  font-size: 88px;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));
+  position: relative;
+  z-index: 2;
+  transition: transform 0.5s ease-out, opacity 0.5s;
+}
+.scene-car.smoke::after {
+  content: '💨';
+  position: absolute;
+  top: -10px;
+  left: -30px;
+  font-size: 36px;
+  animation: smoke-rise 1.5s ease-out infinite;
+}
+@keyframes smoke-rise {
+  0% { opacity: 0; transform: translateY(0); }
+  50% { opacity: 0.8; }
+  100% { opacity: 0; transform: translateY(-30px); }
+}
+
+.scene-customer {
+  font-size: 56px;
+  position: absolute;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+  z-index: 3;
+  transition: transform 0.5s ease-out, opacity 0.5s;
+}
+
+.scene-tool {
+  position: absolute;
+  font-size: 40px;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+  z-index: 4;
+}
+
+.scene-flag {
+  position: absolute;
+  background: var(--yellow);
+  color: #1a1208;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  white-space: nowrap;
+}
+.scene-flag.red { background: var(--red); color: white; }
+.scene-flag.green { background: var(--green); color: white; }
+
+.scene-clock {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(0,0,0,0.5);
+  border: 2px solid var(--yellow);
+  color: var(--yellow);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 1px;
+  animation: clock-pulse 1.2s ease-in-out infinite;
+  z-index: 6;
+  text-align: center;
+  line-height: 1.2;
+}
+@keyframes clock-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(255,209,102,0); }
+  50% { box-shadow: 0 0 16px rgba(255,209,102,0.6); }
+}
+
+.scene-window {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 110px;
+  height: 80px;
+  background: linear-gradient(135deg, #4cc9f0 0%, #2a8fb8 100%);
+  border: 3px solid var(--bg-card);
+  border-radius: 4px;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scene-window::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  height: 3px;
+  background: var(--bg-card);
+}
+.scene-window::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  width: 3px;
+  background: var(--bg-card);
+}
+.scene-window .window-customer {
+  font-size: 36px;
+  z-index: 1;
+}
+
+.scene-tires {
+  position: absolute;
+  bottom: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 38px;
+  z-index: 4;
+}
+.tire {
+  width: 30px;
+  height: 30px;
+  background: radial-gradient(circle, #2a2a2a 30%, #1a1a1a 70%);
+  border: 2px solid #555;
+  border-radius: 50%;
+  position: relative;
+}
+.tire.low {
+  width: 30px;
+  height: 22px;
+  border-radius: 50%;
+  border-color: var(--red);
+  animation: tire-low-flash 1.2s ease-in-out infinite;
+}
+@keyframes tire-low-flash {
+  0%, 100% { box-shadow: 0 0 0 rgba(239,71,111,0); }
+  50% { box-shadow: 0 0 14px rgba(239,71,111,0.7); }
+}
+
+.scene-fluid {
+  position: absolute;
+  font-size: 22px;
+  background: rgba(0,0,0,0.4);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--red);
+  z-index: 5;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.scene-pulse-icon {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  background: rgba(0,0,0,0.5);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-glow);
+  border: 1px solid var(--accent);
+  animation: bottom-flash 1s ease-out;
+  z-index: 5;
+}
+@keyframes bottom-flash {
+  0% { opacity: 0; transform: scale(0.8); }
+  60% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.event-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, var(--red) 0%, var(--red-soft) 100%);
+  color: white;
+  padding: 6px 18px;
+  border-radius: 4px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  font-size: 12px;
+  border: 2px solid #ffe5b8;
+  z-index: 7;
+  box-shadow: 0 4px 14px rgba(239,71,111,0.5);
+  animation: banner-shake 0.5s ease-out;
+}
+@keyframes banner-shake {
+  0% { transform: translateX(-50%) scale(0.6); opacity: 0; }
+  60% { transform: translateX(-50%) scale(1.1); }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+.decision-panel {
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.situation-text {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 600px) { .choices { grid-template-columns: 1fr; } }
+
+.choice-btn {
+  min-height: 72px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #3a4150 0%, #2a3040 100%);
+  color: var(--text);
+  border: 2px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-align: center;
+  transition: transform 0.1s ease-out, border-color 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.choice-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(255,138,61,0.25);
+  transform: translateY(-2px);
+}
+.choice-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.choice-btn .choice-tag {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+  font-weight: 700;
+}
+
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,12,16,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+.popup-overlay.show { display: flex; animation: overlay-in 0.3s ease-out; }
+@keyframes overlay-in { 0% { opacity: 0; } 100% { opacity: 1; } }
+
+.popup-box {
+  max-width: 460px;
+  width: 100%;
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(255,138,61,0.3);
+  animation: popup-in 0.4s ease-out;
+}
+.popup-box.event { border-color: var(--red); box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(239,71,111,0.4); }
+.popup-box.unlock { border-color: #c9b6f0; box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(138,111,199,0.5); }
+.popup-box.reveal { border-color: var(--blue); box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(76,201,240,0.4); }
+
+@keyframes popup-in {
+  0% { opacity: 0; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.popup-icon {
+  font-size: 56px;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+}
+.popup-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--accent-glow);
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+.popup-box.event .popup-title { color: #ff8aa6; }
+.popup-box.unlock .popup-title { color: #c9b6f0; }
+.popup-box.reveal .popup-title { color: var(--blue); }
+
+.popup-text {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  margin-bottom: 18px;
+}
+
+.popup-btn {
+  padding: 12px 36px;
+  background: linear-gradient(180deg, var(--accent-glow) 0%, var(--accent) 100%);
+  color: #1a1208;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  box-shadow: 0 4px 0 #b85a1f, inset 0 1px 0 rgba(255,255,255,0.4);
+  transition: transform 0.1s ease-out;
+}
+.popup-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #b85a1f, inset 0 1px 0 rgba(255,255,255,0.4); }
+
+.mini-popup {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-30px);
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 10px 22px;
+  border-radius: 24px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  opacity: 0;
+  z-index: 150;
+  pointer-events: none;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  text-align: center;
+  max-width: 90%;
+}
+.mini-popup.show { animation: mini-pop 2.6s ease-out forwards; }
+@keyframes mini-pop {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-30px); }
+  10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+}
+
+.powerup-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(180deg, #4a3d6a 0%, #2a2238 100%);
+  border: 3px solid #c9b6f0;
+  color: var(--text);
+  padding: 24px 32px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+  z-index: 250;
+  box-shadow: 0 0 40px rgba(201,182,240,0.6);
+  letter-spacing: 1px;
+  display: none;
+  max-width: 90%;
+}
+.powerup-toast.show { display: block; animation: pu-toast 3.5s ease-out forwards; }
+@keyframes pu-toast {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+  20% { transform: translate(-50%, -50%) scale(1); }
+  85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+}
+.powerup-toast .pu-icon { font-size: 40px; margin-bottom: 8px; }
+.powerup-toast .pu-name {
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: #c9b6f0;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.powerup-toast #pu-toast-text {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+#end-screen {
+  display: none;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 24px 16px;
+  background:
+    radial-gradient(ellipse at top, rgba(255,200,87,0.1) 0%, transparent 60%),
+    linear-gradient(180deg, #1f232b 0%, #14171d 100%);
+}
+#end-screen.active { display: flex; }
+
+.end-tier {
+  text-align: center;
+  margin: 16px auto 24px;
+  padding: 18px 22px;
+  border-radius: 14px;
+  max-width: 720px;
+  width: 100%;
+  border: 3px solid;
+}
+.end-tier.legendary {
+  background: linear-gradient(180deg, #3a3525 0%, #2a2618 100%);
+  border-color: var(--primary);
+  box-shadow: 0 0 40px rgba(255,200,87,0.4);
+}
+.end-tier.thrived {
+  background: linear-gradient(180deg, #2a3a26 0%, #1f2a1a 100%);
+  border-color: var(--green);
+  box-shadow: 0 0 30px rgba(108,194,74,0.3);
+}
+.end-tier.survived {
+  background: linear-gradient(180deg, #2f3441 0%, #242831 100%);
+  border-color: var(--blue);
+  box-shadow: 0 0 24px rgba(76,201,240,0.3);
+}
+.end-tier.tough {
+  background: linear-gradient(180deg, #3a2a30 0%, #2a1f24 100%);
+  border-color: var(--red);
+}
+.end-tier .tier-label {
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 900;
+  letter-spacing: 3px;
+  margin-bottom: 8px;
+  line-height: 1.1;
+}
+.end-tier.legendary .tier-label { color: var(--primary); }
+.end-tier.thrived .tier-label { color: var(--green); }
+.end-tier.survived .tier-label { color: var(--blue); }
+.end-tier.tough .tier-label { color: var(--red); }
+.end-tier .tier-line {
+  font-size: 16px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.end-meters {
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+.end-meter {
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+.end-meter.primary {
+  border: 2px solid var(--primary);
+  background: linear-gradient(180deg, #3a3525 0%, #2a2618 100%);
+}
+.end-meter .em-name {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.end-meter .em-state {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 4px 0;
+}
+.end-meter .em-bar {
+  height: 8px;
+  background: var(--bg-deep);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.end-meter .em-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.highlight-reel {
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto 24px;
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.highlight-reel .hr-title {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  text-align: center;
+  font-weight: 700;
+}
+.highlight-frame {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
+  background: var(--bg-deep);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border-left: 3px solid var(--accent);
+}
+.highlight-frame .hf-icon { font-size: 32px; flex-shrink: 0; }
+.highlight-frame .hf-text { font-size: 14px; line-height: 1.4; color: var(--text); }
+
+.customer-wall {
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto 24px;
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-mid) 100%);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.customer-wall .cw-title {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  text-align: center;
+  font-weight: 700;
+}
+.cw-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+@media (max-width: 700px) { .cw-grid { grid-template-columns: repeat(4, 1fr); } }
+.cw-card {
+  background: var(--bg-deep);
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.2s;
+}
+.cw-card:hover { transform: translateY(-2px); }
+.cw-card.green { border-color: var(--green); background: linear-gradient(180deg, #2a3a26 0%, #1f2a1a 100%); }
+.cw-card.yellow { border-color: var(--yellow); background: linear-gradient(180deg, #3a3525 0%, #2a2618 100%); }
+.cw-card.red { border-color: var(--red); background: linear-gradient(180deg, #3a2a30 0%, #2a1f24 100%); }
+.cw-card .cwc-avatar { font-size: 28px; }
+.cw-card .cwc-name { font-size: 11px; font-weight: 700; color: var(--text); margin-top: 4px; }
+
+.replay-section {
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto 18px;
+  text-align: center;
+}
+.replay-section .replay-headline {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+.replay-btn {
+  padding: 16px 40px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: linear-gradient(180deg, var(--accent-glow) 0%, var(--accent) 100%);
+  color: #1a1208;
+  border-radius: 8px;
+  box-shadow: 0 5px 0 #b85a1f, inset 0 1px 0 rgba(255,255,255,0.4);
+  margin: 4px;
+}
+.replay-btn:active { transform: translateY(2px); box-shadow: 0 3px 0 #b85a1f, inset 0 1px 0 rgba(255,255,255,0.4); }
+
+.data-layer {
+  max-width: 900px;
+  width: 100%;
+  margin: 12px auto 0;
+}
+.data-toggle {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-mid);
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  border-radius: 8px;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 700;
+  transition: background 0.2s;
+}
+.data-toggle:hover { background: var(--bg-card); color: var(--text); }
+.data-content {
+  display: none;
+  margin-top: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+.data-content.show { display: block; animation: arena-fade 0.4s ease-out; }
+.data-table-wrap { overflow-x: auto; }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  min-width: 720px;
+}
+.data-table th, .data-table td {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  text-align: left;
+  color: var(--text);
+}
+.data-table th {
+  background: var(--bg-mid);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.copy-btn {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: var(--bg-mid);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.copy-btn:hover { background: var(--bg-card); border-color: var(--accent); }
+.copy-btn.copied { background: var(--green-soft); border-color: var(--green); }
+
+.brand-end {
+  max-width: 720px;
+  width: 100%;
+  margin: 24px auto 0;
+  text-align: center;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.brand-end .be-mark {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  text-transform: uppercase;
+  border: 1px solid var(--accent);
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 2px;
+}
+.brand-end .be-tag {
+  margin-top: 6px;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.hf-stuck, .hf-restart {
+  position: fixed;
+  z-index: 300;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-radius: 6px;
+  cursor: pointer;
+  display: none;
+}
+.hf-stuck {
+  bottom: 14px;
+  left: 14px;
+  padding: 10px 16px;
+  font-size: 12px;
+  background: linear-gradient(180deg, var(--yellow) 0%, #d4a838 100%);
+  color: #2a1f08;
+  border: 2px solid #ffe5b8;
+  box-shadow: 0 3px 0 #8a6a1f, 0 4px 12px rgba(0,0,0,0.4);
+}
+.hf-stuck:active { transform: translateY(2px); box-shadow: 0 1px 0 #8a6a1f, 0 2px 8px rgba(0,0,0,0.4); }
+.hf-restart {
+  top: 12px;
+  right: 12px;
+  padding: 6px 10px;
+  font-size: 10px;
+  background: var(--bg-mid);
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+}
+.hf-restart:hover { color: var(--text); border-color: var(--accent); }
+.hf-stuck.pulse { animation: stuck-pulse 1s ease-in-out infinite; }
+@keyframes stuck-pulse {
+  0%, 100% { box-shadow: 0 3px 0 #8a6a1f, 0 0 0 rgba(255,209,102,0); }
+  50% { box-shadow: 0 3px 0 #8a6a1f, 0 0 24px rgba(255,209,102,0.7); }
+}
+
+@media (max-width: 700px) {
+  .hud { grid-template-columns: repeat(3, 1fr); }
+  .meter.primary { grid-column: span 3; }
+}
+@media (max-width: 480px) {
+  .hud { grid-template-columns: 1fr 1fr; }
+  .meter.primary { grid-column: span 2; }
+  .scene-car { font-size: 64px; }
+  .scene-customer { font-size: 40px; }
+}
+
+/* ========== UPGRADED GRAPHICS LAYER ========== */
+
+/* SVG defs container (off-screen) */
+.svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* Glass shine on every meter bar */
+.meter-bar::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0) 100%);
+  border-radius: 6px 6px 0 0;
+  pointer-events: none;
+}
+.meter-fill::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 100%);
+  border-radius: 6px 6px 0 0;
+  pointer-events: none;
+}
+
+/* Decorative grease band on the side rails */
+.side-rail::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+/* ===== GARAGE BACKDROP ===== */
+.arena-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.arena-backdrop svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.arena {
+  background: #1a1d24;
+}
+.arena::before { display: none; }
+
+.arena-scene {
+  z-index: 4;
+  position: relative;
+}
+
+/* ===== HANGING SHOP LIGHT ===== */
+.hanging-light {
+  position: absolute;
+  top: 0;
+  width: 80px;
+  height: 220px;
+  pointer-events: none;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hanging-light .cord {
+  width: 2px;
+  height: 18px;
+  background: #2a2a2a;
+}
+.hanging-light .lamp {
+  width: 40px;
+  height: 18px;
+  background: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 100%);
+  border-radius: 4px 4px 16px 16px;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+}
+.hanging-light .bulb {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+  background: radial-gradient(circle, #fff5cc 30%, #ffd166 70%);
+  border-radius: 50%;
+  box-shadow: 0 0 24px #ffd166, 0 0 48px rgba(255,209,102,0.6);
+  animation: bulb-flicker 4s ease-in-out infinite;
+}
+@keyframes bulb-flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.8; }
+  94% { opacity: 1; }
+}
+.hanging-light .cone {
+  margin-top: 12px;
+  width: 0;
+  height: 0;
+  border-left: 50px solid transparent;
+  border-right: 50px solid transparent;
+  border-top: 200px solid rgba(255,209,102,0.18);
+  filter: blur(6px);
+}
+
+/* ===== PORTRAIT CARD ===== */
+.portrait-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 5;
+  animation: portrait-in 0.5s ease-out;
+}
+@keyframes portrait-in {
+  0% { opacity: 0; transform: translateY(8px) scale(0.85); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.portrait-frame {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.18) 0%, transparent 40%),
+    radial-gradient(circle, var(--bg-card) 0%, var(--bg-deep) 100%);
+  border: 3px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.06);
+  position: relative;
+}
+.portrait-frame.regular {
+  border-color: var(--primary);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.5), 0 0 16px rgba(255,200,87,0.4), inset 0 0 0 2px rgba(255,200,87,0.2);
+}
+.portrait-frame .regular-tag {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  background: var(--primary);
+  color: #1a1208;
+  font-size: 8px;
+  letter-spacing: 1px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 8px;
+  border: 1.5px solid var(--bg-deep);
+  text-transform: uppercase;
+}
+.portrait-name {
+  margin-top: 6px;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  font-weight: 800;
+  color: var(--text);
+  background: rgba(0,0,0,0.65);
+  padding: 3px 9px;
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+
+/* Speech bubble */
+.speech-bubble {
+  position: absolute;
+  background: linear-gradient(180deg, #f5f0e8 0%, #d8d0c2 100%);
+  color: #1a1208;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  max-width: 180px;
+  line-height: 1.35;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 6;
+  animation: bubble-in 0.6s ease-out 0.2s both;
+}
+@keyframes bubble-in {
+  0% { opacity: 0; transform: scale(0.8) translateY(6px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 18px;
+  width: 0; height: 0;
+  border: 10px solid transparent;
+  border-top-color: #d8d0c2;
+  border-bottom: 0;
+  border-left: 0;
+}
+
+/* ===== SVG VEHICLE STYLES ===== */
+.svg-car-wrap {
+  position: relative;
+  z-index: 4;
+  display: inline-block;
+}
+.svg-car-wrap svg {
+  display: block;
+  filter: drop-shadow(0 8px 14px rgba(0,0,0,0.55));
+}
+
+/* ===== TOOLS / OBJECTS as SVG ===== */
+.svg-tool {
+  position: absolute;
+  z-index: 5;
+}
+.svg-tool svg {
+  display: block;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));
+}
+.svg-tool.spinning svg { animation: tool-rotate 3s linear infinite; }
+@keyframes tool-rotate {
+  0% { transform: rotate(-12deg); }
+  50% { transform: rotate(12deg); }
+  100% { transform: rotate(-12deg); }
+}
+
+/* ===== SMOKE/EXHAUST PARTICLES ===== */
+.smoke-cloud {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  background: radial-gradient(circle, rgba(200,200,200,0.7) 0%, rgba(150,150,150,0.3) 50%, transparent 80%);
+  border-radius: 50%;
+  filter: blur(4px);
+  pointer-events: none;
+  z-index: 5;
+}
+.smoke-cloud.puff { animation: smoke-puff 2.2s ease-out infinite; }
+.smoke-cloud.puff-2 { animation: smoke-puff 2.2s ease-out 0.7s infinite; }
+.smoke-cloud.puff-3 { animation: smoke-puff 2.2s ease-out 1.4s infinite; }
+@keyframes smoke-puff {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  20% { opacity: 0.85; }
+  100% { opacity: 0; transform: translateY(-70px) translateX(-12px) scale(1.6); }
+}
+
+/* Spark */
+.spark {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--accent-glow);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-glow), 0 0 14px var(--accent);
+  pointer-events: none;
+  z-index: 6;
+}
+.spark.s1 { animation: spark-fly1 1.2s ease-out infinite; }
+.spark.s2 { animation: spark-fly2 1.2s ease-out 0.3s infinite; }
+.spark.s3 { animation: spark-fly3 1.2s ease-out 0.6s infinite; }
+@keyframes spark-fly1 {
+  0% { opacity: 1; transform: translate(0,0) scale(1); }
+  100% { opacity: 0; transform: translate(40px, -30px) scale(0.2); }
+}
+@keyframes spark-fly2 {
+  0% { opacity: 1; transform: translate(0,0) scale(1); }
+  100% { opacity: 0; transform: translate(-30px, -40px) scale(0.2); }
+}
+@keyframes spark-fly3 {
+  0% { opacity: 1; transform: translate(0,0) scale(1); }
+  100% { opacity: 0; transform: translate(20px, -50px) scale(0.2); }
+}
+
+/* Liquid drip (brake fluid) */
+.fluid-drip {
+  position: absolute;
+  width: 6px;
+  height: 10px;
+  background: var(--red);
+  border-radius: 50% 50% 30% 30%;
+  box-shadow: 0 0 6px rgba(239,71,111,0.5);
+  z-index: 5;
+  animation: drip-fall 2s ease-in infinite;
+}
+@keyframes drip-fall {
+  0% { opacity: 0; transform: translateY(-4px); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(50px); }
+}
+
+/* Phone notification ping */
+.phone-ping {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--red);
+  z-index: 6;
+  pointer-events: none;
+  animation: phone-ping 1.4s ease-out infinite;
+}
+@keyframes phone-ping {
+  0% { opacity: 1; transform: scale(0.4); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+
+/* ===== SCENE BANNER (replaces top scene-flag for headline) ===== */
+.scene-headline {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.7) 100%);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  z-index: 7;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+}
+.scene-headline.green { border-left-color: var(--green); }
+.scene-headline.red { border-left-color: var(--red); }
+.scene-headline.yellow { border-left-color: var(--yellow); }
+
+/* Diagnostic glow on car part */
+.diag-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+  animation: diag-pulse 1.4s ease-in-out infinite;
+}
+@keyframes diag-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(76,201,240,0); }
+  50% { box-shadow: 0 0 22px rgba(76,201,240,0.8), 0 0 40px rgba(76,201,240,0.4); }
+}
+
+/* ===== TITLE SCREEN UPGRADE ===== */
+.title-scene {
+  position: relative;
+  width: 360px;
+  height: 180px;
+  margin: 24px 0;
+  z-index: 1;
+}
+.title-scene .ts-floor {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0, transparent 38px, rgba(0,0,0,0.3) 38px, rgba(0,0,0,0.3) 40px),
+    linear-gradient(180deg, #2a2e38 0%, #1a1d24 100%);
+  border-top: 2px solid #3a3e48;
+}
+.title-scene .ts-wall {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 120px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0, transparent 22px, rgba(0,0,0,0.18) 22px, rgba(0,0,0,0.18) 23px),
+    repeating-linear-gradient(90deg, transparent 0, transparent 60px, rgba(0,0,0,0.18) 60px, rgba(0,0,0,0.18) 62px),
+    linear-gradient(180deg, #5a3520 0%, #3a2218 100%);
+}
+.title-scene .ts-light {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 16px;
+  background: linear-gradient(180deg, #3a3a3a, #1a1a1a);
+  border-radius: 4px 4px 14px 14px;
+}
+.title-scene .ts-light::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 8px;
+  background: #2a2a2a;
+}
+.title-scene .ts-light::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 16px;
+  background: radial-gradient(circle, #fff5cc 30%, #ffd166 70%);
+  border-radius: 50%;
+  box-shadow: 0 0 24px #ffd166, 0 0 60px rgba(255,209,102,0.7);
+  animation: bulb-flicker 4s ease-in-out infinite;
+}
+.title-scene .ts-light-cone {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 70px solid transparent;
+  border-right: 70px solid transparent;
+  border-top: 130px solid rgba(255,209,102,0.16);
+  filter: blur(8px);
+  pointer-events: none;
+}
+.title-scene .ts-pegboard {
+  position: absolute;
+  top: 30px;
+  left: 18px;
+  width: 90px;
+  height: 60px;
+  background:
+    radial-gradient(circle at 14px 14px, #2a1f0a 1.8px, transparent 2px),
+    radial-gradient(circle at 30px 14px, #2a1f0a 1.8px, transparent 2px),
+    radial-gradient(circle at 46px 14px, #2a1f0a 1.8px, transparent 2px),
+    radial-gradient(circle at 62px 14px, #2a1f0a 1.8px, transparent 2px),
+    radial-gradient(circle at 78px 14px, #2a1f0a 1.8px, transparent 2px),
+    radial-gradient(circle at 14px 32px, #2a1f0a 1.8px, transparent 2px),
+    radial-gradient(circle at 30px 32px, #2a1f0a 1.8px, transparent 2px),
+    radial-gradient(circle at 46px 32px, #2a1f0a 1.8px, transparent 2px),
+    radial-gradient(circle at 62px 32px, #2a1f0a 1.8px, transparent 2px),
+    radial-gradient(circle at 78px 32px, #2a1f0a 1.8px, transparent 2px),
+    linear-gradient(180deg, #c79456, #8a5a30);
+  border: 2px solid #2a1f0a;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+.title-scene .ts-pegboard svg {
+  position: absolute;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+}
+.title-scene .ts-toolbox {
+  position: absolute;
+  bottom: 60px;
+  right: 18px;
+  width: 78px;
+  height: 50px;
+  background: linear-gradient(180deg, #c4172e 0%, #8a0e1f 100%);
+  border: 2px solid #4a060f;
+  border-radius: 3px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.title-scene .ts-toolbox::before {
+  content: '';
+  position: absolute;
+  top: 16px; left: 0; right: 0;
+  height: 3px;
+  background: #4a060f;
+}
+.title-scene .ts-toolbox::after {
+  content: '';
+  position: absolute;
+  top: 6px; left: 50%;
+  transform: translateX(-50%);
+  width: 20px; height: 6px;
+  background: #4a060f;
+  border-radius: 2px;
+}
+.title-scene .ts-lift {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 180px;
+  height: 90px;
+}
+.title-scene .ts-lift-bar {
+  position: absolute;
+  bottom: 32px;
+  left: 0; right: 0;
+  height: 8px;
+  background: linear-gradient(90deg, #5a6070 0%, #8a9098 50%, #5a6070 100%);
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+.title-scene .ts-lift-post {
+  position: absolute;
+  bottom: 0;
+  width: 14px;
+  height: 36px;
+  background: linear-gradient(180deg, #6a7080 0%, #3d4250 100%);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+}
+.title-scene .ts-lift-post.left { left: 14px; }
+.title-scene .ts-lift-post.right { right: 14px; }
+.title-scene .ts-car-wrap {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: car-bob 3.5s ease-in-out infinite;
+}
+.title-scene .ts-mechanic {
+  position: absolute;
+  bottom: 60px;
+  left: 26%;
+  font-size: 32px;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));
+  animation: mechanic-work 1.4s ease-in-out infinite;
+  z-index: 5;
+}
+@keyframes mechanic-work {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-2px) rotate(3deg); }
+}
+.title-scene .ts-spark {
+  position: absolute;
+  bottom: 88px;
+  left: 32%;
+  width: 4px; height: 4px;
+  background: var(--accent-glow);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--accent-glow);
+  animation: ts-spark 1.4s ease-out infinite;
+  z-index: 6;
+}
+@keyframes ts-spark {
+  0% { opacity: 1; transform: translate(0,0); }
+  100% { opacity: 0; transform: translate(30px, -25px); }
+}
+
+/* Confetti for Legendary tier */
+.confetti-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 14px;
+  top: -20px;
+  animation: confetti-fall linear infinite;
+}
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0.5; }
+}
+
+/* Power-up burst ring */
+.powerup-toast::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  border-radius: 18px;
+  border: 2px solid rgba(201,182,240,0.3);
+  pointer-events: none;
+  animation: pu-ring 1.6s ease-out infinite;
+}
+@keyframes pu-ring {
+  0% { opacity: 0.8; transform: scale(0.95); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+/* End-tier dramatic entrance */
+.end-tier { animation: tier-reveal 0.9s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes tier-reveal {
+  0% { opacity: 0; transform: translateY(-30px) scale(0.7); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.end-tier.legendary .tier-label {
+  background: linear-gradient(180deg, #fff5cc 0%, #ffc857 50%, #ff8a3d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: legendary-shimmer 2.5s ease-in-out infinite;
+}
+@keyframes legendary-shimmer {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.25); }
+}
+
+/* Cars + scene element appearance */
+.scene-fade-up { animation: scene-fade-up 0.7s ease-out; }
+@keyframes scene-fade-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ===== SVG DEFS — reusable vehicle + tool symbols ===== -->
+<svg class="svg-defs" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- SEDAN -->
+    <symbol id="car-sedan" viewBox="0 0 200 90">
+      <defs>
+        <linearGradient id="sedanBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#5fa8d3"/>
+          <stop offset="60%" stop-color="#3d7ba8"/>
+          <stop offset="100%" stop-color="#2a5a80"/>
+        </linearGradient>
+        <linearGradient id="sedanGlass" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#a8d5e8"/>
+          <stop offset="100%" stop-color="#3a5060"/>
+        </linearGradient>
+      </defs>
+      <!-- shadow -->
+      <ellipse cx="100" cy="84" rx="80" ry="4" fill="rgba(0,0,0,0.4)"/>
+      <!-- body lower -->
+      <path d="M14 64 L26 50 L48 38 Q70 28 100 28 Q130 28 152 38 L174 50 L186 64 L186 74 Q186 78 182 78 L18 78 Q14 78 14 74 Z" fill="url(#sedanBody)" stroke="#1a3550" stroke-width="1.5"/>
+      <!-- roof line / cabin -->
+      <path d="M52 40 Q70 22 100 22 Q130 22 148 40" fill="url(#sedanBody)" stroke="#1a3550" stroke-width="1.5"/>
+      <!-- windows -->
+      <path d="M58 40 Q72 28 96 28 L96 44 L58 44 Z" fill="url(#sedanGlass)" opacity="0.85"/>
+      <path d="M104 28 Q128 28 142 40 L142 44 L104 44 Z" fill="url(#sedanGlass)" opacity="0.85"/>
+      <!-- door line -->
+      <line x1="100" y1="44" x2="100" y2="72" stroke="#1a3550" stroke-width="1.2"/>
+      <!-- door handles -->
+      <rect x="76" y="58" width="8" height="2" fill="#1a3550"/>
+      <rect x="116" y="58" width="8" height="2" fill="#1a3550"/>
+      <!-- highlight stripe -->
+      <path d="M16 58 L184 58" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+      <!-- headlight -->
+      <ellipse cx="178" cy="58" rx="6" ry="3" fill="#fff5cc"/>
+      <!-- wheels -->
+      <circle cx="50" cy="76" r="12" fill="#0a0a0a"/>
+      <circle cx="50" cy="76" r="6" fill="#3a3a3a"/>
+      <circle cx="50" cy="76" r="2" fill="#6a6a6a"/>
+      <circle cx="150" cy="76" r="12" fill="#0a0a0a"/>
+      <circle cx="150" cy="76" r="6" fill="#3a3a3a"/>
+      <circle cx="150" cy="76" r="2" fill="#6a6a6a"/>
+      <!-- spokes -->
+      <line x1="50" y1="64" x2="50" y2="88" stroke="#5a5a5a" stroke-width="1.2"/>
+      <line x1="38" y1="76" x2="62" y2="76" stroke="#5a5a5a" stroke-width="1.2"/>
+      <line x1="150" y1="64" x2="150" y2="88" stroke="#5a5a5a" stroke-width="1.2"/>
+      <line x1="138" y1="76" x2="162" y2="76" stroke="#5a5a5a" stroke-width="1.2"/>
+    </symbol>
+
+    <!-- HATCHBACK / DELIVERY-style economy -->
+    <symbol id="car-hatch" viewBox="0 0 200 90">
+      <defs>
+        <linearGradient id="hatchBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#e8c547"/>
+          <stop offset="60%" stop-color="#c89020"/>
+          <stop offset="100%" stop-color="#8a6010"/>
+        </linearGradient>
+        <linearGradient id="hatchGlass" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#a8d5e8"/>
+          <stop offset="100%" stop-color="#3a5060"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="100" cy="84" rx="76" ry="4" fill="rgba(0,0,0,0.4)"/>
+      <path d="M22 66 L34 50 L50 38 Q72 28 102 28 L150 28 Q160 28 168 36 L182 50 L186 64 L186 74 Q186 78 182 78 L18 78 Q14 78 14 74 L14 68 Z" fill="url(#hatchBody)" stroke="#3a2a08" stroke-width="1.5"/>
+      <path d="M54 40 Q72 28 100 28 L154 28 L168 40" fill="url(#hatchBody)" stroke="#3a2a08" stroke-width="1.5"/>
+      <path d="M58 40 Q74 30 96 30 L96 44 L58 44 Z" fill="url(#hatchGlass)" opacity="0.85"/>
+      <path d="M104 30 L150 30 L162 40 L104 40 Z" fill="url(#hatchGlass)" opacity="0.85"/>
+      <line x1="100" y1="44" x2="100" y2="72" stroke="#3a2a08" stroke-width="1.2"/>
+      <rect x="76" y="58" width="8" height="2" fill="#3a2a08"/>
+      <rect x="116" y="58" width="8" height="2" fill="#3a2a08"/>
+      <rect x="172" y="40" width="6" height="3" fill="#fff5cc"/>
+      <ellipse cx="178" cy="58" rx="6" ry="3" fill="#fff5cc"/>
+      <!-- delivery side panel -->
+      <rect x="118" y="48" width="32" height="18" rx="2" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.18)" stroke-width="0.8"/>
+      <text x="134" y="60" fill="rgba(255,255,255,0.45)" font-size="6" font-family="monospace" text-anchor="middle" font-weight="700">DELIVERY</text>
+      <circle cx="50" cy="76" r="12" fill="#0a0a0a"/>
+      <circle cx="50" cy="76" r="6" fill="#3a3a3a"/>
+      <circle cx="50" cy="76" r="2" fill="#6a6a6a"/>
+      <circle cx="150" cy="76" r="12" fill="#0a0a0a"/>
+      <circle cx="150" cy="76" r="6" fill="#3a3a3a"/>
+      <circle cx="150" cy="76" r="2" fill="#6a6a6a"/>
+      <line x1="50" y1="64" x2="50" y2="88" stroke="#5a5a5a" stroke-width="1.2"/>
+      <line x1="38" y1="76" x2="62" y2="76" stroke="#5a5a5a" stroke-width="1.2"/>
+      <line x1="150" y1="64" x2="150" y2="88" stroke="#5a5a5a" stroke-width="1.2"/>
+      <line x1="138" y1="76" x2="162" y2="76" stroke="#5a5a5a" stroke-width="1.2"/>
+    </symbol>
+
+    <!-- COMPACT (Patel's classic) -->
+    <symbol id="car-classic" viewBox="0 0 200 90">
+      <defs>
+        <linearGradient id="classicBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#9a7a4d"/>
+          <stop offset="60%" stop-color="#6a5230"/>
+          <stop offset="100%" stop-color="#3a2c18"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="100" cy="84" rx="78" ry="4" fill="rgba(0,0,0,0.4)"/>
+      <path d="M16 66 L28 52 L46 40 Q68 30 100 30 Q132 30 154 40 L172 52 L184 66 L184 74 Q184 78 180 78 L20 78 Q16 78 16 74 Z" fill="url(#classicBody)" stroke="#1a1208" stroke-width="1.5"/>
+      <path d="M50 42 Q70 26 100 26 Q130 26 150 42" fill="url(#classicBody)" stroke="#1a1208" stroke-width="1.5"/>
+      <path d="M56 42 Q72 30 96 30 L96 46 L56 46 Z" fill="#7aa8c0" opacity="0.78"/>
+      <path d="M104 30 Q128 30 144 42 L144 46 L104 46 Z" fill="#7aa8c0" opacity="0.78"/>
+      <!-- chrome trim -->
+      <rect x="14" y="60" width="170" height="2" fill="#c8b88a" opacity="0.7"/>
+      <rect x="14" y="56" width="170" height="1" fill="#fff5cc" opacity="0.4"/>
+      <line x1="100" y1="46" x2="100" y2="72" stroke="#1a1208" stroke-width="1"/>
+      <ellipse cx="178" cy="56" rx="6" ry="3" fill="#fff5cc"/>
+      <ellipse cx="178" cy="64" rx="4" ry="2" fill="#ffd166" opacity="0.7"/>
+      <circle cx="50" cy="76" r="12" fill="#0a0a0a"/>
+      <circle cx="50" cy="76" r="7" fill="#5a5040"/>
+      <circle cx="50" cy="76" r="2" fill="#8a8060"/>
+      <circle cx="150" cy="76" r="12" fill="#0a0a0a"/>
+      <circle cx="150" cy="76" r="7" fill="#5a5040"/>
+      <circle cx="150" cy="76" r="2" fill="#8a8060"/>
+    </symbol>
+
+    <!-- TOOLS -->
+    <symbol id="t-wrench" viewBox="0 0 80 24">
+      <defs>
+        <linearGradient id="wrenchG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#c8c8c8"/>
+          <stop offset="50%" stop-color="#8a8a8a"/>
+          <stop offset="100%" stop-color="#5a5a5a"/>
+        </linearGradient>
+      </defs>
+      <rect x="20" y="9" width="40" height="6" rx="2" fill="url(#wrenchG)" stroke="#2a2a2a" stroke-width="0.8"/>
+      <path d="M16 4 Q10 4 8 12 Q10 20 16 20 L24 20 Q22 16 22 12 Q22 8 24 4 Z" fill="url(#wrenchG)" stroke="#2a2a2a" stroke-width="0.8"/>
+      <path d="M64 4 Q70 4 72 12 Q70 20 64 20 L56 20 Q58 16 58 12 Q58 8 56 4 Z" fill="url(#wrenchG)" stroke="#2a2a2a" stroke-width="0.8"/>
+      <rect x="22" y="11" width="36" height="2" fill="rgba(255,255,255,0.3)"/>
+    </symbol>
+    <symbol id="t-screwdriver" viewBox="0 0 60 16">
+      <rect x="6" y="5" width="22" height="6" rx="2" fill="#c4172e" stroke="#4a060f" stroke-width="0.8"/>
+      <rect x="6" y="6" width="22" height="2" fill="rgba(255,255,255,0.25)"/>
+      <rect x="28" y="7" width="24" height="2" fill="#a0a0a0" stroke="#4a4a4a" stroke-width="0.5"/>
+      <polygon points="52,5 56,8 52,11" fill="#888"/>
+    </symbol>
+    <symbol id="t-scantool" viewBox="0 0 60 70">
+      <rect x="8" y="6" width="44" height="50" rx="4" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="1.5"/>
+      <rect x="14" y="12" width="32" height="22" rx="1.5" fill="#1a3a1a" stroke="#3a3a3a" stroke-width="0.8"/>
+      <text x="30" y="25" fill="#6cc24a" font-size="4.5" font-family="monospace" text-anchor="middle" font-weight="700">CODE: P0420</text>
+      <text x="30" y="32" fill="#6cc24a" font-size="3.5" font-family="monospace" text-anchor="middle">O2 SENSOR</text>
+      <circle cx="18" cy="42" r="2.5" fill="#c4172e"/>
+      <circle cx="26" cy="42" r="2.5" fill="#ffd166"/>
+      <circle cx="34" cy="42" r="2.5" fill="#6cc24a"/>
+      <rect x="14" y="48" width="32" height="5" rx="1" fill="#1a1a1a"/>
+      <path d="M30 56 Q30 62 30 66" stroke="#4a4a4a" stroke-width="2" fill="none"/>
+    </symbol>
+    <symbol id="t-fluid" viewBox="0 0 40 56">
+      <rect x="10" y="2" width="20" height="6" fill="#3a3a3a" stroke="#1a1a1a" stroke-width="0.8" rx="1"/>
+      <path d="M8 8 L32 8 L34 14 L34 50 Q34 54 30 54 L10 54 Q6 54 6 50 L6 14 Z" fill="#c4172e" stroke="#4a060f" stroke-width="1"/>
+      <rect x="12" y="20" width="16" height="22" fill="#fff5cc" opacity="0.92" rx="1"/>
+      <text x="20" y="34" fill="#4a060f" font-size="6" font-family="monospace" text-anchor="middle" font-weight="800">DOT4</text>
+      <rect x="12" y="11" width="16" height="3" fill="rgba(255,255,255,0.4)"/>
+    </symbol>
+    <symbol id="t-tire" viewBox="0 0 50 50">
+      <circle cx="25" cy="25" r="22" fill="#1a1a1a" stroke="#0a0a0a" stroke-width="1"/>
+      <circle cx="25" cy="25" r="14" fill="#3a3a3a"/>
+      <circle cx="25" cy="25" r="6" fill="#5a5a5a"/>
+      <circle cx="25" cy="25" r="2" fill="#8a8a8a"/>
+      <line x1="25" y1="11" x2="25" y2="39" stroke="#5a5a5a" stroke-width="1"/>
+      <line x1="11" y1="25" x2="39" y2="25" stroke="#5a5a5a" stroke-width="1"/>
+      <line x1="15" y1="15" x2="35" y2="35" stroke="#5a5a5a" stroke-width="1"/>
+      <line x1="35" y1="15" x2="15" y2="35" stroke="#5a5a5a" stroke-width="1"/>
+    </symbol>
+    <symbol id="t-phone" viewBox="0 0 40 60">
+      <rect x="6" y="4" width="28" height="52" rx="4" fill="#1a1a1a" stroke="#0a0a0a" stroke-width="1"/>
+      <rect x="9" y="9" width="22" height="38" rx="1" fill="#2a2a2a"/>
+      <circle cx="20" cy="51" r="2" fill="#4a4a4a"/>
+      <rect x="11" y="11" width="18" height="3" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="t-clipboard" viewBox="0 0 60 80">
+      <rect x="6" y="8" width="48" height="68" rx="2" fill="#c89058" stroke="#5a3818" stroke-width="1.5"/>
+      <rect x="22" y="2" width="16" height="8" rx="2" fill="#5a3818"/>
+      <rect x="26" y="6" width="8" height="2" fill="#3a2208"/>
+      <line x1="14" y1="22" x2="46" y2="22" stroke="#5a3818" stroke-width="1"/>
+      <line x1="14" y1="32" x2="46" y2="32" stroke="#8a6038" stroke-width="0.8"/>
+      <line x1="14" y1="42" x2="42" y2="42" stroke="#8a6038" stroke-width="0.8"/>
+      <line x1="14" y1="52" x2="46" y2="52" stroke="#8a6038" stroke-width="0.8"/>
+      <line x1="14" y1="62" x2="36" y2="62" stroke="#8a6038" stroke-width="0.8"/>
+    </symbol>
+
+    <!-- GARAGE BACKDROP -->
+    <symbol id="garage-bg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3a3e48"/>
+          <stop offset="100%" stop-color="#1a1d24"/>
+        </linearGradient>
+        <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#5a3520"/>
+          <stop offset="100%" stop-color="#2a1f10"/>
+        </linearGradient>
+        <pattern id="brickPattern" x="0" y="0" width="60" height="22" patternUnits="userSpaceOnUse">
+          <rect width="60" height="22" fill="url(#wallGrad)"/>
+          <line x1="0" y1="0" x2="60" y2="0" stroke="rgba(0,0,0,0.4)" stroke-width="1"/>
+          <line x1="30" y1="0" x2="30" y2="22" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>
+        </pattern>
+        <pattern id="floorPattern" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+          <rect width="60" height="60" fill="url(#floorGrad)"/>
+          <line x1="0" y1="0" x2="60" y2="0" stroke="rgba(0,0,0,0.4)" stroke-width="1"/>
+          <line x1="0" y1="0" x2="0" y2="60" stroke="rgba(0,0,0,0.4)" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <!-- wall -->
+      <rect x="0" y="0" width="800" height="240" fill="url(#brickPattern)"/>
+      <!-- garage door at top right -->
+      <rect x="540" y="20" width="220" height="200" fill="#3a3a3a" stroke="#1a1a1a" stroke-width="2"/>
+      <line x1="540" y1="60" x2="760" y2="60" stroke="#1a1a1a" stroke-width="1"/>
+      <line x1="540" y1="100" x2="760" y2="100" stroke="#1a1a1a" stroke-width="1"/>
+      <line x1="540" y1="140" x2="760" y2="140" stroke="#1a1a1a" stroke-width="1"/>
+      <line x1="540" y1="180" x2="760" y2="180" stroke="#1a1a1a" stroke-width="1"/>
+      <text x="650" y="135" fill="#5a5a5a" font-size="22" font-family="Impact, sans-serif" text-anchor="middle" font-weight="900">BAY 2</text>
+      <!-- pegboard -->
+      <rect x="40" y="40" width="180" height="100" fill="#a06a30" stroke="#3a2208" stroke-width="2" rx="3"/>
+      <g fill="#3a2208">
+        <circle cx="60" cy="60" r="2"/><circle cx="90" cy="60" r="2"/><circle cx="120" cy="60" r="2"/><circle cx="150" cy="60" r="2"/><circle cx="180" cy="60" r="2"/><circle cx="200" cy="60" r="2"/>
+        <circle cx="60" cy="90" r="2"/><circle cx="90" cy="90" r="2"/><circle cx="120" cy="90" r="2"/><circle cx="150" cy="90" r="2"/><circle cx="180" cy="90" r="2"/><circle cx="200" cy="90" r="2"/>
+        <circle cx="60" cy="120" r="2"/><circle cx="90" cy="120" r="2"/><circle cx="120" cy="120" r="2"/><circle cx="150" cy="120" r="2"/><circle cx="180" cy="120" r="2"/><circle cx="200" cy="120" r="2"/>
+      </g>
+      <!-- mounted tools on pegboard -->
+      <use href="#t-wrench" x="50" y="68" width="60" height="18"/>
+      <use href="#t-wrench" x="120" y="68" width="60" height="18" transform="rotate(15 150 77)"/>
+      <use href="#t-screwdriver" x="55" y="100" width="50" height="14"/>
+      <use href="#t-screwdriver" x="115" y="100" width="50" height="14"/>
+      <use href="#t-screwdriver" x="55" y="118" width="50" height="14"/>
+      <!-- shop sign -->
+      <rect x="280" y="50" width="200" height="60" fill="#1a1d24" stroke="#ff8a3d" stroke-width="2" rx="3"/>
+      <text x="380" y="80" fill="#ff8a3d" font-size="18" font-family="Impact, sans-serif" text-anchor="middle" font-weight="900" letter-spacing="2">UNDER THE HOOD</text>
+      <text x="380" y="98" fill="#9ba0ad" font-size="9" font-family="monospace" text-anchor="middle" letter-spacing="3">SINCE 1998</text>
+      <!-- toolbox stack right side near floor -->
+      <rect x="490" y="190" width="60" height="40" fill="#c4172e" stroke="#4a060f" stroke-width="1.5" rx="2"/>
+      <line x1="490" y1="205" x2="550" y2="205" stroke="#4a060f" stroke-width="1.5"/>
+      <rect x="514" y="194" width="12" height="4" rx="1" fill="#4a060f"/>
+      <rect x="495" y="222" width="50" height="14" fill="#8a0e1f" stroke="#3a060f" stroke-width="1"/>
+      <!-- tire stack -->
+      <ellipse cx="50" cy="225" rx="34" ry="10" fill="#1a1a1a" stroke="#0a0a0a" stroke-width="1"/>
+      <ellipse cx="50" cy="218" rx="34" ry="10" fill="#1a1a1a" stroke="#0a0a0a" stroke-width="1"/>
+      <ellipse cx="50" cy="211" rx="34" ry="10" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="1"/>
+      <ellipse cx="50" cy="208" rx="22" ry="6" fill="#3a3a3a"/>
+      <!-- floor -->
+      <rect x="0" y="240" width="800" height="160" fill="url(#floorPattern)"/>
+      <!-- oil stains -->
+      <ellipse cx="200" cy="320" rx="40" ry="6" fill="rgba(0,0,0,0.4)"/>
+      <ellipse cx="600" cy="340" rx="32" ry="5" fill="rgba(0,0,0,0.3)"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div id="title-screen">
+  <div class="brand-top">Mr. Jawad's Simulations</div>
+  <div class="title-scene">
+    <div class="ts-wall"></div>
+    <div class="ts-pegboard">
+      <svg viewBox="0 0 80 24" style="position:absolute; top:8px; left:6px; width:42px; height:14px;"><use href="#t-wrench"/></svg>
+      <svg viewBox="0 0 80 24" style="position:absolute; top:8px; left:50px; width:32px; height:10px; transform:rotate(20deg);"><use href="#t-wrench"/></svg>
+      <svg viewBox="0 0 60 16" style="position:absolute; top:32px; left:8px; width:36px; height:10px;"><use href="#t-screwdriver"/></svg>
+      <svg viewBox="0 0 60 16" style="position:absolute; top:32px; left:48px; width:36px; height:10px;"><use href="#t-screwdriver"/></svg>
+    </div>
+    <div class="ts-light">
+      <div class="ts-light-cone"></div>
+    </div>
+    <div class="ts-toolbox"></div>
+    <div class="ts-floor"></div>
+    <div class="ts-lift">
+      <div class="ts-lift-post left"></div>
+      <div class="ts-lift-post right"></div>
+      <div class="ts-lift-bar"></div>
+      <div class="ts-car-wrap">
+        <svg viewBox="0 0 200 90" style="width: 150px; height: 68px;"><use href="#car-sedan"/></svg>
+      </div>
+    </div>
+    <div class="ts-mechanic">🧑‍🔧</div>
+    <div class="ts-spark"></div>
+  </div>
+  <h1>MECHANIC</h1>
+  <div class="title-subtitle">UNDER THE HOOD</div>
+  <div class="title-tagline">Run your shop for a day. Read each customer. Pick the right fix. Some come back happy. Some come back broken.</div>
+  <button id="start-btn" class="cta-btn">▸ START THE DAY</button>
+  <div class="brand-bottom">SESSION 1 · LIFE SKILLS LAB</div>
+</div>
+
+<div id="game-screen">
+  <div class="top-bar">
+    <div class="brand-mini">Mr. Jawad's Simulations</div>
+    <div class="day-timeline">
+      <div class="day-label">DAY</div>
+      <div class="timeline-track">
+        <div class="timeline-bar" id="timeline-bar"></div>
+        <div class="timeline-stage" id="timeline-stage">MORNING</div>
+      </div>
+    </div>
+    <div class="round-indicator" id="round-indicator">CUSTOMER 1 / 7</div>
+  </div>
+
+  <div class="hud" id="hud"></div>
+
+  <div class="game-body">
+    <div class="side-rail left-rail" id="left-rail"></div>
+    <div class="main-stage">
+      <div class="context-tag" id="context-tag">
+        <div class="context-avatar" id="context-avatar">👤</div>
+        <div class="context-body">
+          <div class="context-name" id="context-name">CUSTOMER</div>
+          <div class="context-text" id="context-text">…</div>
+        </div>
+      </div>
+      <div class="arena" id="arena">
+        <div class="arena-backdrop" id="arena-backdrop">
+          <svg viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice"><use href="#garage-bg"/></svg>
+        </div>
+        <div class="hanging-light" style="left: 18%;">
+          <div class="cord"></div><div class="lamp"><div class="bulb"></div></div><div class="cone"></div>
+        </div>
+        <div class="hanging-light" style="right: 18%;">
+          <div class="cord"></div><div class="lamp"><div class="bulb"></div></div><div class="cone"></div>
+        </div>
+        <div class="arena-scene" id="arena-scene"></div>
+      </div>
+      <div class="decision-panel">
+        <div class="situation-text" id="situation-text">…</div>
+        <div class="choices">
+          <button class="choice-btn" id="choice-a"><span class="choice-tag">OPTION A</span><span id="choice-a-label">…</span></button>
+          <button class="choice-btn" id="choice-b"><span class="choice-tag">OPTION B</span><span id="choice-b-label">…</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="side-rail right-rail" id="right-rail">
+      <div class="cash-tracker" id="cash-tracker">
+        <div class="cash-label">DAILY INCOME</div>
+        <div class="cash-amount" id="cash-amount">$400</div>
+      </div>
+      <div class="xp-track">
+        <div class="xp-label">LEVEL <span class="lvl" id="level-num">1</span></div>
+        <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
+      </div>
+      <div id="powerup-rail"></div>
+    </div>
+  </div>
+
+  <div class="popup-overlay" id="popup-overlay">
+    <div class="popup-box" id="popup-box">
+      <div class="popup-icon" id="popup-icon">⚙️</div>
+      <div class="popup-title" id="popup-title">…</div>
+      <div class="popup-text" id="popup-text">…</div>
+      <button class="popup-btn" id="popup-btn">Continue ▸</button>
+    </div>
+  </div>
+
+  <div class="mini-popup" id="mini-popup"></div>
+  <div class="powerup-toast" id="powerup-toast">
+    <div class="pu-icon">🔓</div>
+    <div class="pu-name">POWER-UP UNLOCKED</div>
+    <div id="pu-toast-text">…</div>
+  </div>
+</div>
+
+<div id="end-screen">
+  <div class="end-tier" id="end-tier">
+    <div class="tier-label" id="tier-label">SHOP SURVIVED</div>
+    <div class="tier-line" id="tier-line">You kept the doors open today.</div>
+  </div>
+  <div class="end-meters" id="end-meters"></div>
+  <div class="highlight-reel">
+    <div class="hr-title">Highlight Reel — Today You…</div>
+    <div id="highlight-list"></div>
+  </div>
+  <div class="customer-wall">
+    <div class="cw-title">Customer Wall — Who Left Happy</div>
+    <div class="cw-grid" id="cw-grid"></div>
+  </div>
+  <div class="replay-section">
+    <div class="replay-headline" id="replay-headline">Try again — chase Legendary Day. Customer order shuffles each run.</div>
+    <button class="replay-btn" id="replay-btn">▸ PLAY AGAIN</button>
+  </div>
+  <div class="data-layer">
+    <button class="data-toggle" id="data-toggle">▾ Show Details</button>
+    <div class="data-content" id="data-content">
+      <div class="data-table-wrap">
+        <table class="data-table" id="data-table"></table>
+      </div>
+      <button class="copy-btn" id="copy-btn">📋 Copy Data</button>
+    </div>
+  </div>
+  <div class="brand-end">
+    <div class="be-mark">Mr. Jawad's Simulations</div>
+    <div class="be-tag">Life Skills Lab · Mechanic S1</div>
+  </div>
+</div>
+
+<button class="hf-stuck" id="hf-stuck">I'm Stuck — Skip</button>
+<button class="hf-restart" id="hf-restart">↺ Restart</button>
+
+<script>
+(function(){
+  'use strict';
+
+  var state;
+
+  function freshState() {
+    return {
+      round: 0,
+      _roundGen: 0,
+      meters: { trust: 50, cash: 400, pace: 60, diag: 30, repair: 40 },
+      revealed: { trust: true, cash: true, pace: true, diag: false, repair: false },
+      xp: 0,
+      level: 1,
+      decisions: [],
+      delayedFlags: [],
+      systemDiag: { engine: 0, brakes: 0, electrical: 0, transmission: 0, suspension: 0, tires: 0 },
+      patternsUnlocked: {},
+      trustHistory: [],
+      wordOfMouthFired: false,
+      wordOfMouthArmed: false,
+      seenThisBeforeFired: false,
+      choiceLocked: false,
+      popupOpen: false,
+      customerOutcomes: [],
+      highlightMoments: [],
+      sideIndicators: [],
+      waitingCustomerBonus: 0,
+      lastClickAt: Date.now(),
+      r2Outcome: null,
+      r6Outcome: null,
+      _wordOfMouthQueuedForNextRound: false
+    };
+  }
+
+  var ROUNDS = [
+    {
+      id: 1, type: 'customer', name: 'Brake Squeal', stage: 'MORNING', system: 'brakes',
+      customer: { name: 'MARIA', avatar: '👩', tagline: 'Single parent. 7am school dropoff TOMORROW. Kid in the passenger seat. Says "just make it safe enough to drive."' },
+      situation: 'Brake pads are worn. Quick fix replaces front pads only. Full diagnostic checks rotors, rear pads, and brake fluid too.',
+      preChoiceSetup: function() { addSideIndicator('alert', '⏰ URGENT', '7AM dropoff tomorrow. Kid in the car.', 'r1-clock'); },
+      arena: 'maria-base',
+      options: {
+        A: { label: 'Quick Pad Swap', tag: 'FAST · MATCHES HER ASK', effects: { trust: 5, cash: 120, pace: 5, repair: -10, diag: 0 }, fullPopup: false, miniText: 'Pad swap done — Maria makes the dropoff.', arena: 'maria-quick', customerColor: 'green', highlight: 'read Maria right — she got to school on time' },
+        B: { label: 'Full Brake Inspection', tag: 'THOROUGH · MORE TIME', effects: { trust: -10, cash: 80, pace: -10, repair: 15, diag: 15 }, fullPopup: { type: 'reveal', icon: '🛑', title: 'Maria left late.', text: 'You found a slow brake fluid leak — but Maria was watching the clock the whole time.' }, miniText: null, arena: 'maria-full', customerColor: 'yellow', highlight: 'found a brake fluid leak Maria didn\'t know about — but she left late' }
+      }
+    },
+    {
+      id: 2, type: 'customer', name: 'Engine Light On', stage: 'MORNING', system: 'engine', revealMeter: 'diag',
+      customer: { name: 'DRE', avatar: '🧑🏽', tagline: 'Drives for a delivery app. Says "something feels off when the light\'s been on this long, but I can\'t afford a big repair right now."' },
+      situation: 'Engine light could be a $20 sensor or a $400 catalytic converter. Quick fix clears the code. Full diagnostic finds the real cause.',
+      arena: 'dre-base',
+      options: {
+        A: { label: 'Clear the Code', tag: 'FAST · MATCHES HIS WALLET', effects: { trust: 5, cash: 60, pace: 0, repair: -10, diag: 0 }, delayedFlag: { percent: 30, label: 'Car may return broken', system: 'engine' }, fullPopup: { type: 'event', icon: '⚠️', title: 'The light is off. The problem isn\'t.', text: 'Dre fist-bumps you and drives away — but the real fault is still there.' }, arena: 'dre-quick', customerColor: 'green', highlight: 'respected Dre\'s wallet — but the engine fault is still in there' },
+        B: { label: 'Run Full Diagnostic', tag: 'THOROUGH · MATCHES HIS WORRY', dynamic: true, fullPopup: { type: 'reveal', icon: '🔍', title: 'Diagnostic Read unlocked.', text: 'You can see the real picture now. Dre is checking his phone calculator…' }, arena: 'dre-full', customerColor: 'pending', highlight: 'ran the diagnostic — Dre saw the truth, then had to decide' }
+      }
+    },
+    {
+      id: 3, type: 'customer', name: 'Squeaky Belt', stage: 'MIDDAY', system: 'engine', revealMeter: 'repair',
+      customer: { name: 'MR. PATEL', avatar: '👴🏽', tagline: 'Retired regular. Brings his car here 3 times a year. Says "whatever you think is best."' },
+      situation: 'Belt is squeaking. Quick fix sprays belt dressing — quiet for a month. Full diagnostic replaces the belt and checks the tensioner.',
+      preChoiceSetup: function() { addSideIndicator('warn', '🪟 NEXT IN LINE', 'Customer waiting outside (+$120 if bay frees up)', 'r3-waiting'); },
+      arena: 'patel-base',
+      options: {
+        A: { label: 'Belt Spray', tag: 'FAST · BAY OPENS UP', effects: { trust: 3, cash: 40, pace: 10, repair: -15, diag: 0 }, waitingBonusNext: 120, fullPopup: false, miniText: 'Belt quiet for a month. Bay opens up.', arena: 'patel-quick', customerColor: 'yellow', highlight: 'took the quick belt spray — Mr. Patel left polite, not delighted' },
+        B: { label: 'Replace Belt + Check Tensioner', tag: 'THOROUGH · DEEPER LOOK', effects: { trust: 8, cash: 120, pace: -5, repair: 15, diag: 5 }, futureWorkFlag: { label: 'Mr. Patel: $400 future work flagged' }, fullPopup: { type: 'reveal', icon: '🔧', title: 'Repair Quality unlocked.', text: 'He thanked you twice. He\'s worried about the money.' }, arena: 'patel-full', customerColor: 'yellow', highlight: 'found a worn tensioner — Mr. Patel thanked you, then went quiet about the bill' }
+      }
+    },
+    {
+      id: 4, type: 'event', name: 'Walk-In Rush', stage: 'MIDDAY', system: null, eventLabel: 'WALK-IN RUSH',
+      customer: { name: 'EVENT', avatar: '⚡', tagline: 'Two cars roll into your lot at the same time. One regular customer. One stranger with a smoking engine. Your bay is full.' },
+      situation: 'No appointments. The regular trusts you. The stranger needs help fast.',
+      arena: 'event-rush-base',
+      options: {
+        A: { label: 'Take Both — Squeeze Them In', tag: 'DOUBLE INCOME · DOUBLE STRESS', effects: { trust: 10, cash: 220, pace: -20, repair: -10, diag: 0 }, fullPopup: { type: 'event', icon: '⚡', title: 'You took both. Hope nothing comes back.', text: 'Two cars in one bay. Tools scattered. Both customers checking the time.' }, arena: 'event-rush-both', customerColor: 'yellow', highlight: 'squeezed both cars in — your shop is drowning, but everyone got served' },
+        B: { label: 'Triage — Send Stranger to Friend', tag: 'PROTECT THE REGULAR', effects: { trust: 3, cash: 140, pace: 0, repair: 0, diag: 0 }, fullPopup: { type: 'event', icon: '📞', title: 'You protected the regular and lost the stranger.', text: 'The regular goes up on the lift. The stranger drives off looking back.' }, arena: 'event-rush-triage', customerColor: 'yellow', highlight: 'triaged the rush — protected the regular, lost the stranger' }
+      }
+    },
+    {
+      id: 5, type: 'customer', name: 'Tire Pressure Light', stage: 'AFTERNOON', system: 'tires',
+      customer: { name: 'JEN', avatar: '👩🏼', tagline: 'Driving 6 hours to her sister\'s wedding tomorrow. Already running late. Says "just check my tires real quick."' },
+      situation: 'Tire pressure light came on. Quick fix tops off air. Full diagnostic checks for slow leaks and tread wear.',
+      preChoiceSetup: function() { addSideIndicator('warn', '👀 LOOK CLOSER', 'Walk-around shows rear-left tire visibly lower', 'r5-cue'); },
+      arena: 'jen-base',
+      options: {
+        A: { label: 'Top Off the Air', tag: 'FAST · GETS HER ON THE ROAD', effects: { trust: 5, cash: 20, pace: 10, repair: -5, diag: 0 }, delayedFlag: { percent: 60, label: 'Low tire was a slow leak', system: 'tires' }, fullPopup: false, miniText: 'Air topped off — Jen makes her wedding window.', arena: 'jen-quick', customerColor: 'yellow', highlight: 'missed the visible low tire — Jen drove off with a slow leak' },
+        B: { label: 'Tire and Tread Check', tag: 'THOROUGH · YOU SAW THE LEAK', effects: { trust: 12, cash: 0, pace: -10, repair: 10, diag: 10 }, waivedBill: 45, fullPopup: false, miniText: 'Slow leak patched. You waived the bill.', arena: 'jen-full', customerColor: 'green', highlight: 'caught the slow leak in Jen\'s rear-left tire — and waived the bill' }
+      }
+    },
+    {
+      id: 6, type: 'event', name: 'Parts Delivery Late', stage: 'AFTERNOON', system: 'transmission', eventLabel: 'PARTS DELIVERY LATE',
+      customer: { name: 'EVENT', avatar: '📦', tagline: 'Transmission part won\'t arrive until tomorrow afternoon. Customer is here NOW, expecting their car back tonight.' },
+      situation: 'You can patch the job with what you have, or be honest and hold the car overnight.',
+      arena: 'event-parts-base',
+      options: {
+        A: { label: 'Patch It Together', tag: 'CAR HOME TONIGHT', effects: { trust: 5, cash: 140, pace: 0, repair: -15, diag: 0 }, delayedFlag: { percent: 40, label: 'May come back worse next session', system: 'transmission' }, fullPopup: { type: 'event', icon: '🛠️', title: 'It runs tonight. It might come back worse tomorrow.', text: 'You used a borrowed part that\'s not quite right. Customer drives off relieved.' }, arena: 'event-parts-patch', customerColor: 'yellow', highlight: 'patched the transmission with what you had — risk flagged for next time' },
+        B: { label: 'Tell the Truth — Pickup Tomorrow', tag: 'HONEST · HOLDS THE CAR', dynamic: true, fullPopup: { type: 'event', icon: '🤝', title: 'You told them straight. Now you wait.', text: 'Their car stays on the lift overnight. No payment until pickup.' }, arena: 'event-parts-truth', customerColor: 'pending', highlight: 'told the customer the truth — held the car for the right part' }
+      }
+    },
+    {
+      id: 7, type: 'customer', name: 'End of Day Walk-In', stage: 'CLOSING', system: 'brakes',
+      customer: { name: 'CARLOS', avatar: '👨🏽', tagline: 'Pulls up at 4:55pm. Shop closes at 5. Brake light is on. Has work tomorrow at 6am.' },
+      situation: 'You\'re tired. Shop is closing. Carlos is begging.',
+      arena: 'carlos-base',
+      options: {
+        A: { label: 'Stay Late and Diagnose Right', tag: 'GIVE HIM THE FIX', effects: { trust: 15, cash: 160, pace: -20, repair: 10, diag: 5 }, missedCalls: 4, fullPopup: false, miniText: 'Long day. He won\'t forget it.', arena: 'carlos-stay', customerColor: 'green', highlight: 'stayed late for Carlos — phone showed 4 missed calls from home' },
+        B: { label: 'Call Ahead — Send to a Shop Open Later', tag: 'PROTECT YOUR NIGHT', effects: { trust: 8, cash: 60, pace: 0, repair: 0, diag: 0 }, referralKickback: 60, fullPopup: false, miniText: 'You didn\'t let one customer take over your whole night.', arena: 'carlos-call', customerColor: 'green', highlight: 'sent Carlos to a friend\'s shop — got the kickback, kept your night' }
+      }
+    }
+  ];
+
+  function $(id){ return document.getElementById(id); }
+
+  var audioCtx = null;
+  function getAudioCtx() {
+    if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; } }
+    return audioCtx;
+  }
+  function playTone(freq, dur, type, gain) {
+    try {
+      var ctx = getAudioCtx();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+      var osc = ctx.createOscillator();
+      var g = ctx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(gain || 0.06, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + dur + 0.05);
+    } catch(e) {}
+  }
+  function chimeCash() { playTone(880, 0.12, 'sine', 0.05); setTimeout(function(){ playTone(1320, 0.18, 'sine', 0.05); }, 80); }
+  function chimeReveal() { playTone(660, 0.18, 'triangle', 0.06); setTimeout(function(){ playTone(990, 0.25, 'triangle', 0.06); }, 120); }
+  function chimeUp() { playTone(550, 0.1, 'sine', 0.05); }
+  function chimeDown() { playTone(220, 0.18, 'sawtooth', 0.04); }
+  function chimePowerup() {
+    playTone(440, 0.12, 'square', 0.05);
+    setTimeout(function(){ playTone(660, 0.12, 'square', 0.05); }, 100);
+    setTimeout(function(){ playTone(880, 0.2, 'square', 0.05); }, 200);
+  }
+
+  var METER_CONFIG = {
+    trust:  { name: 'Customer Trust', primary: true,  states: ['SUSPICIOUS', 'REGULAR', 'LOYAL FANS'], thresholds: [35, 70], display: 100 },
+    cash:   { name: 'Cash Flow',      primary: false, states: ['IN THE RED', 'PAYING BILLS', 'PROFITABLE'], thresholds: [200, 800], display: 1500, isCash: true },
+    pace:   { name: 'Shop Pace',      primary: false, states: ['DROWNING', 'STEADY', 'AHEAD OF SCHEDULE'], thresholds: [35, 75], display: 100 },
+    diag:   { name: 'Diagnostic Read',primary: false, states: ['GUESSING', 'SCANNING', 'DIALED IN'], thresholds: [35, 70], display: 100 },
+    repair: { name: 'Repair Quality', primary: false, states: ['SLOPPY', 'SOLID', 'PRO GRADE'], thresholds: [35, 70], display: 100 }
+  };
+
+  function meterZone(key, value) {
+    var cfg = METER_CONFIG[key];
+    if (value < cfg.thresholds[0]) return 'low';
+    if (value < cfg.thresholds[1]) return 'mid';
+    return 'high';
+  }
+  function meterStateLabel(key, value) {
+    var z = meterZone(key, value);
+    return METER_CONFIG[key].states[z === 'low' ? 0 : (z === 'mid' ? 1 : 2)];
+  }
+  function meterPercent(key, value) {
+    var cfg = METER_CONFIG[key];
+    var pct = (value / cfg.display) * 100;
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    return pct;
+  }
+
+  function validateMeters() {
+    try {
+      var m = state.meters;
+      Object.keys(m).forEach(function(k){
+        if (typeof m[k] !== 'number' || isNaN(m[k])) m[k] = 0;
+        if (m[k] < 0) m[k] = 0;
+      });
+    } catch(e){}
+  }
+
+  function renderHUD() {
+    try {
+      var hud = $('hud');
+      hud.innerHTML = '';
+      ['trust','cash','pace','diag','repair'].forEach(function(key){
+        var cfg = METER_CONFIG[key];
+        var val = state.meters[key];
+        var zone = meterZone(key, val);
+        var div = document.createElement('div');
+        div.className = 'meter' + (cfg.primary ? ' primary' : '') + (state.revealed[key] ? '' : ' hidden');
+        div.id = 'meter-' + key;
+        div.innerHTML =
+          '<div class="meter-name">' + cfg.name + '</div>' +
+          '<div class="meter-bar"><div class="meter-fill zone-' + zone + '" id="fill-' + key + '" style="width:' + meterPercent(key, val) + '%"></div></div>' +
+          '<div class="meter-state zone-' + zone + '" id="state-' + key + '">' + (cfg.isCash ? '$' + val : meterStateLabel(key, val)) + '</div>' +
+          '<div class="meter-delta" id="delta-' + key + '"></div>';
+        hud.appendChild(div);
+      });
+      $('cash-amount').textContent = '$' + state.meters.cash;
+      updateXPBar();
+      updateTimeline();
+    } catch(e) { console.error('HUD render error:', e); }
+  }
+
+  function applyEffects(effects, animate) {
+    try {
+      if (!effects) return;
+      Object.keys(effects).forEach(function(k){
+        var delta = effects[k];
+        if (!delta) return;
+        var key = k;
+        var before = state.meters[key];
+        state.meters[key] = before + delta;
+        if (state.meters[key] < 0) state.meters[key] = 0;
+        if (animate) animateMeter(key, delta);
+      });
+      validateMeters();
+      renderMeterValues();
+    } catch(e){ console.error('applyEffects error:', e); }
+  }
+
+  function renderMeterValues() {
+    try {
+      ['trust','cash','pace','diag','repair'].forEach(function(key){
+        var cfg = METER_CONFIG[key];
+        var val = state.meters[key];
+        var zone = meterZone(key, val);
+        var fill = $('fill-' + key);
+        var lbl = $('state-' + key);
+        if (fill) {
+          fill.style.width = meterPercent(key, val) + '%';
+          fill.className = 'meter-fill zone-' + zone;
+        }
+        if (lbl) {
+          lbl.textContent = cfg.isCash ? ('$' + val) : meterStateLabel(key, val);
+          lbl.className = 'meter-state zone-' + zone;
+        }
+      });
+      $('cash-amount').textContent = '$' + state.meters.cash;
+    } catch(e){}
+  }
+
+  function animateMeter(key, delta) {
+    try {
+      var meterEl = $('meter-' + key);
+      var deltaEl = $('delta-' + key);
+      if (meterEl) {
+        meterEl.classList.add('meter-bump');
+        setTimeout(function(){ if(meterEl) meterEl.classList.remove('meter-bump'); }, 600);
+      }
+      if (deltaEl && delta !== 0) {
+        if (delta > 0) deltaEl.textContent = (key === 'cash' ? '+$' + delta : '+' + delta);
+        else deltaEl.textContent = (key === 'cash' ? '-$' + Math.abs(delta) : delta + '');
+        deltaEl.className = 'meter-delta ' + (delta > 0 ? 'up' : 'down') + ' show';
+        if (delta > 0) chimeUp(); else chimeDown();
+        setTimeout(function(){ if(deltaEl) deltaEl.className = 'meter-delta'; }, 1700);
+      }
+      if (key === 'cash' && delta >= 100) {
+        var ct = $('cash-tracker');
+        if (ct) {
+          ct.classList.add('chime');
+          chimeCash();
+          setTimeout(function(){ if(ct) ct.classList.remove('chime'); }, 700);
+        }
+      }
+    } catch(e){}
+  }
+
+  function revealMeter(key) {
+    try {
+      if (state.revealed[key]) return;
+      state.revealed[key] = true;
+      var el = $('meter-' + key);
+      if (el) {
+        el.classList.remove('hidden');
+        el.classList.add('revealing');
+        chimeReveal();
+        setTimeout(function(){ if(el) el.classList.remove('revealing'); }, 1300);
+      }
+    } catch(e){}
+  }
+
+  function updateXPBar() {
+    try {
+      var xpPct = (state.xp / 7) * 100;
+      if (xpPct > 100) xpPct = 100;
+      $('xp-fill').style.width = xpPct + '%';
+      $('level-num').textContent = state.level;
+    } catch(e){}
+  }
+  function awardXP() {
+    state.xp++;
+    if (state.round >= 7) state.level = 4;
+    else if (state.round >= 5 && state.level < 3) state.level = 3;
+    else if (state.round >= 3 && state.level < 2) state.level = 2;
+    updateXPBar();
+  }
+
+  function updateTimeline() {
+    try {
+      var pct = (state.round / 7) * 100;
+      $('timeline-bar').style.width = pct + '%';
+      var stage = 'MORNING';
+      if (state.round >= 6) stage = 'CLOSING';
+      else if (state.round >= 4) stage = 'AFTERNOON';
+      else if (state.round >= 3) stage = 'MIDDAY';
+      $('timeline-stage').textContent = stage;
+      var displayRound = state.round < 1 ? 1 : (state.round > 7 ? 7 : state.round);
+      $('round-indicator').textContent = 'CUSTOMER ' + displayRound + ' / 7';
+    } catch(e){}
+  }
+
+  function addSideIndicator(kind, title, value, idTag) {
+    try {
+      var rail = $('left-rail');
+      if (!rail) return;
+      var card = document.createElement('div');
+      card.className = 'side-card appearing ' + (kind || '');
+      card.dataset.idtag = idTag || '';
+      card.innerHTML = '<div class="side-title">' + title + '</div><div class="side-value">' + value + '</div>';
+      rail.appendChild(card);
+      state.sideIndicators.push({ idTag: idTag, kind: kind });
+      setTimeout(function(){ if(card) card.classList.remove('appearing'); }, 700);
+    } catch(e){}
+  }
+  function clearSideIndicators(persistTags) {
+    try {
+      var rail = $('left-rail');
+      if (!rail) return;
+      var keep = persistTags || [];
+      var existing = rail.querySelectorAll('.side-card');
+      Array.prototype.forEach.call(existing, function(el){
+        if (keep.indexOf(el.dataset.idtag) === -1) el.remove();
+      });
+      state.sideIndicators = state.sideIndicators.filter(function(s){ return keep.indexOf(s.idTag) > -1; });
+    } catch(e){}
+  }
+
+  function addPatternBadge(systemKey) {
+    try {
+      var rail = $('right-rail');
+      if (!rail) return;
+      var existing = document.querySelector('.pattern-badge[data-sys="' + systemKey + '"]');
+      var count = state.systemDiag[systemKey];
+      var unlocked = count >= 3;
+      var label = systemKey.charAt(0).toUpperCase() + systemKey.slice(1);
+      if (existing) {
+        existing.querySelector('.pb-count').textContent = unlocked ? 'PATTERN UNLOCKED' : (count + ' / 3');
+        if (unlocked) existing.classList.add('unlocked');
+      } else {
+        if (count < 1) return;
+        var pb = document.createElement('div');
+        pb.className = 'pattern-badge appearing' + (unlocked ? ' unlocked' : '');
+        pb.dataset.sys = systemKey;
+        pb.innerHTML = '<div class="pb-name">PATTERN: ' + label + '</div><div class="pb-count">' + (unlocked ? 'PATTERN UNLOCKED' : (count + ' / 3')) + '</div>';
+        rail.appendChild(pb);
+        setTimeout(function(){ if(pb) pb.classList.remove('appearing'); }, 700);
+      }
+    } catch(e){}
+  }
+
+  function addPowerupCard(name, desc) {
+    try {
+      var rail = $('powerup-rail');
+      if (!rail) return;
+      var pu = document.createElement('div');
+      pu.className = 'powerup-card';
+      pu.innerHTML = '<div class="pu-title">⭐ ' + name + '</div><div class="pu-desc">' + desc + '</div>';
+      rail.appendChild(pu);
+    } catch(e){}
+  }
+
+  function renderArena(sceneKey) {
+    try {
+      var arena = $('arena-scene');
+      if (!arena) return;
+      arena.innerHTML = sceneHTML(sceneKey);
+      arena.classList.remove('fade-in');
+      void arena.offsetWidth;
+      arena.classList.add('fade-in');
+    } catch(e){ console.error('Arena render error:', e); }
+  }
+
+  // ============ SCENE BUILDERS ============
+  function svgCar(type, size, extraStyle) {
+    var w = size || 170;
+    var h = w * 90 / 200;
+    return '<div class="svg-car-wrap" style="' + (extraStyle || '') + '">' +
+           '<svg viewBox="0 0 200 90" style="width:' + w + 'px; height:' + h + 'px;">' +
+           '<use href="#car-' + type + '"/></svg></div>';
+  }
+  function svgTool(id, size, style) {
+    var s = size || 50;
+    var ratios = { 'wrench': 0.3, 'screwdriver': 0.27, 'scantool': 1.17, 'fluid': 1.4, 'tire': 1, 'phone': 1.5, 'clipboard': 1.33 };
+    var h = s * (ratios[id] || 1);
+    var vb = { 'wrench': '0 0 80 24', 'screwdriver': '0 0 60 16', 'scantool': '0 0 60 70', 'fluid': '0 0 40 56', 'tire': '0 0 50 50', 'phone': '0 0 40 60', 'clipboard': '0 0 60 80' };
+    return '<div class="svg-tool" style="' + (style || '') + '">' +
+           '<svg viewBox="' + (vb[id] || '0 0 50 50') + '" style="width:' + s + 'px; height:' + h + 'px;">' +
+           '<use href="#t-' + id + '"/></svg></div>';
+  }
+  function portrait(emoji, name, isRegular, posStyle) {
+    return '<div class="portrait-card" style="' + posStyle + '">' +
+           '<div class="portrait-frame' + (isRegular ? ' regular' : '') + '">' + emoji +
+           (isRegular ? '<span class="regular-tag">★ REGULAR</span>' : '') + '</div>' +
+           '<div class="portrait-name">' + name + '</div></div>';
+  }
+  function bubble(text, posStyle) {
+    return '<div class="speech-bubble" style="' + posStyle + '">' + text + '</div>';
+  }
+  function clock(timeText, posStyle) {
+    return '<div class="scene-clock" style="' + (posStyle || '') + '">' + timeText + '</div>';
+  }
+  function headline(text, color) {
+    return '<div class="scene-headline ' + (color || '') + '">' + text + '</div>';
+  }
+  function diagGlow(style) {
+    return '<div class="diag-glow" style="' + style + '"></div>';
+  }
+  function smoke(style, variant) {
+    return '<div class="smoke-cloud ' + (variant || 'puff') + '" style="' + style + '"></div>';
+  }
+  function spark(n, style) {
+    return '<div class="spark s' + (n || 1) + '" style="' + style + '"></div>';
+  }
+  function drip(style) {
+    return '<div class="fluid-drip" style="' + style + '"></div>';
+  }
+  function phonePing(style) {
+    return '<div class="phone-ping" style="' + style + '"></div>';
+  }
+
+  function sceneHTML(key) {
+    switch(key) {
+      case 'idle':
+        return svgCar('sedan', 170);
+
+      case 'maria-base':
+        return clock('7:00 AM<br>DROPOFF') +
+               portrait('👩', 'MARIA', false, 'left:6%; top:24%;') +
+               bubble('"Just make it safe enough to drive."', 'left:24%; top:18%;') +
+               svgCar('sedan', 220, 'margin-top: 20px;') +
+               '<div class="scene-customer" style="right:14%; top:54%; font-size:34px;">🧒</div>' +
+               diagGlow('width:46px; height:18px; bottom:34%; left:30%;') +
+               headline('🛑 Brake pads worn — front axle', 'red');
+
+      case 'maria-quick':
+        return clock('DROPOFF ✓') +
+               svgCar('sedan', 200, 'transform: translateX(140px); opacity: 0.55;') +
+               svgTool('wrench', 60, 'top:38%; left:36%;') +
+               headline('Pads swapped · 30 minutes flat', 'green');
+
+      case 'maria-full':
+        return clock('RUNNING LATE') +
+               portrait('👩', 'MARIA', false, 'right:6%; top:18%;') +
+               bubble('"You still messing with my car?"', 'right:22%; top:8%;') +
+               svgCar('sedan', 220) +
+               svgTool('wrench', 60, 'top:32%; left:24%;') +
+               svgTool('fluid', 36, 'top:36%; right:22%;') +
+               drip('top:55%; right:30%;') +
+               drip('top:55%; right:34%; animation-delay: 0.4s;') +
+               headline('⚠️ Slow brake-fluid leak found', 'red');
+
+      case 'dre-base':
+        return portrait('🧑🏽', 'DRE', false, 'left:6%; top:24%;') +
+               bubble('"Something feels off — but I\'m short on cash."', 'left:24%; top:14%;') +
+               svgCar('hatch', 220) +
+               diagGlow('width:36px; height:36px; top:34%; left:62%;') +
+               '<div class="scene-pulse-icon">⚠️ ENGINE LIGHT ON</div>';
+
+      case 'dre-quick':
+        return svgCar('hatch', 200, 'transform: translateX(120px);') +
+               svgTool('scantool', 56, 'top:30%; left:30%;') +
+               '<div class="scene-headline yellow" style="top:14%;">Code cleared. Light off.</div>' +
+               headline('⚠️ Real fault still in there · 30% comeback risk', 'red');
+
+      case 'dre-full':
+        return svgCar('hatch', 220) +
+               svgTool('scantool', 60, 'top:24%; left:24%;') +
+               diagGlow('width:30px; height:18px; top:38%; left:62%;') +
+               portrait('🧑🏽', 'DRE', false, 'right:8%; top:48%;') +
+               svgTool('phone', 32, 'right:24%; top:36%;') +
+               headline('🔍 O₂ sensor fault confirmed', 'yellow');
+
+      case 'patel-base':
+        return portrait('👴🏽', 'MR. PATEL', true, 'left:6%; top:22%;') +
+               bubble('"Whatever you think is best."', 'left:26%; top:14%;') +
+               svgCar('classic', 220) +
+               '<div class="scene-window" style="top:18%; right:14%; left:auto;"><span class="window-customer">🧍</span></div>' +
+               headline('🔊 Belt squealing on cold start', 'yellow');
+
+      case 'patel-quick':
+        return svgCar('classic', 220) +
+               smoke('top:30%; left:46%;', 'puff') +
+               smoke('top:32%; left:50%;', 'puff-2') +
+               portrait('👴🏽', 'MR. PATEL', true, 'left:6%; top:48%;') +
+               '<div class="scene-window" style="top:18%; right:14%; left:auto;"><span class="window-customer" style="font-size:30px;">🚶</span></div>' +
+               headline('Belt sprayed · bay opens up', 'green');
+
+      case 'patel-full':
+        return svgCar('classic', 220) +
+               svgTool('wrench', 60, 'top:30%; left:18%;') +
+               svgTool('screwdriver', 50, 'top:30%; right:18%;') +
+               diagGlow('width:30px; height:24px; top:36%; left:48%;') +
+               portrait('👴🏽', 'MR. PATEL', true, 'left:6%; top:54%;') +
+               '<div class="scene-headline yellow" style="top:14%;">⚠️ Timing belt: $400 next month</div>' +
+               headline('Tensioner replaced · clean job', 'green');
+
+      case 'event-rush-base':
+        return '<div class="event-banner">⚡ WALK-IN RUSH</div>' +
+               svgCar('sedan', 160, 'transform: translateX(-110px); margin-bottom: 20px;') +
+               '<div class="scene-headline yellow" style="left:14%; bottom:auto; top:42%; transform:none;">REGULAR</div>' +
+               svgCar('hatch', 160, 'transform: translateX(110px); margin-bottom: 20px;') +
+               smoke('top:32%; right:18%;', 'puff') +
+               smoke('top:36%; right:22%;', 'puff-2') +
+               '<div class="scene-headline red" style="right:14%; left:auto; bottom:auto; top:42%; transform:none;">STRANGER · SMOKING</div>';
+
+      case 'event-rush-both':
+        return '<div class="event-banner">⚡ BAY OVERLOADED</div>' +
+               svgCar('sedan', 140, 'transform: translateX(-90px) scale(0.95); margin-bottom: 20px;') +
+               svgCar('hatch', 140, 'transform: translateX(90px) scale(0.95); margin-bottom: 20px;') +
+               svgTool('wrench', 50, 'top:34%; left:24%;') +
+               svgTool('screwdriver', 44, 'top:36%; right:24%;') +
+               spark(1, 'top:40%; left:30%;') +
+               spark(2, 'top:42%; right:32%;') +
+               headline('Pace crashed · everyone got served', 'red');
+
+      case 'event-rush-triage':
+        return '<div class="event-banner">📞 STRANGER REROUTED</div>' +
+               svgCar('sedan', 200) +
+               svgTool('wrench', 56, 'top:30%; left:24%;') +
+               svgCar('hatch', 100, 'position:absolute; right:6%; bottom:30%; transform: translateX(40px); opacity:0.45;') +
+               headline('Regular protected · stranger drove off', 'yellow');
+
+      case 'jen-base':
+        return portrait('👩🏼', 'JEN', false, 'left:6%; top:22%;') +
+               bubble('"Wedding tomorrow! Just check the tires real quick."', 'left:24%; top:10%;') +
+               svgCar('sedan', 220) +
+               '<div class="scene-headline yellow" style="top:14%; right:8%; left:auto; bottom:auto; transform:none;">⚠️ TIRE PRESSURE LIGHT</div>' +
+               '<div class="scene-tires"><span class="tire"></span><span class="tire"></span><span class="tire low"></span><span class="tire"></span></div>' +
+               '<div class="scene-headline" style="bottom:6px;">👀 Look closely — rear-left sits lower</div>';
+
+      case 'jen-quick':
+        return svgCar('sedan', 200, 'transform: translateX(140px); opacity:0.6;') +
+               '<div class="scene-tool" style="top:60%; left:32%; font-size:32px;">💨</div>' +
+               headline('⚠️ Delayed risk 60% · low tire missed', 'red');
+
+      case 'jen-full':
+        return svgCar('sedan', 220) +
+               svgTool('tire', 56, 'top:54%; left:22%;') +
+               svgTool('wrench', 50, 'top:30%; left:30%;') +
+               '<div class="scene-headline green" style="top:14%; right:8%; left:auto; bottom:auto; transform:none;">"ON THE HOUSE" · -$45</div>' +
+               portrait('👩🏼', 'JEN', false, 'right:6%; top:46%;') +
+               headline('Slow leak patched · she nearly cried', 'green');
+
+      case 'event-parts-base':
+        return '<div class="event-banner">📦 PART DELAYED</div>' +
+               svgCar('sedan', 220) +
+               svgTool('clipboard', 60, 'top:24%; left:18%;') +
+               '<div class="scene-headline yellow" style="top:18%; right:8%; left:auto; bottom:auto; transform:none;">PART ARRIVES TOMORROW</div>' +
+               portrait('🧍', 'CUSTOMER', false, 'left:6%; top:54%;');
+
+      case 'event-parts-patch':
+        return '<div class="event-banner">🛠️ PATCHED TOGETHER</div>' +
+               svgCar('sedan', 200, 'transform: translateX(140px); opacity:0.6;') +
+               svgTool('wrench', 50, 'top:30%; left:30%;') +
+               spark(1, 'top:34%; left:36%;') +
+               spark(3, 'top:32%; left:42%;') +
+               headline('⚠️ Delayed risk 40% · part not quite right', 'red');
+
+      case 'event-parts-truth':
+        return '<div class="event-banner">🤝 HONEST CALL</div>' +
+               svgCar('sedan', 220) +
+               portrait('🧍', 'CUSTOMER', false, 'left:6%; top:48%;') +
+               bubble('"…I get it. Tomorrow."', 'left:24%; top:36%;') +
+               headline('Car on lift overnight · pickup tomorrow', 'yellow');
+
+      case 'carlos-base':
+        return clock('4:55 PM<br>CLOSING') +
+               portrait('👨🏽', 'CARLOS', false, 'left:6%; top:24%;') +
+               bubble('"Brake light on — work at 6 AM."', 'left:24%; top:14%;') +
+               svgCar('sedan', 220) +
+               diagGlow('width:46px; height:18px; bottom:34%; left:30%;') +
+               headline('🛑 Brake light on · he\'s begging', 'red');
+
+      case 'carlos-stay':
+        return clock('6:30 PM<br>STILL HERE') +
+               svgCar('sedan', 220) +
+               svgTool('wrench', 56, 'top:24%; left:22%;') +
+               svgTool('scantool', 56, 'top:24%; right:22%;') +
+               '<div style="position:absolute; bottom:30%; right:10%; z-index:6;">' +
+                 svgTool('phone', 36, 'position:relative;') +
+                 phonePing('top:14px; left:6px;') +
+               '</div>' +
+               '<div class="scene-headline red" style="bottom:6px; transform: translateX(-50%); left:50%;">📞 4 missed calls from home</div>';
+
+      case 'carlos-call':
+        return clock('5:00 PM<br>HEADING HOME') +
+               svgCar('sedan', 200, 'transform: translateX(140px); opacity:0.6;') +
+               svgTool('phone', 38, 'top:30%; left:36%;') +
+               '<div class="scene-headline green" style="top:18%; right:8%; left:auto; bottom:auto; transform:none;">FRIEND-SHOP OPEN</div>' +
+               headline('📲 Kickback +$60 · clean phone screen', 'green');
+
+      default:
+        return svgCar('sedan', 170);
+    }
+  }
+
+  function startGame() {
+    try {
+      state = freshState();
+      $('title-screen').style.display = 'none';
+      $('end-screen').classList.remove('active');
+      $('end-screen').style.display = 'none';
+      $('game-screen').classList.add('active');
+      $('game-screen').style.display = 'flex';
+      $('left-rail').innerHTML = '';
+      $('powerup-rail').innerHTML = '';
+      var oldBadges = document.querySelectorAll('.pattern-badge');
+      Array.prototype.forEach.call(oldBadges, function(el){ el.remove(); });
+      // Defensive: clear stale confetti, mini-popups, powerup-toasts left over from prior run
+      var oldConfetti = document.querySelector('.confetti-layer');
+      if (oldConfetti && oldConfetti.parentNode) oldConfetti.parentNode.removeChild(oldConfetti);
+      var miniP = $('mini-popup'); if (miniP) miniP.classList.remove('show');
+      var puT = $('powerup-toast'); if (puT) puT.classList.remove('show');
+      hidePopup();
+      renderHUD();
+      renderArena('idle');
+      setTimeout(function(){ nextRound(); }, 350);
+    } catch(e){ console.error('startGame error:', e); }
+  }
+
+  function nextRound() {
+    try {
+      state._roundGen++;
+      var gen = state._roundGen;
+      state.choiceLocked = false;
+      state.popupOpen = false;
+      hidePopup();
+      state.round++;
+      if (state.round > ROUNDS.length) { endGame(); return; }
+      var data = ROUNDS[state.round - 1];
+      clearSideIndicators([]);
+      if (state._wordOfMouthQueuedForNextRound) {
+        state._wordOfMouthQueuedForNextRound = false;
+        state.wordOfMouthFired = true;
+        state.wordOfMouthArmed = false;
+        addSideIndicator('good', '📱 REFERRAL', '+$80 — sent a friend', 'wom-1');
+        addSideIndicator('good', '📱 REFERRAL', '+$80 — sent a friend', 'wom-2');
+        applyEffects({ cash: 160 }, true);
+        showMiniPopup('Word of Mouth fires — 2 referrals just rolled in. +$160');
+      }
+      if (state.waitingCustomerBonus > 0) {
+        var bonus = state.waitingCustomerBonus;
+        state.waitingCustomerBonus = 0;
+        addSideIndicator('good', '🪟 WAITING CUSTOMER', '+$' + bonus + ' (bay opened up)', 'waiting-bonus');
+        applyEffects({ cash: bonus }, true);
+      }
+      if (gen !== state._roundGen) return;
+      setTimeout(function(){
+        if (gen !== state._roundGen) return;
+        presentRound(data, gen);
+      }, 600);
+    } catch(e){ console.error('nextRound error:', e); safeForceAdvance(); }
+  }
+
+  function presentRound(data, gen) {
+    try {
+      if (gen !== state._roundGen) return;
+      updateTimeline();
+      if (data.revealMeter) revealMeter(data.revealMeter);
+      var ct = $('context-tag');
+      ct.classList.remove('appearing');
+      void ct.offsetWidth;
+      ct.classList.add('appearing');
+      $('context-avatar').textContent = data.customer.avatar;
+      var ctxName = data.eventLabel ? data.eventLabel : data.customer.name;
+      $('context-name').textContent = ctxName;
+      $('context-text').textContent = data.customer.tagline;
+      $('situation-text').textContent = data.situation;
+      $('choice-a-label').textContent = data.options.A.label;
+      $('choice-b-label').textContent = data.options.B.label;
+      var btnA = $('choice-a');
+      var btnB = $('choice-b');
+      btnA.querySelector('.choice-tag').textContent = data.options.A.tag || 'OPTION A';
+      btnB.querySelector('.choice-tag').textContent = data.options.B.tag || 'OPTION B';
+      btnA.disabled = false;
+      btnB.disabled = false;
+      bindChoice(btnA, function(){ chooseOption(data, 'A', gen); });
+      bindChoice(btnB, function(){ chooseOption(data, 'B', gen); });
+      if (data.preChoiceSetup) {
+        try { data.preChoiceSetup(); } catch(e){ console.error('preChoiceSetup err:', e); }
+      }
+      renderArena(data.arena);
+    } catch(e){ console.error('presentRound error:', e); safeForceAdvance(); }
+  }
+
+  function bindChoice(btn, handler) {
+    btn.onclick = null;
+    var picked = false;
+    btn.onclick = function() {
+      if (picked) return;
+      if (state.choiceLocked) return;
+      picked = true;
+      state.choiceLocked = true;
+      state.lastClickAt = Date.now();
+      try { handler(); } catch(e){ console.error('Choice handler error:', e); state.choiceLocked = false; safeForceAdvance(); }
+    };
+  }
+
+  function chooseOption(data, optionKey, gen) {
+    try {
+      if (gen !== state._roundGen) return;
+      var opt = data.options[optionKey];
+      if (!opt) return;
+      $('choice-a').disabled = true;
+      $('choice-b').disabled = true;
+
+      var effects = opt.effects;
+      var dynamicResult = null;
+
+      if (data.id === 2 && optionKey === 'B') {
+        var accepts = Math.random() < 0.5;
+        state.r2Outcome = accepts ? 'accepts' : 'declines';
+        if (accepts) {
+          effects = { trust: 8, cash: 140, pace: -10, repair: 10, diag: 20 };
+          dynamicResult = { miniText: 'Dre took the real repair.', customerColor: 'green' };
+        } else {
+          effects = { trust: -3, cash: 40, pace: -10, repair: 10, diag: 20 };
+          dynamicResult = { miniText: 'Dre declined — couldn\'t afford it.', customerColor: 'yellow' };
+        }
+      }
+      if (data.id === 6 && optionKey === 'B') {
+        var gracious = Math.random() < 0.5;
+        state.r6Outcome = gracious ? 'gracious' : 'frustrated';
+        if (gracious) {
+          effects = { trust: 3, cash: 0, pace: -5, repair: 10, diag: 5 };
+          dynamicResult = { miniText: 'Customer was gracious. They\'ll be back tomorrow.', customerColor: 'green' };
+        } else {
+          effects = { trust: -10, cash: 0, pace: -5, repair: 10, diag: 5 };
+          dynamicResult = { miniText: 'Customer is frustrated. Long wait until pickup.', customerColor: 'red' };
+        }
+      }
+
+      applyEffects(effects, true);
+      awardXP();
+
+      var decisionRecord = {
+        round: data.id,
+        decision: opt.label,
+        customer: data.eventLabel ? data.eventLabel : data.customer.name,
+        context: data.customer.tagline,
+        meters: { trust: state.meters.trust, cash: state.meters.cash, pace: state.meters.pace, diag: state.meters.diag, repair: state.meters.repair },
+        notes: dynamicResult ? dynamicResult.miniText : (opt.miniText || (opt.fullPopup ? opt.fullPopup.title : ''))
+      };
+
+      var countsAsPattern = false;
+      if (data.system && !data.eventLabel) {
+        if (data.id === 7 && optionKey === 'A') countsAsPattern = true;
+        else if (data.id !== 7 && optionKey === 'B') countsAsPattern = true;
+      }
+      if (countsAsPattern) {
+        var sys = data.system;
+        state.systemDiag[sys] = (state.systemDiag[sys] || 0) + 1;
+        addPatternBadge(sys);
+        if (state.systemDiag[sys] === 3 && !state.patternsUnlocked[sys]) {
+          state.patternsUnlocked[sys] = true;
+          state.seenThisBeforeFired = true;
+          showPowerupToast('SEEN THIS BEFORE', sys.toUpperCase() + ' · Pattern Unlocked. Future ' + sys + ' issues will glow on the arena.');
+          addPowerupCard('SEEN THIS BEFORE', sys.toUpperCase() + ' patterns now glow free. No diagnostic cost.');
+          decisionRecord.powerup = 'Seen This Before (' + sys + ')';
+        }
+      }
+
+      if (opt.delayedFlag && opt.delayedFlag.percent > 0) {
+        state.delayedFlags.push({
+          round: data.id,
+          percent: opt.delayedFlag.percent,
+          label: opt.delayedFlag.label,
+          system: opt.delayedFlag.system
+        });
+        addSideIndicator('alert', '🚩 DELAYED RISK', opt.delayedFlag.percent + '% · ' + (opt.delayedFlag.label || ''), 'delayed-' + data.id);
+      }
+      if (opt.futureWorkFlag) addSideIndicator('warn', '📋 FUTURE WORK', opt.futureWorkFlag.label, 'future-r3');
+      if (opt.waivedBill) addSideIndicator('warn', '💸 WAIVED BILL', '$' + opt.waivedBill + ' on the house', 'waived-r5');
+      if (opt.waitingBonusNext) state.waitingCustomerBonus = opt.waitingBonusNext;
+      if (opt.missedCalls) addSideIndicator('alert', '📞 MISSED CALLS', opt.missedCalls + ' from home', 'calls-r7');
+      if (opt.referralKickback) addSideIndicator('good', '📲 KICKBACK', '+$' + opt.referralKickback + ' from friend-shop', 'kickback-r7');
+
+      state.trustHistory.push(state.meters.trust);
+      var trustNow = state.meters.trust;
+      var trustPrev = state.trustHistory.length >= 2 ? state.trustHistory[state.trustHistory.length - 2] : 0;
+      // Word of Mouth fires NEXT round, so don't unlock at the final round (R7) — there's no next round
+      if (!state.wordOfMouthFired && !state.wordOfMouthArmed && state.round >= 4 && state.round < 7 && trustNow >= 70 && trustPrev >= 70) {
+        state.wordOfMouthArmed = true;
+        state._wordOfMouthQueuedForNextRound = true;
+        showPowerupToast('WORD OF MOUTH', '2 customers will refer your shop. Next round: +$160 cash bonus.');
+        addPowerupCard('WORD OF MOUTH', '+2 referral customers next round (+$160).');
+        decisionRecord.powerup = (decisionRecord.powerup ? decisionRecord.powerup + '; ' : '') + 'Word of Mouth UNLOCKED';
+      }
+
+      var customerColor = (dynamicResult && dynamicResult.customerColor) || opt.customerColor || 'yellow';
+      var displayName = data.customer.name === 'EVENT' ? (data.eventLabel ? data.eventLabel.split(' ')[0] : 'Event') : data.customer.name.split(' ')[0];
+      state.customerOutcomes.push({
+        round: data.id,
+        name: displayName,
+        avatar: data.customer.avatar,
+        color: customerColor,
+        decision: opt.label,
+        notes: dynamicResult ? dynamicResult.miniText : (opt.miniText || '')
+      });
+
+      var weight = Math.abs((effects.trust || 0)) + Math.abs((effects.cash || 0) / 50);
+      state.highlightMoments.push({
+        round: data.id,
+        text: opt.highlight,
+        weight: weight
+      });
+
+      renderArena(opt.arena);
+
+      setTimeout(function(){
+        try {
+          if (gen !== state._roundGen) return;
+          var fp = opt.fullPopup;
+          var t = fp;
+          if (dynamicResult && data.id === 2 && optionKey === 'B') {
+            t = { type: 'reveal', icon: '🔍', title: state.r2Outcome === 'accepts' ? 'He committed to the real fix.' : 'He couldn\'t afford it. He saw the truth anyway.', text: state.r2Outcome === 'accepts' ? 'Dre paid full freight. You found it. He trusts you.' : 'Dre paid the diagnostic fee. He left worried — but he knows what\'s wrong now.' };
+          }
+          if (dynamicResult && data.id === 6 && optionKey === 'B') {
+            t = { type: 'event', icon: '🤝', title: state.r6Outcome === 'gracious' ? 'They took it well. They\'ll be back.' : 'They were frustrated. Long wait until pickup.', text: state.r6Outcome === 'gracious' ? 'You told the truth. They appreciated it.' : 'You told the truth. They didn\'t like the answer.' };
+          }
+          if (t) {
+            showFullPopup(t.type, t.icon, t.title, t.text, function(){ finishRound(data, opt, gen, decisionRecord); });
+          } else {
+            var miniText = (dynamicResult && dynamicResult.miniText) || opt.miniText;
+            if (miniText) showMiniPopup(miniText);
+            setTimeout(function(){
+              try { finishRound(data, opt, gen, decisionRecord); }
+              catch(e){ console.error('mini-finish err:', e); safeForceAdvance(); }
+            }, 1500);
+          }
+        } catch(e){
+          console.error('feedback timer err:', e);
+          safeForceAdvance();
+        }
+      }, 750);
+
+    } catch(e){ console.error('chooseOption error:', e); safeForceAdvance(); }
+  }
+
+  function finishRound(data, opt, gen, decisionRecord) {
+    try {
+      if (gen !== state._roundGen) return;
+      state.decisions.push(decisionRecord);
+      safeAdvance(function(){ nextRound(); }, 500, gen);
+    } catch(e){ console.error('finishRound error:', e); safeForceAdvance(); }
+  }
+
+  function safeAdvance(fn, delay, gen) {
+    var captured = gen;
+    setTimeout(function(){
+      try {
+        if (captured !== state._roundGen) return;
+        if (state.popupOpen) {
+          var waited = 0;
+          var poll = setInterval(function(){
+            try {
+              // Gen check inside poll — Restart/Stuck can change gen mid-poll
+              if (captured !== state._roundGen) { clearInterval(poll); return; }
+              if (!state.popupOpen) { clearInterval(poll); fn(); return; }
+              waited += 200;
+              if (waited > 10000) {
+                clearInterval(poll);
+                state.popupOpen = false;
+                hidePopup();
+                if (captured === state._roundGen) fn();
+              }
+            } catch(e){ clearInterval(poll); console.error('poll err:', e); }
+          }, 200);
+        } else {
+          fn();
+        }
+      } catch(e){ console.error('safeAdvance err:', e); try { fn(); } catch(_){} }
+    }, delay || 500);
+  }
+
+  function safeForceAdvance() {
+    try {
+      // Bump generation to invalidate any in-flight timers from the previous round
+      if (state) state._roundGen++;
+      state.choiceLocked = false;
+      state.popupOpen = false;
+      hidePopup();
+      setTimeout(function(){ nextRound(); }, 600);
+    } catch(e){}
+  }
+
+  function showFullPopup(type, icon, title, text, onClose) {
+    try {
+      state.popupOpen = true;
+      var box = $('popup-box');
+      box.className = 'popup-box ' + (type || '');
+      $('popup-icon').textContent = icon || '⚙️';
+      $('popup-title').textContent = title || '';
+      $('popup-text').textContent = text || '';
+      // Wire onclick BEFORE showing — so the button is never live without a handler
+      var clicked = false;
+      $('popup-btn').onclick = function(){
+        if (clicked) return;
+        clicked = true;
+        try { hidePopup(); } catch(e){ console.error('hidePopup err:', e); state.popupOpen = false; }
+        try { if (typeof onClose === 'function') onClose(); }
+        catch(e){ console.error('onClose err:', e); safeForceAdvance(); }
+      };
+      $('popup-overlay').classList.add('show');
+    } catch(e){
+      console.error('Popup error:', e);
+      state.popupOpen = false;
+      try { if (typeof onClose === 'function') onClose(); }
+      catch(e2){ console.error('onClose err in catch:', e2); safeForceAdvance(); }
+    }
+  }
+
+  function hidePopup() {
+    try {
+      $('popup-overlay').classList.remove('show');
+      if (state) state.popupOpen = false;
+    } catch(e){}
+  }
+
+  function showMiniPopup(text) {
+    try {
+      var el = $('mini-popup');
+      el.textContent = text;
+      el.classList.remove('show');
+      void el.offsetWidth;
+      el.classList.add('show');
+    } catch(e){}
+  }
+
+  function showPowerupToast(name, desc) {
+    try {
+      var t = $('powerup-toast');
+      t.querySelector('.pu-name').textContent = name;
+      $('pu-toast-text').textContent = desc;
+      t.classList.remove('show');
+      void t.offsetWidth;
+      t.classList.add('show');
+      chimePowerup();
+      setTimeout(function(){ t.classList.remove('show'); }, 3500);
+    } catch(e){}
+  }
+
+  function endGame() {
+    try {
+      $('game-screen').classList.remove('active');
+      $('game-screen').style.display = 'none';
+      var endScreen = $('end-screen');
+      endScreen.classList.add('active');
+      endScreen.style.display = 'flex';
+
+      var trust = state.meters.trust;
+      var cash = state.meters.cash;
+      var trustHigh = trust >= 70;
+      var cashProfit = cash >= 800;
+      var trustOK = trust >= 35;
+      var cashOK = cash >= 200;
+      var tier = 'survived', tierLabel = 'SHOP SURVIVED', tierLine = 'You kept the doors open today.';
+
+      if (trustHigh && cashProfit) { tier = 'legendary'; tierLabel = 'LEGENDARY DAY'; tierLine = 'You balanced trust and cash. Hard to do.'; }
+      else if (trustHigh) { tier = 'thrived'; tierLabel = 'SHOP THRIVED'; tierLine = 'Customer Trust: LOYAL FANS. You did real work today.'; }
+      else if (cashProfit) { tier = 'thrived'; tierLabel = 'SHOP THRIVED'; tierLine = 'Cash Flow: PROFITABLE. You did real work today.'; }
+      else if (trustOK && cashOK) { tier = 'survived'; tierLabel = 'SHOP SURVIVED'; tierLine = 'You kept the doors open today.'; }
+      else if (!trustOK && !cashOK) { tier = 'tough'; tierLabel = 'TOUGH DAY'; tierLine = 'Try again — you\'ll read them better next time.'; }
+      else { tier = 'survived'; tierLabel = 'SHOP SURVIVED'; tierLine = 'You scraped through. Doors are open.'; }
+
+      var tierEl = $('end-tier');
+      tierEl.className = 'end-tier ' + tier;
+      $('tier-label').textContent = tierLabel;
+      $('tier-line').textContent = tierLine;
+
+      // Confetti for Legendary tier
+      var oldConfetti = document.querySelector('.confetti-layer');
+      if (oldConfetti) oldConfetti.remove();
+      if (tier === 'legendary') {
+        var conf = document.createElement('div');
+        conf.className = 'confetti-layer';
+        var colors = ['#ffc857','#ff8a3d','#6cc24a','#4cc9f0','#c9b6f0','#ef476f'];
+        for (var i = 0; i < 50; i++) {
+          var p = document.createElement('div');
+          p.className = 'confetti-piece';
+          p.style.left = (Math.random() * 100) + '%';
+          p.style.background = colors[Math.floor(Math.random() * colors.length)];
+          p.style.animationDuration = (2.5 + Math.random() * 2.5) + 's';
+          p.style.animationDelay = (Math.random() * 1.5) + 's';
+          p.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+          conf.appendChild(p);
+        }
+        document.body.appendChild(conf);
+        setTimeout(function(){ if (conf && conf.parentNode) conf.parentNode.removeChild(conf); }, 6000);
+      }
+
+      var em = $('end-meters');
+      em.innerHTML = '';
+      ['trust','cash','pace','diag','repair'].forEach(function(key){
+        var cfg = METER_CONFIG[key];
+        var val = state.meters[key];
+        var zone = meterZone(key, val);
+        var d = document.createElement('div');
+        d.className = 'end-meter' + (cfg.primary ? ' primary' : '');
+        var color = zone === 'low' ? 'var(--red)' : zone === 'mid' ? 'var(--yellow)' : (cfg.primary ? 'var(--primary)' : 'var(--green)');
+        d.innerHTML = '<div class="em-name">' + cfg.name + '</div>' +
+          '<div class="em-state" style="color:' + color + '">' + (cfg.isCash?'$'+val:meterStateLabel(key,val)) + '</div>' +
+          '<div class="em-bar"><div class="em-fill" style="width:' + meterPercent(key, val) + '%; background:' + color + '"></div></div>';
+        em.appendChild(d);
+      });
+
+      var moments = state.highlightMoments.slice();
+      if (state.wordOfMouthFired) moments.push({ round: 99, text: 'unlocked WORD OF MOUTH — 2 referrals rolled in', weight: 50, icon: '📱' });
+      if (state.seenThisBeforeFired) moments.push({ round: 99, text: 'unlocked SEEN THIS BEFORE — pattern recognition online', weight: 50, icon: '🔓' });
+      moments.sort(function(a,b){ return b.weight - a.weight; });
+      var pick = moments.slice(0, 3);
+      var hl = $('highlight-list');
+      hl.innerHTML = '';
+      var icons = ['⚡','🔧','🛠️','🤝','📞','🛞'];
+      pick.forEach(function(m, i){
+        var f = document.createElement('div');
+        f.className = 'highlight-frame';
+        f.innerHTML = '<div class="hf-icon">' + (m.icon || icons[i % icons.length]) + '</div><div class="hf-text">Today you ' + m.text + '.</div>';
+        hl.appendChild(f);
+      });
+
+      var cw = $('cw-grid');
+      cw.innerHTML = '';
+      state.customerOutcomes.forEach(function(co){
+        var c = document.createElement('div');
+        c.className = 'cw-card ' + (co.color || 'yellow');
+        c.innerHTML = '<div class="cwc-avatar">' + co.avatar + '</div><div class="cwc-name">' + co.name + '</div>';
+        c.title = 'R' + co.round + ': ' + co.decision + (co.notes ? ' — ' + co.notes : '');
+        c.onclick = function(){ showMiniPopup('R' + co.round + ' — ' + co.name + ': ' + co.decision); };
+        cw.appendChild(c);
+      });
+
+      if (tier === 'legendary') $('replay-headline').textContent = 'Legendary Day. Try the Loyalty Run — limit Quick Fix to 2 rounds.';
+      else if (tier === 'thrived') $('replay-headline').textContent = 'You thrived in one lane. Can you nail both Trust and Cash next run?';
+      else if (tier === 'tough') $('replay-headline').textContent = 'Tough day. Try again — every shortcut costs trust, every careful job costs cash.';
+      else $('replay-headline').textContent = 'Try again — chase Legendary Day. Every shortcut costs trust, every careful job costs cash.';
+
+      buildDataTable();
+
+      // Reset data layer to collapsed state on every endGame (Replay → second endGame fix)
+      var dc = $('data-content'); if (dc) dc.classList.remove('show');
+      var dt = $('data-toggle'); if (dt) dt.textContent = '▾ Show Details';
+
+      $('replay-btn').onclick = function(){ startGame(); };
+      $('data-toggle').onclick = function(){
+        var c = $('data-content');
+        c.classList.toggle('show');
+        $('data-toggle').textContent = c.classList.contains('show') ? '▴ Hide Details' : '▾ Show Details';
+      };
+      $('copy-btn').onclick = copyData;
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch(e){ console.error('endGame error:', e); }
+  }
+
+  function buildDataTable() {
+    try {
+      var table = $('data-table');
+      var headers = ['Round','Decision','Customer Context','Customer Trust','Cash Flow','Shop Pace','Diagnostic Read','Repair Quality','Power-Up Triggered','Notes'];
+      var html = '<thead><tr>';
+      headers.forEach(function(h){ html += '<th>' + h + '</th>'; });
+      html += '</tr></thead><tbody>';
+      state.decisions.forEach(function(d){
+        html += '<tr>';
+        html += '<td>' + d.round + '</td>';
+        html += '<td>' + d.decision + '</td>';
+        html += '<td>' + d.customer + '</td>';
+        html += '<td>' + d.meters.trust + '</td>';
+        html += '<td>$' + d.meters.cash + '</td>';
+        html += '<td>' + d.meters.pace + '</td>';
+        html += '<td>' + (d.round >= 2 ? d.meters.diag : '(hidden)') + '</td>';
+        html += '<td>' + (d.round >= 3 ? d.meters.repair : '(hidden)') + '</td>';
+        html += '<td>' + (d.powerup || 'none') + '</td>';
+        html += '<td>' + (d.notes || '') + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody>';
+      table.innerHTML = html;
+    } catch(e){}
+  }
+
+  function copyData() {
+    try {
+      var rows = [];
+      var headers = ['Round','Decision','Customer Context','Customer Trust','Cash Flow','Shop Pace','Diagnostic Read','Repair Quality','Power-Up Triggered','Notes'];
+      rows.push(headers.join('\t'));
+      state.decisions.forEach(function(d){
+        rows.push([
+          d.round, d.decision, d.customer,
+          d.meters.trust, '$' + d.meters.cash, d.meters.pace,
+          d.meters.diag, d.meters.repair,
+          d.powerup || 'none', d.notes || ''
+        ].join('\t'));
+      });
+      var text = rows.join('\n');
+      var btn = $('copy-btn');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function(){
+          btn.classList.add('copied');
+          btn.textContent = '✓ Copied!';
+          setTimeout(function(){ btn.classList.remove('copied'); btn.textContent = '📋 Copy Data'; }, 2000);
+        }).catch(function(){ fallbackCopy(text, btn); });
+      } else {
+        fallbackCopy(text, btn);
+      }
+    } catch(e){ console.error('copy error:', e); }
+  }
+  function fallbackCopy(text, btn) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      btn.classList.add('copied');
+      btn.textContent = '✓ Copied!';
+      setTimeout(function(){ btn.classList.remove('copied'); btn.textContent = '📋 Copy Data'; }, 2000);
+    } catch(e){}
+  }
+
+  function installHotfix() {
+    try {
+      var stuckBtn = $('hf-stuck');
+      var restartBtn = $('hf-restart');
+
+      stuckBtn.onclick = function(){
+        try {
+          var a = $('choice-a');
+          if (a && !a.disabled && state && state.round >= 1 && state.round <= 7) {
+            state.choiceLocked = false;
+            a.click();
+          } else {
+            safeForceAdvance();
+          }
+        } catch(e){ safeForceAdvance(); }
+      };
+
+      restartBtn.onclick = function(){
+        if (confirm('Restart the day? Current progress will be lost.')) {
+          startGame();
+        }
+      };
+
+      var stuckSince = null;
+      setInterval(function(){
+        try {
+          if (state && state.choiceLocked) {
+            if (stuckSince === null) stuckSince = Date.now();
+            else if (Date.now() - stuckSince > 15000) {
+              state.choiceLocked = false;
+              stuckSince = null;
+            }
+          } else {
+            stuckSince = null;
+          }
+          if (state && state.popupOpen) {
+            var ov = $('popup-overlay');
+            if (ov && !ov.classList.contains('show')) {
+              setTimeout(function(){
+                if (state.popupOpen && !ov.classList.contains('show')) state.popupOpen = false;
+              }, 4000);
+            }
+          }
+          var inGame = $('game-screen').classList.contains('active');
+          var inEnd = $('end-screen').classList.contains('active');
+          stuckBtn.style.display = inGame ? 'block' : 'none';
+          restartBtn.style.display = (inGame || inEnd) ? 'block' : 'none';
+        } catch(e){}
+      }, 1500);
+
+      var lastActivity = Date.now();
+      ['click','keydown','touchstart'].forEach(function(ev){
+        document.addEventListener(ev, function(){ lastActivity = Date.now(); stuckBtn.classList.remove('pulse'); }, { passive: true });
+      });
+      setInterval(function(){
+        try {
+          if (!$('game-screen').classList.contains('active')) return;
+          var idle = Date.now() - lastActivity;
+          if (idle > 180000 && idle < 480000) stuckBtn.classList.add('pulse');
+          else if (idle > 480000) {
+            stuckBtn.classList.remove('pulse');
+            lastActivity = Date.now();
+            stuckBtn.click();
+          }
+        } catch(e){}
+      }, 5000);
+    } catch(e){ console.error('Hotfix install error:', e); }
+  }
+
+  function init() {
+    try {
+      $('start-btn').onclick = startGame;
+      installHotfix();
+    } catch(e){ console.error('init error:', e); }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>

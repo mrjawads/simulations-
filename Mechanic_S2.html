@@ -1,0 +1,2748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mechanic — Under the Hood — S2 The Reckoning</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'Segoe UI', Arial, sans-serif; color: #f3ede0; overflow-x: hidden; }
+  body {
+    background: linear-gradient(160deg, #1a1410 0%, #2b1f15 50%, #110a06 100%);
+    min-height: 100vh;
+    user-select: none; -webkit-user-select: none;
+  }
+  .screen { display: none; min-height: 100vh; padding: 12px; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ======================== TITLE SCREEN ======================== */
+  #title-screen {
+    align-items: center; justify-content: center; text-align: center;
+    background: radial-gradient(ellipse at center, #3a2916 0%, #110a06 70%);
+    position: relative; overflow: hidden;
+  }
+  .title-shop-art {
+    width: min(560px, 92vw); height: 220px; margin-bottom: 12px;
+    position: relative;
+  }
+  .title-shop-art svg { width: 100%; height: 100%; display: block; }
+  .silhouette-flicker { animation: silhouetteFlicker 4s ease-in-out infinite; }
+  @keyframes silhouetteFlicker {
+    0%, 100% { opacity: 0.92; }
+    50% { opacity: 1; }
+  }
+  .doorbell-wave {
+    transform-origin: center;
+    animation: bellRing 2.4s ease-in-out infinite;
+  }
+  @keyframes bellRing {
+    0%, 100% { opacity: 0; transform: scale(0.8); }
+    20% { opacity: 0.6; transform: scale(1.1); }
+    50% { opacity: 0.3; transform: scale(1.5); }
+    80% { opacity: 0; transform: scale(2); }
+  }
+  .clock-ghost { animation: clockFloat 3.5s ease-in-out infinite; }
+  .clock-ghost.delay-1 { animation-delay: 0.6s; }
+  .clock-ghost.delay-2 { animation-delay: 1.2s; }
+  @keyframes clockFloat {
+    0%, 100% { opacity: 0.55; transform: translateY(0); }
+    50% { opacity: 0.85; transform: translateY(-4px); }
+  }
+
+  .brand-tag {
+    color: #f4a946; font-size: 13px; letter-spacing: 4px;
+    border: 1px solid #f4a946; padding: 6px 14px; border-radius: 4px;
+    margin-bottom: 18px; text-transform: uppercase;
+    background: rgba(0,0,0,0.3);
+  }
+  #title-screen h1 {
+    font-size: 56px; font-weight: 900; letter-spacing: 4px;
+    background: linear-gradient(180deg, #ffd089 0%, #f4a946 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; color: #f4a946;
+    text-shadow: 0 4px 20px rgba(244,169,70,0.3);
+    margin-bottom: 4px;
+  }
+  #title-screen h2 {
+    font-size: 22px; color: #f3ede0; letter-spacing: 6px;
+    font-weight: 300; margin-bottom: 6px;
+  }
+  #title-screen .session-tag {
+    color: #ff7a45; font-size: 13px; letter-spacing: 5px;
+    margin-bottom: 18px; text-transform: uppercase; font-weight: bold;
+  }
+  .shop-strip {
+    display: flex; gap: 12px; margin: 10px 0 22px; flex-wrap: wrap; justify-content: center;
+  }
+  .shop-chip {
+    background: rgba(0,0,0,0.5); padding: 8px 14px; border-radius: 4px;
+    font-family: 'Courier New', monospace; font-size: 13px;
+    border-left: 3px solid #6cc06a; color: #d8d2c4;
+  }
+  .shop-chip.warn { border-left-color: #f4a946; }
+  .shop-chip.bad { border-left-color: #e85a5a; }
+  #title-screen p {
+    font-size: 16px; max-width: 560px; margin-bottom: 20px; line-height: 1.5; color: #c8c1b3;
+    padding: 0 16px;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, #ffd089 0%, #f4a946 100%);
+    color: #1a1410; font-size: 22px; font-weight: 800; letter-spacing: 2px;
+    padding: 18px 50px; border: none; border-radius: 8px; cursor: pointer;
+    text-transform: uppercase; box-shadow: 0 6px 20px rgba(244,169,70,0.4);
+    transition: transform 0.15s, box-shadow 0.15s; min-height: 56px;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(244,169,70,0.6); }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* ======================== HUD ======================== */
+  #game-screen { padding: 8px 12px; }
+
+  #hud {
+    background: linear-gradient(180deg, rgba(40,28,18,0.95) 0%, rgba(20,14,9,0.9) 100%);
+    border: 1px solid rgba(244,169,70,0.3);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 10px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+  }
+  .hud-top {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 10px; margin-bottom: 8px;
+  }
+  .round-info { display: flex; align-items: center; gap: 10px; }
+  .round-badge {
+    background: rgba(244,169,70,0.2); border: 1px solid #f4a946;
+    padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;
+    color: #ffd089; letter-spacing: 1px;
+  }
+  .xp-bar {
+    width: 90px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;
+    border: 1px solid rgba(244,169,70,0.4);
+  }
+  .xp-fill { height: 100%; background: linear-gradient(90deg, #6cc06a 0%, #ffd089 100%); transition: width 0.6s ease; width: 0%; }
+  .level-badge {
+    background: linear-gradient(180deg, #6cc06a 0%, #2c7d3a 100%);
+    color: #1a1410; padding: 3px 10px; border-radius: 14px;
+    font-weight: 800; font-size: 12px; letter-spacing: 1px;
+  }
+  .side-indicators { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .side-ind {
+    background: rgba(0,0,0,0.35); padding: 5px 10px; border-radius: 6px;
+    font-size: 11px; border: 1px solid rgba(255,255,255,0.08);
+    color: #d8d2c4;
+  }
+  .side-ind .lbl { color: #a89e8c; margin-right: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .side-ind .val { color: #ffd089; font-weight: bold; font-family: 'Courier New', monospace; }
+  .side-ind.green { border-color: #6cc06a; color: #a8e0a8; }
+  .side-ind.green .val { color: #6cc06a; }
+  .side-ind.warn { border-color: #f4a946; color: #ffd089; }
+  .side-ind.bad { border-color: #e85a5a; color: #ffb8b8; animation: badPulse 1.6s ease-in-out infinite; }
+  @keyframes badPulse {
+    0%,100% { box-shadow: 0 0 0 rgba(232,90,90,0); }
+    50% { box-shadow: 0 0 12px rgba(232,90,90,0.5); }
+  }
+
+  /* ======================== PRIMARY METER (Customer Trust) ======================== */
+  .meter-trust {
+    background: linear-gradient(180deg, rgba(244,169,70,0.18) 0%, rgba(0,0,0,0.35) 100%);
+    border: 2px solid #f4a946;
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 8px;
+    box-shadow: 0 0 18px rgba(244,169,70,0.25);
+    position: relative;
+  }
+  .meter-trust .watch-tag {
+    position: absolute; top: -10px; left: 12px;
+    background: linear-gradient(135deg, #ffd089 0%, #f4a946 100%);
+    color: #1a1410; font-size: 9px; font-weight: 800;
+    letter-spacing: 1px; padding: 2px 8px; border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(244,169,70,0.4);
+  }
+  .trust-row { display: flex; align-items: center; gap: 12px; }
+  .trust-face-wrap {
+    width: 52px; height: 52px; flex-shrink: 0;
+    transition: transform 0.4s;
+  }
+  .trust-face-wrap svg { width: 100%; height: 100%; display: block; }
+  .trust-face-wrap.bump { animation: faceBump 0.5s ease; }
+  @keyframes faceBump {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+  }
+  .trust-meta { flex: 1; }
+  .trust-label-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .trust-name { font-size: 14px; color: #ffd089; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+  .trust-state { font-size: 13px; color: #f3ede0; font-weight: 600; }
+  .trust-bar-bg {
+    height: 16px; background: rgba(0,0,0,0.5); border-radius: 8px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1); position: relative;
+  }
+  .trust-bar-fill {
+    height: 100%; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #6cc06a 0%, #f4a946 100%);
+  }
+  .trust-bar-fill.low { background: linear-gradient(90deg, #b84545 0%, #e85a5a 100%); }
+  .trust-bar-fill.mid { background: linear-gradient(90deg, #d4a23a 0%, #f4c66a 100%); }
+  .trust-bar-fill.high { background: linear-gradient(90deg, #6cc06a 0%, #4dd87f 100%); }
+  .trust-bar-fill.pulse { animation: trustPulse 0.7s ease; }
+  @keyframes trustPulse {
+    0% { box-shadow: 0 0 0 rgba(244,169,70,0); }
+    50% { box-shadow: 0 0 20px rgba(244,169,70,0.8); transform: scaleY(1.15); }
+    100% { box-shadow: 0 0 0 rgba(244,169,70,0); transform: scaleY(1); }
+  }
+
+  /* ======================== SECONDARY METERS ======================== */
+  .meters-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; align-items: stretch;
+  }
+  .meter {
+    background: rgba(0,0,0,0.35); border-radius: 8px; padding: 6px 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: border-color 0.4s, box-shadow 0.4s;
+  }
+  .meter-name { font-size: 11px; color: #a89e8c; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .meter-state { font-size: 12px; color: #f3ede0; font-weight: 600; margin-bottom: 4px; min-height: 14px; }
+  .meter-bar-bg {
+    height: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .meter-bar-fill {
+    height: 100%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s;
+    border-radius: 4px;
+  }
+  .meter-bar-fill.low { background: linear-gradient(90deg, #b84545 0%, #e85a5a 100%); }
+  .meter-bar-fill.mid { background: linear-gradient(90deg, #d4a23a 0%, #f4c66a 100%); }
+  .meter-bar-fill.high { background: linear-gradient(90deg, #6cc06a 0%, #4dd87f 100%); }
+  .meter.flash-up { box-shadow: 0 0 14px rgba(108,192,106,0.6); border-color: #6cc06a; }
+  .meter.flash-down { box-shadow: 0 0 14px rgba(232,90,90,0.6); border-color: #e85a5a; }
+
+  /* ======================== ARENA ======================== */
+  #arena {
+    flex: 1; min-height: 320px;
+    border-radius: 12px;
+    border: 1px solid rgba(244,169,70,0.2);
+    margin-bottom: 10px;
+    position: relative;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.6);
+    overflow: hidden;
+    background: #110a06;
+  }
+  .garage-bg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 1;
+  }
+  .ambient-dust {
+    position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  }
+  .dust-mote {
+    position: absolute; width: 3px; height: 3px;
+    background: rgba(244,169,70,0.4); border-radius: 50%;
+    animation: dustFloat 8s linear infinite;
+    box-shadow: 0 0 6px rgba(244,169,70,0.3);
+  }
+  @keyframes dustFloat {
+    0% { transform: translate(0, 0); opacity: 0; }
+    20% { opacity: 0.6; }
+    80% { opacity: 0.6; }
+    100% { transform: translate(40px, -200px); opacity: 0; }
+  }
+  #arena-stage {
+    position: relative; min-height: 280px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 5; padding: 12px; text-align: center;
+  }
+  .arena-scene {
+    color: #f3ede0; font-size: 15px; line-height: 1.5;
+    max-width: 580px; padding: 0 12px;
+  }
+  .arena-scene .scene-title {
+    font-size: 17px; color: #ffd089; font-weight: 800;
+    margin-bottom: 8px; letter-spacing: 2px; text-transform: uppercase;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  }
+  .arena-scene p {
+    text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+  }
+
+  /* ======================== SVG CUSTOMER ======================== */
+  .svg-customer {
+    display: inline-block; position: relative;
+    transition: transform 0.4s, filter 0.4s;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6));
+  }
+  .svg-customer.tall { width: 110px; height: 160px; }
+  .svg-customer.medium { width: 90px; height: 130px; }
+  .svg-customer.small { width: 60px; height: 80px; }
+  .svg-customer.angry { animation: angryShake 0.4s ease 2; }
+  .svg-customer.bouncy { animation: bouncy 1.4s ease-in-out infinite; }
+  .svg-customer.tense { transform: scale(0.97); filter: drop-shadow(0 4px 10px rgba(0,0,0,0.7)) brightness(0.85); }
+  .svg-customer.happy { filter: drop-shadow(0 4px 14px rgba(108,192,106,0.5)) brightness(1.05); }
+  .svg-customer svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  @keyframes angryShake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+  @keyframes bouncy {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+  .customer-stand {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 4px;
+    margin: 0 10px;
+  }
+  .customer-name-tag {
+    color: #ffd089; font-size: 13px; font-weight: 800; letter-spacing: 1px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  }
+
+  /* ======================== SVG CAR ======================== */
+  .svg-car-wrap {
+    display: inline-block;
+    width: 240px; height: 110px;
+    position: relative;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.7));
+  }
+  .svg-car-wrap.lifted { transform: translateY(-32px); }
+  .svg-car-wrap svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .svg-car-wrap .lift-post {
+    position: absolute; left: 50%; bottom: -30px; transform: translateX(-50%);
+    width: 16px; height: 0; transition: height 0.6s 0.2s ease;
+    background: linear-gradient(180deg, #5a4a32 0%, #3a3020 100%);
+    border-left: 2px solid #2a2018;
+    border-right: 2px solid #2a2018;
+    box-shadow: 0 -4px 8px rgba(0,0,0,0.5);
+  }
+  .svg-car-wrap.lifted .lift-post { height: 38px; }
+  .car-leak-drips {
+    position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .car-leak-drips.show { animation: leakSeep 1.6s ease-in-out infinite; }
+  @keyframes leakSeep {
+    0%,100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+  .car-glow-pin {
+    position: absolute; pointer-events: none; opacity: 0;
+    width: 70px; height: 70px;
+    background: radial-gradient(circle, rgba(255,208,137,0.7) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .car-glow-pin.show { opacity: 1; animation: glowPulse 1.6s ease-in-out infinite; }
+  @keyframes glowPulse {
+    0%,100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.4); opacity: 1; }
+  }
+
+  /* ======================== SCENE OVERLAYS ======================== */
+  .scene-row {
+    display: flex; align-items: flex-end; justify-content: center;
+    gap: 16px; flex-wrap: wrap; margin: 4px 0 8px;
+    position: relative; min-height: 170px;
+  }
+  .scene-narration {
+    color: #f3ede0; font-size: 14px; line-height: 1.5;
+    margin-top: 8px; max-width: 540px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+  }
+  .scene-narration .accent { color: #6cc06a; font-weight: 700; }
+  .scene-narration .accent.bad { color: #ffb8b8; }
+  .scene-narration .accent.warn { color: #f4a946; }
+
+  .road-strip {
+    height: 18px; background: #1a1208;
+    border-top: 2px solid #5a4a32; border-bottom: 2px solid #5a4a32;
+    width: 100%; max-width: 480px; margin: 8px auto;
+    position: relative; overflow: hidden;
+  }
+  .road-strip::before {
+    content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 2px;
+    background: repeating-linear-gradient(90deg, #f4a946 0, #f4a946 18px, transparent 18px, transparent 30px);
+    transform: translateY(-50%);
+    animation: roadScroll 0.8s linear infinite;
+    width: 200%;
+  }
+  @keyframes roadScroll {
+    from { transform: translate(0, -50%); }
+    to { transform: translate(-30px, -50%); }
+  }
+  .smoke-puff {
+    position: absolute; bottom: 30px; left: 30%;
+    width: 36px; height: 36px;
+    background: radial-gradient(circle, rgba(180,180,180,0.7) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: smokeRise 2.2s ease-out infinite;
+  }
+  .smoke-puff.delay-1 { left: 50%; animation-delay: 0.5s; }
+  .smoke-puff.delay-2 { left: 65%; animation-delay: 1s; bottom: 40px; }
+  @keyframes smokeRise {
+    0% { transform: translateY(0) scale(0.6); opacity: 0; }
+    30% { opacity: 0.8; }
+    100% { transform: translateY(-80px) scale(2); opacity: 0; }
+  }
+  .clipboard-fx {
+    width: 90px; height: 110px; position: relative;
+    background: linear-gradient(180deg, #f0e6d4 0%, #d4c8b0 100%);
+    border: 2px solid #7a6a4a; border-radius: 4px;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.5);
+  }
+  .clipboard-fx::before {
+    content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    width: 36px; height: 14px; background: #5a4a32; border-radius: 4px 4px 0 0;
+    border: 2px solid #3a3020; border-bottom: none;
+  }
+  .clipboard-fx .check-mark {
+    position: absolute; left: 12px; font-size: 16px; color: #2c7d3a; font-weight: 900;
+    opacity: 0;
+  }
+  .clipboard-fx .check-mark.in { animation: checkIn 0.4s ease forwards; }
+  .clipboard-fx .cm-1 { top: 14px; }
+  .clipboard-fx .cm-2 { top: 38px; }
+  .clipboard-fx .cm-3 { top: 62px; }
+  .clipboard-fx .cm-4 { top: 86px; }
+  @keyframes checkIn {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .funnel-fx {
+    width: 70px; height: 100px; position: relative; margin: 10px auto;
+  }
+  .funnel-fx::before {
+    content: ''; position: absolute; top: 0; left: 5px; right: 5px;
+    height: 50px;
+    background: linear-gradient(180deg, #b8b8c5 0%, #6a6a78 100%);
+    clip-path: polygon(0 0, 100% 0, 70% 100%, 30% 100%);
+  }
+  .funnel-fx::after {
+    content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 14px; height: 50px;
+    background: linear-gradient(180deg, #6a6a78 0%, #3a3a48 100%);
+  }
+  .fluid-stream {
+    position: absolute; top: 28px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 0;
+    background: linear-gradient(180deg, #f4a946 0%, #d4892e 100%);
+    border-radius: 2px;
+    animation: fluidPour 1.4s ease-in-out infinite;
+  }
+  @keyframes fluidPour {
+    0% { height: 0; opacity: 0; }
+    30% { height: 60px; opacity: 1; }
+    100% { height: 60px; opacity: 0; }
+  }
+  .doorbell-fx {
+    width: 80px; height: 80px; margin: 0 auto;
+    position: relative;
+  }
+  .doorbell-fx svg { width: 100%; height: 100%; }
+  .doorbell-fx::before, .doorbell-fx::after {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    width: 80px; height: 80px; border: 3px solid rgba(244,169,70,0.6);
+    border-radius: 50%; transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0; animation: bellRing 2s ease-out infinite;
+  }
+  .doorbell-fx::after { animation-delay: 0.5s; }
+  .receipt-fx {
+    width: 70px; height: 0; position: relative; margin: 10px auto;
+    background: linear-gradient(180deg, #f0e6d4 0%, #d4c8b0 100%);
+    border-left: 1px dashed #7a6a4a; border-right: 1px dashed #7a6a4a;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.5);
+    animation: receiptPrint 1.4s ease forwards;
+  }
+  @keyframes receiptPrint {
+    from { height: 0; }
+    to { height: 90px; }
+  }
+  .price-pop {
+    position: absolute; font-size: 18px; font-weight: 900;
+    color: #6cc06a; text-shadow: 0 0 10px rgba(108,192,106,0.7);
+    animation: priceFloat 2s ease forwards;
+    pointer-events: none;
+  }
+  @keyframes priceFloat {
+    0% { opacity: 0; transform: translateY(20px); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-30px); }
+  }
+
+  /* ======================== DECISION PANEL ======================== */
+  #decision-panel {
+    background: linear-gradient(180deg, rgba(40,28,18,0.97) 0%, rgba(20,14,9,0.97) 100%);
+    border: 1px solid rgba(244,169,70,0.3);
+    border-radius: 10px; padding: 14px; margin-top: auto;
+    box-shadow: 0 -4px 18px rgba(0,0,0,0.4);
+  }
+  #situation-text {
+    color: #f3ede0; font-size: 16px; line-height: 1.5; margin-bottom: 10px;
+    text-align: center; min-height: 24px;
+  }
+  #situation-text .speaker {
+    color: #ffd089; font-weight: 800; margin-right: 6px;
+  }
+
+  /* ======================== CHIP TAP MECHANIC ======================== */
+  #chip-row {
+    display: flex; gap: 10px; justify-content: center; margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .chip-prompt {
+    text-align: center; color: #a89e8c; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px;
+  }
+  .chip {
+    background: linear-gradient(180deg, #3a2916 0%, #2b1f15 100%);
+    color: #f3ede0; border: 2px solid #5a4a32;
+    padding: 12px 20px; border-radius: 22px; cursor: pointer;
+    font-size: 14px; font-weight: 600; min-height: 48px;
+    transition: all 0.2s; max-width: 280px;
+    display: inline-flex; align-items: center;
+  }
+  .chip:hover { border-color: #f4a946; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(244,169,70,0.3); }
+  .chip:active { transform: translateY(0); }
+  .chip.tapped {
+    border-color: #f4a946; background: linear-gradient(180deg, #4a3a20 0%, #3a2916 100%);
+    box-shadow: 0 0 16px rgba(244,169,70,0.5);
+    animation: chipTapPulse 0.6s ease;
+  }
+  .chip.locked { pointer-events: none; opacity: 0.5; }
+  .chip.glow {
+    border-color: #ffd089;
+    box-shadow: 0 0 18px rgba(255,208,137,0.6);
+    animation: chipGlow 1.6s ease-in-out infinite;
+  }
+  .chip.glow::after {
+    content: '💡'; margin-left: 8px; font-size: 14px;
+  }
+  @keyframes chipGlow {
+    0%,100% { box-shadow: 0 0 12px rgba(255,208,137,0.4); }
+    50% { box-shadow: 0 0 22px rgba(255,208,137,0.8); }
+  }
+  @keyframes chipTapPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
+  /* ======================== CHOICE BUTTONS ======================== */
+  #choice-row {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  }
+  .choice-btn {
+    background: linear-gradient(180deg, #4a3a28 0%, #3a2918 100%);
+    color: #f3ede0; border: 2px solid #f4a946;
+    padding: 14px 18px; border-radius: 8px; cursor: pointer;
+    font-size: 15px; font-weight: 700; min-height: 54px;
+    flex: 1; min-width: 200px; max-width: 320px;
+    transition: all 0.2s; position: relative;
+  }
+  .choice-btn:hover { background: linear-gradient(180deg, #5a4a38 0%, #4a3928 100%); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(244,169,70,0.4); }
+  .choice-btn:active { transform: translateY(0); }
+  .choice-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+  .choice-btn.gold-glow {
+    border-color: #ffd089;
+    box-shadow: 0 0 22px rgba(255,208,137,0.7);
+    animation: goldGlow 2s ease-in-out infinite;
+  }
+  @keyframes goldGlow {
+    0%,100% { box-shadow: 0 0 16px rgba(255,208,137,0.5); }
+    50% { box-shadow: 0 0 28px rgba(255,208,137,0.9); }
+  }
+  .recovery-banner {
+    text-align: center; color: #ffd089; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px;
+    font-weight: 800; display: none;
+  }
+  .recovery-banner.show { display: block; animation: bannerSlide 0.5s ease; }
+  @keyframes bannerSlide {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ======================== POPUP ======================== */
+  #popup-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75); display: none;
+    align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+  }
+  #popup-overlay.show { display: flex; animation: overlayFade 0.3s ease; }
+  @keyframes overlayFade { from { opacity: 0; } to { opacity: 1; } }
+  .popup-box {
+    background: linear-gradient(180deg, #3a2916 0%, #2b1f15 100%);
+    border: 2px solid #f4a946; border-radius: 12px;
+    padding: 24px 28px; max-width: 460px; width: 100%;
+    text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+    animation: popupZoom 0.35s ease;
+  }
+  @keyframes popupZoom {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .popup-label {
+    color: #ffd089; font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    margin-bottom: 10px; font-weight: 800;
+  }
+  .popup-title {
+    color: #f3ede0; font-size: 20px; font-weight: 800; margin-bottom: 12px;
+  }
+  .popup-text {
+    color: #d8d2c4; font-size: 15px; line-height: 1.5; margin-bottom: 18px;
+  }
+  .popup-btn {
+    background: linear-gradient(180deg, #ffd089 0%, #f4a946 100%);
+    color: #1a1410; font-size: 15px; font-weight: 800; letter-spacing: 1px;
+    padding: 12px 28px; border: none; border-radius: 6px; cursor: pointer;
+    text-transform: uppercase; min-height: 48px;
+  }
+  .popup-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(244,169,70,0.5); }
+
+  /* ======================== RECKONING CARDS ======================== */
+  .reckon-stage {
+    text-align: center; padding: 12px;
+  }
+  .reckon-banner {
+    color: #ff7a45; font-size: 14px; letter-spacing: 4px;
+    text-transform: uppercase; margin-bottom: 14px; font-weight: 800;
+    animation: reckonPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes reckonPulse {
+    0%,100% { opacity: 0.7; text-shadow: 0 0 8px rgba(255,122,69,0.4); }
+    50% { opacity: 1; text-shadow: 0 0 18px rgba(255,122,69,0.8); }
+  }
+  .reckon-cards-row {
+    display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+  }
+  .reckon-card {
+    width: 130px; height: 180px; perspective: 1000px;
+    cursor: default;
+  }
+  .reckon-card-inner {
+    width: 100%; height: 100%; position: relative;
+    transform-style: preserve-3d; transition: transform 0.7s;
+  }
+  .reckon-card.flipped .reckon-card-inner { transform: rotateY(180deg); }
+  .reckon-face {
+    position: absolute; width: 100%; height: 100%;
+    backface-visibility: hidden;
+    border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 10px; text-align: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  }
+  .reckon-face.back {
+    background:
+      repeating-linear-gradient(45deg, #2b1f15 0, #2b1f15 8px, #1a1410 8px, #1a1410 16px);
+    border: 2px solid #5a4a32;
+    color: #f4a946; font-size: 36px; font-weight: 900;
+  }
+  .reckon-face.back::before {
+    content: '?'; text-shadow: 0 0 10px rgba(244,169,70,0.5);
+  }
+  .reckon-face.front {
+    background: linear-gradient(180deg, #3a2916 0%, #2b1f15 100%);
+    transform: rotateY(180deg);
+    border: 2px solid #5a4a32;
+  }
+  .reckon-face.front.green { border-color: #6cc06a; box-shadow: 0 0 18px rgba(108,192,106,0.4); }
+  .reckon-face.front.red { border-color: #e85a5a; box-shadow: 0 0 18px rgba(232,90,90,0.4); }
+  .reckon-mini-face {
+    width: 56px; height: 56px; margin-bottom: 6px;
+  }
+  .reckon-mini-face svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .reckon-name { font-size: 13px; color: #ffd089; font-weight: 800; margin-bottom: 4px; }
+  .reckon-result { font-size: 12px; line-height: 1.3; padding: 0 4px; font-weight: 700; }
+  .reckon-result.green { color: #6cc06a; }
+  .reckon-result.red { color: #e85a5a; }
+  .reckon-emoji { font-size: 22px; margin: 2px 0; }
+
+  /* ======================== POWER-UP ======================== */
+  .powerup-notify {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(180deg, #ffd089 0%, #f4a946 100%);
+    color: #1a1410; padding: 12px 22px; border-radius: 28px;
+    font-weight: 800; font-size: 14px; letter-spacing: 1px;
+    box-shadow: 0 6px 24px rgba(244,169,70,0.6);
+    z-index: 90; opacity: 0; pointer-events: none;
+    text-transform: uppercase;
+  }
+  .powerup-notify.show { animation: notifyShow 3.6s ease forwards; }
+  @keyframes notifyShow {
+    0% { opacity: 0; transform: translate(-50%, -20px); }
+    10%,80% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+  }
+
+  /* ======================== END SCREEN ======================== */
+  #end-screen {
+    align-items: center; justify-content: flex-start; text-align: center;
+    background: radial-gradient(ellipse at center, #2b1f15 0%, #110a06 80%);
+    padding: 30px 16px;
+  }
+  .end-stage { width: 100%; max-width: 720px; margin-bottom: 20px; }
+  .end-stage.hidden-stage { opacity: 0; }
+  .end-stage.appearing { animation: stageAppear 0.7s ease forwards; }
+  @keyframes stageAppear {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  #outcome-line {
+    font-size: 50px; font-weight: 900; letter-spacing: 3px;
+    background: linear-gradient(180deg, #ffd089 0%, #f4a946 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; color: #f4a946;
+    text-shadow: 0 4px 30px rgba(244,169,70,0.4);
+    margin: 50px 0 20px;
+    line-height: 1.1;
+  }
+  #outcome-line.bad {
+    background: linear-gradient(180deg, #ffb8b8 0%, #e85a5a 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; color: #e85a5a;
+  }
+  .end-meters-row {
+    display: flex; flex-direction: column; gap: 10px; max-width: 540px; margin: 0 auto;
+  }
+  .end-meter {
+    background: rgba(0,0,0,0.4); border: 1px solid rgba(244,169,70,0.3);
+    border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 12px;
+    opacity: 0;
+  }
+  .end-meter.in { animation: meterIn 0.5s ease forwards; }
+  @keyframes meterIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .end-meter-emoji { font-size: 24px; flex-shrink: 0; }
+  .end-meter-info { flex: 1; text-align: left; }
+  .end-meter-name { font-size: 12px; color: #a89e8c; text-transform: uppercase; letter-spacing: 1px; }
+  .end-meter-state { font-size: 14px; color: #f3ede0; font-weight: 700; }
+  .end-meter-bar {
+    flex: 1.5; height: 12px; background: rgba(0,0,0,0.5); border-radius: 6px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .end-meter-fill { height: 100%; transition: width 0.8s ease; border-radius: 6px; }
+  .highlight-reel {
+    display: flex; flex-direction: column; gap: 8px; max-width: 540px; margin: 0 auto;
+  }
+  .highlight-card {
+    background: rgba(0,0,0,0.4); border: 1px solid rgba(244,169,70,0.25);
+    border-radius: 8px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 12px; text-align: left;
+    opacity: 0;
+  }
+  .highlight-card.in { animation: meterIn 0.5s ease forwards; }
+  .highlight-icon { font-size: 22px; flex-shrink: 0; }
+  .highlight-text { color: #f3ede0; font-size: 14px; font-weight: 600; }
+  .xp-badge-wrap {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: linear-gradient(180deg, rgba(108,192,106,0.25) 0%, rgba(0,0,0,0.4) 100%);
+    border: 2px solid #6cc06a; padding: 12px 22px; border-radius: 28px;
+    font-size: 16px; color: #f3ede0; font-weight: 700;
+  }
+  .xp-badge-wrap .lv { color: #6cc06a; font-weight: 900; font-size: 20px; letter-spacing: 1px; }
+  .replay-btn {
+    background: linear-gradient(180deg, #ffd089 0%, #f4a946 100%);
+    color: #1a1410; font-size: 18px; font-weight: 800; letter-spacing: 2px;
+    padding: 16px 36px; border: none; border-radius: 8px; cursor: pointer;
+    text-transform: uppercase; box-shadow: 0 6px 20px rgba(244,169,70,0.5);
+    min-height: 56px; margin-top: 16px;
+  }
+  .replay-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(244,169,70,0.7); }
+  .show-details-btn {
+    background: transparent; color: #a89e8c; border: 1px solid #5a4a32;
+    padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    margin-top: 16px; min-height: 44px;
+  }
+  .show-details-btn:hover { color: #ffd089; border-color: #f4a946; }
+  #data-layer { display: none; max-width: 720px; margin: 16px auto 0; padding: 0 12px; }
+  #data-layer.show { display: block; }
+  #data-layer h3 { color: #ffd089; font-size: 16px; margin-bottom: 10px; }
+  #data-table {
+    width: 100%; border-collapse: collapse; background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(244,169,70,0.3); border-radius: 6px; overflow: hidden;
+    font-size: 11px; color: #d8d2c4;
+  }
+  #data-table th { background: rgba(244,169,70,0.2); color: #ffd089; padding: 6px 8px; text-align: left; font-size: 10px; }
+  #data-table td { padding: 5px 8px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .copy-btn {
+    background: rgba(244,169,70,0.2); color: #ffd089; border: 1px solid #f4a946;
+    padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    margin-top: 8px; min-height: 36px;
+  }
+  .copy-btn:hover { background: rgba(244,169,70,0.35); }
+
+  /* ======================== HOTFIX ======================== */
+  .hf-stuck {
+    position: fixed; bottom: 16px; right: 16px;
+    background: linear-gradient(180deg, #f4a946 0%, #d4892e 100%);
+    color: #1a1410; padding: 10px 16px; border-radius: 20px;
+    font-weight: 800; font-size: 12px; letter-spacing: 1px;
+    border: none; cursor: pointer; z-index: 80;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    text-transform: uppercase;
+    display: none; min-height: 40px;
+  }
+  .hf-stuck.show { display: inline-block; }
+  .hf-stuck.nudge { animation: stuckNudge 0.6s ease 3; }
+  @keyframes stuckNudge {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+  .hf-restart {
+    position: fixed; bottom: 16px; left: 16px;
+    background: rgba(40,28,18,0.85); color: #a89e8c;
+    padding: 6px 12px; border-radius: 14px;
+    border: 1px solid #5a4a32; cursor: pointer;
+    font-size: 11px; z-index: 80;
+    display: none; min-height: 36px;
+  }
+  .hf-restart.show { display: inline-block; }
+  .hf-restart:hover { color: #ffd089; border-color: #f4a946; }
+
+  /* ======================== RESPONSIVE ======================== */
+  @media (max-width: 720px) {
+    .meters-row { grid-template-columns: repeat(2, 1fr); }
+    #title-screen h1 { font-size: 42px; }
+    #outcome-line { font-size: 36px; }
+    .reckon-card { width: 110px; height: 160px; }
+    .svg-customer.tall { width: 90px; height: 130px; }
+    .svg-car-wrap { width: 200px; height: 90px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TITLE SCREEN -->
+<div class="screen active" id="title-screen">
+  <div class="brand-tag">Mr. Jawad's Simulations</div>
+  <div class="title-shop-art">
+    <svg viewBox="0 0 560 220" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="t-floor" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3d3225"/>
+          <stop offset="100%" stop-color="#1a1208"/>
+        </linearGradient>
+        <linearGradient id="t-wall" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3a2918"/>
+          <stop offset="100%" stop-color="#1a1208"/>
+        </linearGradient>
+        <radialGradient id="t-doorlight" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stop-color="#fff5d0" stop-opacity="1"/>
+          <stop offset="100%" stop-color="#fff5d0" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="t-ceiling-glow" cx="0.5" cy="0" r="0.7">
+          <stop offset="0%" stop-color="#f4a946" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#f4a946" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <!-- Wall -->
+      <rect x="0" y="0" width="560" height="170" fill="url(#t-wall)"/>
+      <!-- Floor -->
+      <rect x="0" y="170" width="560" height="50" fill="url(#t-floor)"/>
+      <!-- Door frame with light flooding in -->
+      <rect x="200" y="40" width="160" height="150" fill="#0a0604"/>
+      <ellipse cx="280" cy="120" rx="120" ry="90" fill="url(#t-doorlight)" class="silhouette-flicker"/>
+      <rect x="195" y="36" width="170" height="6" fill="#5a4a32"/>
+      <rect x="193" y="36" width="6" height="158" fill="#5a4a32"/>
+      <rect x="361" y="36" width="6" height="158" fill="#5a4a32"/>
+      <!-- Three silhouettes in doorway -->
+      <g class="silhouette-flicker">
+        <!-- Silhouette 1 -->
+        <ellipse cx="240" cy="100" rx="14" ry="16" fill="#0a0604"/>
+        <path d="M 218 116 L 218 192 L 262 192 L 262 116 Q 240 130 218 116 Z" fill="#0a0604"/>
+        <!-- Silhouette 2 (centered, taller) -->
+        <ellipse cx="282" cy="92" rx="15" ry="17" fill="#0a0604"/>
+        <path d="M 258 110 L 258 192 L 306 192 L 306 110 Q 282 124 258 110 Z" fill="#0a0604"/>
+        <!-- Silhouette 3 -->
+        <ellipse cx="324" cy="104" rx="13" ry="15" fill="#0a0604"/>
+        <path d="M 304 118 L 304 192 L 344 192 L 344 118 Q 324 132 304 118 Z" fill="#0a0604"/>
+      </g>
+      <!-- Doorbell sound waves above door -->
+      <g transform="translate(280, 30)">
+        <circle cx="0" cy="0" r="6" fill="none" stroke="#f4a946" stroke-width="2" class="doorbell-wave"/>
+      </g>
+      <!-- Hanging shop light -->
+      <line x1="100" y1="0" x2="100" y2="32" stroke="#5a4a32" stroke-width="2"/>
+      <rect x="80" y="32" width="40" height="10" fill="#3a3020" rx="2"/>
+      <rect x="84" y="38" width="32" height="4" fill="#fff5d0"/>
+      <ellipse cx="100" cy="50" rx="100" ry="50" fill="url(#t-ceiling-glow)"/>
+      <!-- Tool chest left -->
+      <rect x="20" y="130" width="60" height="40" fill="#2a2018" stroke="#5a4a32" stroke-width="1.5"/>
+      <line x1="22" y1="142" x2="78" y2="142" stroke="#5a4a32" stroke-width="1"/>
+      <line x1="22" y1="155" x2="78" y2="155" stroke="#5a4a32" stroke-width="1"/>
+      <circle cx="50" cy="148" r="1.5" fill="#f4a946"/>
+      <circle cx="50" cy="161" r="1.5" fill="#f4a946"/>
+      <!-- Tire rack right -->
+      <rect x="475" y="115" width="65" height="55" fill="#2a2018" stroke="#5a4a32" stroke-width="1.5"/>
+      <circle cx="492" cy="132" r="9" fill="#1a1208" stroke="#3a3020" stroke-width="2"/>
+      <circle cx="522" cy="132" r="9" fill="#1a1208" stroke="#3a3020" stroke-width="2"/>
+      <circle cx="492" cy="156" r="9" fill="#1a1208" stroke="#3a3020" stroke-width="2"/>
+      <circle cx="522" cy="156" r="9" fill="#1a1208" stroke="#3a3020" stroke-width="2"/>
+      <!-- Three clock-with-? ghosts on the floor -->
+      <g class="clock-ghost">
+        <circle cx="160" cy="200" r="10" fill="none" stroke="#f4a946" stroke-width="1.5" opacity="0.7"/>
+        <text x="160" y="205" text-anchor="middle" font-family="Arial" font-size="14" font-weight="900" fill="#f4a946" opacity="0.7">?</text>
+      </g>
+      <g class="clock-ghost delay-1">
+        <circle cx="408" cy="200" r="10" fill="none" stroke="#f4a946" stroke-width="1.5" opacity="0.7"/>
+        <text x="408" y="205" text-anchor="middle" font-family="Arial" font-size="14" font-weight="900" fill="#f4a946" opacity="0.7">?</text>
+      </g>
+      <g class="clock-ghost delay-2">
+        <circle cx="280" cy="208" r="9" fill="none" stroke="#f4a946" stroke-width="1.5" opacity="0.6"/>
+        <text x="280" y="213" text-anchor="middle" font-family="Arial" font-size="13" font-weight="900" fill="#f4a946" opacity="0.6">?</text>
+      </g>
+      <!-- Floor bay-line -->
+      <line x1="0" y1="180" x2="560" y2="180" stroke="#f4a946" stroke-width="1.5" stroke-dasharray="10 6" opacity="0.3"/>
+    </svg>
+  </div>
+  <h1>UNDER THE HOOD</h1>
+  <h2>MECHANIC</h2>
+  <div class="session-tag">Session 2 — The Reckoning</div>
+  <div class="shop-strip">
+    <div class="shop-chip">7 cars on the schedule</div>
+    <div class="shop-chip warn">Past Quick Fixes coming due</div>
+    <div class="shop-chip bad">Anything could walk in</div>
+  </div>
+  <p>Every shortcut you took last week just walked back through the door. Read each customer. Decide who gets the careful job. Own your past calls.</p>
+  <button class="btn-primary" id="start-btn">Open the Shop</button>
+</div>
+
+<!-- GAME SCREEN -->
+<div class="screen" id="game-screen">
+  <div id="hud">
+    <div class="hud-top">
+      <div class="round-info">
+        <span class="round-badge" id="round-badge">Round 1 / 7</span>
+        <span class="level-badge" id="level-badge">LV 1</span>
+        <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
+      </div>
+      <div class="side-indicators" id="side-indicators">
+        <div class="side-ind"><span class="lbl">Lift</span><span class="val">0</span></div>
+      </div>
+    </div>
+    <div class="meter-trust" id="meter-trust">
+      <div class="watch-tag">★ WATCH THIS</div>
+      <div class="trust-row">
+        <div class="trust-face-wrap" id="trust-face-wrap"></div>
+        <div class="trust-meta">
+          <div class="trust-label-row">
+            <span class="trust-name">Customer Trust</span>
+            <span class="trust-state" id="trust-state">regular</span>
+          </div>
+          <div class="trust-bar-bg"><div class="trust-bar-fill mid" id="trust-fill" style="width: 50%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="meters-row" id="meters-row">
+      <div class="meter" id="meter-cash">
+        <div class="meter-name">Cash Flow</div>
+        <div class="meter-state" id="cash-state">paying bills</div>
+        <div class="meter-bar-bg"><div class="meter-bar-fill mid" id="cash-fill" style="width: 50%"></div></div>
+      </div>
+      <div class="meter" id="meter-pace">
+        <div class="meter-name">Shop Pace</div>
+        <div class="meter-state" id="pace-state">steady</div>
+        <div class="meter-bar-bg"><div class="meter-bar-fill mid" id="pace-fill" style="width: 60%"></div></div>
+      </div>
+      <div class="meter" id="meter-diag">
+        <div class="meter-name">Diagnostic Read</div>
+        <div class="meter-state" id="diag-state">scanning</div>
+        <div class="meter-bar-bg"><div class="meter-bar-fill mid" id="diag-fill" style="width: 40%"></div></div>
+      </div>
+      <div class="meter" id="meter-qual">
+        <div class="meter-name">Repair Quality</div>
+        <div class="meter-state" id="qual-state">solid</div>
+        <div class="meter-bar-bg"><div class="meter-bar-fill mid" id="qual-fill" style="width: 50%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="arena">
+    <div class="garage-bg" id="garage-bg"></div>
+    <div class="ambient-dust" id="ambient-dust"></div>
+    <div id="arena-stage"></div>
+  </div>
+
+  <div id="decision-panel">
+    <div id="situation-text">Loading...</div>
+    <div id="chip-section">
+      <div class="chip-prompt" id="chip-prompt">Read the customer — tap what they really need</div>
+      <div id="chip-row"></div>
+    </div>
+    <div class="recovery-banner" id="recovery-banner">★ Recovery Available</div>
+    <div id="choice-row">
+      <button class="choice-btn" id="choice-a" disabled>Option A</button>
+      <button class="choice-btn" id="choice-b" disabled>Option B</button>
+    </div>
+  </div>
+</div>
+
+<!-- END SCREEN -->
+<div class="screen" id="end-screen">
+  <div class="brand-tag" style="margin-bottom: 14px;">Mr. Jawad's Simulations</div>
+  <div class="end-stage" id="stage-1"><div id="outcome-line">—</div></div>
+  <div class="end-stage hidden-stage" id="stage-2"><div class="end-meters-row" id="end-meters-row"></div></div>
+  <div class="end-stage hidden-stage" id="stage-3">
+    <h3 style="color:#ffd089; margin: 18px 0 12px; letter-spacing: 2px; font-size: 14px;">HIGHLIGHT REEL</h3>
+    <div class="highlight-reel" id="highlight-reel"></div>
+  </div>
+  <div class="end-stage hidden-stage" id="stage-4">
+    <div class="xp-badge-wrap"><span>XP</span><span class="lv" id="end-xp">0</span><span>·</span><span class="lv" id="end-level">LV 1</span></div>
+  </div>
+  <div class="end-stage hidden-stage" id="stage-5">
+    <p style="color:#a89e8c; font-size: 14px; margin-bottom: 6px;">Replay challenge</p>
+    <p style="color:#f3ede0; font-size: 15px; margin-bottom: 14px; max-width: 460px; margin-left: auto; margin-right: auto;">Hit profitable Cash Flow AND loyal fans. Every shortcut costs trust. Every careful job costs cash. Path changes every run.</p>
+    <button class="replay-btn" id="replay-btn">Play Again</button>
+    <div><button class="show-details-btn" id="show-details-btn">Show Details</button></div>
+  </div>
+  <div id="data-layer">
+    <h3>Decisions</h3>
+    <table id="data-table"></table>
+    <button class="copy-btn" id="copy-btn">Copy to Clipboard</button>
+  </div>
+</div>
+
+<!-- POPUP -->
+<div id="popup-overlay">
+  <div class="popup-box">
+    <div class="popup-label" id="popup-label">EVENT</div>
+    <div class="popup-title" id="popup-title">—</div>
+    <div class="popup-text" id="popup-text">—</div>
+    <button class="popup-btn" id="popup-btn">Continue</button>
+  </div>
+</div>
+
+<!-- POWER-UP NOTIFY -->
+<div class="powerup-notify" id="powerup-notify">⚡ Power-Up</div>
+
+<!-- HOTFIX BUTTONS -->
+<button class="hf-stuck" id="hf-stuck-btn">I'm Stuck — Skip</button>
+<button class="hf-restart" id="hf-restart-btn">↺ Restart</button>
+
+<script>
+(function(){
+  'use strict';
+
+  // ============== AUDIO (lazy) ==============
+  var audioCtx = null;
+  function getAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { audioCtx = null; }
+    }
+    return audioCtx;
+  }
+  function beep(freq, dur, type) {
+    try {
+      var ctx = getAudio(); if (!ctx) return;
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = type || 'sine';
+      o.frequency.value = freq;
+      g.gain.value = 0.08;
+      o.connect(g); g.connect(ctx.destination);
+      o.start();
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (dur || 0.15));
+      o.stop(ctx.currentTime + (dur || 0.15));
+    } catch (e) {}
+  }
+
+  // ============== SVG GENERATORS ==============
+
+  // Customer style profiles — each customer gets a distinct visual identity
+  var customerStyles = {
+    marcus: {
+      name: 'Marcus',
+      skin: '#c89878', hair: '#3a2818', shirt: '#3a5a8a',
+      hat: { type: 'cap', color: '#1a3a5a' }, accessory: null
+    },
+    nia: {
+      name: 'Nia',
+      skin: '#a87858', hair: '#1a0a04', shirt: '#7a4a4a',
+      hat: { type: 'ponytail', color: '#1a0a04' }, accessory: null
+    },
+    jay: {
+      name: 'Jay',
+      skin: '#d4a880', hair: '#5a3818', shirt: '#4a6a4a',
+      hat: { type: 'beanie', color: '#3a3020' }, accessory: null
+    },
+    reyes: {
+      name: 'Mrs. Reyes',
+      skin: '#c89878', hair: '#aaa098', shirt: '#5a3a5a',
+      hat: { type: 'short', color: '#aaa098' }, accessory: 'glasses'
+    },
+    dion: {
+      name: 'Dion',
+      skin: '#9a6840', hair: '#1a0a04', shirt: '#3a3a3a',
+      hat: { type: 'short', color: '#1a0a04' }, accessory: 'headphones'
+    },
+    walkin_loyal:      { name: 'Walk-In',  skin: '#b88858', hair: '#5a3a18', shirt: '#3a5a3a', hat: { type: 'short', color: '#5a3a18' }, accessory: null },
+    walkin_regular:    { name: 'Walk-In',  skin: '#c89878', hair: '#3a2818', shirt: '#5a5a8a', hat: { type: 'short', color: '#3a2818' }, accessory: null },
+    walkin_suspicious: { name: 'Walk-In',  skin: '#b08868', hair: '#1a0a04', shirt: '#5a3a3a', hat: { type: 'short', color: '#1a0a04' }, accessory: null },
+    referral:          { name: 'Walk-In',  skin: '#d4a880', hair: '#3a2818', shirt: '#3a8a5a', hat: { type: 'short', color: '#3a2818' }, accessory: null }
+  };
+
+  function svgCustomer(key, mood, opts) {
+    opts = opts || {};
+    var style = customerStyles[key] || customerStyles.marcus;
+    var moodClass = mood || 'neutral';
+    // Mouth path
+    var mouthPath;
+    if (moodClass === 'happy') {
+      mouthPath = '<path d="M 38 70 Q 50 80 62 70" stroke="#1a1410" stroke-width="3" fill="none" stroke-linecap="round"/>';
+    } else if (moodClass === 'angry') {
+      mouthPath = '<path d="M 38 76 Q 50 68 62 76" stroke="#1a1410" stroke-width="3" fill="none" stroke-linecap="round"/>';
+    } else if (moodClass === 'tense') {
+      mouthPath = '<line x1="40" y1="74" x2="60" y2="74" stroke="#1a1410" stroke-width="2.5" stroke-linecap="round"/>';
+    } else {
+      mouthPath = '<path d="M 40 72 Q 50 76 60 72" stroke="#1a1410" stroke-width="2.5" fill="none" stroke-linecap="round"/>';
+    }
+
+    // Eyebrows (mood-based)
+    var brows;
+    if (moodClass === 'angry') {
+      brows = '<line x1="32" y1="48" x2="44" y2="52" stroke="#1a1410" stroke-width="3" stroke-linecap="round"/>' +
+              '<line x1="68" y1="48" x2="56" y2="52" stroke="#1a1410" stroke-width="3" stroke-linecap="round"/>';
+    } else if (moodClass === 'tense') {
+      brows = '<line x1="32" y1="50" x2="44" y2="48" stroke="#1a1410" stroke-width="3" stroke-linecap="round"/>' +
+              '<line x1="56" y1="48" x2="68" y2="50" stroke="#1a1410" stroke-width="3" stroke-linecap="round"/>';
+    } else if (moodClass === 'happy') {
+      brows = '<path d="M 32 50 Q 38 46 44 50" stroke="#1a1410" stroke-width="2.5" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 56 50 Q 62 46 68 50" stroke="#1a1410" stroke-width="2.5" fill="none" stroke-linecap="round"/>';
+    } else {
+      brows = '<line x1="34" y1="50" x2="44" y2="50" stroke="#1a1410" stroke-width="2.5" stroke-linecap="round"/>' +
+              '<line x1="56" y1="50" x2="66" y2="50" stroke="#1a1410" stroke-width="3" stroke-linecap="round"/>'; // mistakenly different — fix
+    }
+    // Re-do brows neutrally
+    if (moodClass === 'neutral' || !moodClass) {
+      brows = '<line x1="34" y1="50" x2="44" y2="50" stroke="#1a1410" stroke-width="2.5" stroke-linecap="round"/>' +
+              '<line x1="56" y1="50" x2="66" y2="50" stroke="#1a1410" stroke-width="2.5" stroke-linecap="round"/>';
+    }
+
+    // Hat / hair
+    var hatHair = '';
+    if (style.hat.type === 'cap') {
+      // Baseball cap
+      hatHair = '<path d="M 22 38 Q 22 18 50 16 Q 78 18 78 38 L 78 42 L 22 42 Z" fill="' + style.hat.color + '"/>' +
+                '<path d="M 78 38 Q 92 38 96 44 Q 90 46 78 44 Z" fill="' + style.hat.color + '"/>';
+    } else if (style.hat.type === 'ponytail') {
+      hatHair = '<path d="M 22 36 Q 24 16 50 14 Q 76 16 78 36 L 78 42 Q 50 38 22 42 Z" fill="' + style.hair + '"/>' +
+                '<ellipse cx="86" cy="44" rx="8" ry="14" fill="' + style.hair + '" transform="rotate(20, 86, 44)"/>';
+    } else if (style.hat.type === 'beanie') {
+      hatHair = '<path d="M 20 40 Q 18 18 50 14 Q 82 18 80 40 Q 80 44 78 44 L 22 44 Q 20 44 20 40 Z" fill="' + style.hat.color + '"/>' +
+                '<rect x="22" y="40" width="56" height="6" fill="' + style.hat.color + '" opacity="0.5"/>' +
+                '<circle cx="50" cy="14" r="4" fill="' + style.hat.color + '"/>';
+    } else {
+      // Short hair
+      hatHair = '<path d="M 22 38 Q 24 16 50 14 Q 76 16 78 38 L 78 44 Q 50 40 22 44 Z" fill="' + style.hair + '"/>';
+    }
+
+    // Accessory — glasses
+    var glasses = '';
+    if (style.accessory === 'glasses') {
+      glasses = '<circle cx="38" cy="58" r="7" fill="none" stroke="#1a1410" stroke-width="2"/>' +
+                '<circle cx="62" cy="58" r="7" fill="none" stroke="#1a1410" stroke-width="2"/>' +
+                '<line x1="45" y1="58" x2="55" y2="58" stroke="#1a1410" stroke-width="2"/>';
+    }
+    // Accessory — headphones
+    var headphones = '';
+    if (style.accessory === 'headphones') {
+      headphones = '<path d="M 18 50 Q 18 18 50 16 Q 82 18 82 50" fill="none" stroke="#1a1410" stroke-width="3"/>' +
+                   '<rect x="14" y="46" width="10" height="18" rx="3" fill="#3a3020" stroke="#1a1410" stroke-width="1"/>' +
+                   '<rect x="76" y="46" width="10" height="18" rx="3" fill="#3a3020" stroke="#1a1410" stroke-width="1"/>';
+    }
+
+    // Body (torso visible below the head)
+    var body = '<path d="M 18 130 Q 18 100 50 96 Q 82 100 82 130 L 82 160 L 18 160 Z" fill="' + style.shirt + '" stroke="#1a1410" stroke-width="1.5"/>';
+    // Collar
+    var collar = '<path d="M 38 96 Q 50 102 62 96 L 60 110 L 50 116 L 40 110 Z" fill="' + style.shirt + '" stroke="#1a1410" stroke-width="1" filter="brightness(0.85)"/>';
+
+    return '<svg viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">' +
+      // Body
+      body +
+      // Neck
+      '<rect x="42" y="84" width="16" height="14" fill="' + style.skin + '" stroke="#1a1410" stroke-width="1"/>' +
+      // Head
+      '<ellipse cx="50" cy="58" rx="28" ry="32" fill="' + style.skin + '" stroke="#1a1410" stroke-width="1.5"/>' +
+      // Hair/Hat
+      hatHair +
+      // Eyes (whites)
+      '<circle cx="38" cy="60" r="4" fill="#fff"/>' +
+      '<circle cx="62" cy="60" r="4" fill="#fff"/>' +
+      // Pupils (mood-shifted)
+      '<circle cx="' + (moodClass === 'angry' ? 39 : moodClass === 'tense' ? 37 : 38) + '" cy="61" r="2" fill="#1a1410"/>' +
+      '<circle cx="' + (moodClass === 'angry' ? 61 : moodClass === 'tense' ? 63 : 62) + '" cy="61" r="2" fill="#1a1410"/>' +
+      // Brows
+      brows +
+      // Glasses
+      glasses +
+      // Mouth
+      mouthPath +
+      // Headphones (drawn last to overlay)
+      headphones +
+      // Collar accent
+      collar +
+      '</svg>';
+  }
+
+  // Mini face for reckoning cards (just head)
+  function svgMiniCustomer(key) {
+    var style = customerStyles[key] || customerStyles.marcus;
+    var hatHair = '';
+    if (style.hat.type === 'cap') {
+      hatHair = '<path d="M 22 38 Q 22 18 50 16 Q 78 18 78 38 L 78 42 L 22 42 Z" fill="' + style.hat.color + '"/>';
+    } else if (style.hat.type === 'ponytail') {
+      hatHair = '<path d="M 22 36 Q 24 16 50 14 Q 76 16 78 36 L 78 42 Q 50 38 22 42 Z" fill="' + style.hair + '"/>';
+    } else if (style.hat.type === 'beanie') {
+      hatHair = '<path d="M 20 40 Q 18 18 50 14 Q 82 18 80 40 L 22 44 Z" fill="' + style.hat.color + '"/>';
+    } else {
+      hatHair = '<path d="M 22 38 Q 24 16 50 14 Q 76 16 78 38 L 78 44 Q 50 40 22 44 Z" fill="' + style.hair + '"/>';
+    }
+    return '<svg viewBox="0 0 100 90" xmlns="http://www.w3.org/2000/svg">' +
+      '<ellipse cx="50" cy="58" rx="28" ry="32" fill="' + style.skin + '" stroke="#1a1410" stroke-width="1.5"/>' +
+      hatHair +
+      '<circle cx="38" cy="60" r="3" fill="#1a1410"/>' +
+      '<circle cx="62" cy="60" r="3" fill="#1a1410"/>' +
+      '<line x1="40" y1="74" x2="60" y2="74" stroke="#1a1410" stroke-width="2"/>' +
+      '</svg>';
+  }
+
+  // SVG Trust face (used in HUD)
+  function svgTrustFace(zone) {
+    var color = zone === 'loyal' ? '#a8e6c4' : zone === 'regular' ? '#ffe8c8' : '#ffb8b8';
+    var stroke = '#3a2918';
+    var mouthPath;
+    if (zone === 'loyal') mouthPath = '<path d="M 18 32 Q 25 40 32 32" stroke="' + stroke + '" stroke-width="2.5" fill="none" stroke-linecap="round"/>';
+    else if (zone === 'regular') mouthPath = '<line x1="20" y1="34" x2="30" y2="34" stroke="' + stroke + '" stroke-width="2.5" stroke-linecap="round"/>';
+    else mouthPath = '<path d="M 18 36 Q 25 30 32 36" stroke="' + stroke + '" stroke-width="2.5" fill="none" stroke-linecap="round"/>';
+    return '<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="25" cy="25" r="22" fill="' + color + '" stroke="#f4a946" stroke-width="2.5"/>' +
+      '<circle cx="18" cy="22" r="2.5" fill="' + stroke + '"/>' +
+      '<circle cx="32" cy="22" r="2.5" fill="' + stroke + '"/>' +
+      mouthPath +
+      '</svg>';
+  }
+
+  // SVG Car
+  function svgCar(opts) {
+    opts = opts || {};
+    var color = opts.color || '#5e7a8c';
+    var colorDark = opts.colorDark || '#3a4d5a';
+    return '<svg viewBox="0 0 240 110" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs>' +
+        '<linearGradient id="car-body-g" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="' + color + '"/>' +
+          '<stop offset="100%" stop-color="' + colorDark + '"/>' +
+        '</linearGradient>' +
+        '<linearGradient id="car-window-g" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="#a8c8d8"/>' +
+          '<stop offset="100%" stop-color="#5a7a8a"/>' +
+        '</linearGradient>' +
+      '</defs>' +
+      // Shadow under car
+      '<ellipse cx="120" cy="100" rx="100" ry="6" fill="#000" opacity="0.4"/>' +
+      // Body
+      '<path d="M 18 80 L 18 56 Q 30 50 50 48 L 80 30 Q 100 24 140 24 Q 170 24 195 36 L 215 50 Q 222 52 222 60 L 222 80 Q 222 86 216 86 L 24 86 Q 18 86 18 80 Z" fill="url(#car-body-g)" stroke="#1a1410" stroke-width="1.5"/>' +
+      // Cabin window
+      '<path d="M 56 48 Q 75 32 110 28 Q 140 26 165 32 Q 180 38 192 50 L 56 50 Z" fill="url(#car-window-g)" stroke="#1a1410" stroke-width="1.5"/>' +
+      // Window divider (B-pillar)
+      '<line x1="120" y1="28" x2="120" y2="50" stroke="#1a1410" stroke-width="2"/>' +
+      // Door cut
+      '<line x1="118" y1="50" x2="118" y2="84" stroke="#1a1410" stroke-width="1.5" opacity="0.5"/>' +
+      // Door handle
+      '<rect x="100" y="62" width="14" height="3" rx="1" fill="#1a1410"/>' +
+      '<rect x="138" y="62" width="14" height="3" rx="1" fill="#1a1410"/>' +
+      // Headlight
+      '<ellipse cx="210" cy="62" rx="8" ry="6" fill="#fff5d0" stroke="#1a1410" stroke-width="1.2"/>' +
+      // Taillight
+      '<rect x="22" y="58" width="10" height="10" rx="2" fill="#e85a5a" stroke="#1a1410" stroke-width="1.2"/>' +
+      // Side mirror
+      '<rect x="50" y="46" width="6" height="10" rx="1" fill="' + colorDark + '" stroke="#1a1410" stroke-width="1"/>' +
+      // Wheels
+      '<g>' +
+        '<circle cx="60" cy="86" r="14" fill="#1a1410" stroke="#3a3020" stroke-width="2"/>' +
+        '<circle cx="60" cy="86" r="7" fill="#5a4a32" stroke="#1a1410" stroke-width="1"/>' +
+        '<circle cx="60" cy="86" r="2.5" fill="#1a1410"/>' +
+      '</g>' +
+      '<g>' +
+        '<circle cx="180" cy="86" r="14" fill="#1a1410" stroke="#3a3020" stroke-width="2"/>' +
+        '<circle cx="180" cy="86" r="7" fill="#5a4a32" stroke="#1a1410" stroke-width="1"/>' +
+        '<circle cx="180" cy="86" r="2.5" fill="#1a1410"/>' +
+      '</g>' +
+      // Reflection on body
+      '<path d="M 60 56 Q 100 52 160 54" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.25"/>' +
+      '</svg>';
+  }
+
+  // Garage backdrop SVG
+  function svgGarageBackdrop() {
+    return '<svg viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs>' +
+        '<linearGradient id="bg-floor" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="#3d3225"/>' +
+          '<stop offset="100%" stop-color="#1a120c"/>' +
+        '</linearGradient>' +
+        '<linearGradient id="bg-wall" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="#2b1f15"/>' +
+          '<stop offset="100%" stop-color="#0a0604"/>' +
+        '</linearGradient>' +
+        '<radialGradient id="bg-light" cx="0.5" cy="0" r="0.7">' +
+          '<stop offset="0%" stop-color="#f4a946" stop-opacity="0.35"/>' +
+          '<stop offset="100%" stop-color="#f4a946" stop-opacity="0"/>' +
+        '</radialGradient>' +
+      '</defs>' +
+      // Wall + floor
+      '<rect x="0" y="0" width="800" height="280" fill="url(#bg-wall)"/>' +
+      '<rect x="0" y="280" width="800" height="120" fill="url(#bg-floor)"/>' +
+      // Floor tile lines
+      '<line x1="40" y1="320" x2="760" y2="320" stroke="#f4a946" stroke-width="2" stroke-dasharray="14 8" opacity="0.25"/>' +
+      // Ceiling shop light
+      '<line x1="400" y1="0" x2="400" y2="40" stroke="#5a4a32" stroke-width="2"/>' +
+      '<rect x="370" y="38" width="60" height="12" fill="#3a3020" rx="3"/>' +
+      '<rect x="376" y="42" width="48" height="6" fill="#fff5d0"/>' +
+      '<ellipse cx="400" cy="56" rx="180" ry="80" fill="url(#bg-light)"/>' +
+      // Left lift post
+      '<rect x="60" y="180" width="14" height="120" fill="#3a3020" stroke="#1a1410" stroke-width="1"/>' +
+      '<rect x="56" y="296" width="22" height="6" fill="#1a1410"/>' +
+      // Right lift post
+      '<rect x="726" y="180" width="14" height="120" fill="#3a3020" stroke="#1a1410" stroke-width="1"/>' +
+      '<rect x="722" y="296" width="22" height="6" fill="#1a1410"/>' +
+      // Tool chest (back-left)
+      '<rect x="100" y="220" width="120" height="80" fill="#2a2018" stroke="#5a4a32" stroke-width="2"/>' +
+      '<line x1="106" y1="240" x2="214" y2="240" stroke="#5a4a32" stroke-width="1.5"/>' +
+      '<line x1="106" y1="262" x2="214" y2="262" stroke="#5a4a32" stroke-width="1.5"/>' +
+      '<line x1="106" y1="282" x2="214" y2="282" stroke="#5a4a32" stroke-width="1.5"/>' +
+      '<circle cx="160" cy="248" r="3" fill="#f4a946"/>' +
+      '<circle cx="160" cy="270" r="3" fill="#f4a946"/>' +
+      '<circle cx="160" cy="290" r="3" fill="#f4a946"/>' +
+      // Tire rack (back-right)
+      '<rect x="580" y="200" width="120" height="100" fill="#2a2018" stroke="#5a4a32" stroke-width="2"/>' +
+      '<circle cx="608" cy="226" r="14" fill="#1a1208" stroke="#3a3020" stroke-width="3"/>' +
+      '<circle cx="672" cy="226" r="14" fill="#1a1208" stroke="#3a3020" stroke-width="3"/>' +
+      '<circle cx="608" cy="270" r="14" fill="#1a1208" stroke="#3a3020" stroke-width="3"/>' +
+      '<circle cx="672" cy="270" r="14" fill="#1a1208" stroke="#3a3020" stroke-width="3"/>' +
+      // Hanging tools left
+      '<g transform="translate(280, 80)">' +
+        '<line x1="0" y1="0" x2="0" y2="14" stroke="#5a4a32" stroke-width="2"/>' +
+        '<rect x="-12" y="14" width="24" height="6" fill="#7a6a4a" rx="2"/>' +
+        '<rect x="-2" y="20" width="4" height="40" fill="#6a7a8a"/>' +
+        '<circle cx="0" cy="60" r="8" fill="none" stroke="#6a7a8a" stroke-width="3"/>' +
+      '</g>' +
+      // Hanging tool right (hose coil)
+      '<g transform="translate(520, 80)">' +
+        '<line x1="0" y1="0" x2="0" y2="20" stroke="#5a4a32" stroke-width="2"/>' +
+        '<rect x="-14" y="20" width="28" height="6" fill="#7a6a4a" rx="2"/>' +
+        '<circle cx="0" cy="48" r="20" fill="none" stroke="#1a1410" stroke-width="6"/>' +
+        '<circle cx="0" cy="48" r="14" fill="none" stroke="#1a1410" stroke-width="4"/>' +
+      '</g>' +
+      // Bay number paint on wall
+      '<text x="400" y="200" text-anchor="middle" font-family="Arial Black" font-size="80" font-weight="900" fill="#f4a946" opacity="0.06">BAY 1</text>' +
+      '</svg>';
+  }
+
+  // ============== STATE ==============
+  var state = null;
+  function freshState() {
+    return {
+      round: 1,
+      xp: 0,
+      level: 1,
+      meters: { trust: 50, cash: 50, pace: 60, diag: 40, qual: 50 },
+      flagsForR6: [],
+      lostReferrals: 0,
+      reputationRisk: false,
+      reputationDamage: false,
+      reputationRecover: false,
+      wordOfMouth: false,
+      loanerOut: false,
+      decisions: [],
+      matchedReadCount: 0,
+      seenThisBeforeReady: false,
+      seenThisBeforeActive: false,
+      seenThisBeforeUsed: false,
+      comebackUsed: false,
+      currentReturns: [],
+      reckoningRun: false,
+      choiceLocked: false,
+      choiceLockedSince: 0,
+      popupOpen: false,
+      popupOpenSince: 0,
+      popupCloseHandler: null,
+      endTimers: [],
+      _roundGen: 0,
+      lastInteract: Date.now(),
+      stuckNudged: false,
+      currentChipMatch: null,
+      currentChipTapped: null,
+      currentChoiceData: null,
+      diagSystemKey: null,
+      hopelessSucceeded: null,
+      phantomFound: null,
+      finished: false
+    };
+  }
+
+  // ============== METER HELPERS ==============
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function meterStateLabel(meter, val) {
+    var labels = {
+      trust: ['suspicious', 'regular', 'loyal fans'],
+      cash:  ['in the red', 'paying bills', 'profitable'],
+      pace:  ['drowning', 'steady', 'ahead of schedule'],
+      diag:  ['guessing', 'scanning', 'dialed in'],
+      qual:  ['sloppy', 'solid', 'pro grade']
+    };
+    if (val <= 30) return labels[meter][0];
+    if (val <= 65) return labels[meter][1];
+    return labels[meter][2];
+  }
+  function zoneClass(val) {
+    if (val <= 30) return 'low';
+    if (val <= 65) return 'mid';
+    return 'high';
+  }
+  function trustZone(val) {
+    if (val >= 66) return 'loyal';
+    if (val >= 31) return 'regular';
+    return 'suspicious';
+  }
+
+  function $(id) { return document.getElementById(id); }
+  function setScreen(name) {
+    var screens = document.querySelectorAll('.screen');
+    for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
+    $(name).classList.add('active');
+  }
+
+  // ============== METER RENDER ==============
+  function renderMeters(animate) {
+    try {
+      var m = state.meters;
+      var tFill = $('trust-fill');
+      tFill.style.width = m.trust + '%';
+      tFill.className = 'trust-bar-fill ' + zoneClass(m.trust);
+      $('trust-state').textContent = meterStateLabel('trust', m.trust);
+      var faceWrap = $('trust-face-wrap');
+      faceWrap.innerHTML = svgTrustFace(trustZone(m.trust));
+      if (animate) {
+        tFill.classList.add('pulse');
+        faceWrap.classList.add('bump');
+        setTimeout(function(){ tFill.classList.remove('pulse'); faceWrap.classList.remove('bump'); }, 700);
+      }
+      var defs = ['cash', 'pace', 'diag', 'qual'];
+      for (var i = 0; i < defs.length; i++) {
+        var key = defs[i];
+        var val = m[key];
+        var fill = $(key + '-fill');
+        fill.style.width = val + '%';
+        fill.className = 'meter-bar-fill ' + zoneClass(val);
+        $(key + '-state').textContent = meterStateLabel(key, val);
+      }
+    } catch (e) { console.error('renderMeters', e); }
+  }
+
+  function flashMeter(meterId, dir) {
+    try {
+      var el = $(meterId);
+      if (!el) return;
+      var cls = dir > 0 ? 'flash-up' : 'flash-down';
+      el.classList.add(cls);
+      setTimeout(function(){ el.classList.remove(cls); }, 700);
+    } catch (e) {}
+  }
+
+  function applyDeltas(deltas) {
+    try {
+      var m = state.meters;
+      var keys = ['trust', 'cash', 'pace', 'diag', 'qual'];
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (typeof deltas[k] === 'number' && deltas[k] !== 0) {
+          var newVal = clamp(m[k] + deltas[k], 0, 100);
+          m[k] = newVal;
+          var meterId = (k === 'trust') ? 'meter-trust' : 'meter-' + k;
+          flashMeter(meterId, deltas[k]);
+        }
+      }
+      validateMeters();
+      renderMeters(true);
+      beep((deltas.trust || 0) > 0 ? 660 : 220, 0.18, 'sine');
+    } catch (e) { console.error('applyDeltas', e); }
+  }
+
+  function validateMeters() {
+    var m = state.meters;
+    var keys = ['trust', 'cash', 'pace', 'diag', 'qual'];
+    for (var i = 0; i < keys.length; i++) {
+      var v = m[keys[i]];
+      if (typeof v !== 'number' || isNaN(v)) m[keys[i]] = 50;
+      m[keys[i]] = clamp(m[keys[i]], 0, 100);
+    }
+  }
+
+  function awardXP(amt) {
+    state.xp += amt;
+    var newLv = 1;
+    if (state.xp >= 60) newLv = 4;
+    else if (state.xp >= 40) newLv = 3;
+    else if (state.xp >= 20) newLv = 2;
+    if (newLv > state.level) {
+      state.level = newLv;
+      $('level-badge').textContent = 'LV ' + newLv;
+      beep(880, 0.25, 'triangle');
+      setTimeout(function(){ beep(1100, 0.2, 'triangle'); }, 130);
+    } else {
+      $('level-badge').textContent = 'LV ' + state.level;
+    }
+    var pct = Math.min(100, (state.xp / 60) * 100);
+    $('xp-fill').style.width = pct + '%';
+  }
+
+  function refreshSideIndicators() {
+    try {
+      var box = $('side-indicators');
+      box.innerHTML = '';
+      var bays = state.loanerOut ? 1 : 0;
+      box.insertAdjacentHTML('beforeend', '<div class="side-ind"><span class="lbl">Lift</span><span class="val">' + bays + '</span></div>');
+      if (state.lostReferrals > 0) box.insertAdjacentHTML('beforeend', '<div class="side-ind warn"><span class="lbl">Lost Refs</span><span class="val">' + state.lostReferrals + '</span></div>');
+      if (state.wordOfMouth) box.insertAdjacentHTML('beforeend', '<div class="side-ind green"><span class="lbl">Word of Mouth</span><span class="val">●</span></div>');
+      if (state.loanerOut) box.insertAdjacentHTML('beforeend', '<div class="side-ind warn"><span class="lbl">Loaner</span><span class="val">out</span></div>');
+      if (state.reputationRecover) box.insertAdjacentHTML('beforeend', '<div class="side-ind green"><span class="lbl">Reputation</span><span class="val">recovering</span></div>');
+      else if (state.reputationDamage) box.insertAdjacentHTML('beforeend', '<div class="side-ind bad"><span class="lbl">Rep Damage</span><span class="val">active</span></div>');
+      else if (state.reputationRisk) box.insertAdjacentHTML('beforeend', '<div class="side-ind warn"><span class="lbl">Rep Risk</span><span class="val">!</span></div>');
+      if (state.seenThisBeforeReady && !state.seenThisBeforeUsed) box.insertAdjacentHTML('beforeend', '<div class="side-ind green"><span class="lbl">Power-Up</span><span class="val">SEEN</span></div>');
+    } catch (e) {}
+  }
+
+  // Initialize permanent garage backdrop and dust motes
+  function initArenaBackdrop() {
+    try {
+      $('garage-bg').innerHTML = svgGarageBackdrop();
+      var dust = $('ambient-dust');
+      dust.innerHTML = '';
+      for (var i = 0; i < 12; i++) {
+        var x = Math.random() * 100;
+        var y = 60 + Math.random() * 40;
+        var delay = Math.random() * 8;
+        var mote = document.createElement('div');
+        mote.className = 'dust-mote';
+        mote.style.left = x + '%';
+        mote.style.bottom = (Math.random() * 30) + '%';
+        mote.style.animationDelay = delay + 's';
+        mote.style.animationDuration = (6 + Math.random() * 4) + 's';
+        dust.appendChild(mote);
+      }
+    } catch (e) {}
+  }
+
+  // ============== ROUND DATA ==============
+  var customers = customerStyles;
+
+  var roundDefs = [
+    {
+      r: 1, type: 'routine', customer: 'marcus',
+      situation: '"Brakes are squealing. I\'m broke this month. Just shut it up if you can."',
+      chips: {
+        A: { label: "I'm broke this month",     priority: 'money' },
+        B: { label: "I drive my kids in this car", priority: 'safety' }
+      },
+      matchedChip: 'B',
+      options: {
+        A: { label: 'Quick Fix — Pad slap, get them out',
+             baseDeltas: { trust: 5, cash: 10, pace: 5, qual: -10 },
+             setQuickFixFlag: true,
+             arena: 'pad-slap',
+             popup: null },
+        B: { label: 'Full Diagnostic — Check the whole brake system',
+             matchedDeltas: { trust: 12, cash: -5, pace: -10, diag: 8, qual: 10 },
+             mismatchedDeltas: { trust: 6, cash: -5, pace: -10, diag: 8, qual: 10 },
+             arena: 'lift-caliper',
+             popup: null }
+      }
+    },
+    {
+      r: 2, type: 'event', customer: 'nia',
+      label: 'EVENT — THE HOPELESS CAR',
+      situation: '"It\'s a 2003 Civic. 240,000 miles. I need it for work tomorrow morning. Three other shops told me to junk it."',
+      chips: {
+        A: { label: 'Three shops already said no', priority: 'expecting-no' },
+        B: { label: 'I need it tomorrow morning',  priority: 'desperate' }
+      },
+      matchedChip: 'either',
+      options: {
+        A: { label: 'Take it on — fight for the fix',
+             arena: 'hopeless-fight',
+             popup: 'hopeless' },
+        B: { label: 'Refer her to a specialty shop',
+             baseDeltas: { trust: -8, cash: 0, pace: 5 },
+             flags: { lostReferrals: 2 },
+             arena: 'hopeless-refer',
+             popup: { label: 'TURNING POINT', title: 'Word travels.', text: 'You did the safe thing. She walks out embarrassed. Two coworkers will hear the story.' } }
+      }
+    },
+    {
+      r: 3, type: 'routine', customer: 'jay',
+      situation: '"Just here for an oil change." On the lift, you spot a small power-steering leak.',
+      chips: {
+        A: { label: "I'm just here for the oil change", priority: 'unprepared' },
+        B: { label: 'I pinch every dollar',             priority: 'money' }
+      },
+      matchedChip: 'B',
+      options: {
+        A: { label: 'Mention the leak — let him decide',
+             matchedDeltas: { trust: 10, cash: 0, pace: -5, diag: 5 },
+             mismatchedDeltas: { trust: 6, cash: 0, pace: -5, diag: 5 },
+             arena: 'point-leak',
+             popup: null },
+        B: { label: "Note it on his receipt — don't push",
+             baseDeltas: { trust: 0, cash: 0, pace: 5, qual: -5 },
+             setQuickFixFlag: true,
+             arena: 'walk-out-drip',
+             popup: null }
+      }
+    },
+    {
+      r: 4, type: 'event', customer: 'reyes',
+      label: 'EVENT — THE PHANTOM RATTLE',
+      situation: '"There\'s a rattle. Comes and goes. Two shops already missed it."',
+      chips: {
+        A: { label: 'Two shops already missed it', priority: 'testing' },
+        B: { label: "It's driving me crazy",      priority: 'taken-seriously' }
+      },
+      matchedChip: 'either',
+      options: {
+        A: { label: 'Road test together — listen for it',
+             arena: 'road-test',
+             popup: 'phantom-A' },
+        B: { label: 'Charge full inspection — document everything',
+             arena: 'inspection-paper',
+             popup: 'phantom-B' }
+      }
+    },
+    {
+      r: 5, type: 'routine', customer: 'dion',
+      situation: '"Slips when I accelerate. Can you just top off the fluid? I heard that fixes it."',
+      chips: {
+        A: { label: 'I heard fluid fixes it',          priority: 'money' },
+        B: { label: 'I drive an hour each way to work', priority: 'reliability' }
+      },
+      matchedChip: 'either',
+      twoValidMatches: true,
+      options: {
+        A: { label: 'Top off the fluid — quick fix',
+             matchKey: 'money',
+             matchedDeltas: { trust: 12, cash: 18, pace: 5, qual: -10 },
+             mismatchedDeltas: { trust: 5, cash: 18, pace: 5, qual: -10 },
+             setQuickFixFlag: true,
+             arena: 'fluid-top',
+             popup: null },
+        B: { label: 'Full transmission service — give him a loaner',
+             matchKey: 'reliability',
+             matchedDeltas: { trust: 12, cash: 18, pace: -20, diag: 8, qual: 12 },
+             mismatchedDeltas: { trust: 5, cash: 18, pace: -20, diag: 8, qual: 12 },
+             flags: { loanerOut: true },
+             arena: 'tx-service',
+             popup: null }
+      }
+    }
+  ];
+
+  // ============== ARENA SCENES ==============
+  function renderArena(sceneKey, customerKey, opts) {
+    opts = opts || {};
+    try {
+      var stage = $('arena-stage');
+      var name = customerKey ? (customers[customerKey] ? customers[customerKey].name : '') : '';
+      var html = '';
+
+      function customerStand(mood, sizeClass) {
+        return '<div class="customer-stand"><div class="svg-customer ' + (sizeClass || 'medium') + ' ' + (mood || '') + '">' + svgCustomer(customerKey, mood) + '</div><div class="customer-name-tag">' + name + '</div></div>';
+      }
+
+      function carStand(carOpts) {
+        carOpts = carOpts || {};
+        var carColor = carOpts.color || '#5e7a8c';
+        var carColorDark = carOpts.colorDark || '#3a4d5a';
+        var lifted = carOpts.lifted ? 'lifted' : '';
+        var leakClass = carOpts.leak ? 'show' : '';
+        var glowStyle = carOpts.glow ? ('left: ' + (carOpts.glow.x || 60) + '%; top: ' + (carOpts.glow.y || 30) + '%;') : '';
+        var glowClass = carOpts.glow ? 'show' : '';
+        return '<div class="svg-car-wrap ' + lifted + '">' +
+                  svgCar({ color: carColor, colorDark: carColorDark }) +
+                  '<div class="lift-post"></div>' +
+                  '<div class="car-glow-pin ' + glowClass + '" style="' + glowStyle + '"></div>' +
+                  (carOpts.leak ? '<div class="car-leak-drips ' + leakClass + '"><svg width="20" height="24" viewBox="0 0 20 24"><path d="M 10 0 Q 6 8 6 14 Q 6 22 10 22 Q 14 22 14 14 Q 14 8 10 0 Z" fill="#5a3a1a"/></svg></div>' : '') +
+                '</div>';
+      }
+
+      switch (sceneKey) {
+        case 'pad-slap':
+          html = '<div class="arena-scene"><div class="scene-title">Pad Slap</div>' +
+            '<div class="scene-row">' +
+              customerStand('happy', 'medium') +
+              carStand({ color: '#7a5a8a', colorDark: '#4a3a5a' }) +
+            '</div>' +
+            '<p class="scene-narration">Hood slams. Pads click in. Customer waves out the bay. <span class="accent">Cash drawer +$180</span></p></div>';
+          break;
+        case 'lift-caliper':
+          html = '<div class="arena-scene"><div class="scene-title">On the Lift</div>' +
+            '<div class="scene-row">' +
+              customerStand('tense', 'medium') +
+              carStand({ color: '#7a5a8a', colorDark: '#4a3a5a', lifted: true, glow: { x: 30, y: 60 } }) +
+            '</div>' +
+            '<p class="scene-narration"><span class="accent warn">Sticking caliper found.</span> He leans on the counter, glances at the clock.</p></div>';
+          break;
+        case 'hopeless-fight':
+          html = '<div class="arena-scene"><div class="scene-title">Engine Open</div>' +
+            '<div class="scene-row">' +
+              customerStand('tense', 'medium') +
+              '<div style="position:relative;">' +
+                carStand({ color: '#a85a3a', colorDark: '#6a3a1a' }) +
+                '<div class="smoke-puff"></div><div class="smoke-puff delay-1"></div><div class="smoke-puff delay-2"></div>' +
+              '</div>' +
+            '</div>' +
+            '<p class="scene-narration">You grab a wrench. Smoke from the bay. Coin spinning to decide if she purrs back to life...</p></div>';
+          break;
+        case 'hopeless-refer':
+          html = '<div class="arena-scene"><div class="scene-title">She Walks Out</div>' +
+            '<div class="scene-row">' +
+              customerStand('angry', 'medium') +
+            '</div>' +
+            '<p class="scene-narration"><span class="accent bad">She nods. Picks up her bag. Walks past the waiting room.</span><br>Two phones light up with the story.</p></div>';
+          break;
+        case 'point-leak':
+          html = '<div class="arena-scene"><div class="scene-title">Pointing at the Leak</div>' +
+            '<div class="scene-row">' +
+              customerStand('neutral', 'medium') +
+              carStand({ color: '#3a6a5a', colorDark: '#1a4a3a', lifted: true, glow: { x: 50, y: 70 }, leak: true }) +
+            '</div>' +
+            '<p class="scene-narration">He leans in. He doesn\'t fix it today — but he\'ll be back. <span class="accent">+$15 next month.</span></p></div>';
+          break;
+        case 'walk-out-drip':
+          html = '<div class="arena-scene"><div class="scene-title">Receipt Prints</div>' +
+            '<div class="scene-row">' +
+              customerStand('happy', 'medium') +
+              carStand({ color: '#3a6a5a', colorDark: '#1a4a3a', leak: true }) +
+            '</div>' +
+            '<p class="scene-narration">Customer leaves smiling. Underneath the car — one more drip on the bay floor.</p></div>';
+          break;
+        case 'road-test':
+          html = '<div class="arena-scene"><div class="scene-title">Road Test</div>' +
+            '<div class="scene-row">' +
+              customerStand('neutral', 'medium') +
+              carStand({ color: '#8a8a3a', colorDark: '#5a5a1a' }) +
+            '</div>' +
+            '<div class="road-strip"></div>' +
+            '<p class="scene-narration">You\'re in the passenger seat. Listening. She leans back from tense.</p></div>';
+          break;
+        case 'inspection-paper':
+          html = '<div class="arena-scene"><div class="scene-title">Full Inspection</div>' +
+            '<div class="scene-row">' +
+              customerStand('tense', 'medium') +
+              '<div class="clipboard-fx">' +
+                '<span class="check-mark cm-1 in" style="animation-delay:0.2s">✓</span>' +
+                '<span class="check-mark cm-2 in" style="animation-delay:0.5s">✓</span>' +
+                '<span class="check-mark cm-3 in" style="animation-delay:0.8s">✓</span>' +
+                '<span class="check-mark cm-4 in" style="animation-delay:1.1s">✓</span>' +
+              '</div>' +
+            '</div>' +
+            '<p class="scene-narration">Clipboard fills with checkmarks. She hands over a credit card. Slowly.</p></div>';
+          break;
+        case 'fluid-top':
+          html = '<div class="arena-scene"><div class="scene-title">Fluid Topped</div>' +
+            '<div class="scene-row">' +
+              customerStand('happy', 'medium') +
+              '<div style="position:relative;">' +
+                carStand({ color: '#3a3a6a', colorDark: '#1a1a3a' }) +
+                '<div class="funnel-fx" style="position:absolute; top: -60px; left: 50%; transform: translateX(-50%);"><div class="fluid-stream"></div></div>' +
+              '</div>' +
+            '</div>' +
+            '<p class="scene-narration">Funnel goes in. He nods like "I knew it." Hood closes. Smooth pull-out.</p></div>';
+          break;
+        case 'tx-service':
+          html = '<div class="arena-scene"><div class="scene-title">Transmission Service</div>' +
+            '<div class="scene-row">' +
+              customerStand('neutral', 'medium') +
+              carStand({ color: '#3a3a6a', colorDark: '#1a1a3a', lifted: true }) +
+            '</div>' +
+            '<p class="scene-narration">Pan drops. Filter swap. He arranges a ride — slightly annoyed but nodding. <span class="accent warn">🔑 Loaner key transferred.</span></p></div>';
+          break;
+        case 'comeback':
+          html = '<div class="arena-scene"><div class="scene-title">Making It Right</div>' +
+            '<div class="scene-row">' +
+              customerStand('neutral', 'medium') +
+              carStand({ color: '#5e7a8c', colorDark: '#3a4d5a', lifted: true }) +
+            '</div>' +
+            '<p class="scene-narration">You don\'t argue. You get to work. The repair completes clean. They shake your hand.</p></div>';
+          break;
+        case 'bill-comeback':
+          html = '<div class="arena-scene"><div class="scene-title">Voices Rise</div>' +
+            '<div class="scene-row">' +
+              customerStand('angry', 'medium') +
+            '</div>' +
+            '<p class="scene-narration"><span class="accent bad">Other customers turn their heads. Phones come out. Stories travel.</span></p></div>';
+          break;
+        case 'r7-quote':
+          html = '<div class="arena-scene"><div class="scene-title">Straight Quote</div>' +
+            '<div class="scene-row">' +
+              customerStand('happy', 'medium') +
+              carStand({ color: '#5a3a8a', colorDark: '#3a1a5a', lifted: true, glow: { x: 50, y: 50 } }) +
+            '</div>' +
+            '<p class="scene-narration">You walk them to the lift. Point at the actual problem. They nod slowly.</p></div>';
+          break;
+        case 'r7-lowball':
+          html = '<div class="arena-scene"><div class="scene-title">Forced Smile</div>' +
+            '<div class="scene-row">' +
+              customerStand('tense', 'medium') +
+              carStand({ color: '#5a3a8a', colorDark: '#3a1a5a' }) +
+            '</div>' +
+            '<p class="scene-narration"><span class="accent bad">"Wait..."</span> You shake hands. Cash drawer chimes once. Their face shifts.</p></div>';
+          break;
+        case 'doorbell':
+          html = '<div class="arena-scene"><div class="scene-title">Doorbell Rings</div>' +
+            '<div class="scene-row">' +
+              '<div class="doorbell-fx">' +
+                '<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">' +
+                  '<path d="M 30 6 Q 14 6 12 26 L 12 38 Q 12 44 6 48 L 54 48 Q 48 44 48 38 L 48 26 Q 46 6 30 6 Z" fill="#f4a946" stroke="#1a1410" stroke-width="2"/>' +
+                  '<circle cx="30" cy="52" r="4" fill="#1a1410"/>' +
+                '</svg>' +
+              '</div>' +
+            '</div>' +
+            '<p class="scene-narration">A familiar face walks back in. The car is parked outside.</p></div>';
+          break;
+        case 'clean-run':
+          html = '<div class="arena-scene"><div class="scene-title">Doorbell Rings</div>' +
+            '<div class="scene-row">' +
+              customerStand('happy', 'medium') +
+            '</div>' +
+            '<p class="scene-narration">A new face walks in: "<em>' + (opts.friendName || 'A friend') + '</em> said you\'re the only honest shop in town."</p></div>';
+          break;
+        default:
+          html = '<div class="arena-scene"><p>...</p></div>';
+      }
+      stage.innerHTML = html;
+    } catch (e) { console.error('renderArena', e); }
+  }
+
+  // ============== ROUND ORCHESTRATION ==============
+  function startGame() {
+    // Cancel any pending end-screen timers from a prior run, otherwise they fire
+    // on the new game's end-screen DOM and cause flicker / stale stage reveals.
+    if (state && state.endTimers) {
+      for (var ti = 0; ti < state.endTimers.length; ti++) {
+        try { clearTimeout(state.endTimers[ti]); } catch (e) {}
+      }
+    }
+    // Reset end-screen stage classes so the new run starts clean.
+    var stages = ['stage-2','stage-3','stage-4','stage-5'];
+    for (var si = 0; si < stages.length; si++) {
+      var stEl = $(stages[si]);
+      if (stEl) { stEl.classList.add('hidden-stage'); stEl.classList.remove('appearing'); }
+    }
+    // Hide popup overlay and data layer in case they were left open.
+    try {
+      $('popup-overlay').classList.remove('show');
+      $('data-layer').classList.remove('show');
+      $('show-details-btn').textContent = 'Show Details';
+      var sb = $('chip-section'); if (sb) sb.style.display = '';
+      var cr = $('choice-row'); if (cr) cr.style.display = '';
+      $('recovery-banner').classList.remove('show');
+    } catch (e) {}
+
+    state = freshState();
+    state._roundGen++;
+    setScreen('game-screen');
+    initArenaBackdrop();
+    renderMeters(false);
+    refreshSideIndicators();
+    $('xp-fill').style.width = '0%';
+    $('level-badge').textContent = 'LV 1';
+    $('hf-stuck-btn').classList.add('show');
+    $('hf-restart-btn').classList.add('show');
+    $('round-badge').textContent = 'Round 1 / 7';
+    safeTransition(function(){ runRound(); }, 400);
+  }
+
+  function runRound() {
+    try {
+      var gen = ++state._roundGen;
+      state.choiceLocked = false;
+      state.currentChipTapped = null;
+      state.currentChoiceData = null;
+      $('round-badge').textContent = 'Round ' + state.round + ' / 7';
+      $('recovery-banner').classList.remove('show');
+      if (state.round <= 5) {
+        var def = roundDefs[state.round - 1];
+        renderRound(def);
+      } else if (state.round === 6) {
+        runReckoning();
+      } else if (state.round === 7) {
+        runFinale();
+      } else {
+        endGame();
+      }
+    } catch (e) { console.error('runRound', e); safeTransition(function(){ state.round++; runRound(); }, 600); }
+  }
+
+  function renderRound(def) {
+    try {
+      var customerName = customers[def.customer] ? customers[def.customer].name : '';
+      var label = def.label ? def.label : ('ROUND ' + def.r);
+      $('situation-text').innerHTML = '<span class="speaker">' + customerName + ':</span> ' + def.situation;
+
+      var stage = $('arena-stage');
+      stage.innerHTML = '<div class="arena-scene">' +
+        '<p style="color:#a89e8c; font-size:13px; letter-spacing:2px; text-transform:uppercase; margin-bottom: 6px;">' + label + '</p>' +
+        '<div class="scene-row">' +
+          '<div class="customer-stand"><div class="svg-customer tall bouncy">' + svgCustomer(def.customer, 'neutral') + '</div><div class="customer-name-tag">' + customerName + '</div></div>' +
+        '</div>' +
+        '</div>';
+
+      var chipKeys = (Math.random() < 0.5) ? ['A', 'B'] : ['B', 'A'];
+      var chipRow = $('chip-row');
+      chipRow.innerHTML = '';
+      $('chip-prompt').textContent = 'Read the customer — tap what they really need';
+      for (var i = 0; i < chipKeys.length; i++) {
+        var key = chipKeys[i];
+        var chip = def.chips[key];
+        var btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.textContent = chip.label;
+        btn.setAttribute('data-chip-key', key);
+        if (state.seenThisBeforeReady && !state.seenThisBeforeUsed && def.r >= 4) {
+          var matched = (def.matchedChip === 'either') ? true : (key === def.matchedChip);
+          if (matched) btn.classList.add('glow');
+        }
+        (function(k, btnRef){
+          btnRef.onclick = function(){ onChipTap(k, btnRef); };
+        })(key, btn);
+        chipRow.appendChild(btn);
+      }
+
+      var btnA = $('choice-a');
+      var btnB = $('choice-b');
+      btnA.textContent = def.options.A.label;
+      btnB.textContent = def.options.B.label;
+      btnA.disabled = true; btnB.disabled = true;
+      btnA.classList.remove('gold-glow'); btnB.classList.remove('gold-glow');
+      btnA.onclick = function(){ onChoice('A', def); };
+      btnB.onclick = function(){ onChoice('B', def); };
+    } catch (e) { console.error('renderRound', e); }
+  }
+
+  function onChipTap(key, btnEl) {
+    try {
+      if (state.currentChipTapped !== null) return;
+      state.currentChipTapped = key;
+      state.lastInteract = Date.now();
+      var chips = document.querySelectorAll('.chip');
+      for (var i = 0; i < chips.length; i++) {
+        chips[i].classList.remove('glow');
+        if (chips[i] === btnEl) chips[i].classList.add('tapped');
+        else chips[i].classList.add('locked');
+      }
+      beep(540, 0.1);
+      var def = roundDefs[state.round - 1];
+      if (def && def.matchedChip) {
+        var matched = (def.matchedChip === 'either') ? true : (key === def.matchedChip);
+        if (matched) state.matchedReadCount++;
+        if (state.seenThisBeforeReady && !state.seenThisBeforeUsed) {
+          state.seenThisBeforeActive = matched;
+          state.seenThisBeforeUsed = true;
+          if (matched) showPowerUpNotify('⚡ SEEN THIS BEFORE — +Trust bonus on matched fix');
+        }
+      }
+      $('choice-a').disabled = false;
+      $('choice-b').disabled = false;
+      var av = document.querySelector('#arena-stage .svg-customer');
+      if (av) {
+        av.style.transition = 'transform 0.4s';
+        av.style.transform = 'scale(1.06)';
+        setTimeout(function(){ if (av) av.style.transform = ''; }, 400);
+      }
+    } catch (e) { console.error('onChipTap', e); }
+  }
+
+  function onChoice(optKey, def) {
+    try {
+      if (state.choiceLocked) return;
+      if (state.currentChipTapped === null) return;
+      state.choiceLocked = true;
+      state.choiceLockedSince = Date.now();
+      state.lastInteract = Date.now();
+      $('choice-a').disabled = true; $('choice-b').disabled = true;
+      var opt = def.options[optKey];
+      var customer = def.customer;
+
+      if (def.r === 2 && optKey === 'A') {
+        var success = Math.random() < 0.5;
+        state.hopelessSucceeded = success;
+        renderArena('hopeless-fight', customer);
+        beep(400, 0.4, 'sawtooth');
+        setTimeout(function(){
+          var deltas;
+          if (success) { deltas = { trust: 25, diag: 10 }; state.wordOfMouth = true; }
+          else deltas = { trust: 5, pace: -20, cash: -15, diag: 5 };
+          applyDeltas(deltas);
+          refreshSideIndicators();
+          var popup = success
+            ? { label: 'TURNING POINT', title: 'Word travels.', text: 'She just texted three coworkers your shop name.' }
+            : { label: 'TURNING POINT', title: 'She thanks you for trying.', text: 'Says she\'ll be back when she has the money.' };
+          state.decisions.push({ round: 2, customer: customers.nia.name, chip: def.chips[state.currentChipTapped].label, decision: opt.label, outcome: (success ? 'Success' : 'Failure') });
+          showPopup(popup, function(){ advanceRound(def); });
+        }, 1300);
+        return;
+      }
+
+      if (def.r === 4) {
+        if (optKey === 'A') {
+          var found = Math.random() < 0.6;
+          state.phantomFound = found;
+          renderArena('road-test', customer);
+          setTimeout(function(){
+            var deltas = found ? { trust: 15, diag: 10, pace: -15, qual: 10 } : { trust: 15, diag: 10, pace: -15 };
+            applyDeltas(deltas);
+            refreshSideIndicators();
+            var popup = found
+              ? { label: 'TURNING POINT', title: 'You heard it on the bridge.', text: 'Heat shield. Easy fix.' }
+              : { label: 'TURNING POINT', title: 'You took her seriously.', text: 'No answer found. She got something better.' };
+            state.decisions.push({ round: 4, customer: customers.reyes.name, chip: def.chips[state.currentChipTapped].label, decision: opt.label, outcome: (found ? 'Heat shield found' : 'Not found, trust held') });
+            showPopup(popup, function(){ advanceRound(def); });
+          }, 1300);
+        } else {
+          var foundB = Math.random() < 0.3;
+          state.phantomFound = foundB;
+          renderArena('inspection-paper', customer);
+          setTimeout(function(){
+            var deltas;
+            if (foundB) deltas = { trust: 5, cash: 20, diag: 5 };
+            else { deltas = { trust: -15, cash: 20, diag: 5 }; state.reputationRisk = true; }
+            applyDeltas(deltas);
+            refreshSideIndicators();
+            var popup = foundB
+              ? { label: 'TURNING POINT', title: 'Documented something.', text: 'You billed it. She\'s holding the paperwork tightly.' }
+              : { label: 'TURNING POINT', title: 'Paperwork was perfect.', text: 'The rattle\'s still there. So is she — for now.' };
+            state.decisions.push({ round: 4, customer: customers.reyes.name, chip: def.chips[state.currentChipTapped].label, decision: opt.label, outcome: (foundB ? 'Documented issue' : 'Found nothing') });
+            showPopup(popup, function(){ advanceRound(def); });
+          }, 1300);
+        }
+        return;
+      }
+
+      var deltas = computeDeltas(def, optKey, opt);
+      if (state.seenThisBeforeActive) {
+        var isMatchedFix = isOptionMatchedToReadCustomer(def, optKey);
+        if (isMatchedFix && deltas.trust) deltas.trust += 3;
+        deltas.diag = (deltas.diag || 0) + 5;
+        state.seenThisBeforeActive = false;
+      }
+
+      renderArena(opt.arena, customer);
+      setTimeout(function(){
+        applyDeltas(deltas);
+        if (opt.setQuickFixFlag) state.flagsForR6.push({ round: def.r, customer: def.customer, scene: opt.arena });
+        if (opt.flags) {
+          if (opt.flags.lostReferrals) state.lostReferrals += opt.flags.lostReferrals;
+          if (opt.flags.loanerOut) state.loanerOut = true;
+        }
+        refreshSideIndicators();
+        checkPowerUpUnlock();
+        state.decisions.push({ round: def.r, customer: customers[def.customer].name, chip: def.chips[state.currentChipTapped].label, decision: opt.label, outcome: 'Routine' });
+        if (opt.popup) showPopup(opt.popup, function(){ advanceRound(def); });
+        else safeTransition(function(){ advanceRound(def); }, 1500);
+      }, 1100);
+    } catch (e) { console.error('onChoice', e); state.choiceLocked = false; }
+  }
+
+  function computeDeltas(def, optKey, opt) {
+    var matched = false;
+    if (def.matchedChip === 'either') matched = true;
+    else matched = (state.currentChipTapped === def.matchedChip);
+    if (def.twoValidMatches && opt.matchKey) {
+      var chipKey = state.currentChipTapped;
+      var chipPriority = def.chips[chipKey].priority;
+      matched = (chipPriority === opt.matchKey);
+    }
+    if (opt.baseDeltas) return Object.assign({}, opt.baseDeltas);
+    if (matched && opt.matchedDeltas) return Object.assign({}, opt.matchedDeltas);
+    if (opt.mismatchedDeltas) return Object.assign({}, opt.mismatchedDeltas);
+    return {};
+  }
+
+  function isOptionMatchedToReadCustomer(def, optKey) {
+    var chipKey = state.currentChipTapped;
+    if (def.twoValidMatches) {
+      var opt = def.options[optKey];
+      return def.chips[chipKey].priority === opt.matchKey;
+    }
+    if (def.matchedChip === 'either') return true;
+    return chipKey === def.matchedChip;
+  }
+
+  function checkPowerUpUnlock() {
+    try {
+      if (!state.seenThisBeforeReady &&
+          state.matchedReadCount >= 3 &&
+          state.meters.diag >= 31 &&
+          state.round >= 3) {
+        state.seenThisBeforeReady = true;
+        showPowerUpNotify('⚡ SEEN THIS BEFORE — unlocked');
+      }
+    } catch (e) {}
+  }
+
+  function showPowerUpNotify(text) {
+    try {
+      var el = $('powerup-notify');
+      el.textContent = text;
+      el.classList.remove('show');
+      void el.offsetWidth;
+      el.classList.add('show');
+      beep(880, 0.2, 'triangle');
+      setTimeout(function(){ beep(1100, 0.2, 'triangle'); }, 130);
+    } catch (e) {}
+  }
+
+  function advanceRound(def) {
+    try {
+      awardXP(10);
+      state.round++;
+      $('round-badge').textContent = 'Round ' + Math.min(state.round, 7) + ' / 7';
+      safeTransition(function(){ runRound(); }, 700);
+    } catch (e) { console.error('advanceRound', e); }
+  }
+
+  // ============== ROUND 6 — RECKONING ==============
+  function runReckoning() {
+    try {
+      // Capture current generation — if the user restarts mid-roll, the new game's
+      // _roundGen will increment and our chained timers will see a mismatch and bail.
+      var gen = state._roundGen;
+      function alive() { return state && state._roundGen === gen && !state.finished; }
+
+      $('round-badge').textContent = 'Round 6 / 7 — RECKONING';
+      $('chip-section').style.display = 'none';
+      $('choice-row').style.display = 'none';
+      $('situation-text').innerHTML = '<span style="color:#ff7a45; letter-spacing:2px; font-weight:800;">PAST QUICK FIXES ROLLING NOW…</span>';
+
+      var stage = $('arena-stage');
+      stage.innerHTML = '<div class="reckon-stage">' +
+        '<div class="reckon-banner">The week catches up.</div>' +
+        '<div class="reckon-cards-row" id="reckon-cards"></div>' +
+        '<div id="reckon-status" style="margin-top: 16px; color: #d8d2c4; font-size: 14px; min-height: 24px;"></div>' +
+        '</div>';
+
+      var cardsBox = $('reckon-cards');
+      var flags = state.flagsForR6;
+
+      if (flags.length === 0) {
+        $('reckon-status').textContent = 'No Quick Fixes to roll. The shop holds.';
+        beep(660, 0.3, 'triangle');
+        safeTransition(function(){ if (alive()) runReckoningCleanReferral(); }, 1800);
+        return;
+      }
+
+      var html = '';
+      for (var i = 0; i < flags.length; i++) {
+        html += '<div class="reckon-card" id="reckon-card-' + i + '"><div class="reckon-card-inner">' +
+          '<div class="reckon-face back"></div>' +
+          '<div class="reckon-face front" id="reckon-front-' + i + '"></div>' +
+          '</div></div>';
+      }
+      cardsBox.innerHTML = html;
+
+      state.currentReturns = [];
+      var idx = 0;
+      function rollNext() {
+        if (!alive()) return; // restart guard — bail if a new game has started
+        if (idx >= flags.length) { setTimeout(function(){ if (alive()) resolveReckoningCustomers(); }, 900); return; }
+        var f = flags[idx];
+        var returns = Math.random() < 0.30;
+        if (returns) state.currentReturns.push(f);
+        var frontEl = $('reckon-front-' + idx);
+        var cardEl = $('reckon-card-' + idx);
+        if (frontEl && cardEl) {
+          var emoji = returns ? '🔴' : '🟢';
+          var resultClass = returns ? 'red' : 'green';
+          var resultText = returns ? 'Coming back<br>broken' : 'Held up —<br>they\'re fine';
+          frontEl.classList.add(resultClass);
+          frontEl.innerHTML =
+            '<div class="reckon-mini-face">' + svgMiniCustomer(f.customer) + '</div>' +
+            '<div class="reckon-name">' + customers[f.customer].name + '</div>' +
+            '<div class="reckon-emoji">' + emoji + '</div>' +
+            '<div class="reckon-result ' + resultClass + '">' + resultText + '</div>';
+          cardEl.classList.add('flipped');
+          beep(returns ? 220 : 660, 0.3, returns ? 'sawtooth' : 'triangle');
+        }
+        idx++;
+        setTimeout(rollNext, 1100);
+      }
+      setTimeout(rollNext, 600);
+    } catch (e) { console.error('runReckoning', e); safeTransition(function(){ state.round = 7; runRound(); }, 800); }
+  }
+
+  function resolveReckoningCustomers() {
+    try {
+      $('chip-section').style.display = '';
+      $('choice-row').style.display = '';
+      var stage = $('arena-stage');
+      var ret = state.currentReturns;
+      if (ret.length === 0) { runReckoningCleanReferral(); return; }
+
+      renderArena('doorbell', null);
+      setTimeout(function(){
+        var customerNames = [];
+        for (var i = 0; i < ret.length; i++) customerNames.push(customers[ret[i].customer].name);
+        var label = ret.length === 1 ? customerNames[0] + ' walks back in' : customerNames.join(' and ') + ' walk back in';
+        if (ret.length >= 2) state.reputationRisk = true;
+        $('situation-text').innerHTML = '<span class="speaker">' + label + ':</span> "It\'s doing the same thing again. Maybe worse."';
+
+        $('chip-prompt').textContent = 'They\'re not just a customer anymore — read what\'s on the line';
+        var chipRow = $('chip-row');
+        chipRow.innerHTML = '';
+        var chips = [{ key: 'A', label: 'I trusted you' }, { key: 'B', label: 'I told my friends about you' }];
+        if (Math.random() < 0.5) chips.reverse();
+        for (var c = 0; c < chips.length; c++) {
+          var btn = document.createElement('button');
+          btn.className = 'chip';
+          btn.textContent = chips[c].label;
+          (function(k, b){ b.onclick = function(){ onChipTap(k, b); }; })(chips[c].key, btn);
+          chipRow.appendChild(btn);
+        }
+
+        // Show the returning customer(s)
+        var customersHtml = '';
+        for (var j = 0; j < ret.length; j++) {
+          customersHtml += '<div class="customer-stand"><div class="svg-customer medium angry">' + svgCustomer(ret[j].customer, 'angry') + '</div><div class="customer-name-tag">' + customers[ret[j].customer].name + '</div></div>';
+        }
+        stage.innerHTML = '<div class="arena-scene"><div class="scene-title">They\'re Back</div>' +
+          '<div class="scene-row">' + customersHtml + '</div>' +
+          '<p class="scene-narration">The car is parked outside. Other customers in the waiting room glance up.</p></div>';
+
+        var btnA = $('choice-a');
+        var btnB = $('choice-b');
+        btnA.textContent = 'Free repair — eat the cost';
+        btnB.textContent = 'Bill the new work — different job now';
+        btnA.disabled = true; btnB.disabled = true;
+        btnA.classList.add('gold-glow');
+        btnB.classList.remove('gold-glow');
+        $('recovery-banner').classList.add('show');
+
+        btnA.onclick = function(){ onReckoningChoice('A', ret); };
+        btnB.onclick = function(){ onReckoningChoice('B', ret); };
+        refreshSideIndicators();
+      }, 1100);
+    } catch (e) { console.error('resolveReckoningCustomers', e); }
+  }
+
+  function onReckoningChoice(optKey, ret) {
+    try {
+      if (state.choiceLocked) return;
+      if (state.currentChipTapped === null) return;
+      state.choiceLocked = true;
+      state.choiceLockedSince = Date.now();
+      $('choice-a').disabled = true; $('choice-b').disabled = true;
+      $('recovery-banner').classList.remove('show');
+
+      var n = ret.length;
+      var customerNames = [];
+      for (var i = 0; i < ret.length; i++) customerNames.push(customers[ret[i].customer].name);
+
+      if (optKey === 'A') {
+        var trustHit = -10 * n;
+        var repairBonus = (state.meters.trust >= 31) ? 15 : 5;
+        var deltas = { trust: trustHit, cash: -15 * n, pace: -10, diag: 10, qual: repairBonus };
+        state.comebackUsed = true;
+        state.reputationRecover = true;
+        state.reputationDamage = false;
+        renderArena('comeback', ret[0].customer);
+        showPowerUpNotify('⚡ COMEBACK REPAIR — making it right');
+        setTimeout(function(){
+          applyDeltas(deltas);
+          refreshSideIndicators();
+          state.decisions.push({ round: 6, customer: customerNames.join(' & '), chip: 'reckoning', decision: 'Free repair (Comeback Repair)', outcome: 'Recovery (' + n + ' returning)' });
+          showPopup({ label: 'RECKONING', title: 'You ate the cost.', text: 'They told their cousin. The cousin\'s calling tomorrow.' }, function(){ state.round = 7; runRound(); });
+        }, 1400);
+      } else {
+        var trustHitB = -40 * n;
+        var deltasB = { trust: trustHitB, cash: 20 * n };
+        state.lostReferrals += 5;
+        state.reputationDamage = true;
+        renderArena('bill-comeback', ret[0].customer);
+        setTimeout(function(){
+          applyDeltas(deltasB);
+          refreshSideIndicators();
+          state.decisions.push({ round: 6, customer: customerNames.join(' & '), chip: 'reckoning', decision: 'Bill the new work', outcome: 'Reputation damage (' + n + ' returning)' });
+          showPopup({ label: 'RECKONING', title: 'You made $' + (200 * n) + '.', text: 'Six people just heard the whole thing.' }, function(){ state.round = 7; runRound(); });
+        }, 1400);
+      }
+    } catch (e) { console.error('onReckoningChoice', e); }
+  }
+
+  function runReckoningCleanReferral() {
+    try {
+      var pool = ['Marcus', 'Jay', 'Dion'];
+      var friendName = pool[Math.floor(Math.random() * pool.length)];
+
+      $('chip-section').style.display = '';
+      $('choice-row').style.display = '';
+      $('situation-text').innerHTML = '<span class="speaker">Walk-In:</span> "My buddy ' + friendName + ' said you\'re the only honest shop in town. I have a transmission issue — what do you think?"';
+
+      $('chip-prompt').textContent = 'Read the customer — tap what they really need';
+      var chipRow = $('chip-row');
+      chipRow.innerHTML = '';
+      var chips = [{ key: 'A', label: 'My buddy said you\'re honest' }, { key: 'B', label: 'I want this car to last' }];
+      if (Math.random() < 0.5) chips.reverse();
+      for (var c = 0; c < chips.length; c++) {
+        var btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.textContent = chips[c].label;
+        (function(k, b){ b.onclick = function(){ onChipTap(k, b); }; })(chips[c].key, btn);
+        chipRow.appendChild(btn);
+      }
+
+      renderArena('clean-run', 'referral', { friendName: friendName });
+
+      var btnA = $('choice-a');
+      var btnB = $('choice-b');
+      btnA.textContent = 'Take it on — careful diagnostic';
+      btnB.textContent = 'Quote a quick fix to win the job';
+      btnA.disabled = true; btnB.disabled = true;
+      btnA.classList.remove('gold-glow'); btnB.classList.remove('gold-glow');
+      btnA.onclick = function(){ onCleanReferralChoice('A', friendName); };
+      btnB.onclick = function(){ onCleanReferralChoice('B', friendName); };
+    } catch (e) { console.error('runReckoningCleanReferral', e); }
+  }
+
+  function onCleanReferralChoice(optKey, friendName) {
+    try {
+      if (state.choiceLocked) return;
+      if (state.currentChipTapped === null) return;
+      state.choiceLocked = true;
+      state.choiceLockedSince = Date.now();
+      $('choice-a').disabled = true; $('choice-b').disabled = true;
+
+      var deltas;
+      if (optKey === 'A') deltas = { trust: 12, cash: 12, pace: -8, diag: 8, qual: 10 };
+      else deltas = { trust: 5, cash: 18, qual: -5 };
+      renderArena(optKey === 'A' ? 'point-leak' : 'fluid-top', 'referral');
+      setTimeout(function(){
+        applyDeltas(deltas);
+        state.decisions.push({ round: 6, customer: friendName + ' (referral)', chip: 'clean-run', decision: optKey === 'A' ? 'Careful diagnostic' : 'Quick quote', outcome: 'Clean run referral' });
+        showPopup({ label: 'CLEAN RUN', title: 'No reckoning today.', text: 'You earned this referral by playing careful all week.' }, function(){ state.round = 7; runRound(); });
+      }, 1100);
+    } catch (e) { console.error('onCleanReferralChoice', e); }
+  }
+
+  // ============== ROUND 7 — FINALE ==============
+  function runFinale() {
+    try {
+      $('round-badge').textContent = 'Round 7 / 7 — FINALE';
+      $('chip-section').style.display = '';
+      $('choice-row').style.display = '';
+
+      var entryZone = trustZone(state.meters.trust);
+      var introByZone = {
+        loyal:      '"My neighbor told me you\'re the only shop that doesn\'t lie. I think I have a head gasket issue. Be straight with me."',
+        regular:    '"Saw your shop on the way in. Got a check engine light. Can you take a look?"',
+        suspicious: '"Look — I\'ve heard mixed things. I\'m watching what you do here. So. Engine\'s making a noise."'
+      };
+      $('situation-text').innerHTML = '<span class="speaker">Walk-In:</span> ' + introByZone[entryZone];
+
+      $('chip-prompt').textContent = 'Read the customer — tap what they really need';
+      var chipARow = entryZone === 'loyal' ? 'Be straight with me' : entryZone === 'suspicious' ? 'Watching what you do' : 'Just take a look';
+      var chipBRow = "I just need to know what I'm dealing with";
+      var chipRow = $('chip-row');
+      chipRow.innerHTML = '';
+      var chips = [{ key: 'A', label: chipARow }, { key: 'B', label: chipBRow }];
+      if (Math.random() < 0.5) chips.reverse();
+      for (var c = 0; c < chips.length; c++) {
+        var btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.textContent = chips[c].label;
+        (function(k, b){ b.onclick = function(){ onChipTap(k, b); }; })(chips[c].key, btn);
+        chipRow.appendChild(btn);
+      }
+
+      var stage = $('arena-stage');
+      var entryDescription = entryZone === 'loyal'
+        ? 'A neighbor sent them. They\'re ready to be straight with you.'
+        : entryZone === 'regular'
+        ? 'A first-time walk-in. Standard intro.'
+        : 'They\'re skeptical. Eyes scanning the shop.';
+      var walkInKey = 'walkin_' + entryZone;
+      var walkMood = entryZone === 'loyal' ? 'happy' : entryZone === 'suspicious' ? 'tense' : 'neutral';
+      stage.innerHTML = '<div class="arena-scene">' +
+        '<p style="color:#a89e8c; font-size:13px; letter-spacing:2px; text-transform:uppercase; margin-bottom: 4px;">FINALE — entering as ' + entryZone + '</p>' +
+        '<div class="scene-row">' +
+          '<div class="customer-stand"><div class="svg-customer tall ' + walkMood + '">' + svgCustomer(walkInKey, walkMood) + '</div><div class="customer-name-tag">Walk-In</div></div>' +
+        '</div>' +
+        '<p style="font-size:14px; max-width:480px; margin: 0 auto;">' + entryDescription + '</p>' +
+        '</div>';
+
+      var btnA = $('choice-a');
+      var btnB = $('choice-b');
+      btnA.textContent = 'Full quote up front — real price';
+      btnB.textContent = 'Lowball — find more once it\'s open';
+      btnA.disabled = true; btnB.disabled = true;
+      btnA.classList.remove('gold-glow'); btnB.classList.remove('gold-glow');
+      btnA.onclick = function(){ onFinaleChoice('A', entryZone); };
+      btnB.onclick = function(){ onFinaleChoice('B', entryZone); };
+    } catch (e) { console.error('runFinale', e); state.finished = true; safeTransition(endGame, 600); }
+  }
+
+  function onFinaleChoice(optKey, entryZone) {
+    try {
+      if (state.choiceLocked) return;
+      if (state.currentChipTapped === null) return;
+      state.choiceLocked = true;
+      state.choiceLockedSince = Date.now();
+      $('choice-a').disabled = true; $('choice-b').disabled = true;
+
+      var deltas;
+      var popup;
+      var walkInKey = 'walkin_' + entryZone;
+      if (optKey === 'A') {
+        var trustGain = entryZone === 'loyal' ? 20 : entryZone === 'regular' ? 15 : 25;
+        deltas = { trust: trustGain, cash: 20, pace: -10, diag: 10, qual: 10 };
+        renderArena('r7-quote', walkInKey);
+        var title = entryZone === 'loyal' ? 'You earned this one.' : entryZone === 'regular' ? 'First-timer is now a regular.' : 'You changed somebody\'s mind today.';
+        popup = { label: 'FINALE', title: title, text: 'They walked in expecting a story — they got the real price.' };
+      } else {
+        var trustLoss = entryZone === 'suspicious' ? -35 : -25;
+        deltas = { trust: trustLoss, cash: 10, qual: -15, diag: -5 };
+        renderArena('r7-lowball', walkInKey);
+        popup = { label: 'FINALE', title: 'Got the job. Lost the customer.', text: 'Same week.' };
+        state.reputationRisk = true;
+      }
+      setTimeout(function(){
+        applyDeltas(deltas);
+        refreshSideIndicators();
+        state.decisions.push({ round: 7, customer: 'Walk-In (' + entryZone + ')', chip: 'finale', decision: optKey === 'A' ? 'Full quote up front' : 'Lowball estimate', outcome: entryZone });
+        showPopup(popup, function(){
+          awardXP(15);
+          state.finished = true;
+          safeTransition(endGame, 700);
+        });
+      }, 1300);
+    } catch (e) { console.error('onFinaleChoice', e); }
+  }
+
+  // ============== POPUP ==============
+  function showPopup(data, onClose) {
+    try {
+      state.popupOpen = true;
+      state.popupOpenSince = Date.now();
+      state.popupCloseHandler = onClose;
+      $('popup-label').textContent = data.label || 'EVENT';
+      $('popup-title').textContent = data.title || '';
+      $('popup-text').textContent = data.text || '';
+      var overlay = $('popup-overlay');
+      overlay.classList.add('show');
+      var btn = $('popup-btn');
+      btn.onclick = function(){
+        try {
+          // Double-click / double-tap guard — only fire close once per popup
+          if (!state || !state.popupOpen) return;
+          state.popupOpen = false;
+          overlay.classList.remove('show');
+          var h = state.popupCloseHandler;
+          state.popupCloseHandler = null;
+          btn.onclick = null;
+          if (typeof h === 'function') h();
+        } catch (e) { console.error('popup close', e); }
+      };
+    } catch (e) { console.error('showPopup', e); if (typeof onClose === 'function') onClose(); }
+  }
+
+  // ============== END SCREEN ==============
+  function endGame() {
+    try {
+      setScreen('end-screen');
+      $('hf-stuck-btn').classList.remove('show');
+      $('hf-restart-btn').classList.remove('show');
+      // Reset stage classes — important when endGame is reached after a forced advance.
+      var stages = ['stage-2','stage-3','stage-4','stage-5'];
+      for (var si = 0; si < stages.length; si++) {
+        var stEl = $(stages[si]);
+        if (stEl) { stEl.classList.add('hidden-stage'); stEl.classList.remove('appearing'); }
+      }
+      var t = state.meters.trust;
+      var c = state.meters.cash;
+      var outcomeText, outcomeBad = false;
+      if (t >= 66 && c >= 31) outcomeText = 'Loyal Fans Earned.';
+      else if (t >= 31) outcomeText = 'You Survived the Reckoning.';
+      else { outcomeText = 'Reputation Damaged.'; outcomeBad = true; }
+      var ol = $('outcome-line');
+      ol.textContent = outcomeText;
+      ol.className = outcomeBad ? 'bad' : '';
+      beep(660, 0.4, 'triangle');
+      // Track all end-screen timers so Replay can cancel them cleanly.
+      state.endTimers = [];
+      state.endTimers.push(setTimeout(function(){ beep(880, 0.4, 'triangle'); }, 220));
+      state.endTimers.push(setTimeout(function(){ renderEndMeters(); }, 1900));
+      state.endTimers.push(setTimeout(function(){ renderHighlightReel(); }, 3000));
+      state.endTimers.push(setTimeout(function(){ renderXPBadge(); }, 4200));
+      state.endTimers.push(setTimeout(function(){ revealReplayStage(); }, 5000));
+    } catch (e) { console.error('endGame', e); }
+  }
+
+  function renderEndMeters() {
+    try {
+      var stage = $('stage-2');
+      stage.classList.remove('hidden-stage');
+      stage.classList.add('appearing');
+      var defs = [
+        { key: 'trust', label: 'Customer Trust', val: state.meters.trust },
+        { key: 'cash',  label: 'Cash Flow',      val: state.meters.cash },
+        { key: 'pace',  label: 'Shop Pace',      val: state.meters.pace },
+        { key: 'diag',  label: 'Diagnostic Read', val: state.meters.diag },
+        { key: 'qual',  label: 'Repair Quality',  val: state.meters.qual }
+      ];
+      var box = $('end-meters-row');
+      box.innerHTML = '';
+      defs.forEach(function(d, i){
+        var emoji = d.val >= 66 ? '😄' : d.val >= 31 ? '😐' : '😠';
+        var zclass = zoneClass(d.val);
+        var stateLabel = meterStateLabel(d.key, d.val);
+        var grad = zclass === 'low' ? 'linear-gradient(90deg,#b84545,#e85a5a)' : zclass === 'mid' ? 'linear-gradient(90deg,#d4a23a,#f4c66a)' : 'linear-gradient(90deg,#6cc06a,#4dd87f)';
+        var html = '<div class="end-meter" id="emeter-' + i + '">' +
+          '<div class="end-meter-emoji">' + emoji + '</div>' +
+          '<div class="end-meter-info"><div class="end-meter-name">' + d.label + '</div><div class="end-meter-state">' + stateLabel + '</div></div>' +
+          '<div class="end-meter-bar"><div class="end-meter-fill" style="width: 0%; background: ' + grad + ';"></div></div>' +
+          '</div>';
+        box.insertAdjacentHTML('beforeend', html);
+        setTimeout(function(){
+          var em = $('emeter-' + i);
+          if (em) em.classList.add('in');
+          var fill = em && em.querySelector('.end-meter-fill');
+          if (fill) fill.style.width = d.val + '%';
+        }, 200 * i);
+      });
+    } catch (e) { console.error('renderEndMeters', e); }
+  }
+
+  function renderHighlightReel() {
+    try {
+      var stage = $('stage-3');
+      stage.classList.remove('hidden-stage');
+      stage.classList.add('appearing');
+      var box = $('highlight-reel');
+      box.innerHTML = '';
+      var highlights = [];
+      if (state.hopelessSucceeded === true) highlights.push({ icon: '🔥', text: 'You took on the Hopeless Car — and won.' });
+      if (state.hopelessSucceeded === false) highlights.push({ icon: '🛠️', text: 'You fought for the Hopeless Car. She came back to thank you.' });
+      if (state.phantomFound === true) highlights.push({ icon: '🔍', text: 'You road-tested the Phantom Rattle and found it.' });
+      if (state.phantomFound === false) highlights.push({ icon: '👂', text: 'You took the Phantom Rattle seriously — even without an answer.' });
+      if (state.comebackUsed) highlights.push({ icon: '⚡', text: 'You used Comeback Repair — owned the mistake.' });
+      if (state.flagsForR6.length === 0) highlights.push({ icon: '✨', text: 'No Quick Fixes came back. Clean run.' });
+      if (state.seenThisBeforeReady) highlights.push({ icon: '💡', text: 'You unlocked Seen This Before by reading customers right.' });
+      if (state.wordOfMouth) highlights.push({ icon: '📣', text: 'Word of mouth started spreading — your shop earned it.' });
+      if (state.lostReferrals >= 3) highlights.push({ icon: '😬', text: 'Lost referrals piled up. People talk.' });
+      if (highlights.length === 0) highlights.push({ icon: '🔧', text: 'A full week. Every choice cost something.' });
+      highlights.forEach(function(h, i){
+        var html = '<div class="highlight-card" id="hcard-' + i + '">' +
+          '<div class="highlight-icon">' + h.icon + '</div>' +
+          '<div class="highlight-text">' + h.text + '</div></div>';
+        box.insertAdjacentHTML('beforeend', html);
+        setTimeout(function(){ var c = $('hcard-' + i); if (c) c.classList.add('in'); }, 200 * i);
+      });
+    } catch (e) { console.error('renderHighlightReel', e); }
+  }
+
+  function renderXPBadge() {
+    try {
+      var stage = $('stage-4');
+      stage.classList.remove('hidden-stage');
+      stage.classList.add('appearing');
+      $('end-xp').textContent = state.xp + ' XP';
+      $('end-level').textContent = 'LV ' + state.level;
+    } catch (e) {}
+  }
+
+  function revealReplayStage() {
+    try {
+      var stage = $('stage-5');
+      stage.classList.remove('hidden-stage');
+      stage.classList.add('appearing');
+    } catch (e) {}
+  }
+
+  function buildDataTable() {
+    try {
+      var t = $('data-table');
+      var rows = '<tr><th>Round</th><th>Customer</th><th>Chip Tapped</th><th>Decision</th><th>Outcome</th><th>Trust</th><th>Cash</th><th>Pace</th><th>Diag</th><th>Qual</th></tr>';
+      var meters = state.meters;
+      for (var i = 0; i < state.decisions.length; i++) {
+        var d = state.decisions[i];
+        rows += '<tr><td>' + d.round + '</td><td>' + d.customer + '</td><td>' + d.chip + '</td><td>' + d.decision + '</td><td>' + d.outcome + '</td>' +
+          (i === state.decisions.length - 1 ? '<td>' + meters.trust + '</td><td>' + meters.cash + '</td><td>' + meters.pace + '</td><td>' + meters.diag + '</td><td>' + meters.qual + '</td>' : '<td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>') +
+          '</tr>';
+      }
+      t.innerHTML = rows;
+    } catch (e) {}
+  }
+
+  function copyDataTable() {
+    try {
+      var lines = ['Round\tCustomer\tChip\tDecision\tOutcome\tTrust\tCash\tPace\tDiag\tQual'];
+      for (var i = 0; i < state.decisions.length; i++) {
+        var d = state.decisions[i];
+        var endRow = (i === state.decisions.length - 1)
+          ? [state.meters.trust, state.meters.cash, state.meters.pace, state.meters.diag, state.meters.qual].join('\t')
+          : '—\t—\t—\t—\t—';
+        lines.push([d.round, d.customer, d.chip, d.decision, d.outcome, endRow].join('\t'));
+      }
+      var text = lines.join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text);
+      else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+      $('copy-btn').textContent = 'Copied!';
+      setTimeout(function(){ $('copy-btn').textContent = 'Copy to Clipboard'; }, 1600);
+    } catch (e) {}
+  }
+
+  // ============== SAFE TRANSITION ==============
+  function safeTransition(fn, delay) {
+    setTimeout(function(){
+      try { fn(); } catch (e) { console.error('Transition err', e); }
+    }, delay || 500);
+  }
+
+  // ============== HOTFIX BLOCK ==============
+  function installHotfix() {
+    setInterval(function(){
+      try {
+        if (!state) return;
+        // choiceLocked watchdog — clear stuck lock AND re-enable choice buttons so the
+        // student can act again. Without re-enabling, clearing the flag alone leaves
+        // both buttons disabled with no path forward.
+        if (state.choiceLocked && state.choiceLockedSince > 0 && (Date.now() - state.choiceLockedSince) > 15000) {
+          state.choiceLocked = false; state.choiceLockedSince = 0;
+          try {
+            if ($('game-screen').classList.contains('active') && state.currentChipTapped !== null) {
+              $('choice-a').disabled = false;
+              $('choice-b').disabled = false;
+            }
+          } catch (e2) {}
+        }
+        // popupOpen desync — overlay class missing but flag still true. Clearing the flag
+        // alone strands the round chain (it's waiting on onClose). Fire stored handler.
+        var overlayShown = $('popup-overlay').classList.contains('show');
+        if (state.popupOpen && !overlayShown && (Date.now() - state.popupOpenSince) > 4000) {
+          state.popupOpen = false;
+          var h = state.popupCloseHandler;
+          state.popupCloseHandler = null;
+          if (typeof h === 'function') {
+            try { h(); } catch (e3) { console.error('popup wd handler', e3); }
+          }
+        }
+      } catch (e) {}
+    }, 1500);
+
+    setInterval(function(){
+      try {
+        if (!state || state.finished) return;
+        if ($('game-screen').classList.contains('active')) {
+          var idle = Date.now() - state.lastInteract;
+          if (idle > 180000 && !state.stuckNudged) {
+            $('hf-stuck-btn').classList.add('nudge');
+            state.stuckNudged = true;
+            setTimeout(function(){ $('hf-stuck-btn').classList.remove('nudge'); }, 1800);
+          }
+          if (idle > 480000) {
+            skipCurrentRound();
+            state.lastInteract = Date.now();
+            state.stuckNudged = false;
+          }
+        }
+      } catch (e) {}
+    }, 5000);
+
+    function bumpActivity() { try { if (state) { state.lastInteract = Date.now(); state.stuckNudged = false; } } catch (e) {} }
+    document.addEventListener('click', bumpActivity);
+    document.addEventListener('keydown', bumpActivity);
+    document.addEventListener('touchstart', bumpActivity);
+    $('hf-stuck-btn').addEventListener('click', skipCurrentRound);
+    $('hf-restart-btn').addEventListener('click', confirmAndRestart);
+  }
+
+  function skipCurrentRound() {
+    try {
+      if (!state) return;
+      // If a popup is open, dismissing it advances the chain on its own.
+      if (state.popupOpen) {
+        var pBtn = $('popup-btn');
+        if (pBtn) { pBtn.click(); return; }
+      }
+      // If the chip section is hidden (e.g., during R6 reckoning rolling animation),
+      // the user has nothing to click — force-advance to R7 directly.
+      var chipSec = $('chip-section');
+      var chipsHidden = chipSec && chipSec.style.display === 'none';
+      if (chipsHidden) {
+        state.choiceLocked = false; state.choiceLockedSince = 0;
+        if (state.round === 6) { state.round = 7; safeTransition(runRound, 400); return; }
+        if (state.round >= 7)  { state.finished = true; safeTransition(endGame, 400); return; }
+      }
+      var chips = document.querySelectorAll('.chip:not(.locked):not(.tapped)');
+      if (chips.length > 0 && state.currentChipTapped === null) chips[0].click();
+      setTimeout(function(){
+        var btnA = $('choice-a');
+        if (btnA && !btnA.disabled) btnA.click();
+        else {
+          state.choiceLocked = false; state.choiceLockedSince = 0;
+          if (state.round <= 5)      { state.round++; safeTransition(runRound, 400); }
+          else if (state.round === 6) { state.round = 7; safeTransition(runRound, 400); }
+          else                        { state.finished = true; safeTransition(endGame, 400); }
+        }
+      }, 250);
+    } catch (e) { console.error('skipCurrentRound', e); }
+  }
+
+  function confirmAndRestart() {
+    try { if (confirm('Restart the simulation? Your progress will be lost.')) { state._roundGen = state ? state._roundGen + 1 : 1; startGame(); } } catch (e) {}
+  }
+
+  // ============== INIT ==============
+  function init() {
+    try {
+      $('start-btn').onclick = function(){ getAudio(); startGame(); };
+      $('replay-btn').onclick = function(){ startGame(); };
+      $('show-details-btn').onclick = function(){
+        var dl = $('data-layer');
+        var btn = $('show-details-btn');
+        if (dl.classList.contains('show')) { dl.classList.remove('show'); btn.textContent = 'Show Details'; }
+        else { buildDataTable(); dl.classList.add('show'); btn.textContent = 'Hide Details'; }
+      };
+      $('copy-btn').onclick = copyDataTable;
+      installHotfix();
+    } catch (e) { console.error('init', e); }
+  }
+
+  if (typeof Object.assign !== 'function') {
+    Object.assign = function(target) {
+      if (target == null) throw new TypeError('Cannot convert undefined or null to object');
+      var to = Object(target);
+      for (var index = 1; index < arguments.length; index++) {
+        var nextSource = arguments[index];
+        if (nextSource != null) for (var nextKey in nextSource) if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) to[nextKey] = nextSource[nextKey];
+      }
+      return to;
+    };
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>
