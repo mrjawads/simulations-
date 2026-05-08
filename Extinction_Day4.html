@@ -2054,7 +2054,7 @@ function showAntiGuessingGate(round) {
 }
 
 function autoAdvance(round) {
-  roundData[round].score = 50;
+  roundData[round].score = Math.max(roundData[round].score || 0, 50);
   roundData[round].completed = true;
   roundData[round].timeSeconds = Math.round((Date.now() - roundStartTime) / 1000);
   totalScore = calcTotalScore();
@@ -2166,6 +2166,12 @@ function showMiniCeleb(callback) {
 }
 
 function showRequiredComplete() {
+  /* lockfix layer 1: inline IZ buttons (additive) */
+  try { if (window.__lockfixRenderInline) window.__lockfixRenderInline({
+    onContinue: function(){ window.__lockfixClickFirst(['#keepGoingBtn'], function(){ if(typeof loadRound==='function'&&typeof currentRound!=='undefined')loadRound(currentRound+1); else if(typeof showReceipt==='function')showReceipt(); }); },
+    onScore:    function(){ window.__lockfixClickFirst(['#seeScoreBtn'], function(){ if(typeof showReceipt==='function')showReceipt(); }); }
+  }); } catch(__lf_e) { console.error('[lockfix] inline render failed', __lf_e); }
+
   closeAllOverlays();
   const overlay = document.getElementById('milestoneOverlay');
   overlay.innerHTML = `
@@ -2396,7 +2402,7 @@ function skipCurrentRound(opts) {
       if (roundData[currentRound]) {
         roundData[currentRound].completed = true;
         roundData[currentRound].score = Math.min(roundData[currentRound].score || 0, 50) || 50;
-        if (roundData[currentRound].score === 0) roundData[currentRound].score = 50;
+        if (roundData[currentRound].score === 0) roundData[currentRound].score = Math.max(roundData[currentRound].score || 0, 50);
         roundData[currentRound].timeSeconds = Math.round((Date.now() - roundStartTime) / 1000);
       }
       totalScore = calcTotalScore();
@@ -2522,5 +2528,133 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 </script>
+
+<script>
+/* ============================================================
+   LOCKUP-FIX HELPER (additive, three-layer)
+   - Layer 1: inline IZ buttons that mirror the choice overlay,
+              so a render or click-handler failure can never trap
+              the student. They appear inside the interaction zone
+              and stay visible regardless of overlay state.
+   - All work wrapped in try/catch so a graphics failure here can
+     never break the host simulation.
+   ============================================================ */
+(function(){
+  if (window.__simsLockfixInstalled) return;
+  window.__simsLockfixInstalled = true;
+
+  function findIZ() {
+    var ids = ['interactionZone','interaction-zone','iz','izContent','izWrap',
+               'interZone','izone','interactionPrompt','arena','game','stage','board'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el) return el;
+    }
+    return document.body;
+  }
+
+  function safeRun(fn) {
+    return function() {
+      try { return fn.apply(this, arguments); }
+      catch (e) { console.error('[lockfix] handler error', e); }
+    };
+  }
+
+  window.__lockfixRenderInline = function(opts) {
+    try {
+      opts = opts || {};
+      var iz = findIZ();
+      var existing = document.getElementById('__lockfixInline');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+      var wrap = document.createElement('div');
+      wrap.id = '__lockfixInline';
+      wrap.setAttribute('role','group');
+      wrap.style.cssText = ''
+        + 'display:flex;gap:14px;justify-content:center;flex-wrap:wrap;'
+        + 'padding:18px;margin:14px auto;max-width:680px;'
+        + 'background:linear-gradient(135deg,#fef3c7,#fde68a);'
+        + 'border:3px solid #f59e0b;border-radius:14px;'
+        + 'box-shadow:0 6px 18px rgba(0,0,0,0.12);'
+        + 'position:relative;z-index:9999;';
+
+      var msg = document.createElement('div');
+      msg.style.cssText = 'flex:1 1 100%;text-align:center;font-size:18px;font-weight:800;color:#7c2d12;';
+      msg.textContent = '✅ Required Complete — pick your next move:';
+      wrap.appendChild(msg);
+
+      function makeBtn(label, bg, handler) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        b.style.cssText = ''
+          + 'flex:1 1 220px;max-width:300px;padding:16px 22px;'
+          + 'font-size:18px;font-weight:800;color:#fff;background:'+bg+';'
+          + 'border:none;border-radius:12px;cursor:pointer;'
+          + 'box-shadow:0 4px 10px rgba(0,0,0,0.15);'
+          + 'transition:transform 0.15s ease, box-shadow 0.15s ease;';
+        b.addEventListener('mouseover', function(){ b.style.transform = 'translateY(-2px)'; });
+        b.addEventListener('mouseout',  function(){ b.style.transform = 'translateY(0)'; });
+        b.addEventListener('click', safeRun(function(ev){
+          if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+          if (typeof handler === 'function') handler();
+          var w = document.getElementById('__lockfixInline');
+          if (w && w.parentNode) w.parentNode.removeChild(w);
+        }));
+        return b;
+      }
+
+      wrap.appendChild(makeBtn('🎯 Continue to Bonus',
+        'linear-gradient(135deg,#10b981,#059669)',
+        opts.onContinue || function(){}));
+      wrap.appendChild(makeBtn('📊 See My Score',
+        'linear-gradient(135deg,#3b82f6,#2563eb)',
+        opts.onScore || function(){}));
+
+      iz.appendChild(wrap);
+      try { wrap.scrollIntoView({behavior:'smooth', block:'center'}); } catch(e){}
+    } catch (err) {
+      console.error('[__lockfixRenderInline] failed', err);
+    }
+  };
+
+  window.__lockfixClickFirst = function(selectors, fallback) {
+    try {
+      for (var i = 0; i < selectors.length; i++) {
+        var btn = document.querySelector(selectors[i]);
+        if (btn) { btn.click(); return; }
+      }
+      if (typeof fallback === 'function') fallback();
+    } catch (e) {
+      console.error('[__lockfixClickFirst] failed', e);
+      if (typeof fallback === 'function') {
+        try { fallback(); } catch (e2) {}
+      }
+    }
+  };
+
+  window.__lockfixClickByText = function(scopeSelector, textIncludes, fallback) {
+    try {
+      var scope = document.querySelector(scopeSelector);
+      if (scope) {
+        var btns = scope.querySelectorAll('button');
+        for (var i = 0; i < btns.length; i++) {
+          var t = (btns[i].textContent || '');
+          for (var j = 0; j < textIncludes.length; j++) {
+            if (t.indexOf(textIncludes[j]) !== -1) { btns[i].click(); return; }
+          }
+        }
+      }
+      if (typeof fallback === 'function') fallback();
+    } catch (e) {
+      console.error('[__lockfixClickByText] failed', e);
+      if (typeof fallback === 'function') {
+        try { fallback(); } catch (e2) {}
+      }
+    }
+  };
+})();
+</script>
+
 </body>
 </html>
