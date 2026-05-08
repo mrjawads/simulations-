@@ -1013,6 +1013,19 @@ function pvDone(){
   const iz=$('iz');iz.innerHTML=`<div style="text-align:center"><div style="color:var(--ok);font-size:18px;font-weight:700">Level Complete!</div><div style="font-size:28px;font-weight:700;color:${sc>=85?'var(--ok)':sc>=70?'var(--accent2)':'var(--accent3)'};margin:6px 0">+${sc}</div></div>`;
   if(sc===100)iz.innerHTML+=`<div style="text-align:center;color:var(--accent2);font-size:14px;animation:fio 2s">${gAff(l.skill)}</div>`;
   const done=GS.levels.filter(l2=>l2.done).length,reqD=GS.levels.filter((l2,i)=>L[i].req&&l2.done).length;
+  // SAFETY NET — inline advance buttons in the IZ. If the celebration overlay fails
+  // to render or gets stripped, students must still have a clearly visible path forward.
+  try{
+    let inlineBtns='';
+    if(reqD===6&&!GS.reqDone){
+      inlineBtns='<div style="display:flex;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap"><button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:2px solid var(--accent2);background:#fff;color:var(--accent2);cursor:pointer;min-height:44px" onclick="closeCel();showReceipt()">See Score</button><button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:none;background:linear-gradient(135deg,var(--ok),#16A34A);color:#fff;cursor:pointer;min-height:44px" onclick="closeCel();advNext()">Keep Going &rarr;</button></div>';
+    } else if(done===8){
+      inlineBtns='<div style="display:flex;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap"><button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:none;background:linear-gradient(135deg,var(--ok),#16A34A);color:#fff;cursor:pointer;min-height:44px" onclick="closeCel();showReceipt()">See Final Score</button></div>';
+    } else if(GS.cur < L.length-1){
+      inlineBtns='<div style="display:flex;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap"><button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:none;background:linear-gradient(135deg,var(--ok),#16A34A);color:#fff;cursor:pointer;min-height:44px" onclick="closeCel();advNext()">Next Round &rarr;</button></div>';
+    }
+    if(inlineBtns) iz.innerHTML += inlineBtns;
+  }catch(e){console.error('inline advance buttons failed',e)}
   safeTimeout(()=>{
     if(reqD===6&&!GS.reqDone){GS.reqDone=true;showCel("Required Levels Complete!",true)}
     else if(done===8){GS.allDone=true;showCel("BONUS COMPLETE!",false,true)}
@@ -1051,7 +1064,9 @@ function showGate(msg,dur){try{clearGate();$('gMsg').innerHTML=msg+'<div id="gTm
 function forceAdv(){
   try{const gs=GS.levels[GS.cur],l=L[GS.cur];
   if(gs.done)return; // one-shot guard
-  gs.done=true;gs.score=50;gs.att=LS.att;gs.hints=LS.hints;gs.resets=LS.resets;gs.time=Math.round((Date.now()-LS.start)/1000);
+  // Award AT LEAST 50% — never demote a student who already earned a higher score
+  // and got stranded on a transition screen.
+  gs.done=true;gs.score=Math.max(gs.score||0,50);gs.att=LS.att;gs.hints=LS.hints;gs.resets=LS.resets;gs.time=Math.round((Date.now()-LS.start)/1000);
   if(l.ebE&&!GS.evBoard.find(e=>e.label===l.ebE.label)){GS.evBoard.push(l.ebE);if(l.evType)GS.evCol=Math.min(4,GS.evCol+1)}
   GS.conPct=l.conPct;upEB();upHUD();upEvSide();
   $('iz').innerHTML='<div style="text-align:center;color:var(--accent2);font-size:14px">Let\'s move on — you\'ll see this idea again.<br><span style="font-size:22px;font-weight:700;color:var(--accent3)">+50</span></div>';
@@ -1104,11 +1119,12 @@ function skipCurrentRound(opts){
       try{deactLk()}catch(e){}
     }catch(e){console.warn('strip UI',e)}
 
-    // 5) Award 50% for current level/round (one-shot guarded)
+    // 5) Award AT LEAST 50% for current level/round (one-shot guarded). Never demote
+    // a student who already earned a higher score and got stranded on a transition.
     try{
       const gs=GS.levels[GS.cur],l=L[GS.cur];
       if(gs && !gs.done && l){
-        gs.done=true;gs.score=50;gs.att=(LS.att||0)+1;
+        gs.done=true;gs.score=Math.max(gs.score||0,50);gs.att=(LS.att||0)+1;
         gs.hints=LS.hints||0;gs.resets=LS.resets||0;
         gs.time=Math.round((Date.now()-(LS.start||Date.now()))/1000);
         if(l.ebE && !GS.evBoard.find(e=>e.label===l.ebE.label)){

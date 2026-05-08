@@ -546,11 +546,12 @@ function skipCurrentRound(opts){
       // Close all overlays except receipt/start
       ['celebOverlay','sbsOverlay','agScreen','vocabOverlay'].forEach(id=>{const o=$(id);if(o)o.classList.remove('show');});
     }catch(e){console.error('[skip] UI strip failed',e);}
-    // 3. Award 50% credit for this round
+    // 3. Award AT LEAST 50% credit for this round — never demote a student who already
+    // earned a higher score and got stranded on a transition screen.
     try{
       const idx=GS.currentRound;const level=GS.levels[idx];
       if(level && !level.completed){
-        level.completed=true;level.score=50;level.attempts=(level.attempts||0)+1;
+        level.completed=true;level.score=Math.max(level.score||0,50);level.attempts=(level.attempts||0)+1;
         level.hintsUsed=GS.hintsUsed||0;level.resets=GS.resets||0;
         level.timeMs=Date.now()-(GS.roundStartTime||Date.now());
         try{updateHUD();}catch(e){}
@@ -1365,14 +1366,30 @@ function onProveCorrect(){
   if(GS.predictionCorrect===false&&level.score>85)level.score=85;
   level.hintsUsed=GS.hintsUsed;level.resets=GS.resets;updateHUD();
   const iz=$('interactionZone');const ft=(GS.hintsUsed===0&&GS.resets===0&&level.attempts<=1);
+  const idx=GS.currentRound;
   let html='<div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--correct)">Correct! +'+level.score+'</div>';
   if(ft)html+='<div class="celeb-affirmation" style="opacity:1">'+getAffirmation(GS.currentRound)+'</div>';
+  // SAFETY NET — inline advance buttons in the IZ for lock-prone transitions.
+  // If the celebration overlay fails to render or has a click-handler error,
+  // students must still have a clearly visible path forward.
+  if(idx===5){
+    html+='<div style="display:flex;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap"><button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:2px solid var(--textLight);background:#fff;color:var(--textLight);cursor:pointer;min-height:44px" onclick="(function(){var ov=document.getElementById(\'celebOverlay\');if(ov)ov.classList.remove(\'show\');showReceipt();})()">See My Score</button><button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:none;background:linear-gradient(135deg,var(--correct),#16A34A);color:#fff;cursor:pointer;min-height:44px" onclick="(function(){var ov=document.getElementById(\'celebOverlay\');if(ov)ov.classList.remove(\'show\');nextRound();})()">Continue to Bonus &rarr;</button></div>';
+  } else if(idx===7){
+    html+='<div style="display:flex;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap"><button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:none;background:linear-gradient(135deg,var(--correct),#16A34A);color:#fff;cursor:pointer;min-height:44px" onclick="(function(){var ov=document.getElementById(\'celebOverlay\');if(ov)ov.classList.remove(\'show\');showReceipt();})()">See Final Score</button></div>';
+  } else if(idx<ROUNDS.length-1){
+    html+='<div style="display:flex;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap"><button style="padding:10px 18px;border-radius:22px;font-size:14px;font-weight:700;border:none;background:linear-gradient(135deg,var(--correct),#16A34A);color:#fff;cursor:pointer;min-height:44px" onclick="(function(){var ov=document.getElementById(\'celebOverlay\');if(ov)ov.classList.remove(\'show\');nextRound();})()">Next Round &rarr;</button></div>';
+  }
   html+='</div>';iz.innerHTML=html;show(iz);
-  safeTimeout(()=>{hide('interactionZone');checkMilestone();},2000);
+  // For lock-prone transitions (idx 5 = required complete choice, idx 7 = final),
+  // keep the IZ visible so the inline buttons remain a fallback path forward.
+  const keepIZ = (idx===5 || idx===7);
+  safeTimeout(()=>{if(!keepIZ)hide('interactionZone');checkMilestone();},2000);
 }
 function forceAdvance(){
   canvas.onclick=null;hide('hintBtn');const level=GS.levels[GS.currentRound];
-  level.completed=true;level.score=50;level.attempts++;level.hintsUsed=GS.hintsUsed;level.resets=GS.resets;level.timeMs=Date.now()-GS.roundStartTime;
+  // Award AT LEAST 50% — never demote a student who already earned a higher score
+  // and got stranded on a transition screen.
+  level.completed=true;level.score=Math.max(level.score||0,50);level.attempts++;level.hintsUsed=GS.hintsUsed;level.resets=GS.resets;level.timeMs=Date.now()-GS.roundStartTime;
   updateHUD();
   $('interactionZone').innerHTML='<div style="text-align:center;font-size:14px;color:var(--textLight);font-weight:600">Let\'s move on — you\'ll see this idea again.</div>';
   show('interactionZone');safeTimeout(()=>{hide('interactionZone');checkMilestone();},2000);

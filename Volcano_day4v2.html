@@ -1796,7 +1796,18 @@ function completeRound(score){
   var isFirstTry=score===100;
   var roundNum=GS.currentRound+1;
 
-  if(roundNum===10){safeTimeout(function(){showChoiceScreen();},1500);}
+  if(roundNum===10){
+    // SAFETY NET — render inline choice buttons in the IZ as a backup path forward.
+    // If showChoiceScreen overlay fails to render or has a click-handler error,
+    // the student must still have a clearly visible way to advance.
+    try{
+      var bRow=document.getElementById('btnRow');
+      if(bRow){
+        bRow.innerHTML='<div style="display:flex;justify-content:center;gap:10px;margin-top:8px;flex-wrap:wrap;width:100%"><button class="btn btn-outline" style="min-height:44px" onclick="(function(){var o=document.getElementById(\'choiceOvl\');if(o)o.remove();showReceipt();})()">See My Score</button><button class="btn btn-gold" style="min-height:44px" onclick="(function(){var o=document.getElementById(\'choiceOvl\');if(o)o.remove();GS.allRequired=true;advanceRound();})()">Take on 2 BONUS rounds &rarr;</button></div>';
+      }
+    }catch(e){console.error('inline choice buttons failed',e);}
+    safeTimeout(function(){showChoiceScreen();},1500);
+  }
   else if(roundNum===12){safeTimeout(function(){showBossDefeated();},800);}
   else if(roundNum%2===0){showMiniCelebration(isFirstTry);safeTimeout(function(){advanceRound();},1200);}
   else{if(isFirstTry)showAffirmation();safeTimeout(function(){advanceRound();},800);}
@@ -1829,10 +1840,19 @@ function showAffirmation(){
 }
 
 function showChoiceScreen(){
-  GS.allRequired=true;
-  var ovl=document.createElement('div');ovl.className='choice-screen';ovl.id='choiceOvl';
-  ovl.innerHTML='<h2>REQUIRED COMPLETE!</h2><p>You proved you can read a volcano like Johnston.</p><div class="cele-affirmation" style="position:static;animation:none;opacity:1;">'+getAffirmation()+'</div><div class="btn-row" style="margin-top:16px;"><button class="btn btn-gold" onclick="document.getElementById(\'choiceOvl\').remove();advanceRound();">Take on 2 BONUS rounds</button><button class="btn btn-outline" onclick="document.getElementById(\'choiceOvl\').remove();showReceipt();">See My Score</button></div>';
-  document.body.appendChild(ovl);safeCall(function(){playCorrectSound();});createParticles(ovl,80);
+  // Defensive — if overlay creation fails for any reason, the inline btnRow buttons
+  // (rendered in completeRound for round 10) remain as the fallback path forward.
+  try{
+    GS.allRequired=true;
+    var ovl=document.createElement('div');ovl.className='choice-screen';ovl.id='choiceOvl';
+    ovl.innerHTML='<h2>REQUIRED COMPLETE!</h2><p>You proved you can read a volcano like Johnston.</p><div class="cele-affirmation" style="position:static;animation:none;opacity:1;">'+getAffirmation()+'</div><div class="btn-row" style="margin-top:16px;"><button class="btn btn-gold" onclick="document.getElementById(\'choiceOvl\').remove();advanceRound();">Take on 2 BONUS rounds</button><button class="btn btn-outline" onclick="document.getElementById(\'choiceOvl\').remove();showReceipt();">See My Score</button></div>';
+    document.body.appendChild(ovl);
+    safeCall(function(){playCorrectSound();});
+    safeCall(function(){createParticles(ovl,80);});
+  }catch(e){
+    console.error('showChoiceScreen failed — relying on inline btnRow buttons',e);
+    GS.allRequired=true; // ensure flag is set even if overlay fails
+  }
 }
 
 function showBossDefeated(){
