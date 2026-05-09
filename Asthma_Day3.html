@@ -2934,5 +2934,103 @@ document.addEventListener('visibilitychange', ()=>{
 })();
 </script>
 
+<!-- ============================================================ -->
+<!-- STICKY-KEY + LOCKUP SAFETY PATCH (Chromebook) -->
+<!-- Added defensively. Does not rename, retitle, or restructure. -->
+<!-- ============================================================ -->
+<script>
+(function(){
+  if (window.__stickyKeyPatchApplied) return;
+  window.__stickyKeyPatchApplied = true;
+
+  function resetShiftState(){
+    try{
+      // Reset trackers stored on common state objects
+      ['state','S','G','game'].forEach(function(name){
+        var s; try{ s = window[name]; }catch(e){ return; }
+        if (!s || typeof s !== 'object') return;
+        ['shiftSHeld','shiftHeld','shiftSPressed','shiftSDown','shiftSWarned',
+         'longPressConfirm','skipConfirm'].forEach(function(k){
+          try{ if (k in s) s[k] = false; }catch(e){}
+        });
+        ['shiftSStart','shiftSStartTime','shiftStart','longPressStart'].forEach(function(k){
+          try{ if (k in s) s[k] = 0; }catch(e){}
+        });
+        ['shiftSTimer','shiftTimer','longPressTimer','shiftStartTimer'].forEach(function(k){
+          try{ if (s[k]){ try{ clearTimeout(s[k]); }catch(e){} try{ clearInterval(s[k]); }catch(e){} s[k] = null; } }catch(e){}
+        });
+      });
+      // Reset module-level vars that escaped to window scope
+      ['shiftSStart','shiftSTimer','shiftTimer','shiftSPressed','shiftSWarned',
+       'shiftSHeld','longPressTimer','shS','shSTmr','shiftSStartTime'].forEach(function(k){
+        try{
+          var v = window[k];
+          if (typeof v === 'number' && v > 1e6){ try{ clearTimeout(v); }catch(e){} try{ clearInterval(v); }catch(e){} window[k] = 0; }
+          else if (typeof v === 'boolean'){ window[k] = false; }
+          else if (typeof v === 'number'){ window[k] = 0; }
+        }catch(e){}
+      });
+    }catch(e){}
+  }
+
+  // 1. Window loses focus (alt-tab, screen lock, switch app on Chromebook)
+  try{ window.addEventListener('blur', resetShiftState); }catch(e){}
+  // 2. Tab becomes hidden
+  try{ document.addEventListener('visibilitychange', function(){ if (document.hidden) resetShiftState(); }); }catch(e){}
+  // 3. Capture-phase keyup whenever Shift is no longer held — fixes the
+  //    "released Shift before S" race that leaves the timer armed
+  try{
+    document.addEventListener('keyup', function(e){
+      try{ if (!e.shiftKey) resetShiftState(); }catch(_){}
+    }, true);
+  }catch(e){}
+  // 4. Escape always clears stuck state and is a manual unstick for students
+  try{
+    document.addEventListener('keydown', function(e){
+      try{ if (e.key === 'Escape') resetShiftState(); }catch(_){}
+    }, true);
+  }catch(e){}
+
+  // Tiny recovery affordance — bottom-right, low opacity, neutral label.
+  // Lets a student unstick themselves if a key got stuck or an overlay locked.
+  function addRecoveryBtn(){
+    try{
+      if (document.getElementById('__stuckBtn')) return;
+      var b = document.createElement('button');
+      b.id = '__stuckBtn';
+      b.type = 'button';
+      b.textContent = 'Stuck? Tap';
+      b.setAttribute('aria-label', 'Recovery: clear stuck keys and continue');
+      b.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:99999;'
+        + 'background:rgba(20,20,30,.78);color:#fff;border:1px solid #4af;'
+        + 'border-radius:6px;padding:5px 9px;font:600 11px system-ui,sans-serif;'
+        + 'cursor:pointer;opacity:.5';
+      b.onmouseenter = function(){ b.style.opacity = '1'; };
+      b.onmouseleave = function(){ b.style.opacity = '.5'; };
+      b.onclick = function(){
+        resetShiftState();
+        // Best-effort: close any overlay that's been left visible
+        ['scanner-overlay','passOverlay','doorOverlay','overlay',
+         'codeError','skipConfirm','skipC'].forEach(function(id){
+          try{ var el = document.getElementById(id);
+            if (el){ el.classList.remove('active','visible','show','sh'); }
+          }catch(e){}
+        });
+        try{ if (typeof window.closeAllOverlays === 'function') window.closeAllOverlays(); }catch(e){}
+        b.textContent = 'Reset ✓';
+        setTimeout(function(){ b.textContent = 'Stuck? Tap'; }, 1500);
+      };
+      document.body.appendChild(b);
+    }catch(e){}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', addRecoveryBtn);
+  } else {
+    addRecoveryBtn();
+  }
+})();
+</script>
+<!-- /STICKY-KEY + LOCKUP SAFETY PATCH -->
+
 </body>
 </html>
