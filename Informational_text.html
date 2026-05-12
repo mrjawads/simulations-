@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mr Jawad Simulation Homeostasis</title>
+    <title>Mr. Jawad's Simulations Homeostasis</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); min-height: 100vh; color: #fff; padding: 10px; }
@@ -315,7 +315,7 @@ function showPredict(){$('start-message').classList.add('hidden');$('prediction-
 function predict(p){st.total++;const ok=p===S[st.cur].ans;if(ok){st.correct++;st.streak++;st.score+=10+(st.streak*2);showToast('✓ Correct! +'+(10+(st.streak*2))+' pts','correct');}else{st.streak=0;st.score+=5;showToast('Not quite! +5 pts','incorrect');}updateHUD();setTimeout(()=>{st.step='read';updateStep();showRead();},1500);}
 function showToast(msg,type){const f=$('feedback');f.textContent=msg;f.className='feedback-toast visible '+type;setTimeout(()=>f.classList.remove('visible'),2000);}
 function showRead(){$('prediction-box').classList.remove('visible');$('reading-box').innerHTML=S[st.cur].reading[st.lvl];$('reading-box').classList.add('visible');$('action-area').innerHTML='<button class="action-btn primary" onclick="goWatch()">▶️ Watch the Body Respond</button><button class="speak-btn" onclick="speak()">🔊 Read Aloud</button>';}
-function speak(){const t=$('reading-box').textContent;if('speechSynthesis' in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=0.9;speechSynthesis.speak(u);}}
+function speak(){const t=$('reading-box').textContent;if('speechSynthesis' in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=0.9;try{speechSynthesis.speak(u);}catch(e){}}}
 function goWatch(){st.step='watch';updateStep();showWatch();}
 function resetAnim(){$('brain').classList.remove('active');$('cold-ov').classList.remove('visible');$('hot-ov').classList.remove('visible');document.querySelectorAll('.signal-dot,.shiver-line,.sweat,.particle').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.receptor').forEach(e=>{e.classList.remove('fading');e.style.opacity='1';});}
 function showWatch(){const s=S[st.cur];$('reading-box').classList.remove('visible');$('action-area').innerHTML='';$('body-anim').classList.add('visible');$('meter-lbl').textContent=s.lbl;$('needle').style.left=s.start+'%';const lbl=$('stage-label');resetAnim();lbl.textContent='🔍 Body detects a problem...';setTimeout(()=>{$('needle').style.left=s.danger+'%';if(s.type==='cold')$('cold-ov').classList.add('visible');if(s.type==='hot')$('hot-ov').classList.add('visible');['su1','su2','su3','su4'].forEach((id,i)=>setTimeout(()=>$(id).classList.add('active'),i*200));},500);setTimeout(()=>{lbl.textContent='🧠 Brain receives signal!';$('brain').classList.add('active');if(s.type==='dopamine')document.querySelectorAll('#dopa-f .particle').forEach((e,i)=>setTimeout(()=>e.classList.add('active'),i*150));},2000);setTimeout(()=>{lbl.textContent='⚡ Brain sends signals to body...';['sd1','sd2','sd3','sd4','sd5','sd6'].forEach((id,i)=>setTimeout(()=>$(id).classList.add('active'),i*150));},3500);setTimeout(()=>{if(s.type==='cold'){lbl.textContent='💪 Muscles shivering → making heat!';document.querySelectorAll('.shiver-line').forEach((e,i)=>setTimeout(()=>e.classList.add('active'),i*80));}else if(s.type==='hot'){lbl.textContent='💧 Sweating → cooling down!';document.querySelectorAll('.sweat').forEach((e,i)=>setTimeout(()=>e.classList.add('active'),i*150));}else if(s.type==='glucose'){lbl.textContent='🍬 Liver releasing stored sugar!';document.querySelectorAll('#gluc-f .particle').forEach((e,i)=>setTimeout(()=>e.classList.add('active'),i*120));}else if(s.type==='dopamine'){lbl.textContent='📉 Brain reducing receptors...';document.querySelectorAll('.receptor').forEach((e,i)=>setTimeout(()=>e.classList.add('fading'),i*250));}},5000);setTimeout(()=>{$('needle').style.left=s.end+'%';lbl.textContent='✅ Moving back toward normal!';$('cold-ov').classList.remove('visible');$('hot-ov').classList.remove('visible');$('brain').classList.remove('active');},7000);setTimeout(()=>{lbl.textContent='🎯 Balance restored!';$('action-area').innerHTML='<button class="action-btn success" onclick="goRecord()">📝 Record Data</button>';},8500);}
@@ -346,5 +346,63 @@ updateHUD();
 })();
 </script>
 
+<!-- ===== STUCK-PHASE SAFETY PATCH (additive — never edits existing code) ===== -->
+<style>
+#stuckPhaseSkipBtn{position:fixed;bottom:8px;left:8px;z-index:99998;padding:6px 10px;
+  border-radius:8px;border:1px solid #4af;background:rgba(20,20,30,.78);color:#fff;
+  font:600 11px/1.1 system-ui,sans-serif;cursor:pointer;opacity:.5;
+  box-shadow:0 2px 6px rgba(0,0,0,.3);letter-spacing:.3px;transition:opacity .2s}
+#stuckPhaseSkipBtn:hover{opacity:1}
+#stuckPhaseSkipBtn.bright{opacity:1;background:linear-gradient(135deg,#16a34a,#15803d);border-color:#fff}
+</style>
+<button id="stuckPhaseSkipBtn" type="button" aria-label="Force-advance if stuck on animation">▶ Skip</button>
+<script>
+/* Stuck-phase safety. Never edits existing code. Wrapped to never crash the host sim. */
+(function(){
+  try{
+    var btn=document.getElementById('stuckPhaseSkipBtn');
+    if(!btn)return;
+    var ADVANCE_FNS=['finishWatch','finishWatching','endWatch','completeWatch',
+      'advancePhase','advanceStep','advanceRound','nextStep','nextPhase','nextRound',
+      'gotoRecord','toRecord','showRecord','forceFinish','forceNext','skipAnimation',
+      'endRound','completeRound','finishRound','nextScenario','recordData'];
+    function tryAdvance(){
+      var fired=false;
+      for(var i=0;i<ADVANCE_FNS.length&&!fired;i++){
+        try{
+          var fn=window[ADVANCE_FNS[i]];
+          if(typeof fn==='function'){fn();fired=true;}
+        }catch(e){/* try next */}
+      }
+      // Re-enable any disabled buttons as a last resort.
+      try{
+        var all=document.querySelectorAll('button[disabled],button.locked,button.disabled');
+        for(var j=0;j<all.length;j++){
+          try{all[j].disabled=false;all[j].classList.remove('locked','disabled','busy');}catch(e){}
+        }
+      }catch(e){}
+      return fired;
+    }
+    btn.addEventListener('click',function(){
+      try{tryAdvance();}catch(e){}
+      try{btn.textContent='✓';setTimeout(function(){btn.textContent='▶ Skip';},900);}catch(e){}
+    });
+    // Brighten the button when the sim appears to be in a watch/animation phase.
+    setInterval(function(){
+      try{
+        var st=window.state;
+        var step=(st&&(st.step||st.phase||st.currentStep||st.screen||''))+'';
+        var inAnim=/^(watch|watching|animate|animating|animation|playing|transition|transitioning|running)$/i.test(step);
+        if(!inAnim){
+          var el=document.querySelector('.watch-area,.animation-area,#watchArea,#animationArea,.anim-stage,.running');
+          if(el){var cs=getComputedStyle(el);if(cs&&cs.display!=='none'&&cs.visibility!=='hidden')inAnim=true;}
+        }
+        if(inAnim)btn.classList.add('bright');else btn.classList.remove('bright');
+      }catch(e){}
+    },700);
+  }catch(e){/* never crash host */}
+})();
+</script>
+<!-- ===== /STUCK-PHASE SAFETY PATCH ===== -->
 </body>
 </html>

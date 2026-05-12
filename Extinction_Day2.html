@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Mr. Jawad's Simulation — Mass Extinction Cascade</title>
+<title>Mr. Jawad's Simulations — Mass Extinction Cascade</title>
 <style>
 :root{
 --bg1:#1A1A2E;--bg2:#16213E;--accent:#00D4FF;--yellow:#FFD93D;--red:#FF4757;
@@ -2217,5 +2217,63 @@ if(document.hidden){try{speechSynthesis.cancel();}catch(e){} if(resumeInt)clearI
 </script>
 <!-- /STICKY-KEY + LOCKUP SAFETY PATCH -->
 
+<!-- ===== STUCK-PHASE SAFETY PATCH (additive — never edits existing code) ===== -->
+<style>
+#stuckPhaseSkipBtn{position:fixed;bottom:8px;left:8px;z-index:99998;padding:6px 10px;
+  border-radius:8px;border:1px solid #4af;background:rgba(20,20,30,.78);color:#fff;
+  font:600 11px/1.1 system-ui,sans-serif;cursor:pointer;opacity:.5;
+  box-shadow:0 2px 6px rgba(0,0,0,.3);letter-spacing:.3px;transition:opacity .2s}
+#stuckPhaseSkipBtn:hover{opacity:1}
+#stuckPhaseSkipBtn.bright{opacity:1;background:linear-gradient(135deg,#16a34a,#15803d);border-color:#fff}
+</style>
+<button id="stuckPhaseSkipBtn" type="button" aria-label="Force-advance if stuck on animation">▶ Skip</button>
+<script>
+/* Stuck-phase safety. Never edits existing code. Wrapped to never crash the host sim. */
+(function(){
+  try{
+    var btn=document.getElementById('stuckPhaseSkipBtn');
+    if(!btn)return;
+    var ADVANCE_FNS=['finishWatch','finishWatching','endWatch','completeWatch',
+      'advancePhase','advanceStep','advanceRound','nextStep','nextPhase','nextRound',
+      'gotoRecord','toRecord','showRecord','forceFinish','forceNext','skipAnimation',
+      'endRound','completeRound','finishRound','nextScenario','recordData'];
+    function tryAdvance(){
+      var fired=false;
+      for(var i=0;i<ADVANCE_FNS.length&&!fired;i++){
+        try{
+          var fn=window[ADVANCE_FNS[i]];
+          if(typeof fn==='function'){fn();fired=true;}
+        }catch(e){/* try next */}
+      }
+      // Re-enable any disabled buttons as a last resort.
+      try{
+        var all=document.querySelectorAll('button[disabled],button.locked,button.disabled');
+        for(var j=0;j<all.length;j++){
+          try{all[j].disabled=false;all[j].classList.remove('locked','disabled','busy');}catch(e){}
+        }
+      }catch(e){}
+      return fired;
+    }
+    btn.addEventListener('click',function(){
+      try{tryAdvance();}catch(e){}
+      try{btn.textContent='✓';setTimeout(function(){btn.textContent='▶ Skip';},900);}catch(e){}
+    });
+    // Brighten the button when the sim appears to be in a watch/animation phase.
+    setInterval(function(){
+      try{
+        var st=window.state;
+        var step=(st&&(st.step||st.phase||st.currentStep||st.screen||''))+'';
+        var inAnim=/^(watch|watching|animate|animating|animation|playing|transition|transitioning|running)$/i.test(step);
+        if(!inAnim){
+          var el=document.querySelector('.watch-area,.animation-area,#watchArea,#animationArea,.anim-stage,.running');
+          if(el){var cs=getComputedStyle(el);if(cs&&cs.display!=='none'&&cs.visibility!=='hidden')inAnim=true;}
+        }
+        if(inAnim)btn.classList.add('bright');else btn.classList.remove('bright');
+      }catch(e){}
+    },700);
+  }catch(e){/* never crash host */}
+})();
+</script>
+<!-- ===== /STUCK-PHASE SAFETY PATCH ===== -->
 </body>
 </html>
