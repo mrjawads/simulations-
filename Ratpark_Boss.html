@@ -326,6 +326,31 @@ requiredCompleteShown:false,bonusCompleteShown:false,receiptRendered:false,
 selectedDO:null,
 roundTimers:[],// track timeouts for cleanup
 };
+
+/* ============================================================
+   SELF-HEALING WATCHDOG ON GS.processing
+   If any code path forgets to clear the flag (error, early return,
+   stale callback), auto-clear after 3s so input doesn't lock up.
+   ============================================================ */
+(function installProcessingWatchdog(){
+  let _val=false;let _wd=null;
+  Object.defineProperty(GS,'processing',{
+    configurable:true,
+    enumerable:true,
+    get(){return _val;},
+    set(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null;}
+      if(_val){
+        _wd=setTimeout(function(){
+          console.warn('[watchdog] GS.processing stuck 3s — auto-clearing');
+          _val=false;_wd=null;
+        },3000);
+      }
+    }
+  });
+})();
+
 function clearRoundTimers(){GS.roundTimers.forEach(t=>clearTimeout(t));GS.roundTimers=[];}
 function addTimer(fn,ms){const t=setTimeout(fn,ms);GS.roundTimers.push(t);return t;}
 

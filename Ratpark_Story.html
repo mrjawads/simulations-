@@ -529,6 +529,30 @@ processing:false,reqCompleteShown:false,bonusCompleteShown:false,receiptRendered
 arenaGen:0
 };
 
+/* ============================================================
+   SELF-HEALING WATCHDOG ON GS.processing
+   If any code path forgets to clear the flag (error, early return,
+   stale callback), auto-clear after 3s so input doesn't lock up.
+   ============================================================ */
+(function installProcessingWatchdog(){
+  let _val=false;let _wd=null;
+  Object.defineProperty(GS,'processing',{
+    configurable:true,
+    enumerable:true,
+    get(){return _val;},
+    set(v){
+      _val=!!v;
+      if(_wd){clearTimeout(_wd);_wd=null;}
+      if(_val){
+        _wd=setTimeout(function(){
+          console.warn('[watchdog] GS.processing stuck 3s — auto-clearing');
+          _val=false;_wd=null;
+        },3000);
+      }
+    }
+  });
+})();
+
 function initLevelState(i,lvl){
 return{num:i+1,name:lvl.name,required:lvl.required,completed:false,
 score:0,attempts:0,hintsUsed:0,resets:0,wrongCount:0,
