@@ -3378,5 +3378,165 @@ function highlightArenaLevel6(type,phase,answer,step){
 })();
 </script>
 <!-- ===== /STUCK-PHASE SAFETY PATCH ===== -->
+<!-- ===== BONUS-LOCK RESCUE v_lockfix_v1 (additive — preserves filename) ===== -->
+<style>
+#__mjLockRescue{position:fixed;left:50%;bottom:52px;transform:translateX(-50%);
+  z-index:99999;padding:12px 22px;
+  font:800 14px/1.1 system-ui,Arial,sans-serif;
+  background:linear-gradient(135deg,#FFD93D,#E0B520);color:#1a1a2e;
+  border:2px solid #fff;border-radius:13px;
+  box-shadow:0 4px 14px rgba(0,0,0,0.45);cursor:pointer;
+  display:none;letter-spacing:.2px}
+#__mjLockRescue:hover{filter:brightness(1.06)}
+#__mjLockRescue.pulse{animation:__mjLrPulse 1.4s ease-in-out infinite}
+@keyframes __mjLrPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.06)}}
+</style>
+<button id="__mjLockRescue" type="button" aria-label="Stuck? Tap to move to the next round with partial credit.">Stuck? Tap to move on &rarr;</button>
+<script>
+/* Mr Jawad bonus-lock rescue — additive only, never edits host code.
+   Targets the "Bonus round freezes after Submit" / "Bonus DO phase locks" pattern.
+   Also surfaces a bright rescue button after 35s of total inactivity so any
+   freeze the existing safety nets miss has an escape hatch. */
+(function(){
+  if (window.__mjLockfix_v1) return;
+  window.__mjLockfix_v1 = true;
+
+  var lastGesture = Date.now();
+  function bump(){ lastGesture = Date.now(); }
+  try { ['click','touchstart','keydown','pointerdown'].forEach(function(ev){
+    document.addEventListener(ev, bump, true);
+  }); } catch(_){}
+
+  function getGS(){
+    try { return window.GS || window.G || window.state || window.game || null; }
+    catch(_){ return null; }
+  }
+  function getPhase(){
+    try { var g = getGS(); return g && (g.phase || g.step || g.currentStep || g.screen); }
+    catch(_){ return null; }
+  }
+  function clearProcessing(){
+    try { var g = getGS(); if (g) g.processing = false; } catch(_){}
+    try { if (window.GS) window.GS.processing = false; } catch(_){}
+  }
+
+  /* ---------- Targeted: claim-builder / what-comes-next post-correct rescue ----------
+     When all selected claim cards are locked+correct (or all WCN slots are correct)
+     but we're still in DO phase, the original phaseProve safeTimeout was likely
+     invalidated by an arenaGen bump. Re-fire it. */
+  function rescueDoAdvance(){
+    try {
+      if (getPhase() !== 'do') return;
+      var grid = document.getElementById('claimGrid');
+      if (grid) {
+        var lc = grid.querySelectorAll('.claim-card.locked.correct, .claim-card.correct');
+        if (lc.length >= 3) {
+          if (!grid.__mjRescued) {
+            grid.__mjRescued = true;
+            setTimeout(function(){
+              try {
+                if (getPhase() === 'do') {
+                  clearProcessing();
+                  if (typeof window.phaseProve === 'function') window.phaseProve();
+                  else if (typeof window.completeLevel === 'function') window.completeLevel();
+                  else if (typeof window.nextLevel === 'function') window.nextLevel();
+                }
+              } catch(_){}
+            }, 2500);
+          }
+        }
+      }
+      var slots = document.getElementById('wcnSlots');
+      if (slots) {
+        var cs = slots.querySelectorAll('.wcn-slot.correct, .wcn-slot.locked.correct');
+        if (cs.length >= 3) {
+          if (!slots.__mjRescued) {
+            slots.__mjRescued = true;
+            setTimeout(function(){
+              try {
+                if (getPhase() === 'do') {
+                  clearProcessing();
+                  if (typeof window.phaseProve === 'function') window.phaseProve();
+                  else if (typeof window.completeLevel === 'function') window.completeLevel();
+                  else if (typeof window.nextLevel === 'function') window.nextLevel();
+                }
+              } catch(_){}
+            }, 2500);
+          }
+        }
+      }
+    } catch(_){}
+  }
+
+  /* ---------- Idle-based rescue button ---------- */
+  function btn(){ return document.getElementById('__mjLockRescue'); }
+  var b = btn();
+  if (b) {
+    b.onclick = function(){
+      try { b.style.display = 'none'; b.classList.remove('pulse'); } catch(_){}
+      lastGesture = Date.now();
+      clearProcessing();
+
+      // Strategy A: host sim's own stuckBtn (auto-confirm so kids don't need to read dialog)
+      var sb = document.getElementById('stuckBtn');
+      if (sb && !sb.classList.contains('hidden') && typeof sb.click === 'function') {
+        try {
+          var orig = window.confirm;
+          window.confirm = function(){ return true; };
+          sb.click();
+          setTimeout(function(){ try { window.confirm = orig; } catch(_){} }, 300);
+          return;
+        } catch(_){}
+      }
+      // Strategy B: try the broad list of advance-style functions
+      var tries = [
+        'phaseProve','phaseDo','completeLevel','nextLevel','nextScenario',
+        'advanceLevel','autoAdvanceWithCredit','advancePhase','advanceStep','advanceRound',
+        'nextStep','nextPhase','nextRound','forceFinish','forceNext','skipAnimation',
+        'endRound','completeRound','finishRound','goNext','advance','skipLevel',
+        'finishWatch','finishWatching','endWatch','completeWatch','goToRecord','toRecord','showRecord'
+      ];
+      for (var i=0;i<tries.length;i++){
+        try { if (typeof window[tries[i]] === 'function') { window[tries[i]](); return; } } catch(_){}
+      }
+      // Strategy C: bump currentLevel and try startLevel
+      try {
+        var g = getGS();
+        if (g && typeof g.currentLevel === 'number' && typeof window.startLevel === 'function') {
+          window.startLevel(g.currentLevel + 1); return;
+        }
+      } catch(_){}
+      // Strategy D: re-enable any disabled lock buttons + re-fire their click
+      try {
+        var ids = ['claimSubmit','wcnSubmit','doLockIn','proveLockIn','recordBtn','nextBtn'];
+        for (var k=0;k<ids.length;k++){
+          var el = document.getElementById(ids[k]);
+          if (el) { try { el.disabled = false; el.classList.remove('locked','disabled','busy'); } catch(_){} }
+        }
+      } catch(_){}
+    };
+  }
+
+  function updateBtn(){
+    try {
+      var b2 = btn(); if (!b2) return;
+      var idle = Date.now() - lastGesture;
+      if (idle > 35000) {
+        b2.style.display = 'inline-block';
+        if (idle > 50000) b2.classList.add('pulse');
+      } else {
+        b2.style.display = 'none';
+        b2.classList.remove('pulse');
+      }
+    } catch(_){}
+  }
+
+  setInterval(function(){
+    try { rescueDoAdvance(); } catch(_){}
+    try { updateBtn(); } catch(_){}
+  }, 1200);
+})();
+</script>
+<!-- ===== /BONUS-LOCK RESCUE ===== -->
 </body>
 </html>
