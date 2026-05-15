@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Park Ranger: Wild Watch — Session 1</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Nunito','Segoe UI','Helvetica Neue',Arial,sans-serif; background:#1a2e1a; color:#f0ead6; overflow-x:hidden; min-height:100vh; }
+
+/* ===== TITLE SCREEN ===== */
+#titleScreen {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:100vh; text-align:center; padding:20px;
+  background: linear-gradient(180deg, #0d1f0d 0%, #1a3a1a 40%, #2d5a2d 70%, #1a3a1a 100%);
+  position:relative; overflow:hidden;
+}
+#titleScreen::before {
+  content:''; position:absolute; top:0; left:0; right:0; bottom:0;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255,200,50,0.08) 0%, transparent 60%);
+  pointer-events:none;
+}
+.title-trees {
+  position:absolute; bottom:0; left:0; right:0; height:200px;
+  background: linear-gradient(0deg, #0a150a 0%, transparent 100%);
+  pointer-events:none;
+}
+.title-brand {
+  font-size:13px; letter-spacing:3px; text-transform:uppercase;
+  color:rgba(255,200,50,0.6); margin-bottom:30px; position:relative; z-index:1;
+}
+.title-main {
+  font-size:clamp(32px,6vw,56px); font-weight:900; color:#e8d5a3;
+  text-shadow: 0 0 30px rgba(255,200,50,0.3), 0 4px 8px rgba(0,0,0,0.5);
+  margin-bottom:8px; position:relative; z-index:1;
+}
+.title-sub {
+  font-size:clamp(18px,3vw,28px); font-weight:600; color:#8fbc8f;
+  margin-bottom:40px; position:relative; z-index:1;
+}
+.title-tagline {
+  font-size:16px; color:rgba(240,234,214,0.6); max-width:400px;
+  margin-bottom:40px; line-height:1.5; position:relative; z-index:1;
+}
+#startBtn {
+  padding:18px 50px; font-size:22px; font-weight:800; font-family:'Nunito',sans-serif;
+  background: linear-gradient(135deg, #4a7c3f 0%, #2d5a2d 100%);
+  color:#f0ead6; border:3px solid #7cb342; border-radius:50px;
+  cursor:pointer; position:relative; z-index:1;
+  transition: all 0.3s ease; text-transform:uppercase; letter-spacing:2px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4), 0 0 20px rgba(124,179,66,0.2);
+}
+#startBtn:hover { transform:translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.5), 0 0 30px rgba(124,179,66,0.4); }
+#startBtn:active { transform:translateY(0); }
+
+/* ===== GAME SCREEN ===== */
+#gameScreen { display:none; min-height:100vh; background:#1a2e1a; }
+
+/* HUD */
+.hud {
+  display:flex; flex-wrap:wrap; gap:8px; padding:10px 15px;
+  background: linear-gradient(180deg, #0d1f0d 0%, rgba(26,46,26,0.95) 100%);
+  border-bottom:2px solid #2d5a2d; position:sticky; top:0; z-index:100;
+  align-items:flex-end; justify-content:center;
+}
+.meter-box {
+  display:flex; flex-direction:column; align-items:center; min-width:100px; flex:1; max-width:160px;
+}
+.meter-box.primary { min-width:140px; max-width:200px; flex:1.4; }
+.meter-label {
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px;
+  color:#8fbc8f; margin-bottom:3px; text-align:center;
+}
+.meter-box.primary .meter-label { font-size:12px; color:#c8e6c9; }
+.meter-bar-outer {
+  width:100%; height:14px; background:#1a1a1a; border-radius:7px;
+  overflow:hidden; border:1px solid #333;
+}
+.meter-box.primary .meter-bar-outer { height:20px; border-radius:10px; border:2px solid #7cb342; box-shadow:0 0 8px rgba(124,179,66,0.3); }
+.meter-bar-inner {
+  height:100%; border-radius:7px; transition: width 0.6s ease, background 0.6s ease;
+}
+.meter-state {
+  font-size:9px; font-weight:600; margin-top:2px; color:#aaa; text-align:center;
+}
+.meter-box.primary .meter-state { font-size:11px; color:#c8e6c9; }
+.meter-value { font-size:9px; color:#666; margin-top:1px; }
+
+/* HUD extras row */
+.hud-extras {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:4px 15px; background:rgba(13,31,13,0.8); border-bottom:1px solid #1a3a1a;
+  font-size:12px;
+}
+.xp-display { color:#ffd54f; font-weight:700; }
+.level-display { color:#81c784; font-weight:700; }
+.streak-display { color:#ff8a65; font-weight:600; display:none; }
+.tracker-eye-icon { display:none; color:#ffd54f; font-weight:700; }
+.round-display { color:#90a4ae; }
+
+/* Arena */
+.arena {
+  min-height:280px; max-height:350px; padding:20px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  position:relative; overflow:hidden;
+  background: linear-gradient(180deg, #1a3a1a 0%, #2d4a2d 50%, #1a3a1a 100%);
+  border-bottom:2px solid #2d5a2d;
+  transition: background 0.8s ease;
+}
+.arena-scene {
+  font-size:60px; margin-bottom:10px; transition: all 0.5s ease;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+}
+.arena-text {
+  font-size:15px; color:rgba(240,234,214,0.8); text-align:center;
+  max-width:500px; line-height:1.4; min-height:40px;
+}
+.arena-env {
+  position:absolute; bottom:0; left:0; right:0; height:80px;
+  background: linear-gradient(0deg, rgba(10,21,10,0.8) 0%, transparent 100%);
+  pointer-events:none;
+}
+
+/* Decision panel */
+.decision-panel {
+  padding:15px 20px; background:linear-gradient(0deg, #0d1f0d 0%, #162816 100%);
+  border-top:2px solid #2d5a2d;
+}
+.situation-text {
+  font-size:16px; font-weight:700; color:#e8d5a3; text-align:center;
+  margin-bottom:12px; line-height:1.4; min-height:44px;
+}
+.round-label {
+  text-align:center; font-size:12px; font-weight:700; color:#7cb342;
+  text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;
+}
+.event-label {
+  text-align:center; font-size:13px; font-weight:800; color:#ff8a65;
+  text-transform:uppercase; letter-spacing:2px; margin-bottom:8px;
+  animation: pulse 1.5s ease infinite;
+}
+
+/* Field Sign Chips */
+.chips-area {
+  display:flex; gap:10px; justify-content:center; margin-bottom:12px; flex-wrap:wrap;
+}
+.chip {
+  width:180px; min-height:60px; border-radius:12px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; text-align:center;
+  font-size:13px; font-weight:600; padding:8px 12px; line-height:1.3;
+  transition: all 0.4s ease; position:relative;
+  perspective:800px;
+}
+.chip-inner {
+  width:100%; height:100%; position:relative; transition: transform 0.6s ease;
+  transform-style:preserve-3d;
+}
+.chip.flipped .chip-inner { transform:rotateY(180deg); }
+.chip-front, .chip-back {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  backface-visibility:hidden; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  padding:8px 12px;
+}
+.chip-front {
+  background: linear-gradient(135deg, #3e6b3e 0%, #2a4a2a 100%);
+  border:2px solid #5a8a5a; color:#8fbc8f; font-size:20px;
+}
+.chip-back {
+  background: linear-gradient(135deg, #4a3a20 0%, #6b5530 100%);
+  border:2px solid #c8a860; color:#f0ead6; font-size:12px; font-weight:600;
+  transform:rotateY(180deg); line-height:1.3;
+}
+.chip:hover:not(.flipped) { transform:translateY(-3px); }
+
+/* Coach tip */
+.coach-tip {
+  display:none; text-align:center; font-size:13px; color:#ffd54f;
+  background:rgba(255,213,79,0.1); border:1px solid rgba(255,213,79,0.3);
+  border-radius:8px; padding:8px 15px; margin-bottom:10px; max-width:500px;
+  margin-left:auto; margin-right:auto; line-height:1.4;
+}
+
+/* Judgment call banner */
+.judgment-banner {
+  display:none; text-align:center; font-size:14px; font-weight:800;
+  color:#ff8a65; background:rgba(255,138,101,0.1);
+  border:2px solid rgba(255,138,101,0.4); border-radius:10px;
+  padding:10px 20px; margin-bottom:10px;
+  text-transform:uppercase; letter-spacing:1px;
+  animation: pulse 2s ease infinite;
+}
+
+/* Choice buttons */
+.choices {
+  display:flex; gap:12px; justify-content:center; flex-wrap:wrap;
+}
+.choice-btn {
+  flex:1; min-width:200px; max-width:300px; padding:14px 20px;
+  font-size:15px; font-weight:700; font-family:'Nunito',sans-serif;
+  border-radius:14px; cursor:pointer; border:2px solid;
+  transition: all 0.3s ease; text-align:center; line-height:1.3;
+}
+.choice-btn.optA {
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  border-color:#4caf50; color:#e8f5e9;
+}
+.choice-btn.optB {
+  background: linear-gradient(135deg, #37474f 0%, #263238 100%);
+  border-color:#78909c; color:#eceff1;
+}
+.choice-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.4); }
+.choice-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+.choice-btn:active:not(:disabled) { transform:translateY(0); }
+
+/* Hand It Off button */
+.handoff-btn {
+  display:none; flex:1; min-width:200px; max-width:300px; padding:14px 20px;
+  font-size:15px; font-weight:700; font-family:'Nunito',sans-serif;
+  border-radius:14px; cursor:pointer;
+  background: linear-gradient(135deg, #00695c 0%, #004d40 100%);
+  border:2px solid #26a69a; color:#e0f2f1; text-align:center;
+  transition: all 0.3s ease;
+  animation: glowGreen 1.5s ease infinite;
+}
+.handoff-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.4); }
+
+/* Sign match cue */
+.sign-match-cue {
+  display:none; text-align:center; margin-top:8px; font-size:14px; font-weight:700;
+  padding:6px 16px; border-radius:20px; animation: fadeSlideIn 0.4s ease;
+}
+.sign-match-cue.matched {
+  color:#ffd54f; background:rgba(255,213,79,0.15); border:1px solid rgba(255,213,79,0.3);
+}
+.sign-match-cue.missed {
+  color:#ff8a65; background:rgba(255,138,101,0.1); border:1px solid rgba(255,138,101,0.2);
+}
+
+/* Popup overlay */
+#popupOverlay {
+  display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.7); z-index:200;
+  align-items:center; justify-content:center; padding:20px;
+}
+.popup-box {
+  background: linear-gradient(135deg, #2d4a2d 0%, #1a3a1a 100%);
+  border:2px solid #4caf50; border-radius:16px; padding:24px 30px;
+  max-width:480px; width:100%; text-align:center;
+  animation: popIn 0.3s ease; box-shadow:0 10px 40px rgba(0,0,0,0.6);
+}
+.popup-text { font-size:16px; font-weight:600; color:#f0ead6; margin-bottom:8px; line-height:1.5; }
+.popup-meters { font-size:13px; color:#8fbc8f; margin-bottom:16px; line-height:1.6; }
+.popup-dismiss {
+  padding:10px 30px; font-size:14px; font-weight:700; font-family:'Nunito',sans-serif;
+  background:#4a7c3f; color:#f0ead6; border:2px solid #7cb342; border-radius:25px;
+  cursor:pointer; transition:all 0.2s ease;
+}
+.popup-dismiss:hover { background:#5a8c4f; }
+
+/* Power-up notification */
+.powerup-notify {
+  display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  z-index:250; background:linear-gradient(135deg, #4a3a10 0%, #6b5520 100%);
+  border:3px solid #ffd54f; border-radius:20px; padding:30px 40px;
+  text-align:center; max-width:420px; width:90%;
+  animation: popIn 0.4s ease; box-shadow:0 0 40px rgba(255,213,79,0.3);
+}
+.powerup-notify .pu-icon { font-size:48px; margin-bottom:10px; }
+.powerup-notify .pu-title { font-size:22px; font-weight:900; color:#ffd54f; margin-bottom:8px; }
+.powerup-notify .pu-desc { font-size:14px; color:#f0ead6; margin-bottom:16px; line-height:1.4; }
+.powerup-notify .pu-dismiss {
+  padding:10px 30px; font-size:14px; font-weight:700; font-family:'Nunito',sans-serif;
+  background:#7b6b30; color:#ffd54f; border:2px solid #ffd54f; border-radius:25px;
+  cursor:pointer;
+}
+
+/* Second Wind banner */
+.second-wind-banner {
+  display:none; position:fixed; top:50%; left:0; right:0;
+  z-index:180; text-align:center; padding:20px;
+  background:rgba(0,77,64,0.9); border-top:3px solid #26a69a; border-bottom:3px solid #26a69a;
+  font-size:28px; font-weight:900; color:#e0f2f1; letter-spacing:4px;
+  animation: sweepIn 0.6s ease; transform:translateY(-50%);
+}
+
+/* ===== END SCREEN ===== */
+#endScreen {
+  display:none; min-height:100vh; padding:20px;
+  background: linear-gradient(180deg, #0d1f0d 0%, #1a3a1a 40%, #2d5a2d 80%, #1a3a1a 100%);
+  text-align:center;
+}
+.end-title {
+  font-size:clamp(28px,5vw,42px); font-weight:900; color:#e8d5a3;
+  margin:20px 0 10px; text-shadow:0 0 20px rgba(255,200,50,0.3);
+}
+.end-subtitle { font-size:16px; color:#8fbc8f; margin-bottom:30px; }
+.end-meters {
+  display:flex; flex-wrap:wrap; gap:15px; justify-content:center; margin-bottom:30px;
+}
+.end-meter {
+  background:rgba(45,90,45,0.4); border:1px solid #4a7c3f; border-radius:12px;
+  padding:12px 16px; min-width:120px; text-align:center;
+}
+.end-meter.primary { border-color:#ffd54f; box-shadow:0 0 10px rgba(255,213,79,0.2); }
+.end-meter-name { font-size:11px; font-weight:700; color:#8fbc8f; text-transform:uppercase; letter-spacing:1px; }
+.end-meter-value { font-size:28px; font-weight:900; margin:4px 0; }
+.end-meter-state { font-size:12px; font-weight:600; }
+
+.end-highlights {
+  background:rgba(45,90,45,0.3); border:1px solid #2d5a2d; border-radius:12px;
+  padding:16px 20px; margin-bottom:20px; max-width:500px; margin-left:auto; margin-right:auto;
+  text-align:left;
+}
+.end-highlights h3 { font-size:14px; color:#ffd54f; margin-bottom:8px; }
+.highlight-item { font-size:13px; color:#c8e6c9; margin-bottom:4px; padding-left:16px; position:relative; }
+.highlight-item::before { content:'\2022'; position:absolute; left:0; color:#7cb342; }
+
+.end-xp { font-size:18px; font-weight:800; color:#ffd54f; margin-bottom:5px; }
+.end-level { font-size:16px; font-weight:700; color:#81c784; margin-bottom:20px; }
+
+.replay-challenge {
+  background:rgba(255,138,101,0.1); border:2px solid rgba(255,138,101,0.3);
+  border-radius:12px; padding:14px 20px; margin-bottom:20px;
+  max-width:500px; margin-left:auto; margin-right:auto;
+}
+.replay-challenge-title { font-size:14px; font-weight:800; color:#ff8a65; margin-bottom:4px; }
+.replay-challenge-text { font-size:13px; color:#f0ead6; line-height:1.4; }
+
+#playAgainBtn {
+  padding:16px 45px; font-size:20px; font-weight:800; font-family:'Nunito',sans-serif;
+  background:linear-gradient(135deg, #4a7c3f 0%, #2d5a2d 100%);
+  color:#f0ead6; border:3px solid #7cb342; border-radius:50px;
+  cursor:pointer; transition:all 0.3s ease; margin-bottom:20px;
+  box-shadow:0 4px 15px rgba(0,0,0,0.4);
+}
+#playAgainBtn:hover { transform:translateY(-3px); box-shadow:0 8px 25px rgba(0,0,0,0.5); }
+
+/* Data layer */
+.data-toggle {
+  font-size:14px; font-weight:700; color:#78909c; cursor:pointer;
+  background:rgba(120,144,156,0.1); border:1px solid #455a64;
+  border-radius:8px; padding:10px 20px; display:inline-block; margin-bottom:15px;
+  transition:all 0.2s ease; font-family:'Nunito',sans-serif;
+}
+.data-toggle:hover { background:rgba(120,144,156,0.2); }
+.data-layer { display:none; max-width:900px; margin:0 auto; text-align:left; }
+.data-table-wrap { overflow-x:auto; margin-bottom:15px; }
+.data-table {
+  width:100%; border-collapse:collapse; font-size:11px;
+}
+.data-table th {
+  background:#1a3a1a; color:#8fbc8f; padding:8px 6px; text-align:left;
+  border-bottom:2px solid #4a7c3f; font-weight:700; white-space:nowrap;
+}
+.data-table td {
+  padding:6px; border-bottom:1px solid #2d5a2d; color:#c8e6c9;
+}
+.data-table tr:nth-child(even) td { background:rgba(45,90,45,0.15); }
+#copyBtn {
+  padding:10px 24px; font-size:13px; font-weight:700; font-family:'Nunito',sans-serif;
+  background:#37474f; color:#eceff1; border:2px solid #607d8b; border-radius:8px;
+  cursor:pointer; transition:all 0.2s ease;
+}
+#copyBtn:hover { background:#455a64; }
+
+.end-brand {
+  font-size:12px; letter-spacing:3px; text-transform:uppercase;
+  color:rgba(255,200,50,0.4); margin-top:30px;
+}
+
+/* Level up animation */
+.level-up-flash {
+  display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+  z-index:300; background:rgba(255,213,79,0.15);
+  pointer-events:none; animation: flashFade 0.8s ease forwards;
+}
+.level-up-text {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  z-index:301; font-size:36px; font-weight:900; color:#ffd54f;
+  text-shadow:0 0 30px rgba(255,213,79,0.5); pointer-events:none;
+  animation: levelPop 1.2s ease forwards; display:none;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+@keyframes popIn { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+@keyframes fadeSlideIn { from{transform:translateY(10px);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes sweepIn { from{transform:translate(0,-50%) scaleX(0)} to{transform:translate(0,-50%) scaleX(1)} }
+@keyframes flashFade { from{opacity:1} to{opacity:0} }
+@keyframes levelPop { 0%{transform:translate(-50%,-50%) scale(0.5);opacity:0} 30%{transform:translate(-50%,-50%) scale(1.3);opacity:1} 60%{transform:translate(-50%,-50%) scale(1);opacity:1} 100%{transform:translate(-50%,-50%) scale(1);opacity:0} }
+@keyframes glowGreen { 0%,100%{box-shadow:0 0 10px rgba(38,166,154,0.3)} 50%{box-shadow:0 0 25px rgba(38,166,154,0.6)} }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+/* Responsive */
+@media (max-width:600px) {
+  .chip { width:150px; min-height:50px; font-size:11px; }
+  .choice-btn { min-width:150px; font-size:13px; padding:12px 14px; }
+  .arena { min-height:200px; }
+  .meter-box { min-width:65px; }
+  .meter-label { font-size:8px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TITLE SCREEN -->
+<div id="titleScreen">
+  <div class="title-trees"></div>
+  <div class="title-brand">Mr. Jawad's Simulations</div>
+  <div class="title-main">Park Ranger: Wild Watch</div>
+  <div class="title-sub">Session 1</div>
+  <div class="title-tagline">Patrol a national park for a day. Read the signs. Decide when to step in and when to let the wild stay wild.</div>
+  <button id="startBtn" onclick="startGame()">Start Mission</button>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen">
+  <!-- HUD Meters -->
+  <div class="hud" id="hud">
+    <div class="meter-box primary" id="meterWH">
+      <div class="meter-label">Wildlife Health</div>
+      <div class="meter-bar-outer"><div class="meter-bar-inner" id="barWH" style="width:60%"></div></div>
+      <div class="meter-state" id="stateWH">stable</div>
+    </div>
+    <div class="meter-box" id="meterVS">
+      <div class="meter-label">Visitor Safety</div>
+      <div class="meter-bar-outer"><div class="meter-bar-inner" id="barVS" style="width:60%"></div></div>
+      <div class="meter-state" id="stateVS">watched</div>
+    </div>
+    <div class="meter-box" id="meterTC">
+      <div class="meter-label">Trail Conditions</div>
+      <div class="meter-bar-outer"><div class="meter-bar-inner" id="barTC" style="width:65%"></div></div>
+      <div class="meter-state" id="stateTC">worn</div>
+    </div>
+    <div class="meter-box" id="meterRE">
+      <div class="meter-label">Ranger Energy</div>
+      <div class="meter-bar-outer"><div class="meter-bar-inner" id="barRE" style="width:70%"></div></div>
+      <div class="meter-state" id="stateRE">sharp</div>
+    </div>
+    <div class="meter-box" id="meterPR">
+      <div class="meter-label">Park Reputation</div>
+      <div class="meter-bar-outer"><div class="meter-bar-inner" id="barPR" style="width:55%"></div></div>
+      <div class="meter-state" id="statePR">mixed</div>
+    </div>
+  </div>
+  <!-- HUD extras -->
+  <div class="hud-extras">
+    <span class="xp-display" id="xpDisplay">XP: 0</span>
+    <span class="streak-display" id="streakDisplay"></span>
+    <span class="tracker-eye-icon" id="trackerEyeIcon"></span>
+    <span class="level-display" id="levelDisplay">Level 1</span>
+    <span class="round-display" id="roundDisplay">Round 1 / 7</span>
+  </div>
+
+  <!-- Arena -->
+  <div class="arena" id="arena">
+    <div class="arena-scene" id="arenaScene"></div>
+    <div class="arena-text" id="arenaText"></div>
+    <div class="arena-env"></div>
+  </div>
+
+  <!-- Decision Panel -->
+  <div class="decision-panel" id="decisionPanel">
+    <div class="round-label" id="roundLabel">Round 1</div>
+    <div class="event-label" id="eventLabel" style="display:none"></div>
+    <div class="judgment-banner" id="judgmentBanner">JUDGMENT CALL — No Field Signs. Both choices are real.</div>
+    <div class="situation-text" id="situationText"></div>
+
+    <!-- Tracker's Eye Preview -->
+    <div id="trackerPreview" style="display:none;text-align:center;margin-bottom:10px;font-size:13px;color:rgba(255,213,79,0.7);background:rgba(255,213,79,0.05);border:1px dashed rgba(255,213,79,0.3);border-radius:8px;padding:8px 12px;animation:pulse 2s ease infinite"></div>
+
+    <!-- Field Sign Chips -->
+    <div class="chips-area" id="chipsArea"></div>
+
+    <!-- Coach tip -->
+    <div class="coach-tip" id="coachTip"></div>
+
+    <!-- Sign match cue -->
+    <div class="sign-match-cue" id="signMatchCue"></div>
+
+    <!-- Choices -->
+    <div class="choices" id="choicesArea">
+      <button class="choice-btn optA" id="btnA" disabled onclick="makeChoice('A')"></button>
+      <button class="choice-btn optB" id="btnB" disabled onclick="makeChoice('B')"></button>
+      <button class="handoff-btn" id="btnHandOff" onclick="handItOff()">Hand It Off — Call backup</button>
+    </div>
+  </div>
+</div>
+
+<!-- POPUP OVERLAY -->
+<div id="popupOverlay" onclick="dismissPopup()">
+  <div class="popup-box" onclick="event.stopPropagation()">
+    <div class="popup-text" id="popupText"></div>
+    <div class="popup-meters" id="popupMeters"></div>
+    <button class="popup-dismiss" onclick="dismissPopup()">Continue</button>
+  </div>
+</div>
+
+<!-- POWER-UP NOTIFICATION -->
+<div class="powerup-notify" id="powerupNotify">
+  <div class="pu-icon" id="puIcon"></div>
+  <div class="pu-title" id="puTitle"></div>
+  <div class="pu-desc" id="puDesc"></div>
+  <button class="pu-dismiss" onclick="dismissPowerup()">Got it</button>
+</div>
+
+<!-- SECOND WIND BANNER -->
+<div class="second-wind-banner" id="secondWindBanner">SECOND WIND</div>
+
+<!-- LEVEL UP EFFECTS -->
+<div class="level-up-flash" id="levelFlash"></div>
+<div class="level-up-text" id="levelText"></div>
+
+<!-- END SCREEN -->
+<div id="endScreen">
+  <div class="end-brand">Mr. Jawad's Simulations</div>
+  <div class="end-title" id="endTitle"></div>
+  <div class="end-subtitle" id="endSubtitle"></div>
+  <div class="end-meters" id="endMeters"></div>
+  <div class="end-highlights" id="endHighlights"><h3>Highlight Reel</h3></div>
+  <div class="end-xp" id="endXP"></div>
+  <div class="end-level" id="endLevel"></div>
+  <div class="replay-challenge">
+    <div class="replay-challenge-title">Ranger Challenge</div>
+    <div class="replay-challenge-text">Can you get Wildlife Health to thriving AND Park Reputation to mixed or better? Most rangers can protect the wild or keep the visitors happy — can you do both?</div>
+  </div>
+  <button id="playAgainBtn" onclick="resetGame()">Play Again</button>
+  <br>
+  <button class="data-toggle" id="dataToggle" onclick="toggleData()">Show Details</button>
+  <div class="data-layer" id="dataLayer">
+    <div class="data-table-wrap">
+      <table class="data-table" id="dataTable">
+        <thead>
+          <tr>
+            <th>Round</th><th>Situation</th><th>Choice Made</th><th>Wildlife Health</th><th>Visitor Safety</th><th>Trail Conditions</th><th>Ranger Energy</th><th>Park Reputation</th><th>Signs Matched?</th><th>Event / Power-Up</th>
+          </tr>
+        </thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+    <button id="copyBtn" onclick="copyData()">Copy to Clipboard</button>
+  </div>
+</div>
+
+<script>
+// ===== GAME STATE =====
+var audioCtx = null;
+function getAudioContext() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  } catch(e) { return null; }
+}
+
+var meters = { WH:60, VS:60, TC:65, RE:70, PR:55 };
+var currentRound = 0;
+var totalRounds = 7;
+var xp = 0;
+var level = 1;
+var readStreak = 0;
+var bestStreak = 0;
+var trackerEyeUnlocked = false;
+var secondWindArmed = false;
+var secondWindAvailable = false;
+var consecutiveEnergyDrops = 0;
+var prevRoundEnergy = 70;
+var choiceLocked = false;
+var generationCounter = 0;
+var currentGen = 0;
+var decisions = [];
+var highlights = [];
+var chipsFlipped = 0;
+var totalChipsNeeded = 3;
+var isFirstRound = true;
+var coachShown = false;
+var handOffUsedThisRound = false;
+var secondWindFreeRound = false;
+var popupQueue = [];
+var popupShowing = false;
+
+// ===== SCENARIO DATA =====
+var standardScenarios = [
+  {
+    id:'muddy_shortcut', name:'The Muddy Shortcut',
+    situation:'Heavy rain flooded the main trail. Hikers are starting to cut a fresh path across a meadow.',
+    chips:[
+      ['Meadow soil: soft, shallow roots','Meadow: fragile soil, shallow root system','Soil underfoot: soft meadow, roots near the surface'],
+      ['Foot traffic: just a few hikers so far','Hikers: only a handful have come through','Foot tracks: a few sets of prints, still light'],
+      ['Trail water: ankle-deep, not dangerous','Flooded section: ankle height, safe to wade','Water on the trail: shallow, no real danger']
+    ],
+    optA:'Block the shortcut, reroute hikers', optB:'Let hikers find their own way',
+    correctChoice:'A',
+    resultA:{
+      WH:10, VS:0, TC:10, RE:-10, PR:-5,
+      scene:'\u{1F6E4}️', text:'Meadow saved. The detour isn\'t winning you fans.',
+      arenaEmoji:'\u{1F333}', arenaText:'You plant a TRAIL CLOSED sign and flag a detour. The meadow grass springs back. A few hikers sigh and turn around.',
+      popup:'Meadow saved. The detour isn\'t winning you fans.', popupType:'routine'
+    },
+    resultB:{
+      WH:-10, VS:0, TC:-15, RE:0, PR:15,
+      scene:'\u{1F463}', text:'Visitors love how fast it moved. The meadow\'s got a new scar.',
+      arenaEmoji:'\u{1FAB4}', arenaText:'More hikers pour across the meadow. A brown trampled streak widens. A ground-nesting bird flushes up and flies off.',
+      popup:'Visitors love how fast it moved. The meadow\'s got a new scar.', popupType:'routine'
+    },
+    trackerPreview: null
+  },
+  {
+    id:'fox_picnic', name:'The Fox at the Picnic Area',
+    situation:'A fox keeps showing up at the edge of the picnic area. Visitors point and film, but it\'s keeping its distance.',
+    chips:[
+      ['Fox behavior: hunting, ignoring people','Fox: mousing in the grass, no interest in visitors','Fox: focused on prey, not approaching anyone'],
+      ['Distance: holding 40+ feet from visitors','Fox keeps 40 feet back from picnic tables','The fox stays well away from any people'],
+      ['No food out: coolers closed, no scraps on the ground','No loose food visible anywhere nearby','All coolers sealed, nothing left out to attract wildlife']
+    ],
+    optA:'Haze the fox off, clear the area', optB:'Watch it, remind folks not to feed it',
+    correctChoice:'B',
+    resultA:{
+      WH:-10, VS:10, TC:0, RE:-10, PR:5,
+      scene:'\u{1F3DE}️', text:'Crowd loves it. The fox lost its hunting spot for nothing.',
+      arenaEmoji:'\u{1F98A}', arenaText:'You clap and shout. The fox bolts into the brush. Families clap. The mouse-filled grass goes still and empty.',
+      popup:'Crowd loves it. The fox lost its hunting spot for nothing.', popupType:'routine'
+    },
+    resultB:{
+      WH:10, VS:-5, TC:0, RE:-5, PR:-5,
+      scene:'\u{1F98A}', text:'One parent thinks you\'re lazy. The fox is fine.',
+      arenaEmoji:'\u{1F333}', arenaText:'You walk the picnic loop calmly, talk to a few families. The fox keeps mousing, then trots off on its own.',
+      popup:'One parent thinks you\'re lazy. The fox is fine.', popupType:'routine'
+    },
+    trackerPreview: null
+  },
+  {
+    id:'beaver_dam', name:'The Beaver Dam',
+    situation:'A beaver dam has backed up a creek and flooded 30 feet of a low trail. Hikers can get past on a muddy side path.',
+    chips:[
+      ['Flooded zone: new wetland forming, frogs moving in','New wetland: frogs are already settling in','A small wetland is forming, amphibians arriving'],
+      ['Side path: passable, just muddy','Detour trail: muddy but walkable','Hikers can still get around on the side trail'],
+      ['Dam: active — beavers rebuild it every night','The beavers have been rebuilding every night','Fresh branches on the dam — still being worked on']
+    ],
+    optA:'Clear the dam, drain the trail', optB:'Leave the dam, mark the muddy detour',
+    correctChoice:'B',
+    resultA:{
+      WH:-10, VS:5, TC:10, RE:-15, PR:0,
+      scene:'\u{1F6E0}️', text:'Trail\'s dry. The beavers rebuilt it by morning anyway.',
+      arenaEmoji:'\u{1F4A7}', arenaText:'You wade in and haul out branches. The water drains. By morning the beavers have it rebuilt.',
+      popup:'Trail\'s dry. The beavers rebuilt it by morning anyway.', popupType:'routine'
+    },
+    resultB:{
+      WH:10, VS:0, TC:-10, RE:0, PR:-5,
+      scene:'\u{1F438}', text:'Messier trail. A whole wetland just got the green light.',
+      arenaEmoji:'\u{1F3DE}️', arenaText:'You stake a small MUDDY DETOUR sign. The flooded zone shimmers with frogs. A heron drops in to fish.',
+      popup:'Messier trail. A whole wetland just got the green light.', popupType:'routine'
+    },
+    trackerPreview: {icon:'\u{1F9AB}', text:'Beavers active in the creek zone ahead'}
+  },
+  {
+    id:'grounded_hawk', name:'The Grounded Hawk',
+    situation:'A hawk is on the ground near a busy trailhead, one wing dragging. A crowd is gathering close, phones out.',
+    chips:[
+      ['Wing: clearly dragging, not folding normally','One wing hangs at a bad angle, dragging','The bird\'s wing trails on the ground, clearly injured'],
+      ['Crowd: pressing in within a few feet, phones out','People are closing in, only a few feet away','A crowd of hikers is right on top of the bird'],
+      ['Bird: not fleeing — it can\'t get away','The hawk isn\'t moving — it can\'t fly off','Bird stays on the ground, unable to escape']
+    ],
+    optA:'Move the crowd back, call wildlife rescue', optB:'Keep your distance, let nature decide',
+    correctChoice:'A',
+    resultA:{
+      WH:10, VS:5, TC:-5, RE:-15, PR:0,
+      scene:'\u{1F985}', text:'That hawk had no way out on its own. Cost you the whole afternoon. Worth it.',
+      arenaEmoji:'\u{1F6E1}️', arenaText:'You spread your arms, walk the crowd back, radio for rescue. A transport crate arrives. The hawk is carried off, wing wrapped.',
+      popup:'That hawk had no way out on its own. Cost you the whole afternoon. Worth it.', popupType:'full'
+    },
+    resultB:{
+      WH:-10, VS:-5, TC:0, RE:0, PR:10,
+      scene:'\u{1F4F1}', text:'"Let nature take its course" isn\'t a rule for everything. This one needed you.',
+      arenaEmoji:'\u{1F985}', arenaText:'You step back. The crowd closes in tighter. The hawk thrashes, stressed, unable to flee. Phones keep filming.',
+      popup:'"Let nature take its course" isn\'t a rule for everything. This one needed you.', popupType:'full'
+    },
+    trackerPreview: {icon:'\u{1FAB6}', text:'Bird down near the trailhead'}
+  },
+  {
+    id:'rock_cairns', name:'The Rock Cairns',
+    situation:'A group is stacking dozens of rock cairns in the creek. It\'s fish spawning season, and they\'re pulling rocks from the gravel.',
+    chips:[
+      ['Creek: spawning season, fish eggs in the gravel','Fish eggs visible in the creek gravel','It\'s spawning time — eggs are in the streambed'],
+      ['Rocks: pulled straight from the spawning beds','The rocks they\'re using come right from the egg beds','Every rock they grab was protecting fish eggs'],
+      ['Cairns: dozens already, more going up','Stacks of rocks line the creek, and more are being built','Dozens of cairns already, the group is still building']
+    ],
+    optA:'Step in and talk to the group', optB:'Leave them to it, keep patrolling',
+    correctChoice:'A',
+    resultA:{
+      WH:10, VS:0, TC:-5, RE:-10, PR:5,
+      scene:'\u{1F41F}', text:'They had no idea. Dozens of rock piles, one ruined fish season — and you caught it.',
+      arenaEmoji:'\u{1FAA8}', arenaText:'You step into the creek, gently knock a cairn back, point out the eggs. The group leans in, surprised. Most nod.',
+      popup:'They had no idea. Dozens of rock piles, one ruined fish season — and you caught it.', popupType:'full'
+    },
+    resultB:{
+      WH:-15, VS:0, TC:-5, RE:0, PR:15,
+      scene:'\u{1FAA8}', text:'The signs called it — spawning season. Rock-stacking pulled a whole fish season apart.',
+      arenaEmoji:'\u{1F4F8}', arenaText:'The group keeps stacking, having a great time. Underwater, pale fish eggs tumble loose and wash downstream.',
+      popup:'The signs called it — spawning season. The rock-stacking pulled a whole fish season apart.', popupType:'full'
+    },
+    trackerPreview: {icon:'\u{1F41F}', text:'Fish spawning in the creek up ahead'}
+  }
+];
+
+var randomEvent1 = {
+  id:'injured_deer', name:'Injured Deer by the Roadside', isEvent:true, eventNum:1,
+  situation:'A deer lies in the grass near the park road, favoring one leg. It\'s alert and limps away when you approach — then settles again.',
+  chips:[
+    ['Deer: alert, head up, aware of you','The deer watches you, head high and ears forward','Deer is fully aware of its surroundings, alert posture'],
+    ['Injury: limping, but still bearing weight','The leg is hurt but the deer can still walk on it','Deer limps but puts weight on all four legs'],
+    ['Behavior: moves away from you under its own power','It gets up and moves when you get close','The deer relocates on its own when approached']
+  ],
+  optA:'Call a wildlife crew to capture and treat it', optB:'Note the location, give it space, check back tomorrow',
+  correctChoice:'B',
+  resultA:{
+    WH:-15, VS:5, TC:0, RE:-15, PR:5,
+    scene:'\u{1F6A8}', text:'Capture chases are terrifying for a deer. The signs said this one was healing fine on its own.',
+    arenaEmoji:'\u{1F98C}', arenaText:'A crew arrives. The deer panics and bolts on its bad leg. The chase churns the roadside before it\'s cornered, shaking.',
+    popup:'Capture chases are terrifying for a deer. The signs said this one was healing fine on its own.', popupType:'full',
+    hasRandom:true, randomChance:0.4,
+    randomBad:{ VS:-10, WH:-5, extraText:' The deer bolted into traffic during the chase.' }
+  },
+  resultB:{
+    WH:15, VS:-5, TC:0, RE:0, PR:-10,
+    scene:'\u{1F98C}', text:'Hardest call of the day. Doing nothing looked heartless. It was the kindest option.',
+    arenaEmoji:'\u{1F333}', arenaText:'You mark the spot on a map, set a WILDLIFE GIVE SPACE sign, drive on. The deer settles back into the grass.',
+    popup:'Hardest call of the day. Doing nothing looked heartless. It was the kindest option.', popupType:'full'
+  },
+  trackerPreview: null
+};
+
+var randomEvent2 = {
+  id:'campers_zone', name:'Group Camped Where They Shouldn\'t Be', isEvent:true, eventNum:2, noChips:true,
+  situation:'Evening patrol: eight people set up camp in a closed restoration zone — fragile, replanted ground. Tents are up. It\'s getting dark and cold.',
+  optA:'Make them pack up and move now', optB:'Let them stay the night, walk them out at dawn',
+  correctChoice:null,
+  resultA:{
+    WH:10, VS:0, TC:5, RE:-15, PR:-15,
+    scene:'\u{1F331}', text:'The seedlings are safe. Eight furious campers just lost their night. The reviews will sting.',
+    arenaEmoji:'\u{1F3D5}️', arenaText:'Headlamps bob as tents come down. A camper argues in the dark. The roped-off seedlings stand mostly untouched.',
+    popup:'The seedlings are safe. Eight furious campers just lost their night. The reviews will sting.', popupType:'full'
+  },
+  resultB:{
+    WH:-15, VS:0, TC:-10, RE:0, PR:10,
+    scene:'\u{1F3D5}️', text:'You kept the peace. That restoration zone took a hit it\'ll feel for a long time.',
+    arenaEmoji:'\u{1F30C}', arenaText:'The group settles in, relieved. Overnight, seedlings flatten under tents. At dawn you walk them out over packed soil.',
+    popup:'You kept the peace. That restoration zone took a hit it\'ll feel for a long time.', popupType:'full'
+  },
+  trackerPreview: null
+};
+
+var roundOrder = [];
+
+function buildRoundOrder() {
+  try {
+    var shuffled = standardScenarios.slice();
+    for (var i = shuffled.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
+    }
+    roundOrder = [];
+    var si = 0;
+    for (var r = 0; r < 7; r++) {
+      if (r === 2) { roundOrder.push(JSON.parse(JSON.stringify(randomEvent1))); }
+      else if (r === 5) { roundOrder.push(JSON.parse(JSON.stringify(randomEvent2))); }
+      else { roundOrder.push(JSON.parse(JSON.stringify(shuffled[si]))); si++; }
+    }
+    // Randomize chip phrasing
+    for (var r = 0; r < roundOrder.length; r++) {
+      var rd = roundOrder[r];
+      if (rd.chips) {
+        rd._chipTexts = [];
+        var positions = [0,1,2];
+        for (var p = positions.length - 1; p > 0; p--) {
+          var q = Math.floor(Math.random() * (p + 1));
+          var t = positions[p]; positions[p] = positions[q]; positions[q] = t;
+        }
+        for (var c = 0; c < 3; c++) {
+          var variants = rd.chips[positions[c]];
+          var chosen = variants[Math.floor(Math.random() * variants.length)];
+          rd._chipTexts.push(chosen);
+        }
+      }
+    }
+    // Assign tracker previews based on actual position
+    for (var r = 0; r < roundOrder.length; r++) {
+      var rd = roundOrder[r];
+      if (rd.trackerPreview && r > 0) {
+        roundOrder[r]._hasPreview = true;
+      }
+    }
+  } catch(e) { console.error('buildRoundOrder error:', e); }
+}
+
+// ===== METER FUNCTIONS =====
+function clampMeter(v) { return Math.max(0, Math.min(100, v)); }
+
+function getMeterState(name, val) {
+  if (name === 'WH') return val <= 39 ? 'struggling' : val <= 69 ? 'stable' : 'thriving';
+  if (name === 'VS') return val <= 39 ? 'at risk' : val <= 69 ? 'watched' : 'secure';
+  if (name === 'TC') return val <= 39 ? 'damaged' : val <= 69 ? 'worn' : 'pristine';
+  if (name === 'RE') return val <= 39 ? 'drained' : val <= 69 ? 'steady' : 'sharp';
+  if (name === 'PR') return val <= 39 ? 'complaints' : val <= 69 ? 'mixed' : 'loved';
+  return '';
+}
+
+function getMeterColor(val) {
+  if (val <= 39) return 'linear-gradient(90deg, #c62828 0%, #e53935 100%)';
+  if (val <= 69) return 'linear-gradient(90deg, #f9a825 0%, #fdd835 100%)';
+  return 'linear-gradient(90deg, #2e7d32 0%, #66bb6a 100%)';
+}
+
+function updateMeterDisplay() {
+  try {
+    var keys = ['WH','VS','TC','RE','PR'];
+    var ids = ['barWH','barVS','barTC','barRE','barPR'];
+    var stateIds = ['stateWH','stateVS','stateTC','stateRE','statePR'];
+    for (var i = 0; i < keys.length; i++) {
+      var bar = document.getElementById(ids[i]);
+      var stateEl = document.getElementById(stateIds[i]);
+      var val = meters[keys[i]];
+      if (isNaN(val) || val === undefined) { val = 50; meters[keys[i]] = 50; }
+      bar.style.width = val + '%';
+      bar.style.background = getMeterColor(val);
+      stateEl.textContent = getMeterState(keys[i], val);
+    }
+  } catch(e) { console.error('updateMeterDisplay error:', e); }
+}
+
+function applyMeterChanges(changes, skipEnergyCost) {
+  try {
+    var keys = ['WH','VS','TC','RE','PR'];
+    var deltas = { WH: changes.WH||0, VS: changes.VS||0, TC: changes.TC||0, RE: changes.RE||0, PR: changes.PR||0 };
+    if (secondWindFreeRound && !skipEnergyCost) {
+      deltas.RE = Math.max(0, deltas.RE);
+      secondWindFreeRound = false;
+    }
+    for (var i = 0; i < keys.length; i++) {
+      meters[keys[i]] = clampMeter(meters[keys[i]] + deltas[keys[i]]);
+    }
+    updateMeterDisplay();
+    return deltas;
+  } catch(e) { console.error('applyMeterChanges error:', e); return {}; }
+}
+
+function validateState() {
+  var keys = ['WH','VS','TC','RE','PR'];
+  for (var i = 0; i < keys.length; i++) {
+    if (isNaN(meters[keys[i]]) || meters[keys[i]] === undefined || meters[keys[i]] === null) {
+      meters[keys[i]] = 50;
+    }
+    meters[keys[i]] = clampMeter(meters[keys[i]]);
+  }
+}
+
+// ===== DISPLAY HELPERS =====
+function formatMeterChanges(deltas) {
+  var parts = [];
+  var names = {WH:'Wildlife Health',VS:'Visitor Safety',TC:'Trail Conditions',RE:'Ranger Energy',PR:'Park Reputation'};
+  var keys = ['WH','VS','TC','RE','PR'];
+  for (var i = 0; i < keys.length; i++) {
+    var d = deltas[keys[i]] || 0;
+    if (d !== 0) {
+      parts.push((d > 0 ? '↑' : '↓') + ' ' + names[keys[i]] + ' ' + (d > 0 ? '+' : '') + d);
+    }
+  }
+  return parts.join(' · ');
+}
+
+function playTone(freq, dur) {
+  try {
+    var ctx = getAudioContext();
+    if (!ctx) return;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + dur);
+  } catch(e) {}
+}
+
+// ===== GAME FLOW =====
+function startGame() {
+  try {
+    generationCounter++;
+    currentGen = generationCounter;
+    document.getElementById('titleScreen').style.display = 'none';
+    document.getElementById('gameScreen').style.display = 'block';
+    document.getElementById('endScreen').style.display = 'none';
+    buildRoundOrder();
+    updateMeterDisplay();
+    updateXPDisplay();
+    currentRound = 0;
+    isFirstRound = true;
+    playTone(440, 0.3);
+    setTimeout(function() { try { loadRound(0); } catch(e) { console.error(e); } }, 400);
+  } catch(e) { console.error('startGame error:', e); }
+}
+
+function loadRound(index) {
+  try {
+    var gen = currentGen;
+    if (index >= totalRounds) { showEndScreen(); return; }
+    currentRound = index;
+    choiceLocked = false;
+    chipsFlipped = 0;
+    handOffUsedThisRound = false;
+    validateState();
+
+    var rd = roundOrder[index];
+    var roundNum = index + 1;
+
+    // Update round display
+    document.getElementById('roundDisplay').textContent = 'Round ' + roundNum + ' / ' + totalRounds;
+
+    // Round label
+    var roundLabel = document.getElementById('roundLabel');
+    var eventLabel = document.getElementById('eventLabel');
+    var judgmentBanner = document.getElementById('judgmentBanner');
+    judgmentBanner.style.display = 'none';
+
+    if (rd.isEvent) {
+      roundLabel.style.display = 'none';
+      eventLabel.style.display = 'block';
+      eventLabel.textContent = 'RANDOM EVENT ' + rd.eventNum;
+      if (rd.noChips) judgmentBanner.style.display = 'block';
+    } else {
+      roundLabel.style.display = 'block';
+      roundLabel.textContent = 'Round ' + roundNum;
+      eventLabel.style.display = 'none';
+    }
+
+    // Situation text
+    document.getElementById('situationText').textContent = rd.situation;
+
+    // Arena setup
+    var arenaScene = document.getElementById('arenaScene');
+    var arenaText = document.getElementById('arenaText');
+    if (rd.isEvent && rd.eventNum === 1) {
+      arenaScene.textContent = '\u{1F98C}';
+      arenaText.textContent = 'A deer lies by the roadside, alert but limping.';
+    } else if (rd.isEvent && rd.eventNum === 2) {
+      arenaScene.textContent = '\u{1F3D5}️';
+      arenaText.textContent = 'Tents glow in a closed restoration zone. Seedlings surround the camp.';
+    } else if (rd.id === 'muddy_shortcut') {
+      arenaScene.textContent = '\u{1F3DE}️';
+      arenaText.textContent = 'Hikers eye the flooded trail, looking for a way around through the meadow.';
+    } else if (rd.id === 'fox_picnic') {
+      arenaScene.textContent = '\u{1F98A}';
+      arenaText.textContent = 'A fox hunts mice in the grass at the edge of the picnic area. Visitors watch.';
+    } else if (rd.id === 'beaver_dam') {
+      arenaScene.textContent = '\u{1F9AB}';
+      arenaText.textContent = 'A beaver dam floods the low trail. Frogs settle into the new wetland.';
+    } else if (rd.id === 'grounded_hawk') {
+      arenaScene.textContent = '\u{1F985}';
+      arenaText.textContent = 'A hawk sits on the ground near the trailhead, one wing dragging. A crowd moves in.';
+    } else if (rd.id === 'rock_cairns') {
+      arenaScene.textContent = '\u{1FAA8}';
+      arenaText.textContent = 'A group stacks rock cairns in the creek. It\'s spawning season.';
+    }
+
+    // Tracker's Eye preview
+    var preview = document.getElementById('trackerPreview');
+    preview.style.display = 'none';
+    if (trackerEyeUnlocked && rd._hasPreview && rd.trackerPreview) {
+      preview.innerHTML = rd.trackerPreview.icon + ' ' + rd.trackerPreview.text;
+      preview.style.display = 'block';
+    }
+
+    // Show streak on read rounds
+    var streakEl = document.getElementById('streakDisplay');
+    if (!rd.noChips) {
+      streakEl.style.display = 'inline';
+      streakEl.textContent = '\u{1F43E} Read Streak: ' + readStreak;
+    } else {
+      streakEl.style.display = 'none';
+    }
+
+    // Chips
+    var chipsArea = document.getElementById('chipsArea');
+    chipsArea.innerHTML = '';
+    document.getElementById('signMatchCue').style.display = 'none';
+    document.getElementById('coachTip').style.display = 'none';
+
+    if (rd._chipTexts && !rd.noChips) {
+      totalChipsNeeded = 3;
+      for (var c = 0; c < 3; c++) {
+        var chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.setAttribute('data-index', c);
+        chip.innerHTML = '<div class="chip-inner"><div class="chip-front">\u{1F43E}</div><div class="chip-back">' + rd._chipTexts[c] + '</div></div>';
+        chip.onclick = (function(el) { return function() { flipChip(el, gen); }; })(chip);
+        chipsArea.appendChild(chip);
+      }
+    } else if (rd.noChips) {
+      totalChipsNeeded = 0;
+      chipsFlipped = 0;
+    }
+
+    // Buttons
+    var btnA = document.getElementById('btnA');
+    var btnB = document.getElementById('btnB');
+    btnA.textContent = rd.optA;
+    btnB.textContent = rd.optB;
+    btnA.disabled = rd._chipTexts && !rd.noChips;
+    btnB.disabled = rd._chipTexts && !rd.noChips;
+    if (rd.noChips) { btnA.disabled = false; btnB.disabled = false; }
+
+    // Hand It Off
+    var handoff = document.getElementById('btnHandOff');
+    handoff.style.display = 'none';
+    if (secondWindAvailable && meters.RE <= 39) {
+      handoff.style.display = 'block';
+    }
+
+    // Arena fade in
+    document.getElementById('arena').style.animation = 'fadeIn 0.5s ease';
+
+  } catch(e) { console.error('loadRound error:', e); safeAdvanceRound(); }
+}
+
+function flipChip(el, gen) {
+  try {
+    if (gen !== currentGen) return;
+    if (el.classList.contains('flipped')) return;
+    el.classList.add('flipped');
+    playTone(520 + chipsFlipped * 80, 0.15);
+    chipsFlipped++;
+
+    if (chipsFlipped >= totalChipsNeeded) {
+      document.getElementById('btnA').disabled = false;
+      document.getElementById('btnB').disabled = false;
+
+      // Coach tip on first round
+      if (isFirstRound && !coachShown) {
+        var rd = roundOrder[currentRound];
+        if (rd.id === 'muddy_shortcut') {
+          document.getElementById('coachTip').textContent = 'The signs say soft soil and only a few hikers — small damage now, but it spreads. So — step in, or stay back?';
+        } else if (rd.id === 'fox_picnic') {
+          document.getElementById('coachTip').textContent = 'The signs say the fox is hunting on its own, far from people, no food around. So — chase it off, or let it be?';
+        } else if (rd.id === 'beaver_dam') {
+          document.getElementById('coachTip').textContent = 'The signs say frogs moved in, the detour works, and beavers rebuild every night. So — tear it down, or let it be?';
+        } else if (rd.id === 'grounded_hawk') {
+          document.getElementById('coachTip').textContent = 'The signs say the wing is dragging, a crowd is pressing in, and the bird can\'t get away. So — step in, or step back?';
+        } else if (rd.id === 'rock_cairns') {
+          document.getElementById('coachTip').textContent = 'The signs say spawning season, eggs in the gravel, rocks being pulled from the beds. So — step in, or let them be?';
+        }
+        document.getElementById('coachTip').style.display = 'block';
+        coachShown = true;
+      }
+    }
+  } catch(e) { console.error('flipChip error:', e); }
+}
+
+function makeChoice(choice) {
+  try {
+    if (choiceLocked) return;
+    choiceLocked = true;
+    var gen = currentGen;
+
+    var rd = roundOrder[currentRound];
+    var result = choice === 'A' ? rd.resultA : rd.resultB;
+    var choiceText = choice === 'A' ? rd.optA : rd.optB;
+
+    // Track energy before
+    var prevEnergy = meters.RE;
+
+    // Apply meter changes
+    var changes = { WH: result.WH||0, VS: result.VS||0, TC: result.TC||0, RE: result.RE||0, PR: result.PR||0 };
+
+    // Random event probability
+    var extraText = '';
+    if (result.hasRandom && Math.random() < result.randomChance) {
+      changes.VS = (changes.VS||0) + result.randomBad.VS;
+      changes.WH = (changes.WH||0) + result.randomBad.WH;
+      extraText = result.randomBad.extraText || '';
+    }
+
+    var deltas = applyMeterChanges(changes);
+
+    // Track energy drops for Second Wind
+    if (meters.RE < prevEnergy) {
+      consecutiveEnergyDrops++;
+    } else {
+      consecutiveEnergyDrops = 0;
+    }
+    if (consecutiveEnergyDrops >= 2 && meters.RE <= 39) {
+      secondWindAvailable = true;
+    }
+
+    // Read streak tracking (only for chip rounds)
+    var signsMatched = null;
+    if (!rd.noChips && rd.correctChoice) {
+      if (choice === rd.correctChoice) {
+        readStreak++;
+        if (readStreak > bestStreak) bestStreak = readStreak;
+        signsMatched = 'Yes';
+      } else {
+        readStreak = 0;
+        signsMatched = 'No';
+      }
+    } else if (rd.noChips) {
+      signsMatched = '—';
+    }
+
+    // XP
+    xp += 15;
+    if (signsMatched === 'Yes') xp += 10;
+    updateXPDisplay();
+
+    // Update streak display
+    var streakEl = document.getElementById('streakDisplay');
+    if (!rd.noChips) {
+      streakEl.textContent = '\u{1F43E} Read Streak: ' + readStreak;
+    }
+
+    // Update arena
+    document.getElementById('arenaScene').textContent = result.arenaEmoji || result.scene;
+    document.getElementById('arenaText').textContent = result.arenaText;
+    document.getElementById('arena').style.animation = '';
+    setTimeout(function() { document.getElementById('arena').style.animation = 'fadeIn 0.4s ease'; }, 10);
+
+    // Sign match cue
+    if (!rd.noChips && rd.correctChoice) {
+      var cue = document.getElementById('signMatchCue');
+      if (choice === rd.correctChoice) {
+        cue.className = 'sign-match-cue matched';
+        cue.innerHTML = '\u{1F43E} Signs matched — good read!';
+        playTone(660, 0.2);
+        setTimeout(function() { playTone(880, 0.3); }, 150);
+      } else {
+        cue.className = 'sign-match-cue missed';
+        cue.innerHTML = '\u{1F50D} The signs were leaning the other way';
+        playTone(330, 0.3);
+        // Re-glow chips
+        var chips = document.querySelectorAll('.chip');
+        for (var c = 0; c < chips.length; c++) {
+          chips[c].style.border = '2px solid #ff8a65';
+          chips[c].style.boxShadow = '0 0 10px rgba(255,138,101,0.3)';
+        }
+      }
+      cue.style.display = 'block';
+    }
+
+    // Tracker's Eye check
+    if (readStreak >= 3 && !trackerEyeUnlocked) {
+      trackerEyeUnlocked = true;
+      var teIcon = document.getElementById('trackerEyeIcon');
+      teIcon.style.display = 'inline';
+      teIcon.textContent = '\u{1F441}️ Tracker\'s Eye';
+      highlights.push('Unlocked Tracker\'s Eye (read streak of ' + readStreak + ')');
+
+      // Queue power-up notification
+      popupQueue.push({type:'powerup', icon:'\u{1F441}️', title:'Tracker\'s Eye Unlocked', desc:'You\'re reading the wild now. Animal movement previews active for upcoming rounds.'});
+    }
+
+    // Record decision
+    var eventNote = '';
+    if (rd.isEvent) eventNote = 'Random Event ' + rd.eventNum;
+    if (extraText) eventNote += ' (bad outcome)';
+    var lastPU = '';
+    if (trackerEyeUnlocked && highlights.length > 0 && highlights[highlights.length-1].indexOf('Tracker') >= 0) {
+      lastPU = 'Tracker\'s Eye unlocked';
+    }
+    if (eventNote && lastPU) eventNote += ' — ' + lastPU;
+    else if (lastPU) eventNote = lastPU;
+
+    decisions.push({
+      round: currentRound + 1,
+      situation: rd.name,
+      choice: choiceText,
+      WH: meters.WH, VS: meters.VS, TC: meters.TC, RE: meters.RE, PR: meters.PR,
+      signsMatched: signsMatched || '—',
+      event: eventNote
+    });
+
+    // Level check
+    checkLevel(currentRound + 1);
+
+    // Popup
+    var popupText = result.popup + extraText;
+    var meterText = formatMeterChanges(deltas);
+
+    if (result.popupType === 'full' || rd.isEvent) {
+      showPopup(popupText, meterText, gen);
+    } else {
+      // Routine — brief line then auto-advance
+      showRoutinePopup(popupText, meterText, gen);
+    }
+
+    isFirstRound = false;
+  } catch(e) { console.error('makeChoice error:', e); safeAdvanceRound(); }
+}
+
+function handItOff() {
+  try {
+    if (choiceLocked) return;
+    choiceLocked = true;
+    handOffUsedThisRound = true;
+
+    // Recovery
+    meters.RE = clampMeter(meters.RE + 20);
+    secondWindFreeRound = true;
+    secondWindAvailable = false;
+    consecutiveEnergyDrops = 0;
+    updateMeterDisplay();
+
+    // Record
+    var rd = roundOrder[currentRound];
+    decisions.push({
+      round: currentRound + 1,
+      situation: rd.name,
+      choice: 'Hand It Off (backup ranger)',
+      WH: meters.WH, VS: meters.VS, TC: meters.TC, RE: meters.RE, PR: meters.PR,
+      signsMatched: '—',
+      event: 'Second Wind activated'
+    });
+    highlights.push('Used Second Wind on Round ' + (currentRound + 1));
+
+    // Show banner
+    var banner = document.getElementById('secondWindBanner');
+    banner.style.display = 'block';
+    setTimeout(function() { banner.style.display = 'none'; }, 2000);
+
+    // Arena update
+    document.getElementById('arenaScene').textContent = '\u{1F9D1}‍\u{1F91D}‍\u{1F9D1}';
+    document.getElementById('arenaText').textContent = 'A backup ranger jogs in. You catch your breath. Energy restored.';
+
+    playTone(440, 0.2);
+    setTimeout(function() { playTone(660, 0.2); }, 200);
+    setTimeout(function() { playTone(880, 0.3); }, 400);
+
+    // Power-up notification
+    popupQueue.push({type:'powerup', icon:'\u{1F4AA}', title:'Second Wind!', desc:'Backup ranger covering this one. Your next round costs zero energy.'});
+
+    xp += 15;
+    updateXPDisplay();
+    checkLevel(currentRound + 1);
+
+    processPopupQueue();
+  } catch(e) { console.error('handItOff error:', e); safeAdvanceRound(); }
+}
+
+function showPopup(text, meterText, gen) {
+  try {
+    popupQueue.push({type:'popup', text:text, meters:meterText});
+    processPopupQueue(gen);
+  } catch(e) { safeAdvanceRound(); }
+}
+
+var routinePopupId = 0;
+function showRoutinePopup(text, meterText, gen) {
+  try {
+    routinePopupId++;
+    var myId = routinePopupId;
+    // Brief 1-line popup that auto-advances
+    document.getElementById('popupText').textContent = text;
+    document.getElementById('popupMeters').innerHTML = meterText;
+    document.getElementById('popupOverlay').style.display = 'flex';
+    popupShowing = true;
+
+    // Auto-dismiss after 3s — but only if THIS popup is still showing
+    setTimeout(function() {
+      if (gen !== currentGen) return;
+      if (myId !== routinePopupId) return;
+      if (popupShowing) {
+        dismissPopup();
+      }
+    }, 3000);
+  } catch(e) { safeAdvanceRound(); }
+}
+
+function processPopupQueue(gen) {
+  try {
+    if (popupQueue.length === 0) {
+      safeAdvanceRound();
+      return;
+    }
+    var item = popupQueue.shift();
+    if (item.type === 'popup') {
+      document.getElementById('popupText').textContent = item.text;
+      document.getElementById('popupMeters').innerHTML = item.meters || '';
+      document.getElementById('popupOverlay').style.display = 'flex';
+      popupShowing = true;
+    } else if (item.type === 'powerup') {
+      document.getElementById('puIcon').textContent = item.icon;
+      document.getElementById('puTitle').textContent = item.title;
+      document.getElementById('puDesc').textContent = item.desc;
+      document.getElementById('powerupNotify').style.display = 'block';
+      popupShowing = true;
+      playTone(660, 0.2);
+      setTimeout(function() { playTone(880, 0.3); }, 200);
+    }
+  } catch(e) { safeAdvanceRound(); }
+}
+
+function dismissPopup() {
+  try {
+    routinePopupId++;
+    document.getElementById('popupOverlay').style.display = 'none';
+    popupShowing = false;
+    if (popupQueue.length > 0) {
+      setTimeout(function() { processPopupQueue(); }, 300);
+    } else {
+      safeAdvanceRound();
+    }
+  } catch(e) { safeAdvanceRound(); }
+}
+
+function dismissPowerup() {
+  try {
+    document.getElementById('powerupNotify').style.display = 'none';
+    popupShowing = false;
+    if (popupQueue.length > 0) {
+      setTimeout(function() { processPopupQueue(); }, 300);
+    } else {
+      safeAdvanceRound();
+    }
+  } catch(e) { safeAdvanceRound(); }
+}
+
+function safeAdvanceRound() {
+  try {
+    document.getElementById('popupOverlay').style.display = 'none';
+    document.getElementById('powerupNotify').style.display = 'none';
+    popupShowing = false;
+    popupQueue = [];
+    var next = currentRound + 1;
+    setTimeout(function() { try { loadRound(next); } catch(e) { console.error(e); } }, 500);
+  } catch(e) { console.error('safeAdvanceRound error:', e); }
+}
+
+// ===== XP & LEVEL =====
+function updateXPDisplay() {
+  try {
+    document.getElementById('xpDisplay').textContent = 'XP: ' + xp;
+    document.getElementById('levelDisplay').textContent = 'Level ' + level;
+  } catch(e) {}
+}
+
+function checkLevel(roundNum) {
+  try {
+    var newLevel = level;
+    if (roundNum >= 7) newLevel = 4;
+    else if (roundNum >= 5) newLevel = 3;
+    else if (roundNum >= 2) newLevel = 2;
+
+    if (newLevel > level) {
+      level = newLevel;
+      updateXPDisplay();
+      // Level up animation
+      var flash = document.getElementById('levelFlash');
+      var text = document.getElementById('levelText');
+      flash.style.display = 'block';
+      flash.style.animation = 'none';
+      setTimeout(function() { flash.style.animation = 'flashFade 0.8s ease forwards'; }, 10);
+      text.style.display = 'block';
+      text.textContent = level >= 4 ? 'MAX LEVEL!' : 'LEVEL ' + level + '!';
+      text.style.animation = 'none';
+      setTimeout(function() { text.style.animation = 'levelPop 1.2s ease forwards'; }, 10);
+      setTimeout(function() { flash.style.display = 'none'; text.style.display = 'none'; }, 1300);
+      playTone(523, 0.15);
+      setTimeout(function() { playTone(659, 0.15); }, 100);
+      setTimeout(function() { playTone(784, 0.3); }, 200);
+    }
+  } catch(e) {}
+}
+
+// ===== END SCREEN =====
+function showEndScreen() {
+  try {
+    document.getElementById('gameScreen').style.display = 'none';
+    document.getElementById('endScreen').style.display = 'block';
+
+    // Win check
+    var whState = getMeterState('WH', meters.WH);
+    var secondaryAbove40 = 0;
+    if (meters.VS >= 40) secondaryAbove40++;
+    if (meters.TC >= 40) secondaryAbove40++;
+    if (meters.RE >= 40) secondaryAbove40++;
+    if (meters.PR >= 40) secondaryAbove40++;
+
+    var won = whState === 'thriving' && secondaryAbove40 >= 2;
+
+    if (won) {
+      document.getElementById('endTitle').textContent = 'Mission Complete!';
+      document.getElementById('endSubtitle').textContent = 'You read the signs and kept the wild healthy.';
+    } else if (meters.WH <= 39) {
+      document.getElementById('endTitle').textContent = 'Patrol\'s Over';
+      document.getElementById('endSubtitle').textContent = 'The wild paid for your patrol today.';
+    } else {
+      document.getElementById('endTitle').textContent = 'Patrol\'s Over';
+      document.getElementById('endSubtitle').textContent = 'Not bad — but the wild needs sharper reads.';
+    }
+
+    // End meters
+    var endMeters = document.getElementById('endMeters');
+    endMeters.innerHTML = '';
+    var meterData = [
+      {key:'WH',name:'Wildlife Health',primary:true},
+      {key:'VS',name:'Visitor Safety'},
+      {key:'TC',name:'Trail Conditions'},
+      {key:'RE',name:'Ranger Energy'},
+      {key:'PR',name:'Park Reputation'}
+    ];
+    for (var i = 0; i < meterData.length; i++) {
+      var m = meterData[i];
+      var div = document.createElement('div');
+      div.className = 'end-meter' + (m.primary ? ' primary' : '');
+      var val = meters[m.key];
+      var state = getMeterState(m.key, val);
+      var color = val <= 39 ? '#ef5350' : val <= 69 ? '#ffd54f' : '#66bb6a';
+      div.innerHTML = '<div class="end-meter-name">' + m.name + '</div>' +
+        '<div class="end-meter-value" style="color:' + color + '">' + val + '</div>' +
+        '<div class="end-meter-state" style="color:' + color + '">' + state + '</div>';
+      endMeters.appendChild(div);
+    }
+
+    // Highlights
+    var hl = document.getElementById('endHighlights');
+    hl.innerHTML = '<h3>Highlight Reel</h3>';
+    if (bestStreak > 0) highlights.unshift('Best read streak: ' + bestStreak + ' in a row');
+    if (trackerEyeUnlocked && currentRound >= 6) {
+      // Check if unlocked at round 7
+      var lastUnlock = false;
+      for (var h = 0; h < highlights.length; h++) {
+        if (highlights[h].indexOf('Tracker') >= 0) lastUnlock = true;
+      }
+    }
+    if (won) highlights.push('Win condition met!');
+    for (var h = 0; h < highlights.length; h++) {
+      var item = document.createElement('div');
+      item.className = 'highlight-item';
+      item.textContent = highlights[h];
+      hl.appendChild(item);
+    }
+
+    document.getElementById('endXP').textContent = 'Total XP: ' + xp;
+    document.getElementById('endLevel').textContent = level >= 4 ? 'Max Level Reached!' : 'Level ' + level;
+
+    // Data table
+    var tbody = document.getElementById('dataBody');
+    tbody.innerHTML = '';
+    for (var d = 0; d < decisions.length; d++) {
+      var dec = decisions[d];
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + dec.round + '</td>' +
+        '<td>' + dec.situation + '</td>' +
+        '<td>' + dec.choice + '</td>' +
+        '<td>' + dec.WH + '</td>' +
+        '<td>' + dec.VS + '</td>' +
+        '<td>' + dec.TC + '</td>' +
+        '<td>' + dec.RE + '</td>' +
+        '<td>' + dec.PR + '</td>' +
+        '<td>' + dec.signsMatched + '</td>' +
+        '<td>' + (dec.event || '') + '</td>';
+      tbody.appendChild(tr);
+    }
+
+  } catch(e) { console.error('showEndScreen error:', e); }
+}
+
+function toggleData() {
+  try {
+    var dl = document.getElementById('dataLayer');
+    var btn = document.getElementById('dataToggle');
+    if (dl.style.display === 'block') {
+      dl.style.display = 'none';
+      btn.textContent = 'Show Details';
+    } else {
+      dl.style.display = 'block';
+      btn.textContent = 'Hide Details';
+    }
+  } catch(e) {}
+}
+
+function copyData() {
+  try {
+    var table = document.getElementById('dataTable');
+    var rows = table.querySelectorAll('tr');
+    var text = '';
+    for (var r = 0; r < rows.length; r++) {
+      var cells = rows[r].querySelectorAll('th, td');
+      var line = [];
+      for (var c = 0; c < cells.length; c++) {
+        line.push(cells[c].textContent);
+      }
+      text += line.join('\t') + '\n';
+    }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        document.getElementById('copyBtn').textContent = 'Copied!';
+        setTimeout(function() { document.getElementById('copyBtn').textContent = 'Copy to Clipboard'; }, 2000);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      document.getElementById('copyBtn').textContent = 'Copied!';
+      setTimeout(function() { document.getElementById('copyBtn').textContent = 'Copy to Clipboard'; }, 2000);
+    }
+  } catch(e) {}
+}
+
+function resetGame() {
+  try {
+    meters = { WH:60, VS:60, TC:65, RE:70, PR:55 };
+    currentRound = 0; xp = 0; level = 1;
+    readStreak = 0; bestStreak = 0;
+    trackerEyeUnlocked = false;
+    secondWindArmed = false; secondWindAvailable = false; secondWindFreeRound = false;
+    consecutiveEnergyDrops = 0; prevRoundEnergy = 70;
+    choiceLocked = false; decisions = []; highlights = [];
+    chipsFlipped = 0; isFirstRound = true; coachShown = false;
+    handOffUsedThisRound = false; popupQueue = []; popupShowing = false;
+
+    document.getElementById('trackerEyeIcon').style.display = 'none';
+    document.getElementById('streakDisplay').style.display = 'none';
+    document.getElementById('endScreen').style.display = 'none';
+    document.getElementById('dataLayer').style.display = 'none';
+    document.getElementById('dataToggle').textContent = 'Show Details';
+
+    startGame();
+  } catch(e) { console.error('resetGame error:', e); }
+}
+
+// ===== HOTFIX BLOCK — safety nets =====
+(function installHotfix() {
+  // --- CSS for floating buttons ---
+  var hfStyle = document.createElement('style');
+  hfStyle.textContent = '.hf-stuck{display:none;position:fixed;bottom:12px;right:12px;z-index:999;padding:8px 16px;font-size:12px;font-weight:700;font-family:inherit;background:#c62828;color:#fff;border:2px solid #ef5350;border-radius:20px;cursor:pointer;opacity:0.7;transition:opacity 0.3s}.hf-stuck:hover{opacity:1}.hf-stuck.pulse{animation:hfPulse 1s ease infinite}.hf-restart{display:none;position:fixed;bottom:12px;left:12px;z-index:999;padding:6px 14px;font-size:11px;font-weight:600;font-family:inherit;background:#37474f;color:#b0bec5;border:1px solid #607d8b;border-radius:16px;cursor:pointer;opacity:0.5;transition:opacity 0.3s}.hf-restart:hover{opacity:1}@keyframes hfPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}';
+  document.head.appendChild(hfStyle);
+
+  // --- Create buttons ---
+  var stuckBtn = document.createElement('button');
+  stuckBtn.className = 'hf-stuck';
+  stuckBtn.textContent = "I'M STUCK — SKIP";
+  stuckBtn.onclick = function() { skipCurrentRound(); };
+  document.body.appendChild(stuckBtn);
+
+  var restartBtn = document.createElement('button');
+  restartBtn.className = 'hf-restart';
+  restartBtn.textContent = '↺ RESTART';
+  restartBtn.onclick = function() { confirmAndRestart(); };
+  document.body.appendChild(restartBtn);
+
+  function skipCurrentRound() {
+    try {
+      choiceLocked = false;
+      popupShowing = false;
+      popupQueue = [];
+      routinePopupId++;
+      document.getElementById('popupOverlay').style.display = 'none';
+      document.getElementById('powerupNotify').style.display = 'none';
+      document.getElementById('secondWindBanner').style.display = 'none';
+      // Default to Option A
+      var btnA = document.getElementById('btnA');
+      if (btnA && !btnA.disabled && document.getElementById('gameScreen').style.display !== 'none') {
+        makeChoice('A');
+      } else {
+        // Force advance
+        safeAdvanceRound();
+      }
+    } catch(e) { console.error('skipCurrentRound error:', e); safeAdvanceRound(); }
+  }
+
+  function confirmAndRestart() {
+    if (confirm('Restart the simulation? Your progress will reset.')) {
+      try {
+        generationCounter++;
+        currentGen = generationCounter;
+        resetGame();
+      } catch(e) { console.error('restart error:', e); location.reload(); }
+    }
+  }
+
+  // --- Sync button visibility ---
+  function syncButtons() {
+    var gameVisible = document.getElementById('gameScreen').style.display !== 'none';
+    stuckBtn.style.display = gameVisible ? 'block' : 'none';
+    restartBtn.style.display = gameVisible ? 'block' : 'none';
+  }
+
+  // --- Watchdog: choiceLocked + popupShowing desync (every 1.5s) ---
+  var choiceLockedSince = 0;
+  var popupShowingSince = 0;
+
+  setInterval(function() {
+    try {
+      syncButtons();
+
+      // choiceLocked watchdog — if locked >15s, force-clear
+      if (choiceLocked) {
+        choiceLockedSince += 1500;
+        if (choiceLockedSince > 15000) {
+          console.warn('HOTFIX: choiceLocked stuck >15s, clearing');
+          choiceLocked = false;
+          choiceLockedSince = 0;
+        }
+      } else {
+        choiceLockedSince = 0;
+      }
+
+      // popupShowing watchdog — if flag true but neither overlay visible, clear after 4s
+      if (popupShowing) {
+        var popupVis = document.getElementById('popupOverlay').style.display === 'flex';
+        var puVis = document.getElementById('powerupNotify').style.display === 'block';
+        if (!popupVis && !puVis) {
+          popupShowingSince += 1500;
+          if (popupShowingSince > 4000) {
+            console.warn('HOTFIX: popupShowing desynced, clearing');
+            popupShowing = false;
+            popupQueue = [];
+            popupShowingSince = 0;
+          }
+        } else {
+          popupShowingSince = 0;
+        }
+      } else {
+        popupShowingSince = 0;
+      }
+    } catch(e) {}
+  }, 1500);
+
+  // --- Inactivity deadman ---
+  var lastActivity = Date.now();
+  var activityEvents = ['click', 'keydown', 'touchstart'];
+  for (var i = 0; i < activityEvents.length; i++) {
+    document.addEventListener(activityEvents[i], function() { lastActivity = Date.now(); }, true);
+  }
+
+  setInterval(function() {
+    try {
+      var gameVisible = document.getElementById('gameScreen').style.display !== 'none';
+      if (!gameVisible) return;
+      var idle = Date.now() - lastActivity;
+      if (idle > 180000) {
+        // 3 min idle — pulse the stuck button
+        stuckBtn.classList.add('pulse');
+      } else {
+        stuckBtn.classList.remove('pulse');
+      }
+      if (idle > 480000) {
+        // 8 min idle — auto-skip
+        console.warn('HOTFIX: 8 min idle, auto-skipping');
+        lastActivity = Date.now();
+        skipCurrentRound();
+      }
+    } catch(e) {}
+  }, 5000);
+})();
+</script>
+</body>
+</html>
