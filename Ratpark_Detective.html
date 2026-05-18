@@ -659,6 +659,29 @@ const gameState={
   levels:[],overallScore:0,totalTimeSeconds:0,requiredComplete:false,allComplete:false
 };
 
+// ===== PROCESSING FLAG WATCHDOG (SYSTEMIC LOCKUP PREVENTION) =====
+// `processing` is a top-level `let` (L632) and cannot use Object.defineProperty.
+// This setInterval watchdog polls every 1.5s; if `processing` stays true for
+// more than 15s (async error, missed code path, swallowed exception, anything),
+// it silently clears the flag so the NEXT tap from the student works.
+(function installProcessingWatchdog(){
+  let _stuckMs=0;
+  setInterval(function(){
+    try{
+      if(processing){
+        _stuckMs+=1500;
+        if(_stuckMs>15000){
+          console.warn('[watchdog] processing flag stuck >15s — auto-clearing to unblock student');
+          processing=false;
+          _stuckMs=0;
+        }
+      } else {
+        _stuckMs=0;
+      }
+    }catch(e){}
+  },1500);
+})();
+
 // ===== AFFIRMATIONS =====
 let lastAffirmation=-1;
 function getAffirmation(){
