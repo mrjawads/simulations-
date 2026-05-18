@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Gondwanaland Puzzle</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  body {
+    background: radial-gradient(ellipse at top, #0b2545 0%, #061528 60%, #020912 100%);
+    color: #e8f3ff; user-select: none;
+  }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+  header {
+    padding: 8px 16px;
+    background: linear-gradient(90deg, #1a3a6e 0%, #2a5298 50%, #1a3a6e 100%);
+    box-shadow: 0 2px 14px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(255,255,255,0.06);
+    border-bottom: 2px solid #4a7bbf;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  }
+  header h1 {
+    font-size: 20px; letter-spacing: 0.5px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.7), 0 0 14px rgba(150,200,255,0.25);
+  }
+  #hud {
+    display: flex; gap: 8px; padding: 8px 16px;
+    background: rgba(8,20,40,0.92);
+    border-bottom: 1px solid #2a4a78;
+    font-size: 14px; font-weight: 600;
+  }
+  #hud .chip {
+    background: linear-gradient(180deg,#15315c,#0a1e3c);
+    padding: 7px 14px; border-radius: 10px;
+    border: 1px solid #2a4a78; min-width: 90px; text-align: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 4px rgba(0,0,0,0.4);
+    position: relative;
+  }
+  #hud .chip b { color: #ffd966; font-size: 16px; text-shadow: 0 0 8px rgba(255,217,102,0.4); }
+  #hud .chip.active { border-color: #58e07e; box-shadow: 0 0 14px rgba(88,224,126,0.5), inset 0 1px 0 rgba(255,255,255,0.08); }
+  #hud .chip.active b { color: #9eff58; }
+  #layout { flex: 1; display: flex; min-height: 0; }
+  aside#left {
+    width: 220px;
+    background: linear-gradient(180deg, rgba(8,20,40,0.85), rgba(8,20,40,0.7));
+    border-right: 1px solid #2a4a78;
+    padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow: hidden;
+  }
+  .mission {
+    background: linear-gradient(135deg,#1d4d8c,#0f2c5c);
+    padding: 12px; border-radius: 12px; text-align: center;
+    font-weight: 800; font-size: 16px; letter-spacing: 0.5px;
+    border: 1px solid #4a7bbf;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  .target-card {
+    background: linear-gradient(135deg, rgba(255,217,102,0.18), rgba(255,140,80,0.12));
+    padding: 10px; border-radius: 12px;
+    border: 2px solid #ffd966; text-align: center;
+    box-shadow: 0 0 18px rgba(255,217,102,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .target-card .lbl { font-size: 11px; color: #ffd966; letter-spacing: 1.5px; font-weight: 700; }
+  .target-card .nm { font-size: 17px; font-weight: 900; color: #fff; margin-top: 3px; text-shadow: 0 2px 4px rgba(0,0,0,0.7); }
+  button.tool {
+    padding: 10px 12px; border-radius: 10px; border: 2px solid #4a7bbf;
+    background: linear-gradient(180deg,#1a3a6e,#0e2244);
+    color: #fff;
+    font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.18s;
+    text-align: left;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  button.tool:hover {
+    background: linear-gradient(180deg,#225089,#152e54);
+    transform: translateX(2px) translateY(-1px);
+    box-shadow: 0 5px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  button.tool.active {
+    background: linear-gradient(180deg,#3a9a5c,#1f6437);
+    border-color: #58e07e;
+    box-shadow: 0 0 16px rgba(88,224,126,0.55), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  button.tool:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  button.danger { border-color: #d4567a; }
+  button.danger:hover { background: linear-gradient(180deg,#7a2540,#3a1020); border-color: #ff8aa6; }
+  button.primary { border-color: #ffd966; }
+  button.primary:hover { background: linear-gradient(180deg,#8a6520,#4a3010); }
+  .progress-card {
+    background: linear-gradient(180deg, rgba(20,40,70,0.6), rgba(10,25,50,0.6));
+    padding: 10px; border-radius: 10px;
+    border: 1px solid #2a4a78;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .progress-card h3 { font-size: 11px; color: #9ec5ff; margin-bottom: 6px; letter-spacing: 1.5px; font-weight: 700; }
+  .bar { background: #061528; height: 14px; border-radius: 8px; overflow: hidden; border: 1px solid #2a4a78; box-shadow: inset 0 2px 4px rgba(0,0,0,0.4); }
+  .bar > div {
+    background: linear-gradient(90deg,#58e07e 0%,#9eff58 50%,#58e07e 100%);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+    height: 100%; width: 0; transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(158,255,88,0.6);
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: 0 0; } }
+  .prog-text { font-size: 13px; text-align: center; margin-top: 6px; font-weight: 800; }
+  #eventBox {
+    padding: 10px; border-radius: 10px; text-align: center; font-weight: 900;
+    font-size: 14px; opacity: 0; transition: all 0.3s;
+    transform: scale(0.8);
+    text-shadow: 0 2px 3px rgba(0,0,0,0.6);
+  }
+  #eventBox.show { opacity: 1; transform: scale(1); }
+  #eventBox.good { background: linear-gradient(135deg,#3a9a5c,#1f6437); border: 2px solid #58e07e; box-shadow: 0 0 16px rgba(88,224,126,0.5); }
+  #eventBox.bad { background: linear-gradient(135deg,#d4567a,#7a2540); border: 2px solid #ff8aa6; box-shadow: 0 0 16px rgba(255,138,166,0.5); }
+  #eventBox.power { background: linear-gradient(135deg,#7a3ed4,#4a1e8c); border: 2px solid #b58aff; box-shadow: 0 0 18px rgba(181,138,255,0.6); }
+
+  main#arena {
+    flex: 1; position: relative; overflow: hidden; min-width: 0;
+  }
+  #cv { width: 100%; height: 100%; display: block; cursor: crosshair; }
+  #cv.move-mode { cursor: grab; }
+  #cv.dragging { cursor: grabbing; }
+  #overlay-msg {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.88);
+    padding: 22px 36px; border-radius: 18px;
+    border: 2px solid #ffd966; font-size: 20px; font-weight: 900; text-align: center;
+    pointer-events: none; opacity: 0; transition: opacity 0.3s;
+    box-shadow: 0 0 50px rgba(255,217,102,0.6), inset 0 1px 0 rgba(255,255,255,0.15);
+    max-width: 80%;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+  }
+  #overlay-msg.show { opacity: 1; }
+  #overlay-msg .sub { font-size: 14px; font-weight: 500; color: #9ec5ff; margin-top: 6px; }
+
+  aside#right {
+    width: 270px;
+    background: linear-gradient(180deg, rgba(8,20,40,0.85), rgba(8,20,40,0.7));
+    border-left: 1px solid #2a4a78;
+    padding: 12px; display: flex; flex-direction: column; gap: 8px; overflow: hidden;
+  }
+  aside#right h3 { font-size: 11px; color: #9ec5ff; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 4px; }
+  .results-head { display: flex; justify-content: space-between; align-items: center; }
+  #copyBtn {
+    padding: 5px 12px; font-size: 11px; font-weight: 800; border-radius: 8px;
+    border: 1px solid #58e07e; background: rgba(88,224,126,0.18); color: #c2ffd1; cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  #copyBtn:hover { background: rgba(88,224,126,0.35); transform: translateY(-1px); }
+  #copyBtn.copied { background: #58e07e; color: #062b15; }
+  .tbl-wrap { flex: 1; overflow-y: auto; background: rgba(0,0,0,0.4); border-radius: 8px; border: 1px solid #2a4a78; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4); }
+  table { width: 100%; font-size: 11px; border-collapse: collapse; }
+  th { background: #15315c; padding: 6px 4px; text-align: left; position: sticky; top: 0; border-bottom: 1px solid #2a4a78; font-weight: 800; letter-spacing: 0.5px; }
+  td { padding: 5px 4px; border-bottom: 1px solid rgba(74,123,191,0.18); }
+  tr:nth-child(even) td { background: rgba(20,40,70,0.35); }
+  .legend { background: linear-gradient(180deg, rgba(30,50,80,0.6), rgba(15,30,55,0.6)); padding: 10px; border-radius: 10px; border: 1px solid #2a4a78; }
+  .leg-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; font-weight: 600; }
+  .leg-icon { width: 22px; height: 22px; border-radius: 50%; background: #fff8e8; border: 1.5px solid #2a1810; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+
+  .hidden { display: none !important; }
+  .end-badge {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #ffd966, #ff9a3c);
+    color: #1a1a1a; padding: 28px 50px; border-radius: 22px;
+    font-size: 26px; font-weight: 900; text-align: center;
+    box-shadow: 0 14px 50px rgba(255,217,102,0.7), inset 0 2px 0 rgba(255,255,255,0.4);
+    border: 4px solid #fff; z-index: 100;
+    animation: bounce 0.8s ease;
+  }
+  @keyframes bounce { 0% { transform: translate(-50%, -50%) scale(0); } 60% { transform: translate(-50%, -50%) scale(1.15); } 100% { transform: translate(-50%, -50%) scale(1); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>🌍 Mr. Jawad's Simulations — Gondwanaland Puzzle</h1>
+    <div id="hud">
+      <div class="chip">Round <b id="roundN">1</b>/8</div>
+      <div class="chip">Score <b id="scoreN">0</b></div>
+      <div class="chip">Streak <b id="streakN">0</b></div>
+      <div class="chip"><span id="cutLbl">Cut</span> <b id="cutPct">0%</b></div>
+      <div class="chip" id="powerChip">⚡ <b id="psLbl">Off</b></div>
+    </div>
+  </header>
+  <div id="layout">
+    <aside id="left">
+      <div class="mission" id="mission">Cut! Move! Connect!</div>
+      <div class="target-card">
+        <div class="lbl">NOW</div>
+        <div class="nm" id="targetName">Cut S. America</div>
+      </div>
+      <button class="tool active" id="cutBtn">✂️ Cut</button>
+      <button class="tool" id="moveBtn">✋ Move</button>
+      <button class="tool primary" id="hintBtn">💡 Hint</button>
+      <button class="tool" id="newRunBtn">▶ New Run</button>
+      <button class="tool danger" id="resetBtn">↻ Reset</button>
+      <div class="progress-card">
+        <h3>PROGRESS</h3>
+        <div class="bar"><div id="progBar"></div></div>
+        <div class="prog-text" id="progText">0 / 5 required</div>
+      </div>
+      <div id="eventBox"></div>
+    </aside>
+    <main id="arena">
+      <canvas id="cv"></canvas>
+      <div id="overlay-msg"></div>
+    </main>
+    <aside id="right">
+      <div class="legend">
+        <h3>FOSSILS</h3>
+        <div class="leg-row"><span class="leg-icon" id="legCy"></span>Cynognathus (reptile)</div>
+        <div class="leg-row"><span class="leg-icon" id="legLy"></span>Lystrosaurus (tusked)</div>
+        <div class="leg-row"><span class="leg-icon" id="legGl"></span>Glossopteris (fern)</div>
+        <div class="leg-row"><span class="leg-icon" id="legMe"></span>Mesosaurus (swimmer)</div>
+      </div>
+      <div class="results-head">
+        <h3>📊 DATA</h3>
+        <button id="copyBtn">📋 Copy Table</button>
+      </div>
+      <div class="tbl-wrap">
+        <table id="tbl">
+          <thead><tr><th>R</th><th>Action</th><th>Cut</th><th>Place</th><th>Pts</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function() {
+  // ============ Safety helpers ============
+  function safe(fn) { try { fn(); } catch(e) { console.error(e); } }
+
+  // ============ Canvas ============
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let W = 900, H = 600;
+  function fitCanvas() {
+    try {
+      const arena = document.getElementById('arena');
+      const r = arena.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      W = Math.max(500, r.width);
+      H = Math.max(400, r.height);
+      cv.width = W * dpr;
+      cv.height = H * dpr;
+      cv.style.width = W + 'px';
+      cv.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    } catch(e) { console.error(e); }
+  }
+  window.addEventListener('resize', () => { fitCanvas(); buildContinents(); paintLegendIcons(); });
+
+  // ============ Continent definitions ============
+  // Reference frame 900x540, will be scaled to actual canvas.
+  const REF_W = 900, REF_H = 540;
+
+  function scalePts(pts) {
+    const sx = W / REF_W, sy = (H - 60) / REF_H;
+    return pts.map(p => [p[0]*sx, p[1]*sy + 30]);
+  }
+
+  // ========================================================================
+  // SHARED-EDGE JIGSAW DESIGN
+  // ========================================================================
+  // Each continent's polygon is defined in GONDWANA arrangement.
+  // Shared edges use IDENTICAL vertex sequences (reverse order on each side),
+  // so when both continents reach Gondwana position, their puzzle edges align
+  // pixel-for-pixel.
+  //
+  // Shared edges:
+  //  SAFR : SA east-coast ⇄ Africa west-coast        (N to S)
+  //  SAAN : SA south-coast ⇄ Antarctica north-west   (E to W on SA / W to E on Ant)
+  //  AFAN : Africa south-coast ⇄ Antarctica north-mid
+  //  AFIN : Africa NE-coast ⇄ India west-coast
+  //  ANAU : Antarctica NE-coast ⇄ Australia west-coast
+  //
+  // Triple points:
+  //  TP1 = (385, 370)  SA + Africa + Antarctica
+  //  TP2 = (560, 140)  Africa + India (corner, India NW)
+  //  TP3 = (660, 365)  Antarctica + Australia (corner, Aus NW)
+  //
+  // Modern (starting) position = shape + scatter offset.
+  // Target snap offset = -scatter, so dragging to that offset places the
+  // continent back into the Gondwana arrangement where shared edges match.
+  // ========================================================================
+
+  const CONT_DATA = [
+    {
+      id: 0, name: 'S. America', short: 'S.America',
+      colorTop: '#f0c98a', colorBot: '#9a6a35', beach: '#fce8b8', edge: '#5a3a15',
+      // CW from NW corner
+      shape: [
+        [310,145], [340,132],                                   // N coast (outer)
+        // SAFR shared with Africa-west (N→S)
+        [380,145], [385,190], [380,235], [375,280], [380,325], [385,370],
+        // SAAN shared with Antarctica-NW (E→W) — first pt is TP1, last is SW corner
+        [350,395], [320,405],
+        // W coast (S→N, outer)
+        [290,370], [280,320], [275,265], [282,210], [293,175]
+      ],
+      scatter: [-180, -30],
+      fossils: [
+        // Cynognathus on east side, straddling SAFR seam with Africa
+        { type:'cynognathus', cx:362, cy:215, r:14 },
+        // Mesosaurus right at the east edge — pairs with Africa's west Mesosaurus
+        { type:'mesosaurus', cx:368, cy:290, r:13 },
+        // Glossopteris south
+        { type:'glossopteris', cx:320, cy:345, r:12 }
+      ],
+      mountains: [
+        { x:295, y:230, rx:7,  ry:60, rot:-0.05, op:0.32 },  // Andes
+        { x:300, y:340, rx:6,  ry:25, rot:0,     op:0.25 }
+      ]
+    },
+    {
+      id: 1, name: 'Africa', short: 'Africa',
+      colorTop: '#f5d390', colorBot: '#a67830', beach: '#fde8b0', edge: '#5a3a15',
+      // CW from NW
+      shape: [
+        [380,145],                                              // NW = top of SAFR
+        [420,128], [460,120], [500,122], [535,132],             // N coast (outer)
+        [560,140],                                              // NE = TP2 (top of AFIN)
+        // AFIN shared with India-west (N→S)
+        [570,180], [575,220], [575,255],
+        // E coast lower (outer)
+        [580,290], [575,325],
+        [560,355],                                              // SE = top of AFAN (E end)
+        // AFAN shared with Antarctica-north middle (E→W)
+        [540,375], [505,388], [465,392], [425,385],
+        [385,370],                                              // SW = TP1
+        // SAFR reversed (S→N) – shared with SA-east; skip endpoints already listed
+        [380,325], [375,280], [380,235], [385,190]
+      ],
+      scatter: [10, -120],
+      fossils: [
+        // Cynognathus pairs with SA's near SAFR seam
+        { type:'cynognathus', cx:400, cy:215, r:14 },
+        // Mesosaurus pairs with SA's near SAFR seam
+        { type:'mesosaurus', cx:393, cy:290, r:13 },
+        // Lystrosaurus near AFIN seam (pairs with India)
+        { type:'lystrosaurus', cx:540, cy:205, r:14 },
+        // Glossopteris near AFAN seam (pairs with Antarctica)
+        { type:'glossopteris', cx:475, cy:345, r:13 }
+      ],
+      mountains: [
+        { x:460, y:148, rx:50, ry:10, rot:0.05, op:0.25 },  // Atlas
+        { x:510, y:240, rx:10, ry:32, rot:0.3,  op:0.18 },  // East African Rift
+        { x:455, y:355, rx:22, ry:14, rot:0,    op:0.22 }   // Drakensberg
+      ]
+    },
+    {
+      id: 2, name: 'India', short: 'India',
+      colorTop: '#efbc7a', colorBot: '#8a5a28', beach: '#fdd9a0', edge: '#5a3a15',
+      // CW from NW (TP2)
+      shape: [
+        [560,140],                                              // NW = TP2
+        [590,128], [620,128], [645,140],                        // N + NE (outer)
+        [660,170], [665,205], [660,232],                        // E coast (outer)
+        [640,250], [615,260], [592,258],                        // S coast (outer)
+        [575,255],                                              // SW = bottom of AFIN
+        // AFIN reversed (S→N) – shared with Africa-east; skip endpoints
+        [575,220], [570,180]
+      ],
+      scatter: [140, -20],
+      fossils: [
+        // Lystrosaurus pairs with Africa near AFIN seam
+        { type:'lystrosaurus', cx:595, cy:205, r:13 },
+        // Glossopteris interior — pairs across long distance with others
+        { type:'glossopteris', cx:625, cy:215, r:12 }
+      ],
+      mountains: [
+        { x:615, y:140, rx:38, ry:8,  rot:0.15, op:0.3 }    // Himalayas
+      ]
+    },
+    {
+      id: 3, name: 'Australia', short: 'Australia',
+      colorTop: '#e8a268', colorBot: '#7e4818', beach: '#f7c290', edge: '#5a2a05',
+      // CW from NW (TP3)
+      shape: [
+        [660,365],                                              // NW = TP3
+        [695,360], [725,365], [740,380],                        // N + NE (outer)
+        [750,410], [745,445], [730,475],                        // E coast (outer)
+        [710,495], [685,500], [665,490],                        // S coast (outer)
+        [645,475],                                              // SW = bottom of ANAU
+        // ANAU reversed (S→N) – shared with Antarctica-east; skip endpoints
+        [655,440], [660,400]
+      ],
+      scatter: [130, 25],
+      fossils: [
+        // Glossopteris interior — pairs at-distance with all others
+        { type:'glossopteris', cx:700, cy:430, r:14 }
+      ],
+      mountains: [
+        { x:740, y:425, rx:10, ry:35, rot:-0.1, op:0.25 }   // Great Dividing Range
+      ]
+    },
+    {
+      id: 4, name: 'Antarctica', short: 'Antarctica',
+      colorTop: '#f0f7ff', colorBot: '#9bb8d8', beach: '#ffffff', edge: '#5a78a0',
+      // CW from NW (left end of SAAN)
+      shape: [
+        // SAAN reversed (W→E) — shared with SA-south
+        [320,405], [350,395],
+        [385,370],                                              // TP1
+        // AFAN reversed (W→E) — shared with Africa-south
+        [425,385], [465,392], [505,388], [540,375], [560,355],
+        [600,365], [640,370],                                   // N continues east (outer)
+        [660,365],                                              // NE = TP3 (top of ANAU)
+        // ANAU shared with Australia-west (N→S)
+        [660,400], [655,440], [645,475],
+        // S coast (E→W, outer)
+        [605,495], [560,510], [510,518], [455,520], [400,515], [350,505], [310,485],
+        [290,460], [295,430]                                    // W coast (outer)
+      ],
+      scatter: [-30, 15],
+      fossils: [
+        // Lystrosaurus near AFAN seam (pairs with Africa)
+        { type:'lystrosaurus', cx:430, cy:410, r:13 },
+        // Glossopteris central
+        { type:'glossopteris', cx:480, cy:470, r:13 }
+      ],
+      mountains: [
+        { x:430, y:445, rx:30, ry:8, rot:0.05, op:0.22 },
+        { x:530, y:460, rx:25, ry:8, rot:-0.05, op:0.2 }
+      ]
+    }
+  ];
+
+  const SUB = 4; // sub-segments per edge for cut detection
+
+  let CONT = [];
+
+  function buildContinents() {
+    const sxr = W / REF_W, syr = (H - 60) / REF_H;
+    const minScale = Math.min(sxr, syr);
+    CONT = CONT_DATA.map(c => {
+      // Scaled scatter offset (modern start = shape + scatter)
+      const scX = c.scatter[0] * sxr;
+      const scY = c.scatter[1] * syr;
+      // Modern (starting) polygon = shape (Gondwana) translated by scatter
+      const modern = c.shape.map(p => [p[0]*sxr + scX, p[1]*syr + 30 + scY]);
+      // Target offset = -scatter (when dragOffset reaches this, continent is in Gondwana arrangement)
+      const targetOffset = { x: -scX, y: -scY };
+
+      // Build cut segments along modern polygon edges
+      const segs = [];
+      const N = modern.length;
+      for (let i = 0; i < N; i++) {
+        const a = modern[i], b = modern[(i+1)%N];
+        for (let s = 0; s < SUB; s++) {
+          const t1 = s/SUB, t2 = (s+1)/SUB;
+          segs.push({
+            id: i*SUB+s,
+            p1: [a[0]+(b[0]-a[0])*t1, a[1]+(b[1]-a[1])*t1],
+            p2: [a[0]+(b[0]-a[0])*t2, a[1]+(b[1]-a[1])*t2],
+            cut: false
+          });
+        }
+      }
+
+      // Fossils — cx,cy are in shape (Gondwana) coords. Modern position = +scatter.
+      const fossils = c.fossils.map(f => ({
+        type: f.type,
+        x: f.cx * sxr + scX,
+        y: f.cy * syr + 30 + scY,
+        r: Math.max(10, f.r * minScale)
+      }));
+
+      // Mountains similarly
+      const mountains = (c.mountains || []).map(m => ({
+        x: m.x * sxr + scX,
+        y: m.y * syr + 30 + scY,
+        rx: m.rx * minScale, ry: m.ry * minScale,
+        rot: m.rot, op: m.op
+      }));
+
+      return {
+        ...c,
+        modern, segs, fossils, mountains,
+        cutCount: 0, totalSegs: segs.length,
+        isCut: false, isPlaced: false,
+        dragOffset: { x:0, y:0 },
+        targetOffset,
+        snapAnim: 0, popAnim: 0
+      };
+    });
+  }
+
+  // ============ Game state ============
+  const STATE = {
+    round: 1, score: 0, streak: 0,
+    mode: 'cut',
+    sharpScissors: false, sharpUsed: false,
+    drawing: false, dragging: null, dragStart: null,
+    results: [], finished: false,
+    currentScenario: 0,
+    fossilSelections: [],
+    waitingForFossil: false,
+    mouse: null
+  };
+
+  const SCENARIOS = [
+    { type:'cut', contId:0, label:'Cut S. America' },
+    { type:'cut', contId:1, label:'Cut Africa' },
+    { type:'cut', contId:2, label:'Cut India' },
+    { type:'cut', contId:3, label:'Cut Australia' },
+    { type:'cut', contId:4, label:'Cut Antarctica' },
+    { type:'fossil', fossil:'mesosaurus', label:'Match Mesosaurus (2)' },
+    { type:'fossil', fossil:'cynognathus', label:'Match Cynognathus (2)' },
+    { type:'fossil', fossil:'glossopteris', label:'Match Glossopteris (5)' }
+  ];
+
+  // ============ Geometry helpers ============
+  function distToSeg(px, py, x1, y1, x2, y2) {
+    const dx = x2-x1, dy = y2-y1;
+    const l2 = dx*dx + dy*dy;
+    if (l2 === 0) return Math.hypot(px-x1, py-y1);
+    let t = ((px-x1)*dx + (py-y1)*dy) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px-(x1+t*dx), py-(y1+t*dy));
+  }
+  function pointInPoly(x, y, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length-1; i < poly.length; j = i++) {
+      const xi = poly[i][0], yi = poly[i][1];
+      const xj = poly[j][0], yj = poly[j][1];
+      const intersect = ((yi > y) !== (yj > y)) &&
+        (x < (xj-xi) * (y-yi) / (yj-yi + 1e-9) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+  function currentPoly(c) {
+    return c.modern.map(p => [p[0]+c.dragOffset.x, p[1]+c.dragOffset.y]);
+  }
+  function currentSegs(c) {
+    return c.segs.map(s => ({
+      ...s,
+      p1: [s.p1[0]+c.dragOffset.x, s.p1[1]+c.dragOffset.y],
+      p2: [s.p2[0]+c.dragOffset.x, s.p2[1]+c.dragOffset.y]
+    }));
+  }
+
+  // ============ Particles ============
+  const particles = [];
+  // type: 'paper' (confetti), 'spark', 'star', 'snip'
+  function spawnPaperConfetti(x, y, n) {
+    const palette = ['#f4d399','#e8c39e','#f5d390','#a67830','#fff'];
+    for (let i = 0; i < n; i++) {
+      particles.push({
+        kind: 'paper',
+        x, y,
+        vx: (Math.random()-0.5) * 4,
+        vy: -Math.random() * 4 - 1,
+        gravity: 0.12,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random()-0.5) * 0.3,
+        size: 3 + Math.random()*4,
+        life: 50 + Math.random()*30, max: 80,
+        color: palette[Math.floor(Math.random()*palette.length)]
+      });
+    }
+  }
+  function spawnSparks(x, y, n, color='#9eff58') {
+    for (let i = 0; i < n; i++) {
+      particles.push({
+        kind: 'spark', x, y,
+        vx: (Math.random()-0.5)*5,
+        vy: (Math.random()-0.5)*5 - 1,
+        gravity: 0.05,
+        life: 25 + Math.random()*15, max: 40,
+        color, size: 1.5 + Math.random()*2
+      });
+    }
+  }
+  function spawnStars(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 1 + Math.random() * 3;
+      particles.push({
+        kind: 'star', x, y,
+        vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
+        gravity: 0,
+        life: 40 + Math.random()*20, max: 60,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random()-0.5)*0.2,
+        size: 4 + Math.random()*4,
+        color: ['#ffd966','#fff','#ffea88','#ff9a3c'][Math.floor(Math.random()*4)]
+      });
+    }
+  }
+  function updateParticles() {
+    for (let i = particles.length-1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += (p.gravity || 0);
+      if (p.vrot !== undefined) p.rot += p.vrot;
+      p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+  function drawParticles() {
+    particles.forEach(p => {
+      ctx.save();
+      const alpha = Math.max(0, p.life / p.max);
+      ctx.globalAlpha = alpha;
+      if (p.kind === 'paper') {
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
+      } else if (p.kind === 'spark') {
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+        ctx.fill();
+      } else if (p.kind === 'star') {
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 10;
+        drawStarShape(0, 0, p.size, p.size*0.4, 5);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+  }
+  function drawStarShape(cx, cy, r1, r2, n) {
+    ctx.beginPath();
+    for (let i = 0; i < n*2; i++) {
+      const r = (i%2 === 0) ? r1 : r2;
+      const a = (i / (n*2)) * Math.PI * 2 - Math.PI/2;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
+
+  // ============ DRAWING — OCEAN ============
+  function drawOcean(t) {
+    // Deep gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#0b3960');
+    grad.addColorStop(0.35, '#0e4a78');
+    grad.addColorStop(0.6, '#0d4070');
+    grad.addColorStop(1, '#062448');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle latitude lines (map feel)
+    ctx.save();
+    ctx.strokeStyle = 'rgba(180,220,255,0.05)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 8]);
+    for (let y = 60; y < H; y += 80) {
+      ctx.beginPath();
+      ctx.moveTo(0, y); ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+    for (let x = 60; x < W; x += 80) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0); ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Multi-layer waves
+    for (let layer = 0; layer < 3; layer++) {
+      ctx.strokeStyle = `rgba(140,200,255,${0.05 + layer*0.025})`;
+      ctx.lineWidth = 1;
+      const speed = 0.0006 + layer*0.0004;
+      const wt = t * speed;
+      for (let y = 24 + layer*16; y < H; y += 56) {
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += 6) {
+          const yy = y + Math.sin(x*0.013 + wt + y*0.012 + layer*0.7) * (2.5 + layer*1.5);
+          if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // Distant sparkles (fixed positions, slow twinkle)
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    const sparkPositions = [
+      [120,80],[280,140],[420,72],[600,110],[760,90],[850,180],[180,250],[340,310],[520,380],[700,420],[820,500],[60,420],[260,500]
+    ];
+    sparkPositions.forEach((p, i) => {
+      const tw = Math.sin(t*0.002 + i) * 0.5 + 0.5;
+      if (tw > 0.4) {
+        const sx = W/REF_W, sy = H/REF_H;
+        ctx.globalAlpha = tw * 0.6;
+        ctx.beginPath();
+        ctx.arc(p[0]*sx, p[1]*sy, 1.2, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  // ============ DRAWING — COMPASS ROSE ============
+  function drawCompassRose(t) {
+    const sx = W/REF_W, sy = H/REF_H;
+    const cx = 60 * sx, cy = 60 * sy;
+    const r = 24 * Math.min(sx, sy);
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    // Outer ring
+    ctx.strokeStyle = '#ffd966';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r*0.7, 0, Math.PI*2);
+    ctx.stroke();
+    // Compass star
+    ctx.translate(cx, cy);
+    ctx.rotate(Math.sin(t*0.0003) * 0.06);
+    for (let i = 0; i < 4; i++) {
+      ctx.rotate(Math.PI/2);
+      ctx.fillStyle = (i === 0) ? '#ffd966' : 'rgba(255,217,102,0.6)';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-r*0.18, -r*0.4);
+      ctx.lineTo(0, -r*0.95);
+      ctx.lineTo(r*0.18, -r*0.4);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    // N label
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#ffd966';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('N', cx, cy - r - 4);
+    ctx.restore();
+  }
+
+  // ============ DRAWING — PANGAEA ZONE + GHOST OUTLINES ============
+  function drawPangaeaZone(t) {
+    // Soft golden halo center — centered on the assembled puzzle's centroid
+    const sx = W/REF_W, sy = (H-60)/REF_H;
+    const cx = 490*sx, cy = 320*sy + 30;
+    const r = 270 * Math.min(sx, sy);
+    const grad = ctx.createRadialGradient(cx, cy, r*0.25, cx, cy, r);
+    grad.addColorStop(0, 'rgba(255,217,102,0.13)');
+    grad.addColorStop(0.7, 'rgba(255,217,102,0.05)');
+    grad.addColorStop(1, 'rgba(255,217,102,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Outline pulse
+    ctx.save();
+    const pulse = 0.35 + Math.sin(t*0.002) * 0.15;
+    ctx.strokeStyle = `rgba(255,217,102,${pulse})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 7]);
+    ctx.lineDashOffset = -t * 0.05;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r*0.95, r*0.78, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Label
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,217,102,0.75)';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur = 4;
+    ctx.fillText('★ GONDWANA ZONE ★', cx, cy - r*0.78 - 12);
+    ctx.restore();
+
+    // Ghost target outlines for cut-but-not-placed continents
+    CONT.forEach(c => {
+      if (c.isCut && !c.isPlaced) {
+        const tgt = c.modern.map(p => [p[0]+c.targetOffset.x, p[1]+c.targetOffset.y]);
+        ctx.save();
+        ctx.strokeStyle = `rgba(255,217,102,${0.45 + Math.sin(t*0.003)*0.2})`;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+        tgt.forEach((p, i) => { if (i===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); });
+        ctx.closePath();
+        ctx.stroke();
+        // Faint fill
+        ctx.fillStyle = 'rgba(255,217,102,0.06)';
+        ctx.fill();
+        ctx.restore();
+      }
+    });
+  }
+
+  // ============ DRAWING — FOSSIL SILHOUETTES ============
+  function drawFossilSilhouette(x, y, r, type, glowAmount) {
+    ctx.save();
+    // Glow halo when fossils are aligned
+    if (glowAmount > 0) {
+      ctx.shadowColor = '#ffd966';
+      ctx.shadowBlur = 10 + glowAmount * 14;
+    }
+    // White patch background (parchment)
+    const grad = ctx.createRadialGradient(x-r*0.3, y-r*0.3, r*0.1, x, y, r);
+    grad.addColorStop(0, '#fff9e8');
+    grad.addColorStop(1, '#e8d8b0');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fill();
+    // Border
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#3a2510';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.stroke();
+
+    // Silhouette
+    ctx.fillStyle = '#241208';
+    ctx.translate(x, y);
+    const scale = r / 16;
+    ctx.scale(scale, scale);
+    drawCreatureSilhouette(type);
+    ctx.restore();
+  }
+  function drawCreatureSilhouette(type) {
+    if (type === 'cynognathus') {
+      // Dog-like reptile, body+head+4 legs+tail
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 10, 3.5, 0, 0, Math.PI*2);
+      ctx.fill();
+      // head + snout
+      ctx.beginPath();
+      ctx.ellipse(-9, -1, 4, 3, -0.15, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-12, -1);
+      ctx.lineTo(-14, -0.5);
+      ctx.lineTo(-14, 1);
+      ctx.lineTo(-12, 1.5);
+      ctx.closePath();
+      ctx.fill();
+      // eye highlight
+      ctx.fillStyle = '#fff9e8';
+      ctx.beginPath();
+      ctx.arc(-10, -1.5, 0.5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#241208';
+      // legs
+      [-6, -2, 4, 7].forEach(lx => {
+        ctx.fillRect(lx-0.7, 2, 1.6, 4);
+      });
+      // tail
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(14, 2);
+      ctx.lineTo(13, -0.5);
+      ctx.closePath();
+      ctx.fill();
+    } else if (type === 'lystrosaurus') {
+      // Stocky barrel-shaped reptile with tusks
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 9, 4.5, 0, 0, Math.PI*2);
+      ctx.fill();
+      // big head
+      ctx.beginPath();
+      ctx.ellipse(-8, 0, 4.5, 4, 0, 0, Math.PI*2);
+      ctx.fill();
+      // tusks
+      ctx.beginPath();
+      ctx.moveTo(-11, 1);
+      ctx.lineTo(-13.5, 4);
+      ctx.lineTo(-12, 2);
+      ctx.closePath();
+      ctx.fill();
+      // eye
+      ctx.fillStyle = '#fff9e8';
+      ctx.beginPath();
+      ctx.arc(-9, -1.5, 0.55, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#241208';
+      // stout legs
+      [-5, -1, 3, 6].forEach(lx => {
+        ctx.fillRect(lx-0.9, 3.2, 2, 3.5);
+      });
+      // short tail
+      ctx.beginPath();
+      ctx.moveTo(8.5, 0);
+      ctx.lineTo(11, 1.5);
+      ctx.lineTo(10.5, -0.5);
+      ctx.closePath();
+      ctx.fill();
+    } else if (type === 'glossopteris') {
+      // tongue-shaped fern leaf
+      ctx.fillStyle = '#1f6437';
+      ctx.beginPath();
+      ctx.moveTo(0, -12);
+      ctx.bezierCurveTo(-7, -10, -8, -2, -6, 5);
+      ctx.bezierCurveTo(-4, 11, -1, 13, 0, 13);
+      ctx.bezierCurveTo(1, 13, 4, 11, 6, 5);
+      ctx.bezierCurveTo(8, -2, 7, -10, 0, -12);
+      ctx.fill();
+      // central vein
+      ctx.strokeStyle = '#0e3a20';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(0, -11);
+      ctx.lineTo(0, 12);
+      ctx.stroke();
+      // side veins
+      for (let i = -8; i <= 9; i += 3) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.quadraticCurveTo(-2, i+1.5, -5, i+3);
+        ctx.moveTo(0, i);
+        ctx.quadraticCurveTo(2, i+1.5, 5, i+3);
+        ctx.stroke();
+      }
+      // stem
+      ctx.strokeStyle = '#5a3a1a';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(0, 13);
+      ctx.lineTo(0, 15);
+      ctx.stroke();
+    } else if (type === 'mesosaurus') {
+      // long aquatic reptile, narrow body, flipper limbs
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 11, 2.5, 0, 0, Math.PI*2);
+      ctx.fill();
+      // long snout
+      ctx.beginPath();
+      ctx.moveTo(-11, -0.5);
+      ctx.lineTo(-15, -0.2);
+      ctx.lineTo(-15, 0.8);
+      ctx.lineTo(-11, 1);
+      ctx.closePath();
+      ctx.fill();
+      // eye
+      ctx.fillStyle = '#fff9e8';
+      ctx.beginPath();
+      ctx.arc(-9, -1.2, 0.45, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#241208';
+      // tail fin
+      ctx.beginPath();
+      ctx.moveTo(10, -2);
+      ctx.lineTo(15, -2);
+      ctx.lineTo(13, 0);
+      ctx.lineTo(15, 2);
+      ctx.lineTo(10, 2);
+      ctx.closePath();
+      ctx.fill();
+      // paddle flippers
+      [-3, 3].forEach(px => {
+        ctx.beginPath();
+        ctx.ellipse(px, 2.5, 2.2, 1, 0.5, 0, Math.PI*2);
+        ctx.fill();
+      });
+      // small ripples
+      ctx.strokeStyle = '#241208';
+      ctx.lineWidth = 0.4;
+      ctx.beginPath();
+      ctx.moveTo(-13, -3);
+      ctx.quadraticCurveTo(-11, -4, -9, -3);
+      ctx.stroke();
+    }
+  }
+
+  // ============ DRAWING — CONTINENT ============
+  function drawContinent(c, opts, t) {
+    const poly = currentPoly(c);
+
+    // Snap animation expansion ring
+    if (c.snapAnim > 0) {
+      const cx = poly.reduce((s,p)=>s+p[0],0) / poly.length;
+      const cy = poly.reduce((s,p)=>s+p[1],0) / poly.length;
+      const prog = 1 - c.snapAnim / 30;
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,217,102,${1 - prog})`;
+      ctx.lineWidth = 4 * (1 - prog) + 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, prog * 120, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+      c.snapAnim--;
+    }
+
+    // Pop animation: brief scale-up
+    let popScale = 1;
+    if (c.popAnim > 0) {
+      const p = c.popAnim / 20;
+      popScale = 1 + 0.08 * Math.sin(p * Math.PI);
+      c.popAnim--;
+    }
+
+    // Deep drop shadow
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.filter = 'blur(6px)';
+    ctx.beginPath();
+    poly.forEach((p,i) => {
+      const px = p[0] + 5, py = p[1] + 7;
+      if (i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Compute centroid for scale
+    const cx = poly.reduce((s,p)=>s+p[0],0) / poly.length;
+    const cy = poly.reduce((s,p)=>s+p[1],0) / poly.length;
+
+    // Land base
+    ctx.save();
+    if (popScale !== 1) {
+      ctx.translate(cx, cy);
+      ctx.scale(popScale, popScale);
+      ctx.translate(-cx, -cy);
+    }
+    ctx.beginPath();
+    poly.forEach((p,i) => { if (i===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); });
+    ctx.closePath();
+    const lg = ctx.createLinearGradient(0, 0, 0, H);
+    lg.addColorStop(0, c.colorTop);
+    lg.addColorStop(1, c.colorBot);
+    ctx.fillStyle = lg;
+    ctx.fill();
+
+    // Clip to land for inner details
+    ctx.save();
+    ctx.clip();
+
+    // Beach: inner glow lighter near edges
+    ctx.strokeStyle = c.beach;
+    ctx.lineWidth = 6;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    poly.forEach((p,i) => { if (i===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); });
+    ctx.closePath();
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Mountains
+    c.mountains.forEach(m => {
+      const mx = m.x + c.dragOffset.x;
+      const my = m.y + c.dragOffset.y;
+      // shadow side
+      ctx.fillStyle = `rgba(60,35,15,${m.op})`;
+      ctx.beginPath();
+      ctx.ellipse(mx, my, m.rx, m.ry, m.rot, 0, Math.PI*2);
+      ctx.fill();
+      // highlight side
+      ctx.fillStyle = `rgba(255,235,200,${m.op*0.7})`;
+      ctx.beginPath();
+      ctx.ellipse(mx - m.rx*0.3, my - m.ry*0.3, m.rx*0.5, m.ry*0.5, m.rot, 0, Math.PI*2);
+      ctx.fill();
+      // ridge dots
+      ctx.fillStyle = `rgba(40,25,10,0.4)`;
+      const ridges = 4;
+      for (let i = 0; i < ridges; i++) {
+        const a = (i / ridges) * Math.PI * 2;
+        const rxx = mx + Math.cos(a + m.rot) * m.rx * 0.5;
+        const ryy = my + Math.sin(a + m.rot) * m.ry * 0.5;
+        ctx.beginPath();
+        ctx.arc(rxx, ryy, 1.2, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+
+    // Subtle terrain noise (deterministic stipple based on continent id)
+    ctx.fillStyle = 'rgba(0,0,0,0.05)';
+    const seed = c.id * 1000;
+    for (let i = 0; i < 60; i++) {
+      const r1 = ((seed + i*7) % 100) / 100;
+      const r2 = ((seed + i*13) % 100) / 100;
+      const px = poly[0][0] - 30 + r1 * 200;
+      const py = poly[0][1] - 30 + r2 * 250;
+      ctx.beginPath();
+      ctx.arc(px, py, 0.8, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Ice texture for Antarctica
+    if (c.id === 4) {
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      for (let i = 0; i < 30; i++) {
+        const r1 = ((seed + i*11) % 100) / 100;
+        const r2 = ((seed + i*17) % 100) / 100;
+        const px = poly[0][0] + r1 * 280;
+        const py = poly[0][1] + r2 * 70;
+        ctx.beginPath();
+        ctx.arc(px, py, 2 + r1*2, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore(); // un-clip
+
+    // Fossils
+    c.fossils.forEach(f => {
+      const fx = f.x + c.dragOffset.x, fy = f.y + c.dragOffset.y;
+      const glow = (c.isPlaced ? 0.5 : 0) + (opts.fossilHighlight ? 1 : 0);
+      drawFossilSilhouette(fx, fy, f.r, f.type, glow);
+    });
+
+    // Continent label
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 3;
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeText(c.short, cx, cy);
+    ctx.fillText(c.short, cx, cy);
+    ctx.restore();
+
+    ctx.restore(); // pop scale
+
+    // Edges & cut state
+    const segs = currentSegs(c);
+    segs.forEach((s) => {
+      ctx.save();
+      if (c.isCut) {
+        // Solid green border showing it's been cut
+        ctx.strokeStyle = c.isPlaced ? '#58e07e' : '#9eff58';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = c.isPlaced ? '#58e07e' : '#9eff58';
+        ctx.shadowBlur = c.isPlaced ? 6 : 4;
+        ctx.beginPath();
+        ctx.moveTo(s.p1[0], s.p1[1]);
+        ctx.lineTo(s.p2[0], s.p2[1]);
+        ctx.stroke();
+      } else if (opts.activeCut) {
+        if (s.cut) {
+          ctx.strokeStyle = '#9eff58';
+          ctx.lineWidth = 4;
+          ctx.shadowColor = '#9eff58';
+          ctx.shadowBlur = 10;
+        } else {
+          ctx.strokeStyle = '#ff8a3c';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([6, 4]);
+          ctx.shadowColor = '#ff8a3c';
+          ctx.shadowBlur = 4;
+        }
+        ctx.beginPath();
+        ctx.moveTo(s.p1[0], s.p1[1]);
+        ctx.lineTo(s.p2[0], s.p2[1]);
+        ctx.stroke();
+      } else {
+        // Locked outline
+        ctx.strokeStyle = c.edge;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(s.p1[0], s.p1[1]);
+        ctx.lineTo(s.p2[0], s.p2[1]);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
+    // Pulsing halo for active cut target
+    if (opts.activeCut && !c.isCut) {
+      const ph = 0.3 + 0.3 * Math.sin(t * 0.005);
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,217,102,${ph})`;
+      ctx.lineWidth = 5;
+      ctx.shadowColor = '#ffd966';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      poly.forEach((p,i) => { if (i===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); });
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Fossil-round highlight (golden glow)
+    if (opts.fossilHighlight) {
+      ctx.save();
+      ctx.strokeStyle = '#ffd966';
+      ctx.lineWidth = 4;
+      ctx.shadowColor = '#ffd966';
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      poly.forEach((p,i) => { if (i===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); });
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ============ DRAWING — FOSSIL CONNECTION LINES ============
+  function drawFossilConnections(t) {
+    const scenario = SCENARIOS[STATE.currentScenario];
+    if (!scenario || scenario.type !== 'fossil') return;
+    const selected = STATE.fossilSelections.map(id => CONT[id]);
+    if (selected.length < 2) return;
+    // Connect fossil patches of same type
+    ctx.save();
+    for (let i = 0; i < selected.length; i++) {
+      for (let j = i+1; j < selected.length; j++) {
+        const a = selected[i], b = selected[j];
+        const fa = a.fossils.find(f => f.type === scenario.fossil);
+        const fb = b.fossils.find(f => f.type === scenario.fossil);
+        if (!fa || !fb) continue;
+        const ax = fa.x + a.dragOffset.x;
+        const ay = fa.y + a.dragOffset.y;
+        const bx = fb.x + b.dragOffset.x;
+        const by = fb.y + b.dragOffset.y;
+        ctx.strokeStyle = `rgba(255,217,102,${0.7 + Math.sin(t*0.006)*0.2})`;
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#ffd966';
+        ctx.shadowBlur = 10;
+        ctx.setLineDash([8, 6]);
+        ctx.lineDashOffset = -t * 0.08;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // ============ MAIN DRAW ============
+  function draw() {
+    try {
+      const t = performance.now();
+      drawOcean(t);
+      drawCompassRose(t);
+      drawPangaeaZone(t);
+
+      const scenario = SCENARIOS[STATE.currentScenario];
+      const activeContId = scenario && scenario.type === 'cut' ? scenario.contId : -1;
+
+      const order = CONT.slice().sort((a,b) => {
+        if (a.id === activeContId) return 1;
+        if (b.id === activeContId) return -1;
+        if (a === STATE.dragging) return 1;
+        if (b === STATE.dragging) return -1;
+        return 0;
+      });
+      order.forEach(c => {
+        const isActive = c.id === activeContId;
+        const isFossilHi = STATE.waitingForFossil && STATE.fossilSelections.includes(c.id);
+        drawContinent(c, {
+          activeCut: isActive && !c.isCut,
+          fossilHighlight: isFossilHi
+        }, t);
+      });
+
+      drawFossilConnections(t);
+
+      updateParticles();
+      drawParticles();
+
+      // Scissor cursor in cut mode over active continent
+      if (STATE.mode === 'cut' && activeContId >= 0 && STATE.mouse) {
+        const c = CONT[activeContId];
+        if (!c.isCut) {
+          ctx.save();
+          ctx.font = '24px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.shadowColor = 'rgba(0,0,0,0.6)';
+          ctx.shadowBlur = 6;
+          ctx.fillText('✂️', STATE.mouse.x, STATE.mouse.y - 4);
+          ctx.restore();
+        }
+      }
+    } catch(e) { console.error('draw error', e); }
+  }
+
+  function loop() {
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ============ INPUT ============
+  function getMouse(e) {
+    const rect = cv.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+  }
+  cv.addEventListener('mousemove', e => onMove(getMouse(e)));
+  cv.addEventListener('touchmove', e => { if(e.cancelable) e.preventDefault(); onMove(getMouse(e)); }, {passive:false});
+  cv.addEventListener('mousedown', e => onDown(getMouse(e)));
+  cv.addEventListener('touchstart', e => { if(e.cancelable) e.preventDefault(); onDown(getMouse(e)); }, {passive:false});
+  cv.addEventListener('mouseup', e => onUp(getMouse(e)));
+  cv.addEventListener('touchend', e => { onUp(STATE.mouse || {x:0,y:0}); });
+  cv.addEventListener('mouseleave', () => onUp(STATE.mouse || {x:0,y:0}));
+
+  function onMove(m) {
+    STATE.mouse = m;
+    if (STATE.drawing && STATE.mode === 'cut') {
+      const scenario = SCENARIOS[STATE.currentScenario];
+      if (!scenario || scenario.type !== 'cut') return;
+      const c = CONT[scenario.contId];
+      if (c.isCut) return;
+      const tol = STATE.sharpScissors ? 22 : 17;
+      const segs = currentSegs(c);
+      let cutAny = false;
+      segs.forEach(s => {
+        if (s.cut) return;
+        if (distToSeg(m.x, m.y, s.p1[0], s.p1[1], s.p2[0], s.p2[1]) < tol) {
+          c.segs[s.id].cut = true;
+          c.cutCount++;
+          cutAny = true;
+          spawnPaperConfetti(s.p1[0], s.p1[1], 2);
+          spawnSparks(s.p1[0], s.p1[1], 2, '#9eff58');
+        }
+      });
+      if (cutAny) {
+        updateHud();
+        const pct = c.cutCount / c.totalSegs;
+        if (pct >= 0.85 && !c.isCut) {
+          finishCut(c);
+        }
+      }
+    } else if (STATE.dragging && STATE.mode === 'move') {
+      const c = STATE.dragging;
+      c.dragOffset.x = m.x - STATE.dragStart.x;
+      c.dragOffset.y = m.y - STATE.dragStart.y;
+    }
+  }
+  function onDown(m) {
+    STATE.mouse = m;
+    if (STATE.finished) return;
+    const scenario = SCENARIOS[STATE.currentScenario];
+    if (!scenario) return;
+
+    if (scenario.type === 'cut') {
+      const c = CONT[scenario.contId];
+      if (STATE.mode === 'cut') {
+        if (c.isCut) {
+          flashMessage('Switch to ✋ Move', 800);
+          return;
+        }
+        STATE.drawing = true;
+        onMove(m);
+      } else if (STATE.mode === 'move') {
+        if (!c.isCut) {
+          flashMessage('Cut it first! ✂️', 1000);
+          return;
+        }
+        const poly = currentPoly(c);
+        if (pointInPoly(m.x, m.y, poly)) {
+          STATE.dragging = c;
+          STATE.dragStart = { x: m.x - c.dragOffset.x, y: m.y - c.dragOffset.y };
+          cv.classList.add('dragging');
+        }
+      }
+    } else if (scenario.type === 'fossil') {
+      for (let i = CONT.length-1; i >= 0; i--) {
+        const c = CONT[i];
+        const poly = currentPoly(c);
+        if (pointInPoly(m.x, m.y, poly)) {
+          handleFossilClick(c, scenario);
+          return;
+        }
+      }
+    }
+  }
+  function onUp() {
+    if (STATE.drawing) STATE.drawing = false;
+    if (STATE.dragging) {
+      const c = STATE.dragging;
+      const dx = c.dragOffset.x - c.targetOffset.x;
+      const dy = c.dragOffset.y - c.targetOffset.y;
+      const dist = Math.hypot(dx, dy);
+      const snapR = 80;
+      if (dist < snapR) {
+        c.dragOffset.x = c.targetOffset.x;
+        c.dragOffset.y = c.targetOffset.y;
+        c.isPlaced = true;
+        c.snapAnim = 30;
+        c.popAnim = 20;
+        spawnStars(currentPoly(c)[0][0] + 60, currentPoly(c)[0][1] + 60, 18);
+        spawnPaperConfetti(currentPoly(c)[0][0] + 60, currentPoly(c)[0][1] + 60, 14);
+        finishPlace(c, dist);
+      }
+      STATE.dragging = null;
+      cv.classList.remove('dragging');
+    }
+  }
+
+  // ============ ROUND FLOW ============
+  function finishCut(c) {
+    c.isCut = true;
+    c.popAnim = 20;
+    STATE.streak++;
+    const perfect = c.cutCount === c.totalSegs;
+    const poly = currentPoly(c);
+    spawnPaperConfetti(poly[0][0]+40, poly[0][1]+40, 30);
+    spawnSparks(poly[0][0]+40, poly[0][1]+40, 20, '#9eff58');
+    let scoreGain = 50 + (perfect ? 20 : 0);
+    if (STATE.sharpScissors) { scoreGain += 10; STATE.sharpScissors = false; STATE.sharpUsed = true; }
+    STATE.score += scoreGain;
+    showEvent(perfect ? 'Perfect Cut! +' + scoreGain : 'Cut Done! +' + scoreGain, 'good');
+    setTimeout(() => {
+      setMode('move');
+      flashMessage('Now drag to GONDWANA ZONE', 1500);
+    }, 600);
+    if (STATE.streak >= 2 && !STATE.sharpScissors && !STATE.sharpUsed) {
+      STATE.sharpScissors = true;
+      setTimeout(() => showEvent('⚡ Sharp Scissors!', 'power'), 1100);
+    } else {
+      STATE.sharpUsed = false;
+    }
+    if (STATE.round >= 2 && Math.random() < 0.30) {
+      setTimeout(() => triggerRandomEvent(), 1600);
+    }
+    updateHud();
+  }
+  function finishPlace(c, dist) {
+    let placeScore = 80, placeLabel = 'Good';
+    if (dist < 25) { placeScore = 120; placeLabel = 'Perfect'; }
+    else if (dist < 50) { placeScore = 100; placeLabel = 'Great'; }
+    STATE.score += placeScore;
+    showEvent(placeLabel + ' Placement! +' + placeScore, 'good');
+    logResult({
+      round: STATE.round, action: 'Cut+Place', target: c.short,
+      cutPct: Math.round(c.cutCount/c.totalSegs*100),
+      placement: placeLabel,
+      points: placeScore + 50
+    });
+    updateHud();
+    advanceRound();
+  }
+  function handleFossilClick(c, scenario) {
+    const has = c.fossils.some(f => f.type === scenario.fossil);
+    const idx = STATE.fossilSelections.indexOf(c.id);
+    if (idx >= 0) {
+      STATE.fossilSelections.splice(idx, 1);
+      showEvent('Un-picked ' + c.short, 'bad');
+      return;
+    }
+    if (!has) {
+      showEvent('No ' + scenario.fossil + ' on ' + c.short, 'bad');
+      STATE.streak = 0;
+      spawnSparks(currentPoly(c)[0][0]+30, currentPoly(c)[0][1]+30, 10, '#ff8a3c');
+      updateHud();
+      return;
+    }
+    STATE.fossilSelections.push(c.id);
+    spawnStars(currentPoly(c)[0][0]+30, currentPoly(c)[0][1]+30, 12);
+    const winners = CONT.filter(cc => cc.fossils.some(f => f.type === scenario.fossil)).map(cc => cc.id);
+    const correctCount = winners.length;
+    if (STATE.fossilSelections.length === correctCount &&
+        winners.every(id => STATE.fossilSelections.includes(id))) {
+      const gain = 150;
+      STATE.score += gain;
+      STATE.streak++;
+      showEvent('Fossil Match! +' + gain, 'good');
+      logResult({
+        round: STATE.round, action: 'Fossil ' + scenario.fossil,
+        target: 'x' + correctCount, cutPct: '—', placement: '✓', points: gain
+      });
+      updateHud();
+      advanceRound();
+    } else {
+      showEvent('Picked ' + c.short + ' ✓', 'good');
+      updateHud();
+    }
+  }
+  function advanceRound() {
+    STATE.round++;
+    STATE.fossilSelections = [];
+    STATE.waitingForFossil = false;
+    if (STATE.round > 8) { finishGame(); return; }
+    STATE.currentScenario = STATE.round - 1;
+    if (STATE.round === 6) {
+      flashMessage('Required Done! ⭐ Extra Credit Time!', 2500);
+      STATE.mode = 'cut';
+    }
+    setupScenario();
+    updateHud();
+  }
+  function setupScenario() {
+    const scenario = SCENARIOS[STATE.currentScenario];
+    if (!scenario) return;
+    if (scenario.type === 'cut') {
+      document.getElementById('targetName').textContent = scenario.label;
+      document.getElementById('cutLbl').textContent = 'Cut';
+      setMode('cut');
+      STATE.waitingForFossil = false;
+    } else {
+      document.getElementById('targetName').textContent = scenario.label;
+      document.getElementById('cutLbl').textContent = 'Match';
+      STATE.waitingForFossil = true;
+    }
+  }
+  function finishGame() {
+    STATE.finished = true;
+    const badge = document.createElement('div');
+    badge.className = 'end-badge';
+    badge.innerHTML = '🏆 Extra Credit Complete!<br><span style="font-size:18px;">Score: ' + STATE.score + '</span>';
+    document.getElementById('arena').appendChild(badge);
+    // celebration burst
+    for (let i = 0; i < 60; i++) {
+      setTimeout(() => spawnStars(W/2 + (Math.random()-0.5)*200, H/2 + (Math.random()-0.5)*200, 1), i*30);
+    }
+    setTimeout(() => { try { badge.remove(); } catch(e){} }, 7000);
+  }
+
+  // ============ HUD ============
+  function updateHud() {
+    document.getElementById('roundN').textContent = Math.min(STATE.round, 8);
+    document.getElementById('scoreN').textContent = STATE.score;
+    document.getElementById('streakN').textContent = STATE.streak;
+    const scenario = SCENARIOS[STATE.currentScenario];
+    let cutPct = 0;
+    if (scenario && scenario.type === 'cut') {
+      const c = CONT[scenario.contId];
+      cutPct = Math.round((c.cutCount / c.totalSegs) * 100);
+    } else if (scenario && scenario.type === 'fossil') {
+      const winners = CONT.filter(cc => cc.fossils.some(f => f.type === scenario.fossil)).length;
+      cutPct = Math.round(STATE.fossilSelections.length / winners * 100);
+    }
+    document.getElementById('cutPct').textContent = cutPct + '%';
+    document.getElementById('psLbl').textContent = STATE.sharpScissors ? 'ON' : 'Off';
+    document.getElementById('powerChip').classList.toggle('active', STATE.sharpScissors);
+    const reqDone = Math.min(STATE.round - 1, 5);
+    const pct = (reqDone / 5) * 100;
+    document.getElementById('progBar').style.width = pct + '%';
+    if (STATE.round <= 5) {
+      document.getElementById('progText').textContent = reqDone + ' / 5 required';
+    } else if (STATE.round <= 8) {
+      document.getElementById('progText').textContent = '⭐ Bonus ' + (STATE.round - 5) + ' / 3';
+    } else {
+      document.getElementById('progText').textContent = 'ALL DONE! 🏆';
+    }
+  }
+  function showEvent(text, kind) {
+    const box = document.getElementById('eventBox');
+    box.textContent = text;
+    box.className = 'show ' + (kind || 'good');
+    clearTimeout(box._t);
+    box._t = setTimeout(() => { box.className = ''; }, 2000);
+  }
+  function flashMessage(text, ms) {
+    const el = document.getElementById('overlay-msg');
+    el.innerHTML = text;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('show'), ms || 1500);
+  }
+  function triggerRandomEvent() {
+    if (Math.random() < 0.5) {
+      STATE.score += 30;
+      showEvent('🍀 Bonus Find! +30', 'good');
+      spawnStars(W/2, H/2, 18);
+    } else {
+      const scenario = SCENARIOS[STATE.currentScenario];
+      if (scenario && scenario.type === 'cut') {
+        const c = CONT[scenario.contId];
+        if (!c.isCut) {
+          const cutOnes = c.segs.filter(s => s.cut);
+          if (cutOnes.length > 0) {
+            const pick = cutOnes[Math.floor(Math.random()*cutOnes.length)];
+            pick.cut = false;
+            c.cutCount--;
+          }
+        }
+      }
+      showEvent('💨 Paper Slip!', 'bad');
+    }
+    updateHud();
+  }
+  function logResult(r) {
+    STATE.results.push(r);
+    const tbody = document.getElementById('tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + r.round + '</td><td>' + r.target + '</td><td>' + r.cutPct +
+      (typeof r.cutPct === 'number' ? '%' : '') + '</td><td>' + r.placement + '</td><td>' + r.points + '</td>';
+    tbody.appendChild(tr);
+    tbody.parentElement.scrollTop = tbody.parentElement.scrollHeight;
+  }
+
+  // ============ BUTTONS ============
+  function setMode(m) {
+    STATE.mode = m;
+    document.getElementById('cutBtn').classList.toggle('active', m === 'cut');
+    document.getElementById('moveBtn').classList.toggle('active', m === 'move');
+    cv.classList.toggle('move-mode', m === 'move');
+  }
+  document.getElementById('cutBtn').addEventListener('click', () => setMode('cut'));
+  document.getElementById('moveBtn').addEventListener('click', () => setMode('move'));
+  document.getElementById('hintBtn').addEventListener('click', () => {
+    const s = SCENARIOS[STATE.currentScenario];
+    if (!s) return;
+    if (s.type === 'cut') {
+      const c = CONT[s.contId];
+      if (!c.isCut) {
+        flashMessage('✂️ Trace the orange dashed line around <b>' + c.short + '</b>', 2000);
+      } else {
+        flashMessage('✋ Drag <b>' + c.short + '</b> into the yellow Gondwana Zone', 2000);
+      }
+    } else {
+      const count = CONT.filter(cc => cc.fossils.some(f => f.type === s.fossil)).length;
+      flashMessage('Click the <b>' + count + '</b> continents with <b>' + s.fossil + '</b> fossils', 2500);
+    }
+  });
+  document.getElementById('newRunBtn').addEventListener('click', () => resetAll(true));
+  document.getElementById('resetBtn').addEventListener('click', () => resetAll(false));
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    try {
+      const headers = ['Round','Action','Cut %','Placement','Points'];
+      const rows = STATE.results.map(r => [r.round, r.target, r.cutPct, r.placement, r.points]);
+      const tsv = [headers.join('\t')].concat(rows.map(r => r.join('\t'))).join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tsv);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = tsv;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      const btn = document.getElementById('copyBtn');
+      btn.classList.add('copied');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '📋 Copy Table'; }, 2000);
+    } catch(e) { console.error(e); }
+  });
+  function resetAll(fullNew) {
+    STATE.round = 1; STATE.score = 0; STATE.streak = 0;
+    STATE.sharpScissors = false; STATE.sharpUsed = false;
+    STATE.drawing = false; STATE.dragging = null;
+    STATE.results = []; STATE.finished = false;
+    STATE.currentScenario = 0; STATE.fossilSelections = [];
+    STATE.waitingForFossil = false;
+    document.getElementById('tbody').innerHTML = '';
+    document.querySelectorAll('.end-badge').forEach(el => el.remove());
+    buildContinents();
+    setupScenario();
+    updateHud();
+    flashMessage(fullNew ? 'NEW RUN!' : 'RESET', 1000);
+  }
+
+  // ============ LEGEND ICONS — render mini silhouettes in sidebar ============
+  function paintLegendIcons() {
+    try {
+      const types = [['legCy','cynognathus'],['legLy','lystrosaurus'],['legGl','glossopteris'],['legMe','mesosaurus']];
+      types.forEach(([id, type]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = '';
+        const c = document.createElement('canvas');
+        c.width = 44; c.height = 44;
+        c.style.width = '20px'; c.style.height = '20px';
+        const cx = c.getContext('2d');
+        cx.fillStyle = '#fff9e8';
+        cx.beginPath(); cx.arc(22, 22, 20, 0, Math.PI*2); cx.fill();
+        cx.strokeStyle = '#3a2510';
+        cx.lineWidth = 1.5;
+        cx.stroke();
+        cx.translate(22, 22);
+        cx.scale(1.0, 1.0);
+        cx.fillStyle = '#241208';
+        drawCreatureSilhouetteFor(cx, type);
+        el.appendChild(c);
+      });
+    } catch(e) { console.error(e); }
+  }
+  function drawCreatureSilhouetteFor(cx, type) {
+    const saved = ctx;
+    // Temporarily swap context (drawCreatureSilhouette uses module-level ctx)
+    window._oldCtx = ctx;
+    // We can't easily swap, so duplicate inline drawing here using cx
+    if (type === 'cynognathus') {
+      cx.beginPath(); cx.ellipse(0, 0, 10, 3.5, 0, 0, Math.PI*2); cx.fill();
+      cx.beginPath(); cx.ellipse(-9, -1, 4, 3, -0.15, 0, Math.PI*2); cx.fill();
+      cx.beginPath(); cx.moveTo(-12,-1); cx.lineTo(-14,-0.5); cx.lineTo(-14,1); cx.lineTo(-12,1.5); cx.closePath(); cx.fill();
+      [-6,-2,4,7].forEach(lx => cx.fillRect(lx-0.7, 2, 1.6, 4));
+      cx.beginPath(); cx.moveTo(8,0); cx.lineTo(14,2); cx.lineTo(13,-0.5); cx.closePath(); cx.fill();
+    } else if (type === 'lystrosaurus') {
+      cx.beginPath(); cx.ellipse(0, 0, 9, 4.5, 0, 0, Math.PI*2); cx.fill();
+      cx.beginPath(); cx.ellipse(-8, 0, 4.5, 4, 0, 0, Math.PI*2); cx.fill();
+      cx.beginPath(); cx.moveTo(-11,1); cx.lineTo(-13.5,4); cx.lineTo(-12,2); cx.closePath(); cx.fill();
+      [-5,-1,3,6].forEach(lx => cx.fillRect(lx-0.9, 3.2, 2, 3.5));
+    } else if (type === 'glossopteris') {
+      cx.fillStyle = '#1f6437';
+      cx.beginPath();
+      cx.moveTo(0,-12); cx.bezierCurveTo(-7,-10,-8,-2,-6,5); cx.bezierCurveTo(-4,11,-1,13,0,13);
+      cx.bezierCurveTo(1,13,4,11,6,5); cx.bezierCurveTo(8,-2,7,-10,0,-12);
+      cx.fill();
+      cx.strokeStyle = '#0e3a20'; cx.lineWidth = 0.8;
+      cx.beginPath(); cx.moveTo(0,-11); cx.lineTo(0,12); cx.stroke();
+    } else if (type === 'mesosaurus') {
+      cx.beginPath(); cx.ellipse(0, 0, 11, 2.5, 0, 0, Math.PI*2); cx.fill();
+      cx.beginPath(); cx.moveTo(-11,-0.5); cx.lineTo(-15,-0.2); cx.lineTo(-15,0.8); cx.lineTo(-11,1); cx.closePath(); cx.fill();
+      cx.beginPath(); cx.moveTo(10,-2); cx.lineTo(15,-2); cx.lineTo(13,0); cx.lineTo(15,2); cx.lineTo(10,2); cx.closePath(); cx.fill();
+      [-3,3].forEach(px => { cx.beginPath(); cx.ellipse(px, 2.5, 2.2, 1, 0.5, 0, Math.PI*2); cx.fill(); });
+    }
+  }
+
+  // ============ BOOT ============
+  function boot() {
+    fitCanvas();
+    buildContinents();
+    paintLegendIcons();
+    setupScenario();
+    updateHud();
+    loop();
+    setTimeout(() => flashMessage('Trace ✂️ around <b>S. America</b>', 2500), 400);
+  }
+  window.addEventListener('load', () => safe(boot));
+})();
+</script>
+</body>
+</html>
