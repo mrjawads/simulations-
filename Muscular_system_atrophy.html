@@ -491,6 +491,10 @@ function draw(){
         satCells.forEach(s=>{
             s.progress+=s.speed;
             s.life-=0.005;
+            // FIX: same shape as particles — life can dip below zero this frame, and
+            // c.arc with a negative radius throws InvalidStateError, killing the rAF
+            // loop. Skip drawing dead cells; next frame's filter removes them.
+            if(s.life<=0)return;
             const px=s.sx+(s.tx-s.sx)*Math.min(s.progress,1);
             const py=s.sy+(s.ty-s.sy)*Math.min(s.progress,1);
             c.beginPath();c.arc(px,py,3.5*s.life,0,Math.PI*2);
@@ -506,6 +510,11 @@ function draw(){
         p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
         if(p.type==='shrink'){p.vy+=0.03;p.vx*=0.99;}
         if(p.type==='grow')p.vy-=0.02;
+        // FIX: life can decrement below zero in this frame (filter ran BEFORE this
+        // decrement). A negative life makes sz negative, and createRadialGradient
+        // throws on a negative radius — which kills the rAF loop mid-frame and
+        // freezes the canvas. Skip drawing dead particles; next frame's filter removes them.
+        if(p.life<=0)return;
         const sz=p.size*p.life;
         // Glow
         const pg=c.createRadialGradient(p.x,p.y,0,p.x,p.y,sz*2);
