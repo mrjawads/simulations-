@@ -202,7 +202,7 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
       <div class="vocab-card c2">
         <div class="vocab-icon">🎯</div>
         <div class="vocab-term">Receptors</div>
-        <div class="vocab-def">Brain catchers that grab dopamine</div>
+        <div class="vocab-def">Tiny satellite dishes that catch dopamine signals</div>
       </div>
       <div class="vocab-card c3">
         <div class="vocab-icon">📉</div>
@@ -321,7 +321,19 @@ let W,H,dpr;
 const BX=0.50,BY=0.47,BSX=0.42,BSY=0.42;
 const RWX=0.50,RWY=0.51,RWR=0.13;
 const RP=[[0.43,0.43],[0.50,0.40],[0.57,0.43],[0.41,0.51],[0.50,0.49],[0.59,0.51],[0.43,0.59],[0.57,0.59],[0.47,0.55],[0.53,0.55]];
-const SULCI=[{y:0.27,w:0.65},{y:0.37,w:0.60},{y:0.49,w:0.55},{y:0.59,w:0.58},{y:0.69,w:0.50}];
+// Bilateral gyri (curving brain wrinkles) — drawn on each hemisphere; side=-1 left, side=+1 right.
+const SULCI=[
+  {side:-1, y:0.26, x0:0.04, x1:0.27, amp:0.018, freq:2.6, phase:0.0},
+  {side:-1, y:0.33, x0:0.03, x1:0.28, amp:0.016, freq:2.8, phase:0.6},
+  {side:-1, y:0.42, x0:0.02, x1:0.29, amp:0.015, freq:2.6, phase:0.2},
+  {side:-1, y:0.62, x0:0.03, x1:0.28, amp:0.016, freq:2.8, phase:0.4},
+  {side:-1, y:0.70, x0:0.05, x1:0.26, amp:0.018, freq:2.6, phase:0.9},
+  {side: 1, y:0.26, x0:0.04, x1:0.27, amp:0.018, freq:2.6, phase:1.4},
+  {side: 1, y:0.33, x0:0.03, x1:0.28, amp:0.016, freq:2.8, phase:0.8},
+  {side: 1, y:0.42, x0:0.02, x1:0.29, amp:0.015, freq:2.6, phase:1.2},
+  {side: 1, y:0.62, x0:0.03, x1:0.28, amp:0.016, freq:2.8, phase:0.5},
+  {side: 1, y:0.70, x0:0.05, x1:0.26, amp:0.018, freq:2.6, phase:1.1}
+];
 
 let recs=[],dops=[],sparks=[],pws=[],hbolts=[],ftexts=[],ambients=[],raindrops=[];
 let bgc={r:139,g:92,b:246,a:0.18};
@@ -347,7 +359,34 @@ function initE(){
   ambients=Array.from({length:25},()=>({x:Math.random(),y:Math.random(),vx:(Math.random()-0.5)*0.0003,vy:(Math.random()-0.5)*0.0003,r:Math.random()*1.5+0.5,o:Math.random()*0.12+0.04,ph:Math.random()*6.28}));
 }
 
-function brainPt(a,sx,sy){const l=1+0.03*Math.sin(a*3)+0.02*Math.cos(a*5)+0.015*Math.sin(a*7);return[BX+Math.cos(a)*sx*l,BY+Math.sin(a)*sy*l*0.95];}
+// Build the brain outline as a path on the given context.
+// Two big frontal-pole bulges with a deep V-notch between them, parietal swells at the sides,
+// and a slight midline notch at the back where the cerebellum tucks under.
+function brainPath(ctx){
+  ctx.beginPath();
+  ctx.moveTo(px(0.500),py(0.180));
+  // Left frontal pole (curve out and up)
+  ctx.bezierCurveTo(px(0.460),py(0.110), px(0.400),py(0.060), px(0.330),py(0.075));
+  ctx.bezierCurveTo(px(0.220),py(0.085), px(0.130),py(0.180), px(0.105),py(0.300));
+  // Left parietal/temporal swell
+  ctx.bezierCurveTo(px(0.085),py(0.400), px(0.085),py(0.500), px(0.115),py(0.600));
+  // Lower-left, curving toward back
+  ctx.bezierCurveTo(px(0.145),py(0.700), px(0.200),py(0.790), px(0.300),py(0.830));
+  ctx.bezierCurveTo(px(0.360),py(0.850), px(0.420),py(0.840), px(0.460),py(0.815));
+  // Midline back-notch (above cerebellum)
+  ctx.lineTo(px(0.500),py(0.800));
+  ctx.lineTo(px(0.540),py(0.815));
+  // Mirror up the right side
+  ctx.bezierCurveTo(px(0.580),py(0.840), px(0.640),py(0.850), px(0.700),py(0.830));
+  ctx.bezierCurveTo(px(0.800),py(0.790), px(0.855),py(0.700), px(0.885),py(0.600));
+  ctx.bezierCurveTo(px(0.915),py(0.500), px(0.915),py(0.400), px(0.895),py(0.300));
+  ctx.bezierCurveTo(px(0.870),py(0.180), px(0.780),py(0.085), px(0.670),py(0.075));
+  // Right frontal pole back to the front notch
+  ctx.bezierCurveTo(px(0.600),py(0.060), px(0.540),py(0.110), px(0.500),py(0.180));
+  ctx.closePath();
+}
+// Legacy ring-point helper (kept for any callers that expected the old radial form).
+function brainPt(a,sx,sy){return [BX+Math.cos(a)*sx, BY+Math.sin(a)*sy];}
 
 // ===== DRAW =====
 let lt=0;
@@ -413,12 +452,8 @@ function drawBrain(now,dt){
   og.addColorStop(0,`rgba(${bgc.r},${bgc.g},${bgc.b},${bgc.a*0.6})`);og.addColorStop(1,"transparent");
   cx.fillStyle=og;cx.beginPath();cx.ellipse(px(BX),py(BY),px(BSX+0.1),py(BSY+0.1),0,0,Math.PI*2);cx.fill();
 
-  // Brain body
-  cx.beginPath();
-  const pts=[];for(let a=0;a<Math.PI*2;a+=0.04)pts.push(brainPt(a,BSX,BSY));
-  cx.moveTo(px(pts[0][0]),py(pts[0][1]));
-  for(let i=1;i<pts.length;i++){const p=pts[i],pp=pts[i-1];cx.quadraticCurveTo(px(pp[0]),py(pp[1]),(px(pp[0])+px(p[0]))/2,(py(pp[1])+py(p[1]))/2);}
-  cx.closePath();
+  // Brain body — hand-crafted bilobed top-down silhouette.
+  brainPath(cx);
 
   // Tissue fill color based on state
   const bg2=cx.createRadialGradient(px(BX),py(BY-0.03),px(0.03),px(BX),py(BY),px(BSX));
@@ -438,9 +473,9 @@ function drawBrain(now,dt){
   cx.strokeStyle=outColor;cx.lineWidth=2.5;cx.stroke();
   cx.strokeStyle=outColor.replace(/[\d.]+\)$/,(parseFloat(outColor.match(/[\d.]+\)$/)[0])*0.3)+")");cx.lineWidth=6;cx.stroke();
 
-  // Fissure
-  cx.beginPath();cx.moveTo(px(BX),py(BY-BSY+0.02));cx.lineTo(px(BX),py(BY+BSY-0.04));
-  cx.strokeStyle="rgba(139,92,246,0.08)";cx.lineWidth=1;cx.setLineDash([5,7]);cx.stroke();cx.setLineDash([]);
+  // Longitudinal fissure (midline groove between hemispheres) — fits inside front V-notch and back notch.
+  cx.beginPath();cx.moveTo(px(BX),py(0.205));cx.lineTo(px(BX),py(0.785));
+  cx.strokeStyle="rgba(139,92,246,0.22)";cx.lineWidth=1.5;cx.setLineDash([6,6]);cx.stroke();cx.setLineDash([]);
 
   // Cerebellum + stem
   cx.beginPath();cx.ellipse(px(BX),py(BY+BSY-0.02),px(0.10),py(0.04),0,0,Math.PI*2);
@@ -462,11 +497,23 @@ function drawBrain(now,dt){
 
 function drawFolds(){
   cx.save();
+  cx.lineCap="round";
+  // Bilateral gyri — meandering wrinkles that hug each hemisphere and stop at the midline fissure.
   SULCI.forEach(s=>{
-    cx.beginPath();const sx=BX-s.w/2,ex=BX+s.w/2;
-    cx.moveTo(px(sx),py(s.y));
-    for(let i=1;i<=8;i++){const t=i/8;cx.lineTo(px(sx+s.w*t),py(s.y+Math.sin(t*Math.PI*3)*0.012));}
-    cx.strokeStyle="rgba(180,150,210,0.11)";cx.lineWidth=1.5;cx.stroke();
+    const steps=20;
+    cx.beginPath();
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const xOff = s.x0 + (s.x1 - s.x0)*t;          // distance from midline
+      const x = BX + s.side * xOff;
+      const y = s.y + Math.sin(t*Math.PI*s.freq + s.phase)*s.amp;
+      if(i===0) cx.moveTo(px(x),py(y));
+      else cx.lineTo(px(x),py(y));
+    }
+    // Soft shadow stroke (gives wrinkle depth)
+    cx.strokeStyle="rgba(90,60,120,0.18)"; cx.lineWidth=2.2; cx.stroke();
+    // Highlight stroke just above the shadow
+    cx.strokeStyle="rgba(210,185,230,0.22)"; cx.lineWidth=1.1; cx.stroke();
   });
   cx.restore();
 }
@@ -493,18 +540,76 @@ function drawRecs(dt){
       cx.strokeStyle="rgba(239,68,68,0.22)";cx.lineWidth=1.5;
       cx.beginPath();cx.moveTo(x-4,y-4);cx.lineTo(x+4,y+4);cx.moveTo(x+4,y-4);cx.lineTo(x-4,y+4);cx.stroke();cx.restore();return;
     }
-    cx.save();cx.translate(x,y);cx.scale(r.sc,r.sc);
+    // ===== SATELLITE-DISH RECEPTOR =====
+    // Dish opens upward toward the dopamine source (top of brain).
+    cx.save(); cx.translate(x,y); cx.scale(r.sc, r.sc); cx.lineCap="round";
+
+    // Ambient halo
     const gi=0.12+r.glow*0.6+Math.sin(r.ph)*0.04;
-    const gg=cx.createRadialGradient(0,0,0,0,0,22);gg.addColorStop(0,`rgba(167,139,250,${gi})`);gg.addColorStop(1,"transparent");
-    cx.fillStyle=gg;cx.beginPath();cx.arc(0,0,22,0,Math.PI*2);cx.fill();
-    const bright=r.glow>0.3;cx.lineWidth=3.5;cx.lineCap="round";
-    cx.strokeStyle=bright?`rgba(220,200,255,${0.75+r.glow*0.25})`:"rgba(167,139,250,0.65)";
-    cx.beginPath();cx.moveTo(0,10);cx.lineTo(0,-1);cx.stroke();
-    cx.beginPath();cx.moveTo(0,-1);cx.quadraticCurveTo(-4,-7,-10,-12);cx.stroke();
-    cx.beginPath();cx.moveTo(0,-1);cx.quadraticCurveTo(4,-7,10,-12);cx.stroke();
-    const bgi=0.5+r.glow*0.5+Math.sin(r.ph)*0.12;
-    cx.fillStyle=`rgba(220,200,255,${bgi})`;cx.beginPath();cx.arc(-10,-12,3.5,0,Math.PI*2);cx.fill();cx.beginPath();cx.arc(10,-12,3.5,0,Math.PI*2);cx.fill();
-    cx.fillStyle=`rgba(139,92,246,${0.35+r.glow*0.4})`;cx.beginPath();cx.arc(0,1,3,0,Math.PI*2);cx.fill();
+    const gg=cx.createRadialGradient(0,0,0,0,0,24);
+    gg.addColorStop(0,`rgba(167,139,250,${gi})`); gg.addColorStop(1,"transparent");
+    cx.fillStyle=gg; cx.beginPath(); cx.arc(0,0,24,0,Math.PI*2); cx.fill();
+
+    const bright = r.glow > 0.3;
+    const strokeC = bright ? `rgba(230,210,255,${0.85+r.glow*0.15})` : "rgba(167,139,250,0.78)";
+    const dishFill = bright ? `rgba(167,139,250,${0.38+r.glow*0.35})` : "rgba(139,92,246,0.22)";
+
+    // Tripod / base
+    cx.strokeStyle = "rgba(139,92,246,0.55)"; cx.lineWidth = 1.6;
+    cx.beginPath();
+    cx.moveTo(-4,12); cx.lineTo(0,7);
+    cx.moveTo( 4,12); cx.lineTo(0,7);
+    cx.moveTo( 0,12); cx.lineTo(0,7);
+    cx.stroke();
+
+    // Mounting pole
+    cx.strokeStyle = strokeC; cx.lineWidth = 2;
+    cx.beginPath(); cx.moveTo(0,7); cx.lineTo(0,-1); cx.stroke();
+
+    // Parabolic dish (open upward) — body
+    cx.fillStyle = dishFill;
+    cx.strokeStyle = strokeC; cx.lineWidth = 2.2;
+    cx.beginPath();
+    cx.moveTo(-11, -4);                          // left rim
+    cx.quadraticCurveTo( 0,  6,  11, -4);        // concave bottom of dish
+    cx.quadraticCurveTo( 0, -8, -11, -4);        // rim line back to start
+    cx.closePath();
+    cx.fill(); cx.stroke();
+
+    // Rim highlight (top edge of dish)
+    cx.strokeStyle = bright ? `rgba(255,255,255,${0.55+r.glow*0.3})` : "rgba(220,200,255,0.55)";
+    cx.lineWidth = 1.3;
+    cx.beginPath();
+    cx.moveTo(-11, -4);
+    cx.quadraticCurveTo(0, -8, 11, -4);
+    cx.stroke();
+
+    // Feedhorn arm
+    cx.strokeStyle = strokeC; cx.lineWidth = 1.6;
+    cx.beginPath(); cx.moveTo(0,-2); cx.lineTo(0,-11); cx.stroke();
+
+    // Feedhorn receiver (sensor ball)
+    cx.fillStyle = bright ? `rgba(255,240,180,${0.9+r.glow*0.1})` : "rgba(220,200,255,0.78)";
+    cx.shadowColor = bright ? "rgba(255,230,150,0.9)" : "transparent";
+    cx.shadowBlur = bright ? 8 : 0;
+    cx.beginPath(); cx.arc(0,-11,2.6,0,Math.PI*2); cx.fill();
+    cx.shadowBlur = 0;
+
+    // Signal arcs above dish — appear when actively receiving (after a dopamine hit)
+    if (r.glow > 0.25) {
+      for (let k = 0; k < 3; k++) {
+        const t = (r.ph * 0.45 + k * 0.55) % 1.6;
+        if (t > 1.45) continue;
+        const rad = 5 + t * 10;
+        const alpha = (1 - t/1.45) * 0.7 * r.glow;
+        cx.strokeStyle = `rgba(255,235,140,${alpha})`;
+        cx.lineWidth = 1.6;
+        cx.beginPath();
+        cx.arc(0, -11, rad, -Math.PI*0.85, -Math.PI*0.15);
+        cx.stroke();
+      }
+    }
+
     cx.restore();
   });
 }
@@ -780,5 +885,50 @@ lt=performance.now();requestAnimationFrame(draw);
 })();
 </script>
 <!-- ===== /STUCK-PHASE SAFETY PATCH ===== -->
+
+<!-- ===== ADDITIVE RESET-SAFETY PATCH v1 (never edits existing code) =====
+     Fixes two bugs that surface when RESET is hit mid-action:
+       1) Pending dose-animation setTimeouts (1200-1500ms chains in go()) corrupting
+          the fresh Round 1 state — adding stale rows, locking phase to "wait".
+       2) Quote overlay (#qOver) staying visible after RESET, then dismiss conflicting
+          with the freshly-reset phase.
+     Strategy: generation counter + wrapped setTimeout (skip stale callbacks),
+     wrapped resetSim (bump generation + dismiss qOver). Everything in try-catch.
+-->
+<script>
+(function(){
+  try{
+    var _GEN = 1;
+
+    // Wrap setTimeout — abort callbacks whose scheduling generation no longer matches.
+    var _origST = window.setTimeout;
+    window.setTimeout = function(fn, ms){
+      if(typeof fn !== 'function') return _origST.apply(this, arguments);
+      var capturedGen = _GEN;
+      var args = Array.prototype.slice.call(arguments, 2);
+      var wrapped = function(){
+        if(capturedGen !== _GEN) return;            // stale — sim was reset
+        try{ fn.apply(this, args); }
+        catch(e){ try{ console.error('[reset-safety] timeout cb error:', e); }catch(_){} }
+      };
+      return _origST.call(this, wrapped, ms);
+    };
+
+    // Wrap resetSim — bump generation + dismiss any visible quote overlay.
+    var _origReset = window.resetSim;
+    if(typeof _origReset === 'function'){
+      window.resetSim = function(){
+        _GEN++;
+        try{
+          var qo = document.getElementById('qOver');
+          if(qo) qo.classList.remove('show');
+        }catch(e){}
+        return _origReset.apply(this, arguments);
+      };
+    }
+  }catch(e){/* never crash host */}
+})();
+</script>
+<!-- ===== /ADDITIVE RESET-SAFETY PATCH v1 ===== -->
 </body>
 </html>
