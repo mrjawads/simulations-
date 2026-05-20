@@ -779,5 +779,46 @@ function copiedFeedback(){
 })();
 </script>
 <!-- ===== /STUCK-PHASE SAFETY PATCH ===== -->
+
+<!-- ===== ADDITIVE RESET-SAFETY PATCH v1 (never edits existing code) =====
+     Fixes stale-setTimeout-after-RESET and stuck-overlay-after-RESET.
+     Generation counter + wrapped setTimeout + wrapped reset functions. -->
+<script>
+(function(){
+  try{
+    var _GEN=1;
+    var _origST=window.setTimeout;
+    window.setTimeout=function(fn,ms){
+      if(typeof fn!=='function') return _origST.apply(this,arguments);
+      var g=_GEN, args=Array.prototype.slice.call(arguments,2);
+      return _origST.call(this,function(){
+        if(g!==_GEN) return;
+        try{ fn.apply(this,args); }
+        catch(e){ try{console.error('[reset-safety]',e);}catch(_){} }
+      },ms);
+    };
+    var RESET_NAMES=['resetSim','reset','newRun','restart','startOver','resetGame','reset_game','newGame','fullReset','resetAll','resetCurrentLevel','resetLevel','resetState','initGame'];
+    var OVERLAY_IDS=['qOver','quoteOverlay','quizOverlay','endScreen','endOverlay','end-overlay',
+                     'completion','completion-overlay','reqCompleteOverlay','receiptScreen','winOverlay','winOv'];
+    RESET_NAMES.forEach(function(name){
+      var orig=window[name];
+      if(typeof orig==='function'){
+        window[name]=function(){
+          _GEN++;
+          OVERLAY_IDS.forEach(function(id){
+            try{
+              var el=document.getElementById(id);
+              if(el){ el.classList.remove('show','open','visible','active'); }
+            }catch(e){}
+          });
+          return orig.apply(this,arguments);
+        };
+      }
+    });
+  }catch(e){/* never crash host */}
+})();
+</script>
+<!-- ===== /ADDITIVE RESET-SAFETY PATCH v1 ===== -->
+
 </body>
 </html>
