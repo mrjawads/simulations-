@@ -863,8 +863,23 @@ function lockInProve(){
 function startHotspot(lv){
   GS.processing=false; /* FIX 3: defensive clear */
   $('izPrompt').textContent=lv.doPhase.prompt;$('izOptions').innerHTML='';hide($('lockInBtn'));$('hotspotPrompt').textContent=lv.doPhase.prompt;$('hotspotPrompt').style.display='block';GS.hotspotWrongs=0;
-  const arena=$('arena');arena.style.cursor='crosshair';
-  arena._hotspotHandler=function(e){if(GS.processing)return;const rect=arena.getBoundingClientRect();const xPct=((e.clientX-rect.left)/rect.width)*100;const yPct=((e.clientY-rect.top)/rect.height)*100;handleHotspotClick(xPct,yPct,lv);};
+  const arena=$('arena');arena.style.cursor='crosshair';arena.style.touchAction='manipulation';
+  arena._hotspotHandler=function(e){
+    if(GS.processing)return;
+    // Element-target fast path: a tap on any child of the pancreas group counts as a hit.
+    // Why: SVG uses preserveAspectRatio 'meet' so on wide screens (Chromebook landscape)
+    // the SVG is letterboxed inside the arena div. Computing a hotspot zone in arena-%
+    // misses the visible pancreas because it sits at arena-x ~22-30%, not <18%.
+    try{if(e.target&&e.target.closest&&e.target.closest('#svgPancreas')){handleHotspotClick(5,15,lv);return;}}catch(_){}
+    // Fallback: compute % against the SVG's bounding rect (not the arena's), so the
+    // hotspot zone matches the SVG viewBox geometry regardless of letterboxing.
+    const svg=arena.querySelector('svg')||arena;
+    const rect=svg.getBoundingClientRect();
+    if(!rect.width||!rect.height){handleHotspotClick(50,50,lv);return;}
+    const xPct=((e.clientX-rect.left)/rect.width)*100;
+    const yPct=((e.clientY-rect.top)/rect.height)*100;
+    handleHotspotClick(xPct,yPct,lv);
+  };
   arena.addEventListener('click',arena._hotspotHandler);
 }
 function handleHotspotClick(x,y,lv){
