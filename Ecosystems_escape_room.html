@@ -2006,5 +2006,41 @@ function shuffleArray(arr) {
 })();
 </script>
 <!-- ===== /STUCK-PHASE SAFETY PATCH ===== -->
+
+<!-- ===== ADDITIVE CLIPBOARD-FALLBACK PATCH v1 (never edits existing code) =====
+     Adds a fallback path to navigator.clipboard.writeText: if the browser
+     rejects (sandboxed iframe, missing permission, insecure context, etc.)
+     we try document.execCommand('copy') via a temporary hidden textarea.
+     The wrapper ONLY intervenes on the .catch() branch — the happy path is
+     untouched, so a working Copy button keeps working unchanged. No new toasts,
+     no UI changes — the host sim's own success/failure feedback runs as before. -->
+<script>
+(function(){
+  try{
+    if(!navigator || !navigator.clipboard || typeof navigator.clipboard.writeText!=='function') return;
+    var _orig = navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText = function(text){
+      return _orig(text).catch(function(err){
+        try{
+          var ta = document.createElement('textarea');
+          ta.value = (text==null) ? '' : String(text);
+          ta.setAttribute('readonly','');
+          ta.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;';
+          document.body.appendChild(ta);
+          ta.select();
+          try{ ta.setSelectionRange(0, ta.value.length); }catch(_){}
+          var ok=false;
+          try{ ok = document.execCommand('copy'); }catch(_){ ok=false; }
+          try{ document.body.removeChild(ta); }catch(_){}
+          if(ok) return undefined;
+        }catch(_){}
+        return Promise.reject(err);
+      });
+    };
+  }catch(e){/* never crash host */}
+})();
+</script>
+<!-- ===== /ADDITIVE CLIPBOARD-FALLBACK PATCH v1 ===== -->
+
 </body>
 </html>
