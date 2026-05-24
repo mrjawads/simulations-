@@ -1,0 +1,3383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Jawad's Simulations — Micro-organisms</title>
+<style>
+/* ==== THEME: Warm Bright (Story Map) ==== */
+:root{
+  --bg1:#FFF8F0; --bg2:#FFEFD5;
+  --amber:#F59E0B; --coral:#EF6C6C; --forest:#2D8B4E;
+  --ink:#3A2B1A; --ink-soft:#6B5440;
+  --parch:#F7EBD3; --parch-edge:#E2C998;
+  --gold:#D4A24C;
+  --map-bg:#F4E3C1; --street:#C9A26F; --house:#FAF1DD; --house-edge:#B58A56;
+  --pump:#4A3525; --pump-glow:#FBC85B;
+  --dot:#D63C3C; --good:#2D8B4E; --warn:#E08A1E; --bad:#C0392B;
+  --shadow:0 4px 14px rgba(75,40,15,.18);
+  --shadow-soft:0 2px 8px rgba(75,40,15,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
+  color:var(--ink);
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+/* ==== ROOT LAYOUT ==== */
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden}
+
+/* ==== TOP BAR ==== */
+#topBar{
+  flex:0 0 auto;display:flex;align-items:center;gap:14px;
+  padding:10px 16px;
+  background:linear-gradient(180deg,#FFE8B8,#FACD7F);
+  border-bottom:3px solid var(--gold);
+  box-shadow:var(--shadow-soft);
+  z-index:50;
+}
+.lvlBadge{
+  background:var(--amber);color:#FFF;font-weight:bold;
+  padding:6px 12px;border-radius:8px;font-size:14px;
+  box-shadow:inset 0 -2px 0 rgba(0,0,0,.15);
+}
+#lvlName{font-size:17px;font-weight:bold;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#scoreBox{font-size:15px;font-weight:bold;color:var(--ink);min-width:90px;text-align:right}
+#progress{display:flex;gap:4px;align-items:center}
+.pSeg{width:18px;height:10px;border-radius:3px;background:#E2C998;transition:background .3s}
+.pSeg.done100{background:var(--forest)}
+.pSeg.done85{background:#7BB95F}
+.pSeg.done70{background:#D4A24C}
+.pSeg.done60{background:#E08A1E}
+.pSeg.done50{background:var(--coral)}
+.pSeg.current{box-shadow:0 0 0 2px var(--amber)}
+
+/* ==== MAIN AREA ==== */
+#main{flex:1 1 auto;display:flex;min-height:0;position:relative;overflow:hidden}
+
+/* ==== NARRATIVE PANEL ==== */
+#narrPanel{
+  flex:0 0 40%;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,#F9EAC8,#EFD6A0);
+  border-right:3px solid var(--parch-edge);
+  position:relative;
+  transition:opacity .4s;
+}
+#narrPanel.dimmed{opacity:.45}
+.parchHead{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;background:rgba(74,53,37,.08);
+  border-bottom:1px solid var(--parch-edge);
+}
+.parchTitle{font-size:13px;font-weight:bold;letter-spacing:1px;color:var(--ink-soft);text-transform:uppercase}
+#readBtn{
+  background:rgba(255,255,255,.7);padding:5px 10px;border-radius:6px;
+  font-size:13px;font-weight:bold;color:var(--ink);
+  min-height:36px;min-width:60px;
+}
+#readBtn.on{background:var(--amber);color:#FFF}
+.parchBody{
+  flex:1 1 auto;padding:14px 16px;overflow-y:auto;font-size:18px;line-height:1.55;
+  background:
+    radial-gradient(ellipse at top left, rgba(214,165,108,.12), transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(214,165,108,.10), transparent 60%);
+}
+.parchBody p{margin-bottom:10px;color:var(--ink)}
+.parchBody .vocabKW{font-weight:bold;color:var(--coral);padding:0 2px}
+.parchBody .vocabKW.firstShow{animation:vocabPulse 1.4s ease-out}
+@keyframes vocabPulse{0%{color:var(--coral);text-shadow:0 0 0 var(--amber)}50%{color:#FFF;text-shadow:0 0 12px var(--amber);background:var(--amber);border-radius:4px}100%{color:var(--coral);text-shadow:none}}
+#snowPortrait{display:none;position:absolute;bottom:10px;right:10px;width:60px;height:75px;border-radius:6px;
+  background:linear-gradient(180deg,#5C4A36,#3A2B1A);
+  border:2px solid var(--gold);
+  box-shadow:var(--shadow-soft);
+  opacity:0;transition:opacity .6s;}
+#snowPortrait.show{display:block;opacity:1}
+#snowPortrait::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:24px;height:24px;border-radius:50%;background:#E8C8A6}
+#snowPortrait::after{content:"Snow";position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:10px;color:#FFD79A;font-weight:bold}
+
+/* ==== ARENA (right side) ==== */
+#arenaWrap{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;position:relative;background:linear-gradient(180deg,#FFF8F0,#FCE8C4)}
+#mapBox{flex:0 0 65%;position:relative;overflow:hidden;border-bottom:2px solid var(--parch-edge)}
+#microBox{flex:1 1 35%;position:relative;overflow:hidden;background:radial-gradient(circle at center,#1A2A3A,#06121E)}
+#mapSvg, #microSvg{width:100%;height:100%;display:block}
+
+/* ==== COMPARE CHART (L4 scaffold) ==== */
+#compareChart{
+  position:absolute;bottom:8px;left:8px;
+  background:rgba(255,248,224,.95);
+  border:2px solid var(--gold);
+  border-radius:8px;padding:8px 10px;
+  font-size:11px;color:var(--ink);
+  box-shadow:var(--shadow-soft);
+  display:none;z-index:5;max-width:220px;
+}
+#compareChart.show{display:block}
+#compareChart table{border-collapse:collapse;font-size:11px}
+#compareChart th,#compareChart td{padding:3px 6px;border:1px solid var(--parch-edge);text-align:left}
+#compareChart th{background:var(--amber);color:#FFF;font-weight:bold}
+#compareChart td.filled{background:#E0F2D8;color:var(--forest);font-weight:bold}
+
+/* ==== FOCUS PROMPT ==== */
+#focusBanner{
+  position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  background:rgba(245,158,11,.95);color:#FFF;
+  padding:8px 16px;border-radius:8px;
+  font-weight:bold;font-size:14px;
+  box-shadow:var(--shadow);
+  z-index:30;max-width:90%;text-align:center;
+  display:none;
+}
+#focusBanner.show{display:block;animation:bannerIn .4s ease-out}
+#focusBanner.fade{opacity:.3;background:rgba(245,158,11,.7);font-size:12px;padding:5px 10px;top:4px}
+@keyframes bannerIn{from{transform:translate(-50%,-10px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
+/* ==== INTERACTION ZONE ==== */
+#iz{
+  flex:0 0 auto;min-height:160px;max-height:42vh;
+  background:linear-gradient(180deg,#FFF8F0,#FAE9C6);
+  border-top:3px solid var(--gold);
+  padding:14px 16px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:10px;
+  position:relative;
+}
+.izPrompt{font-size:18px;font-weight:bold;color:var(--ink);line-height:1.4}
+.izSubPrompt{font-size:14px;color:var(--ink-soft);margin-top:-4px}
+.optGrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px}
+.optGrid.two{grid-template-columns:1fr 1fr}
+.optGrid.one{grid-template-columns:1fr}
+.optCard{
+  background:#FFF;border:3px solid var(--parch-edge);
+  border-radius:10px;padding:12px 10px;
+  font-size:15px;color:var(--ink);
+  min-height:60px;display:flex;align-items:center;justify-content:center;text-align:center;
+  transition:transform .15s, border-color .2s, background .2s;
+  box-shadow:var(--shadow-soft);
+  cursor:pointer;font-weight:500;line-height:1.3;
+}
+.optCard:active{transform:scale(.97)}
+.optCard.selected{border-color:var(--amber);background:#FFF6E0}
+.optCard.correct{border-color:var(--good);background:#DDF5DD;color:var(--good);font-weight:bold;animation:correctPulse .5s}
+.optCard.wrong{border-color:var(--bad);background:#FFE0E0;animation:wrongShake .4s}
+.optCard.dimmed{opacity:.35;pointer-events:none;text-decoration:line-through}
+.optCard.locked{pointer-events:none}
+.optCard.hintGlow{border-color:var(--amber);box-shadow:0 0 0 3px rgba(245,158,11,.4),var(--shadow-soft)}
+@keyframes correctPulse{0%{transform:scale(1)}50%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes wrongShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* Lock In button */
+.lockBtn{
+  background:linear-gradient(180deg,#FFC85C,#F59E0B);
+  color:#FFF;font-weight:bold;font-size:16px;
+  padding:12px 24px;border-radius:10px;min-height:48px;
+  box-shadow:var(--shadow);
+  align-self:center;
+  transition:transform .12s;
+}
+.lockBtn:disabled{background:#D6C9B5;color:#FFF;cursor:not-allowed;box-shadow:none}
+.lockBtn:not(:disabled):active{transform:translateY(2px)}
+
+/* Coaching bar */
+.coachBar{
+  background:#FFF9C4;border-left:5px solid var(--amber);
+  border-radius:6px;padding:10px 14px;margin-top:6px;
+  font-size:15px;color:var(--ink);line-height:1.4;
+  box-shadow:var(--shadow-soft);
+}
+.coachBar.hint2{background:#FFE0B2;border-left-color:var(--coral)}
+.coachBar .ic{font-weight:bold;margin-right:6px}
+.tryAgain{
+  background:var(--amber);color:#FFF;font-weight:bold;
+  padding:10px 20px;border-radius:8px;min-height:48px;
+  margin-top:8px;align-self:flex-start;
+  box-shadow:var(--shadow);
+}
+.tryAgain:active{transform:translateY(2px)}
+
+/* Tiles (Claim Builder) */
+.frameRow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:18px;line-height:1.5}
+.blank{display:inline-block;min-width:140px;min-height:36px;padding:4px 10px;
+  border-bottom:3px dashed var(--amber);background:#FFF;border-radius:4px;color:var(--ink);font-style:italic;color:#999;font-size:14px}
+.blank.filled{font-style:normal;color:var(--good);font-weight:bold;border-bottom-style:solid;border-bottom-color:var(--good)}
+.tileRow{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.tile{
+  background:#FFF;border:3px solid var(--parch-edge);border-radius:10px;
+  padding:8px 14px;font-size:14px;font-weight:500;
+  min-height:48px;display:flex;align-items:center;
+  cursor:pointer;color:var(--ink);
+  transition:transform .12s, border-color .15s, background .15s;
+  box-shadow:var(--shadow-soft);
+}
+.tile:active{transform:scale(.96)}
+.tile.wrong{background:#FFE0E0;border-color:var(--bad);animation:wrongShake .4s}
+.tile.correct{background:#DDF5DD;border-color:var(--good);color:var(--good);font-weight:bold}
+.tile.dimmed{opacity:.35;pointer-events:none;text-decoration:line-through}
+
+/* ==== BOTTOM BAR ==== */
+#bottomBar{
+  flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  padding:8px 12px;background:#FFE8B8;
+  border-top:2px solid var(--gold);
+  z-index:40;
+}
+.toolBtn{
+  background:#FFF;border:2px solid var(--gold);
+  padding:8px 12px;border-radius:8px;font-size:14px;font-weight:bold;
+  min-height:44px;min-width:60px;color:var(--ink);
+  box-shadow:var(--shadow-soft);
+}
+.toolBtn:active{transform:translateY(1px)}
+.toolBtn:disabled{opacity:.4;cursor:not-allowed}
+#lvlOf{flex:1;text-align:center;font-size:14px;font-weight:bold;color:var(--ink)}
+
+/* Floating I'm Stuck button */
+#stuckBtn{
+  position:fixed;bottom:64px;right:14px;z-index:9999;
+  background:linear-gradient(180deg,#FBC85B,#E08A1E);
+  color:#FFF;font-weight:bold;
+  padding:10px 14px;border-radius:24px;
+  min-height:44px;font-size:14px;
+  box-shadow:0 6px 16px rgba(0,0,0,.25);
+  border:2px solid #FFF;
+}
+#stuckBtn:active{transform:translateY(2px)}
+
+/* ==== VOCAB PANEL ==== */
+#vocabPanel{
+  position:fixed;top:0;right:-360px;width:340px;height:100vh;
+  background:#FFF8E8;border-left:3px solid var(--gold);
+  box-shadow:-6px 0 20px rgba(0,0,0,.18);
+  padding:18px;overflow-y:auto;z-index:5000;
+  transition:right .3s;
+}
+#vocabPanel.open{right:0}
+#vocabPanel h2{font-size:20px;color:var(--coral);margin-bottom:14px;border-bottom:2px solid var(--gold);padding-bottom:6px}
+.vocabItem{margin-bottom:14px;padding:10px;background:#FFF;border-radius:8px;border:2px solid var(--parch-edge);cursor:pointer;transition:transform .15s}
+.vocabItem:active{transform:scale(.98)}
+.vocabItem .vi-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.vocabItem .vi-emoji{font-size:24px}
+.vocabItem .vi-term{font-weight:bold;color:var(--coral);font-size:16px;letter-spacing:.5px}
+.vocabItem .vi-def{font-size:13px;color:var(--ink);line-height:1.3}
+.vocabItem .vi-arrow{font-size:12px;color:var(--amber);margin-top:6px;font-style:italic}
+#vocabClose{position:absolute;top:10px;right:14px;font-size:24px;color:var(--ink);font-weight:bold;background:none;padding:4px 10px}
+
+/* ==== OVERLAYS ==== */
+.overlay{
+  position:fixed;inset:0;background:rgba(58,43,26,.7);
+  z-index:6000;display:flex;align-items:center;justify-content:center;
+  animation:fadeIn .3s;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.overlayCard{
+  background:#FFF8E8;border:4px solid var(--gold);
+  border-radius:16px;padding:24px;
+  max-width:520px;width:90%;
+  box-shadow:0 12px 40px rgba(0,0,0,.4);
+  text-align:center;
+}
+.overlayCard h2{color:var(--coral);font-size:22px;margin-bottom:10px}
+.overlayCard p{color:var(--ink);font-size:16px;line-height:1.5;margin-bottom:14px}
+.overlayCard .btnRow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+
+/* Step-by-step modal */
+.sbsPanel{padding:14px;background:#FFF;border-radius:10px;border:2px solid var(--gold);margin-bottom:10px}
+.sbsPanel .sbsNum{display:inline-block;background:var(--amber);color:#FFF;font-weight:bold;padding:3px 10px;border-radius:14px;font-size:13px;margin-bottom:6px}
+.sbsPanel .sbsCap{font-size:15px;color:var(--ink);line-height:1.4}
+
+/* Cold open caption */
+#coldOpenCap{
+  position:absolute;top:18px;left:50%;transform:translateX(-50%);
+  background:rgba(58,43,26,.92);color:#FFF;
+  padding:10px 18px;border-radius:10px;
+  font-size:18px;font-weight:bold;
+  z-index:25;box-shadow:var(--shadow);
+  text-align:center;display:none;
+}
+#coldOpenCap.show{display:block;animation:bannerIn .4s ease-out}
+#coldOpenArrow{
+  position:absolute;z-index:24;font-size:32px;color:var(--amber);
+  display:none;animation:bounce 1s infinite alternate;
+}
+#coldOpenArrow.show{display:block}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-8px)}}
+
+/* Celebrations */
+#celebLayer{position:fixed;inset:0;pointer-events:none;z-index:7000;overflow:hidden}
+.particle{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--amber)}
+.celebMsg{
+  position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);
+  background:linear-gradient(135deg,var(--forest),#3FB05F);
+  color:#FFF;padding:18px 30px;border-radius:14px;
+  font-size:24px;font-weight:bold;
+  box-shadow:0 12px 30px rgba(0,0,0,.4);
+  z-index:7100;text-align:center;
+  animation:celebIn .4s ease-out;
+}
+.celebMsg .affirm{display:block;font-size:18px;font-weight:normal;margin-top:8px;color:#FFF;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+@keyframes celebIn{from{transform:translate(-50%,-50%) scale(.4);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+
+/* Feedback popups */
+.fbPlus{
+  position:absolute;top:30%;right:30%;
+  font-size:30px;font-weight:bold;color:var(--forest);
+  pointer-events:none;animation:plusFloat 1.2s ease-out forwards;
+  z-index:6500;
+}
+@keyframes plusFloat{0%{opacity:0;transform:translateY(20px) scale(.6)}30%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-40px) scale(1)}}
+
+/* Rhythm framing card */
+.rhythmCard{
+  position:fixed;top:30%;left:50%;transform:translate(-50%,-50%);
+  background:#FFF;border:3px solid var(--amber);
+  border-radius:14px;padding:16px 22px;
+  font-size:16px;color:var(--ink);font-weight:500;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);
+  z-index:7000;max-width:380px;text-align:center;
+  animation:celebIn .3s;
+}
+.rhythmCard .ic{font-size:22px;margin-right:6px}
+
+/* Welcome screen */
+#welcome{
+  position:fixed;inset:0;background:linear-gradient(135deg,#FFF8F0,#FFEFD5);
+  z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.welcomeCard{
+  background:#FFF8E8;border:4px solid var(--gold);border-radius:18px;
+  padding:30px;max-width:560px;width:100%;
+  box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center;
+}
+.welcomeCard h1{font-size:26px;color:var(--coral);margin-bottom:6px;line-height:1.2}
+.welcomeCard h2{font-size:18px;color:var(--ink-soft);margin-bottom:18px;font-weight:normal}
+.welcomeCard label{display:block;text-align:left;font-size:14px;font-weight:bold;color:var(--ink);margin:10px 0 4px}
+.welcomeCard input{
+  width:100%;padding:12px;font-size:16px;
+  border:2px solid var(--parch-edge);border-radius:8px;
+  background:#FFF;color:var(--ink);font-family:inherit;
+}
+.welcomeCard .startBtn{
+  margin-top:18px;background:linear-gradient(180deg,#FBC85B,#E08A1E);
+  color:#FFF;font-weight:bold;font-size:18px;
+  padding:14px 32px;border-radius:10px;min-height:52px;width:100%;
+  box-shadow:var(--shadow);
+}
+.welcomeCard .lt{margin-top:14px;font-size:14px;color:var(--ink-soft);line-height:1.4;background:#FFF;padding:10px;border-radius:8px;border:2px solid var(--parch-edge);text-align:left}
+
+/* Receipt screen */
+#receipt{
+  position:fixed;inset:0;background:linear-gradient(135deg,#FFF8F0,#FFEFD5);
+  z-index:8000;overflow-y:auto;padding:18px;display:none;
+}
+#receipt.show{display:block}
+.receiptCard{
+  background:#FFF;border:4px solid var(--gold);border-radius:14px;
+  max-width:720px;margin:0 auto;padding:24px;
+  box-shadow:0 12px 40px rgba(0,0,0,.18);
+}
+#receiptTitle{font-size:22px;font-weight:bold;color:var(--coral);text-align:center;margin-bottom:6px}
+.receiptSub{text-align:center;font-size:15px;color:var(--ink-soft);margin-bottom:18px}
+.nameRow{display:flex;gap:8px;align-items:center;margin-bottom:18px;background:#FFF8E8;padding:12px;border-radius:10px;border:2px solid var(--parch-edge)}
+.nameRow label{font-weight:bold;color:var(--ink);min-width:110px}
+.nameRow input{flex:1;padding:10px;font-size:15px;border:2px solid var(--parch-edge);border-radius:6px;font-family:inherit}
+.nameRow input:disabled{background:#F0E6D0;color:var(--ink-soft)}
+.lockBtnSmall{background:var(--amber);color:#FFF;font-weight:bold;padding:8px 16px;border-radius:6px;min-height:44px}
+.scoreBig{
+  text-align:center;margin:20px 0;
+  font-size:64px;font-weight:bold;
+  padding:18px;border-radius:14px;
+}
+.scoreBig.green{background:#DDF5DD;color:var(--forest);border:4px solid var(--forest)}
+.scoreBig.yellow{background:#FFF6CC;color:#A87514;border:4px solid var(--amber)}
+.scoreBig.red{background:#FFE0E0;color:var(--bad);border:4px solid var(--bad)}
+.scoreLabel{font-size:18px;font-weight:bold;margin-top:6px;letter-spacing:1px}
+.breakdownTbl{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.breakdownTbl th,.breakdownTbl td{padding:8px;border:1px solid var(--parch-edge);text-align:center}
+.breakdownTbl th{background:var(--amber);color:#FFF}
+.breakdownTbl tr:nth-child(even){background:#FFF8E8}
+.breakdownTbl tr.bonus td:first-child{color:var(--gold);font-weight:bold}
+.uploadBox{background:#FFF8E8;padding:14px;border-radius:10px;border:2px dashed var(--amber);margin:14px 0;text-align:center;font-size:15px;color:var(--ink)}
+.receiptBtnRow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+
+/* Print CSS */
+@media print {
+  body, html { background:#FFF !important; }
+  #topBar, #bottomBar, #stuckBtn, #vocabPanel, .overlay, #welcome, #main, #celebLayer, .receiptBtnRow, .nameRow .lockBtnSmall { display:none !important; }
+  #receipt { position:static; padding:0; }
+  .receiptCard { box-shadow:none; border:2px solid #000; max-width:100%; }
+  * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+
+/* ==== HOUSES (SVG groups: roof + body + door + window) ==== */
+.houseGroup{cursor:default}
+.houseGroup .roof{fill:#9A4A2A;stroke:#5A2A18;stroke-width:.8}
+.houseGroup .body{fill:#F4D6A8;stroke:#8B6438;stroke-width:.8}
+.houseGroup .door{fill:#5A3920;stroke:none}
+.houseGroup .window{fill:#88B5D6;stroke:#3A5A78;stroke-width:.4}
+.houseGroup.dimmed{opacity:.45}
+.houseGroup.greenGlow{animation:houseGreenGlow 1s ease-out}
+.houseGroup.yellowGlow{animation:houseYellowGlow 1.4s ease-in-out infinite}
+.houseGroup.redPulse{animation:houseRedPulse .6s ease-out}
+@keyframes houseGreenGlow{0%{filter:none}40%{filter:drop-shadow(0 0 10px var(--good))}100%{filter:none}}
+@keyframes houseYellowGlow{0%,100%{filter:drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 0 10px var(--amber))}}
+@keyframes houseRedPulse{0%,100%{filter:none}50%{filter:drop-shadow(0 0 10px var(--bad))}}
+
+/* ==== STREETS (thicker with dashed center lines) ==== */
+.street{stroke:var(--street);stroke-width:10;fill:none;stroke-linecap:round}
+.streetBg{stroke:#9C8C72;stroke-width:11}
+.streetDash{stroke:#FFE082;stroke-width:1.2;stroke-dasharray:6 8;fill:none;stroke-linecap:round;opacity:.7}
+.streetLabel{font-family:Georgia,serif;font-size:11px;fill:#FFF;font-weight:bold;font-style:italic;
+  paint-order:stroke;stroke:#6B5440;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
+/* ==== CASE DOTS (person-died markers) ==== */
+.caseDotGroup{opacity:0}
+.caseDotGroup.show{opacity:1;animation:dotPop .55s ease-out}
+.caseDotHalo{fill:rgba(220,53,69,.18);animation:dotHalo 2s ease-in-out infinite}
+.caseDotCircle{fill:#DC3545;stroke:#8B1A24;stroke-width:1}
+.caseDotMark{fill:#FFF;font-weight:bold;font-size:9px;font-family:Arial,sans-serif;pointer-events:none}
+@keyframes dotPop{0%{transform-origin:center;transform:scale(0)}70%{transform:scale(1.4)}100%{transform:scale(1)}}
+@keyframes dotHalo{0%,100%{transform-origin:center;transform:scale(1);opacity:.4}50%{transform:scale(1.45);opacity:.1}}
+
+/* ==== PUMP (iconic Victorian hand pump) ==== */
+.pumpBase{fill:#7A5A2A;stroke:#3A2410;stroke-width:1}
+.pumpColumn{fill:#8B6B3A;stroke:#3A2410;stroke-width:1}
+.pumpSpout{fill:#7A5A2A;stroke:#3A2410;stroke-width:1}
+.pump-handle{stroke:#3A2410;stroke-width:4;stroke-linecap:round}
+.pumpHandleKnob{fill:#5A3A1A;stroke:#2A180A;stroke-width:1}
+.pumpHandlePivot{fill:#2A180A}
+.pump-glow{opacity:0;animation:pumpGlow 2.2s ease-in-out infinite}
+.pump-glow.on{opacity:.7;animation:pumpGlowOn 1.4s ease-out infinite}
+@keyframes pumpGlow{0%,100%{opacity:.15}50%{opacity:.45}}
+@keyframes pumpGlowOn{0%,100%{opacity:.4;transform-origin:center;transform:scale(.95)}50%{opacity:.85;transform:scale(1.1)}}
+.pumpHandleRing{fill:none;stroke:#FFD93D;stroke-width:3.5;stroke-dasharray:6 4;opacity:0}
+.pumpHandleRing.show{opacity:1;animation:ringSpin 4s linear infinite}
+@keyframes ringSpin{from{stroke-dashoffset:0}to{stroke-dashoffset:50}}
+.pumpLabelBg{fill:#3A2410;stroke:#FFD993;stroke-width:1.2}
+.pumpLabel{fill:#FFF;font-size:11px;font-weight:bold;font-family:Arial,sans-serif;letter-spacing:1.5px}
+.handleLifted{animation:handleLift 1.6s ease-out forwards}
+@keyframes handleLift{0%{transform:translateY(0) rotate(0deg);opacity:1}40%{transform:translateY(-12px) rotate(-25deg);opacity:1}100%{transform:translateY(-40px) rotate(-45deg);opacity:0}}
+
+/* ==== BREWERY + WORKHOUSE (big distinctive buildings) ==== */
+.bigBldgRoof{fill:#7A3520;stroke:#3A1808;stroke-width:1}
+.bigBldgBody{stroke:#3A1808;stroke-width:1}
+.bigBldgBody.brewery{fill:#D6A878}
+.bigBldgBody.workhouse{fill:#B5A088}
+.bldgSign{fill:#3A2410;stroke:#FFD993;stroke-width:1.2}
+.bldgSignText{fill:#FFF;font-size:10px;font-weight:bold;font-family:Arial,sans-serif;letter-spacing:1px}
+.bldgCaption{fill:#5A3A1A;font-size:10px;font-weight:bold;font-family:Arial,sans-serif;font-style:italic}
+.bldgWindows rect{fill:#88B5D6;stroke:#3A5A78;stroke-width:.5}
+.bldgDoor{fill:#5A3920;stroke:#2A1810;stroke-width:.5}
+.bigBldgBody.greenGlow{animation:houseGreenGlow 1s ease-out}
+.bldgHighlight{fill:none;stroke:var(--amber);stroke-width:3;stroke-dasharray:6 4;opacity:0;pointer-events:none}
+.bldgHighlight.show{opacity:1;animation:ringSpin 4s linear infinite}
+/* Barrels (brewery) */
+.barrel{fill:#A0673A;stroke:#5A3415;stroke-width:.8}
+.barrelBand{fill:#3A1F0A;stroke:none}
+/* Smokestack (workhouse) */
+.smokestack{fill:#5A4A38;stroke:#2A1F18;stroke-width:.6}
+.smoke{fill:#D8D2C8;animation:smoke 4s ease-in-out infinite}
+@keyframes smoke{0%,100%{opacity:.4;transform:translateY(0)}50%{opacity:.7;transform:translateY(-6px)}}
+/* Own well (workhouse) */
+.wellRim{fill:#7A6A50;stroke:#3A2A18;stroke-width:.6}
+.wellInner{fill:#3F5A78;stroke:#1A2A40;stroke-width:.4}
+.wellPost{fill:#5A4A30;stroke:#2A1F10;stroke-width:.3}
+.wellRoof{fill:#9A4A2A;stroke:#5A2A18;stroke-width:.5}
+.wellLabel{fill:#3A2410;font-size:8px;font-weight:bold;font-family:Arial,sans-serif}
+/* Hover/active states */
+.brewery-on .bldgHighlight,.workhouse-on .bldgHighlight{opacity:1;animation:ringSpin 4s linear infinite}
+
+/* ==== LEGEND PANEL (visual key) ==== */
+#legendPanel{pointer-events:none}
+.legendBg{fill:rgba(255,250,235,.95);stroke:#9A6B3A;stroke-width:1.5}
+.legendTitle{fill:#5A3A1A;font-size:10px;font-weight:bold;font-family:Arial,sans-serif;letter-spacing:.5px}
+.legendText{fill:#3A2410;font-size:9.5px;font-weight:600;font-family:Arial,sans-serif}
+.legendHouse polygon{fill:#9A4A2A;stroke:#5A2A18;stroke-width:.6}
+.legendHouse rect{fill:#F4D6A8;stroke:#8B6438;stroke-width:.6}
+.legendDot{fill:#DC3545;stroke:#8B1A24;stroke-width:.8}
+.legendDotMark{fill:#FFF;font-size:7px;font-weight:bold;font-family:Arial,sans-serif}
+
+/* ==== ARENA EFFECTS ==== */
+.transArrow{stroke:var(--coral);stroke-width:2.5;fill:none;stroke-dasharray:5 4;opacity:0}
+.transArrow.show{opacity:.85;animation:dashFlow 1.5s linear infinite}
+@keyframes dashFlow{from{stroke-dashoffset:27}to{stroke-dashoffset:0}}
+.gasSwirl{opacity:0;pointer-events:none}
+.gasSwirl.show{opacity:1;animation:gasSpread 5s ease-in-out infinite}
+@keyframes gasSpread{0%,100%{transform-origin:350px 250px;transform:scale(.9);opacity:.55}50%{transform:scale(1.1);opacity:.85}}
+.gasLabel{fill:#5A5A6A;font-size:14px;font-style:italic;font-weight:bold;font-family:Georgia,serif;paint-order:stroke;stroke:#FFF;stroke-width:3}
+.waterLine{stroke:#1E6FCF;stroke-width:4;fill:none;opacity:0;stroke-linecap:round;stroke-dasharray:8 6}
+.waterLine.show{opacity:1;animation:dashFlow 1.5s linear infinite}
+.cluster-ring{fill:none;stroke:var(--good);stroke-width:4;opacity:0}
+.cluster-ring.show{opacity:1;animation:ringFadeIn 1s ease-out forwards}
+@keyframes ringFadeIn{from{opacity:0;r:80}to{opacity:.9;r:120}}
+.contamPlume{opacity:0;pointer-events:none}
+.contamPlume.show{opacity:1;animation:plumeIn 1.5s ease-out}
+@keyframes plumeIn{from{opacity:0;transform:scaleY(0);transform-origin:top}to{opacity:1;transform:scaleY(1)}}
+
+/* ==== WATER FLOW PARTICLES (pump → houses, animated) ==== */
+.waterDrop{fill:#1E6FCF;stroke:#0A4090;stroke-width:.5}
+.waterDrop.contam{fill:#5A6B2A;stroke:#3A4A18}
+
+/* ==== MICROSCOPE ==== */
+.water-speck{fill:rgba(180,210,230,.5);animation:speckDrift 6s ease-in-out infinite}
+@keyframes speckDrift{0%,100%{transform:translate(0,0)}50%{transform:translate(2px,-2px)}}
+.bact{opacity:0;transition:opacity .4s}
+.bact ellipse{fill:#8BE08B;stroke:#3A8B3A;stroke-width:1.2}
+.bact .bactInner{stroke:#2A5A2A;stroke-width:1;opacity:.5}
+.bact.show1{opacity:.25}
+.bact.show2{opacity:.65}
+.bact.full{opacity:1;animation:bactWiggle 3.5s ease-in-out infinite}
+@keyframes bactWiggle{0%,100%{transform:translate(0,0)}25%{transform:translate(2px,-1px)}50%{transform:translate(-1px,1px)}75%{transform:translate(1px,2px)}}
+.bactArrow{opacity:0;transition:opacity .4s}
+.bactArrow.show{opacity:1;animation:arrowBlink 1.6s ease-in-out infinite}
+@keyframes arrowBlink{0%,100%{opacity:1}50%{opacity:.5}}
+.micLabel{opacity:0;transition:opacity .5s}
+.micLabel.show{opacity:1;animation:labelPop .6s ease-out}
+@keyframes labelPop{from{transform-origin:350px 189px;transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+.micBlur{filter:blur(2px)}
+.micSharp{filter:none}
+
+/* Highlight ring for hotspot etc */
+.hsHighlight{stroke:var(--amber);stroke-width:3;fill:none;opacity:0;animation:hsRing 1.4s ease-out infinite}
+.hsHighlight.on{opacity:1}
+@keyframes hsRing{0%{opacity:0;r:18}50%{opacity:.9;r:26}100%{opacity:0;r:32}}
+
+/* responsive */
+@media (max-width:900px){
+  #main{flex-direction:column}
+  #narrPanel{flex:0 0 38%;border-right:none;border-bottom:3px solid var(--parch-edge)}
+  #arenaWrap{flex:1 1 auto}
+  .parchBody{font-size:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- ==== WELCOME ==== -->
+<div id="welcome">
+  <div class="welcomeCard">
+    <h1>Mr. Jawad's Simulations</h1>
+    <h2>Micro-organisms — Monday Story Map</h2>
+    <div class="lt">
+      <strong>Learning Target:</strong> I can identify how bacteria caused an outbreak in order to trace transmission to a contaminated source.
+    </div>
+    <label for="studentName">Your name</label>
+    <input id="studentName" type="text" placeholder="Type your first name" maxlength="40" autocomplete="off">
+    <label for="teacherName">Teacher name (optional)</label>
+    <input id="teacherName" type="text" value="Mr. Jawad" maxlength="40" autocomplete="off">
+    <div style="margin:14px auto;max-width:560px;padding:12px 16px;background:#FFF8E1;border:2px solid #F59E0B;border-left-width:6px;border-radius:8px;color:#78350F;font-size:14px;line-height:1.45;text-align:left;font-family:system-ui,-apple-system,sans-serif;"><strong>⚠️ Take your time.</strong> This sim is built to lock the screen if you rush — by design. Read each prompt carefully before clicking.</div>
+    <button class="startBtn" onclick="startSim()">Start the Story</button>
+  </div>
+</div>
+
+<!-- ==== APP ==== -->
+<div id="app" style="display:none">
+  <div id="topBar">
+    <div class="lvlBadge" id="lvlBadge">Level 1</div>
+    <div id="lvlName">A Street That's Dying</div>
+    <div id="progress"></div>
+    <div id="scoreBox">Score: 0</div>
+  </div>
+  <div id="main">
+    <div id="narrPanel">
+      <div class="parchHead">
+        <div class="parchTitle">London, 1854</div>
+        <button id="readBtn" class="on" onclick="toggleRead()">🔊 ON</button>
+      </div>
+      <div class="parchBody" id="parchBody"></div>
+      <div id="snowPortrait"></div>
+    </div>
+    <div id="arenaWrap">
+      <div id="mapBox">
+        <div id="focusBanner"></div>
+        <div id="coldOpenCap"></div>
+        <div id="coldOpenArrow">⬇</div>
+        <svg id="mapSvg" viewBox="0 0 700 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="cobble" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+              <rect width="20" height="20" fill="#F4E3C1"/>
+              <circle cx="5" cy="5" r="1.2" fill="#D6B580"/>
+              <circle cx="15" cy="15" r="1" fill="#D6B580"/>
+            </pattern>
+            <pattern id="strLines" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(0)">
+              <rect width="14" height="14" fill="#A3947A"/>
+            </pattern>
+          </defs>
+          <rect width="700" height="500" fill="url(#cobble)"/>
+          <!-- Streets (thicker, with dashed center lines) -->
+          <g class="streetsLayer">
+            <line class="street streetBg" x1="20" y1="250" x2="680" y2="250"/>
+            <line class="street streetBg" x1="350" y1="20" x2="350" y2="480"/>
+            <line class="street streetBg" x1="120" y1="120" x2="580" y2="120"/>
+            <line class="street streetBg" x1="120" y1="380" x2="580" y2="380"/>
+            <line class="street streetBg" x1="200" y1="20" x2="200" y2="480"/>
+            <line class="street streetBg" x1="500" y1="20" x2="500" y2="480"/>
+            <!-- Center dashed lines -->
+            <line class="streetDash" x1="20" y1="250" x2="680" y2="250"/>
+            <line class="streetDash" x1="350" y1="20" x2="350" y2="480"/>
+            <line class="streetDash" x1="120" y1="120" x2="580" y2="120"/>
+            <line class="streetDash" x1="120" y1="380" x2="580" y2="380"/>
+            <line class="streetDash" x1="200" y1="20" x2="200" y2="480"/>
+            <line class="streetDash" x1="500" y1="20" x2="500" y2="480"/>
+          </g>
+          <!-- Street labels (bigger, bolder, with white outline for legibility) -->
+          <g class="streetLabels">
+            <text class="streetLabel" x="36" y="244">Broad Street</text>
+            <text class="streetLabel" x="36" y="114">Marshall Street</text>
+            <text class="streetLabel" x="36" y="374">Cambridge Street</text>
+            <text class="streetLabel" x="362" y="34">Poland St</text>
+            <text class="streetLabel" x="212" y="34">Berwick St</text>
+            <text class="streetLabel" x="512" y="34">Wardour St</text>
+          </g>
+          <!-- House groups -->
+          <g id="housesLayer"></g>
+          <!-- Water-flow particle layer (pump → houses) -->
+          <g id="waterFlowLayer"></g>
+          <!-- Gas swirl (L3 Beat 1) - much bigger and cloudier -->
+          <g id="gasSwirl" class="gasSwirl">
+            <circle cx="350" cy="250" r="220" fill="rgba(140,140,160,.20)"/>
+            <circle cx="280" cy="200" r="80" fill="rgba(120,120,140,.30)"/>
+            <circle cx="420" cy="200" r="80" fill="rgba(120,120,140,.30)"/>
+            <circle cx="280" cy="300" r="80" fill="rgba(120,120,140,.30)"/>
+            <circle cx="420" cy="300" r="80" fill="rgba(120,120,140,.30)"/>
+            <text x="350" y="120" text-anchor="middle" class="gasLabel">"bad air"?</text>
+          </g>
+          <!-- Water line (L3 Beat 2) -->
+          <path id="waterLine" class="waterLine" d=""/>
+          <!-- Transmission arrows layer -->
+          <g id="transLayer"></g>
+          <!-- Cluster ring (L2 / L3) -->
+          <circle id="clusterRing" class="cluster-ring" cx="350" cy="250" r="120"/>
+          <!-- Case dots layer -->
+          <g id="dotsLayer"></g>
+          <!-- Brewery (revealed L4+) - stacked barrels with banner -->
+          <g id="breweryGroup" opacity="0">
+            <!-- Building base -->
+            <rect class="bigBldgRoof" x="240" y="278" width="68" height="10"/>
+            <rect class="bigBldgBody brewery" x="244" y="288" width="60" height="46" rx="2"/>
+            <!-- Stacked barrels -->
+            <g class="barrels">
+              <ellipse class="barrel" cx="262" cy="306" rx="9" ry="6"/>
+              <rect class="barrelBand" x="253" y="304" width="18" height="1.5"/>
+              <rect class="barrelBand" x="253" y="308" width="18" height="1.5"/>
+              <ellipse class="barrel" cx="285" cy="306" rx="9" ry="6"/>
+              <rect class="barrelBand" x="276" y="304" width="18" height="1.5"/>
+              <rect class="barrelBand" x="276" y="308" width="18" height="1.5"/>
+              <ellipse class="barrel" cx="273" cy="318" rx="9" ry="6"/>
+              <rect class="barrelBand" x="264" y="316" width="18" height="1.5"/>
+              <rect class="barrelBand" x="264" y="320" width="18" height="1.5"/>
+            </g>
+            <!-- Banner sign -->
+            <rect class="bldgSign" x="232" y="262" width="80" height="14" rx="2"/>
+            <text x="272" y="273" class="bldgSignText" text-anchor="middle">BREWERY</text>
+            <!-- "Beer not water" mini caption (always shows when revealed) -->
+            <text x="272" y="350" class="bldgCaption" text-anchor="middle">drinks beer</text>
+            <!-- Highlight ring (hidden until 'active') -->
+            <rect class="bldgHighlight" x="232" y="258" width="80" height="98" rx="6"/>
+          </g>
+          <!-- Workhouse (revealed L4+) - block building with smokestack and well -->
+          <g id="workhouseGroup" opacity="0">
+            <!-- Building base -->
+            <rect class="bigBldgRoof" x="382" y="278" width="78" height="10"/>
+            <rect class="bigBldgBody workhouse" x="386" y="288" width="70" height="46" rx="2"/>
+            <!-- Window rows (3x2) -->
+            <g class="bldgWindows">
+              <rect x="394" y="294" width="9" height="9"/>
+              <rect x="410" y="294" width="9" height="9"/>
+              <rect x="426" y="294" width="9" height="9"/>
+              <rect x="442" y="294" width="9" height="9"/>
+              <rect x="394" y="310" width="9" height="9"/>
+              <rect x="410" y="310" width="9" height="9"/>
+              <rect x="426" y="310" width="9" height="9"/>
+              <rect x="442" y="310" width="9" height="9"/>
+              <rect x="394" y="326" width="9" height="6"/>
+              <rect x="442" y="326" width="9" height="6"/>
+            </g>
+            <!-- Door -->
+            <rect class="bldgDoor" x="418" y="320" width="10" height="14"/>
+            <!-- Smokestack -->
+            <rect class="smokestack" x="445" y="248" width="6" height="30"/>
+            <ellipse class="smoke" cx="448" cy="245" rx="6" ry="3"/>
+            <ellipse class="smoke" cx="452" cy="238" rx="5" ry="2.5"/>
+            <!-- Banner sign -->
+            <rect class="bldgSign" x="378" y="262" width="86" height="14" rx="2"/>
+            <text x="421" y="273" class="bldgSignText" text-anchor="middle">WORKHOUSE</text>
+            <!-- Own well next to it (clearly different from pump) -->
+            <g class="ownWell">
+              <ellipse class="wellRim" cx="471" cy="334" rx="10" ry="3.5"/>
+              <ellipse class="wellInner" cx="471" cy="333" rx="7" ry="2.2"/>
+              <rect class="wellPost" x="465" y="316" width="2" height="14"/>
+              <rect class="wellPost" x="475" y="316" width="2" height="14"/>
+              <rect class="wellRoof" x="461" y="312" width="20" height="4" rx="1"/>
+              <text x="471" y="350" class="wellLabel" text-anchor="middle">own well</text>
+            </g>
+            <text x="421" y="362" class="bldgCaption" text-anchor="middle">drinks own well water</text>
+            <!-- Highlight ring -->
+            <rect class="bldgHighlight" x="378" y="258" width="106" height="100" rx="6"/>
+          </g>
+          <!-- Pump - tall iconic Victorian hand pump -->
+          <g id="pumpGroup">
+            <!-- Soft yellow glow halo (animates) -->
+            <circle class="pump-glow" cx="350" cy="244" r="48" fill="#FBC85B"/>
+            <!-- Handle ring highlight (L5 hint) -->
+            <ellipse class="pumpHandleRing" id="pumpRing" cx="350" cy="216" rx="32" ry="14"/>
+            <!-- Stone base -->
+            <ellipse class="pumpBase" cx="350" cy="282" rx="28" ry="6"/>
+            <rect class="pumpBase" x="332" y="262" width="36" height="22" rx="2"/>
+            <!-- Body / column -->
+            <rect class="pumpColumn" x="343" y="220" width="14" height="50" rx="2"/>
+            <!-- Spout -->
+            <path class="pumpSpout" d="M 357 240 Q 372 240 372 254 L 367 254 Q 367 245 357 245 Z"/>
+            <!-- Handle (rotates/lifts on L5) -->
+            <g id="pumpHandleGroup">
+              <line class="pump-handle" id="pumpHandle" x1="345" y1="222" x2="372" y2="212"/>
+              <circle class="pumpHandleKnob" cx="372" cy="212" r="3"/>
+              <circle class="pumpHandlePivot" cx="350" cy="222" r="2.5"/>
+            </g>
+            <!-- "PUMP" label - large and always visible -->
+            <rect class="pumpLabelBg" x="324" y="290" width="52" height="14" rx="3"/>
+            <text x="350" y="300" class="pumpLabel" text-anchor="middle">PUMP</text>
+            <!-- Contamination plume (hidden until revealed) -->
+            <g id="contamPlume" class="contamPlume">
+              <ellipse cx="350" cy="252" rx="9" ry="11" fill="#3A4A1C"/>
+              <circle cx="346" cy="248" r="1.2" fill="#7BD17B"/>
+              <circle cx="352" cy="254" r="1.4" fill="#7BD17B"/>
+              <circle cx="350" cy="258" r="1" fill="#7BD17B"/>
+            </g>
+          </g>
+          <!-- Hotspot highlights -->
+          <g id="hsLayer"></g>
+          <!-- Legend / key panel (always visible) -->
+          <g id="legendPanel">
+            <rect class="legendBg" x="544" y="412" width="148" height="80" rx="6"/>
+            <text x="618" y="425" class="legendTitle" text-anchor="middle">What you see</text>
+            <!-- Row: house -->
+            <g class="legendHouse" transform="translate(556,432)">
+              <polygon points="0,8 8,0 16,8"/>
+              <rect x="2" y="8" width="12" height="9"/>
+            </g>
+            <text x="582" y="445" class="legendText">house</text>
+            <!-- Row: death dot -->
+            <g transform="translate(556,452)">
+              <circle r="6" class="legendDot"/>
+              <text x="0" y="2.5" class="legendDotMark" text-anchor="middle">✗</text>
+            </g>
+            <text x="582" y="455" class="legendText">person died</text>
+            <!-- Row: pump -->
+            <g transform="translate(556,470)">
+              <rect x="-3" y="-4" width="6" height="14" fill="#7A5A2A"/>
+              <line x1="0" y1="-4" x2="6" y2="-7" stroke="#7A5A2A" stroke-width="2"/>
+            </g>
+            <text x="582" y="475" class="legendText">water pump</text>
+          </g>
+        </svg>
+        <div id="compareChart">
+          <table>
+            <tr><th></th><th>Pump water?</th><th>Cases?</th></tr>
+            <tr><td>Brewery</td><td id="ccBrew1">—</td><td id="ccBrew2">—</td></tr>
+            <tr><td>Workhouse</td><td id="ccWork1">—</td><td id="ccWork2">—</td></tr>
+          </table>
+        </div>
+      </div>
+      <div id="microBox">
+        <svg id="microSvg" viewBox="0 0 700 200" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="micLens" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#2A4A5A"/>
+              <stop offset="70%" stop-color="#0A1A24"/>
+              <stop offset="100%" stop-color="#000"/>
+            </radialGradient>
+            <radialGradient id="micGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(255,255,200,.3)"/>
+              <stop offset="100%" stop-color="rgba(255,255,200,0)"/>
+            </radialGradient>
+          </defs>
+          <rect width="700" height="200" fill="#06121E"/>
+          <!-- Title bar -->
+          <rect x="0" y="0" width="700" height="22" fill="rgba(255,255,255,.05)"/>
+          <text x="20" y="16" font-size="12" fill="#A0B5C8" font-family="Georgia,serif" font-style="italic">Microscope View — looking at pump water</text>
+          <!-- Magnification chip -->
+          <rect x="608" y="5" width="80" height="14" rx="3" fill="rgba(123,209,123,.15)" stroke="#7BD17B" stroke-width="1"/>
+          <text x="648" y="16" font-size="10" fill="#7BD17B" text-anchor="middle" font-weight="bold">1000× ZOOM</text>
+          <!-- Pointer line from pump (decorative, visual link) -->
+          <line x1="20" y1="0" x2="60" y2="40" stroke="rgba(160,180,200,.15)" stroke-width="1" stroke-dasharray="3 3"/>
+          <g id="micLensGroup" class="micBlur">
+            <!-- Outer scope ring (looks like microscope viewport) -->
+            <circle cx="350" cy="110" r="86" fill="#000" stroke="#3A5A6A" stroke-width="3"/>
+            <circle class="micCircle" cx="350" cy="110" r="80" fill="url(#micLens)"/>
+            <!-- Subtle inner glow -->
+            <circle cx="350" cy="110" r="78" fill="url(#micGlow)"/>
+            <!-- Crosshair guides -->
+            <line x1="350" y1="38" x2="350" y2="182" stroke="rgba(140,180,200,.18)" stroke-width="1" stroke-dasharray="2 4"/>
+            <line x1="270" y1="110" x2="430" y2="110" stroke="rgba(140,180,200,.18)" stroke-width="1" stroke-dasharray="2 4"/>
+            <!-- Water specks (early state - small dots) -->
+            <circle class="water-speck" cx="310" cy="75" r="2"/>
+            <circle class="water-speck" cx="370" cy="90" r="1.6"/>
+            <circle class="water-speck" cx="390" cy="135" r="2.2"/>
+            <circle class="water-speck" cx="320" cy="140" r="1.8"/>
+            <circle class="water-speck" cx="350" cy="115" r="1.2"/>
+            <circle class="water-speck" cx="335" cy="100" r="1.4"/>
+            <!-- Bacteria (rod-shaped, hidden until revealed) - bigger, clearer capsule shapes -->
+            <g id="bact1" class="bact">
+              <ellipse cx="310" cy="80" rx="11" ry="4"/>
+              <line class="bactInner" x1="302" y1="80" x2="318" y2="80"/>
+            </g>
+            <g id="bact2" class="bact">
+              <ellipse cx="355" cy="105" rx="13" ry="4.5" transform="rotate(20 355 105)"/>
+              <line class="bactInner" x1="345" y1="102" x2="365" y2="108"/>
+            </g>
+            <g id="bact3" class="bact">
+              <ellipse cx="395" cy="130" rx="10" ry="3.8" transform="rotate(-15 395 130)"/>
+              <line class="bactInner" x1="386" y1="132" x2="404" y2="128"/>
+            </g>
+            <g id="bact4" class="bact">
+              <ellipse cx="325" cy="125" rx="11" ry="4" transform="rotate(35 325 125)"/>
+              <line class="bactInner" x1="316" y1="121" x2="334" y2="129"/>
+            </g>
+            <g id="bact5" class="bact">
+              <ellipse cx="375" cy="78" rx="10" ry="3.5" transform="rotate(-25 375 78)"/>
+              <line class="bactInner" x1="367" y1="81" x2="383" y2="75"/>
+            </g>
+            <g id="bact6" class="bact">
+              <ellipse cx="345" cy="148" rx="12" ry="4.2" transform="rotate(10 345 148)"/>
+              <line class="bactInner" x1="334" y1="146" x2="356" y2="150"/>
+            </g>
+            <!-- Pointer arrow to first bacterium (appears with label) -->
+            <g id="bactArrow" class="bactArrow">
+              <line x1="240" y1="80" x2="290" y2="80" stroke="#FFD93D" stroke-width="2"/>
+              <polygon points="290,80 282,76 282,84" fill="#FFD93D"/>
+              <text x="180" y="83" font-size="10" fill="#FFD93D" font-weight="bold">this is one!</text>
+            </g>
+          </g>
+          <!-- Label bar (the BIG reveal) -->
+          <g id="micLabel" class="micLabel">
+            <rect x="220" y="180" width="260" height="18" rx="4" fill="#7BD17B"/>
+            <text x="350" y="193" text-anchor="middle" font-size="13" font-weight="bold" fill="#06121E" letter-spacing="1">BACTERIA in the water</text>
+          </g>
+        </svg>
+      </div>
+      <!-- Interaction zone outside arena -->
+    </div>
+  </div>
+  <div id="iz"><!-- dynamic content --></div>
+  <div id="bottomBar">
+    <button class="toolBtn" onclick="toggleVocab()">📖 Vocab</button>
+    <button class="toolBtn" id="hintBtn" onclick="manualHint()">💡 Hint</button>
+    <button class="toolBtn" id="resetBtn" onclick="resetCurrentLevel()">⟳ Reset Level</button>
+    <div id="lvlOf">Level 1 of 6</div>
+    <button class="toolBtn" onclick="confirmNewRun()">⚙ New Run</button>
+  </div>
+</div>
+
+<!-- I'm Stuck button -->
+<button id="stuckBtn" style="display:none" onclick="imStuck()">I'm Stuck</button>
+
+<!-- Vocab panel -->
+<div id="vocabPanel">
+  <button id="vocabClose" onclick="toggleVocab()">×</button>
+  <h2>Key Words</h2>
+  <div class="vocabItem" onclick="vocabShow('BACTERIA')">
+    <div class="vi-top"><span class="vi-emoji">🦠</span><span class="vi-term">BACTERIA</span></div>
+    <div class="vi-def">Tiny living things you cannot see</div>
+    <div class="vi-arrow">→ Tap to see in arena</div>
+  </div>
+  <div class="vocabItem" onclick="vocabShow('CONTAMINATION')">
+    <div class="vi-top"><span class="vi-emoji">☠️</span><span class="vi-term">CONTAMINATION</span></div>
+    <div class="vi-def">Harmful things mixed into something clean</div>
+    <div class="vi-arrow">→ Tap to see in arena</div>
+  </div>
+  <div class="vocabItem" onclick="vocabShow('TRANSMISSION')">
+    <div class="vi-top"><span class="vi-emoji">➡️</span><span class="vi-term">TRANSMISSION</span></div>
+    <div class="vi-def">How disease spreads to new people</div>
+    <div class="vi-arrow">→ Tap to see in arena</div>
+  </div>
+  <div class="vocabItem" onclick="vocabShow('OUTBREAK')">
+    <div class="vi-top"><span class="vi-emoji">🔴</span><span class="vi-term">OUTBREAK</span></div>
+    <div class="vi-def">Many people sick in one place</div>
+    <div class="vi-arrow">→ Tap to see in arena</div>
+  </div>
+</div>
+
+<!-- Celebration layer -->
+<div id="celebLayer"></div>
+
+<!-- Receipt -->
+<div id="receipt">
+  <div class="receiptCard">
+    <div id="receiptTitle">Mr. Jawad's Simulations</div>
+    <div class="receiptSub">Micro-organisms — Monday Score Report</div>
+    <div class="nameRow">
+      <label for="rName">Student Name:</label>
+      <input id="rName" type="text" placeholder="Type your name">
+      <button class="lockBtnSmall" onclick="lockName()" id="lockNameBtn">Lock</button>
+    </div>
+    <div class="scoreBig" id="bigScore">0%</div>
+    <table class="breakdownTbl" id="breakdownTbl">
+      <thead><tr><th>#</th><th>Level</th><th>Score</th><th>Attempts</th><th>Time</th></tr></thead>
+      <tbody id="breakdownBody"></tbody>
+    </table>
+    <div id="totalLine" style="text-align:center;font-size:15px;color:var(--ink);margin:10px 0"></div>
+    <div class="uploadBox">
+      📸 Take a screenshot of this page and upload it to Google Classroom.
+    </div>
+    <div class="receiptBtnRow">
+      <button class="toolBtn" onclick="window.print()">🖨️ Print</button>
+      <button class="toolBtn" onclick="confirmNewRun()">↻ Start Over</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ===== STATE =====
+const GS = {
+  studentName: '',
+  teacherName: 'Mr. Jawad',
+  currentLevel: 0,
+  readAloud: true,
+  vocabSeen: { BACTERIA:false, CONTAMINATION:false, TRANSMISSION:false, OUTBREAK:false },
+  arenaGen: 0,
+  totalScore: 0,
+  startTime: 0,
+  levelStart: 0,
+  totalTimeSec: 0,
+  // per-level live tracking
+  curWrongCount: 0,
+  curHintLevel: 0,        // 0=none, 1=hint1, 2=hint2, 3=stepbystep
+  curResets: 0,           // cumulative resets in level
+  curAttempts: 1,
+  curPhase: 'idle',
+  curSubStep: 0,
+  curSelected: null,
+  curLockedSubScores: [], // for multi-DO levels
+  rhythmShown: { 1:false, 4:false, 6:false },
+  reqComplete: false,
+  bonusComplete: false,
+  shown: { halfway:false, reqDone:false, bonus:false },
+  // per-level final score record
+  scores: []
+};
+
+// Self-healing processing flag
+let _processing = false;
+let _procTimer = null;
+Object.defineProperty(GS, 'processing', {
+  get(){ return _processing; },
+  set(v){
+    _processing = !!v;
+    if (_procTimer) { clearTimeout(_procTimer); _procTimer = null; }
+    if (v) { _procTimer = setTimeout(()=>{ _processing=false; _procTimer=null; }, 5000); }
+  }
+});
+
+// ===== UTILITIES =====
+const $ = (id) => document.getElementById(id);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+function escHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function safeTimeout(fn, ms){
+  const g = GS.arenaGen;
+  return setTimeout(()=>{
+    if (g !== GS.arenaGen) return;
+    try { fn(); } catch(e){ console.error('safeTimeout fn error', e); }
+  }, ms);
+}
+function safeCall(fn, msg){
+  try { fn(); } catch(e){ console.error(msg||'safeCall error',e); }
+}
+
+// Close ALL overlays / popups / coaching
+function closeAllOverlays(){
+  document.querySelectorAll('.overlay, .rhythmCard, .fbPlus, .celebMsg').forEach(el=>el.remove());
+  const cb = $('coldOpenCap'); if (cb) { cb.classList.remove('show'); cb.textContent=''; }
+  const ca = $('coldOpenArrow'); if (ca) ca.classList.remove('show');
+}
+
+// ===== INTERVAL MANAGEMENT =====
+const intervalIds = new Set();
+function setIv(fn, ms){
+  const id = setInterval(fn, ms);
+  intervalIds.add(id);
+  return id;
+}
+function clearIv(id){ if(id){ clearInterval(id); intervalIds.delete(id);} }
+function clearAllIv(){ intervalIds.forEach(id=>clearInterval(id)); intervalIds.clear(); }
+document.addEventListener('visibilitychange', ()=>{
+  if (document.hidden) {
+    if (speechSynthesisAvail()) try { speechSynthesis.cancel(); } catch(e){}
+    clearAllIv();
+  }
+});
+
+// ===== AUDIO (lazy) =====
+let audioCtx = null;
+function getAudio(){
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ audioCtx=null; }
+  }
+  return audioCtx;
+}
+function beep(freq, ms, type='sine', gain=0.12){
+  const ctx = getAudio();
+  if (!ctx) return;
+  try {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    g.gain.value = gain;
+    osc.connect(g).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + ms/1000);
+  } catch(e){}
+}
+function correctSound(){ beep(660,120); setTimeout(()=>beep(880,160),130); }
+function wrongSound(){ beep(220,180,'square',0.07); }
+function celebSound(){ beep(523,120); setTimeout(()=>beep(659,120),130); setTimeout(()=>beep(784,180),260); }
+
+// ===== SPEECH (lazy + Chrome 15s workaround) =====
+function speechSynthesisAvail(){
+  return typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
+}
+let speechResumeIv = null;
+function stopSpeech(){
+  if (speechResumeIv) { clearIv(speechResumeIv); speechResumeIv=null; }
+  if (speechSynthesisAvail()) try { speechSynthesis.cancel(); } catch(e){}
+}
+function speak(text, onEnd){
+  if (!GS.readAloud || !speechSynthesisAvail()) {
+    if (onEnd) safeTimeout(onEnd, 600);
+    return;
+  }
+  stopSpeech();
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.88; u.pitch = 1.0; u.volume = 1;
+    u.onend = ()=>{ if (speechResumeIv){clearIv(speechResumeIv);speechResumeIv=null;} if (onEnd) onEnd(); };
+    u.onerror = ()=>{ if (speechResumeIv){clearIv(speechResumeIv);speechResumeIv=null;} if (onEnd) onEnd(); };
+    speechSynthesis.speak(u);
+    speechResumeIv = setIv(()=>{
+      if (speechSynthesis.speaking) try { speechSynthesis.resume(); } catch(e){}
+    }, 10000);
+  } catch(e){ if (onEnd) safeTimeout(onEnd, 600); }
+}
+function toggleRead(){
+  GS.readAloud = !GS.readAloud;
+  $('readBtn').classList.toggle('on', GS.readAloud);
+  $('readBtn').textContent = GS.readAloud ? '🔊 ON' : '🔇 OFF';
+  if (!GS.readAloud) stopSpeech();
+}
+
+// ===== HOUSE GENERATION =====
+// Pre-generate house positions across the map (not on streets).
+const HOUSE_POSITIONS = [
+  // Heavy cluster around pump (center) — these will get dots
+  // Each entry: {x,y,w,h,nearPump:true/false,id}
+];
+function initHouses(){
+  const layer = $('housesLayer');
+  if (!layer) return;
+  layer.innerHTML = '';
+  HOUSE_POSITIONS.length = 0;
+
+  // Generate houses on a tidy grid. Bigger (26w × 22h) and fewer for clarity.
+  // Each house = group with roof + body + door + tiny window.
+  const cells = [
+    // Marshall Street (top) - row 1
+    {x:135,y:138}, {x:235,y:138}, {x:285,y:138}, {x:380,y:138}, {x:430,y:138}, {x:525,y:138},
+    // Just below Marshall - row 2
+    {x:135,y:172}, {x:170,y:172}, {x:235,y:172}, {x:285,y:172}, {x:315,y:172},
+    {x:380,y:172}, {x:415,y:172}, {x:460,y:172}, {x:525,y:172}, {x:555,y:172},
+    // Closest to pump (above)
+    {x:235,y:208}, {x:285,y:208}, {x:315,y:208}, {x:380,y:208}, {x:415,y:208}, {x:460,y:208},
+    // Just below pump (above brewery/workhouse - level y=275 line)
+    {x:235,y:280}, {x:135,y:280}, {x:170,y:280}, {x:525,y:280}, {x:555,y:280},
+    // Below brewery/workhouse (between y=340 and y=378)
+    {x:235,y:344}, {x:285,y:344}, {x:315,y:344}, {x:380,y:344}, {x:415,y:344}, {x:460,y:344},
+    // Cambridge Street (lower) - far
+    {x:135,y:392}, {x:170,y:392}, {x:235,y:392}, {x:285,y:392}, {x:315,y:392},
+    {x:380,y:392}, {x:415,y:392}, {x:460,y:392}, {x:525,y:392}, {x:555,y:392},
+    // Bottom row (very far)
+    {x:135,y:432}, {x:235,y:432}, {x:315,y:432}, {x:380,y:432}, {x:460,y:432}, {x:555,y:432},
+    // Top extras
+    {x:170,y:90}, {x:285,y:90}, {x:430,y:90}, {x:525,y:90}
+  ];
+  const HW = 26, HH = 22;
+  const filtered = cells.filter(c=>{
+    // Skip if overlapping pump zone (column + base + label, with margin)
+    if (c.x+HW > 320 && c.x < 380 && c.y+HH > 215 && c.y < 310) return false;
+    // Skip if overlapping brewery zone (x: 240-308, y: 278-334)
+    if (c.x+HW > 238 && c.x < 312 && c.y+HH > 274 && c.y < 336) return false;
+    // Skip if overlapping workhouse zone (x: 378-460, y: 278-334)
+    if (c.x+HW > 374 && c.x < 466 && c.y+HH > 274 && c.y < 336) return false;
+    // Skip own-well zone (x: 461-481, y: 312-354)
+    if (c.x+HW > 458 && c.x < 484 && c.y+HH > 308 && c.y < 356) return false;
+    return true;
+  });
+  filtered.forEach((c, i)=>{
+    const cx = c.x + HW/2;
+    const cy = c.y + HH/2;
+    const dist = Math.hypot(cx - 350, cy - 244);
+    const nearPump = dist < 120;
+    HOUSE_POSITIONS.push({x:c.x, y:c.y, w:HW, h:HH, id:'h'+i, nearPump, dist});
+
+    // Build a little house: roof (triangle) + body (rect) + door + window
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','houseGroup');
+    g.id = 'h'+i;
+    g.dataset.dist = dist.toFixed(1);
+    g.dataset.nearPump = nearPump;
+
+    // Roof: triangle from (x, y+6) to (x+HW/2, y) to (x+HW, y+6)
+    const roof = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    roof.setAttribute('class','roof');
+    roof.setAttribute('points', `${c.x-1},${c.y+7} ${c.x+HW/2},${c.y} ${c.x+HW+1},${c.y+7}`);
+    g.appendChild(roof);
+
+    // Body: rect below roof
+    const body = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    body.setAttribute('class','body');
+    body.setAttribute('x', c.x);
+    body.setAttribute('y', c.y+7);
+    body.setAttribute('width', HW);
+    body.setAttribute('height', HH-7);
+    g.appendChild(body);
+
+    // Door: small rect in body
+    const door = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    door.setAttribute('class','door');
+    door.setAttribute('x', c.x + HW/2 - 3);
+    door.setAttribute('y', c.y + HH - 7);
+    door.setAttribute('width', 6);
+    door.setAttribute('height', 7);
+    g.appendChild(door);
+
+    // Window: tiny square
+    const win = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    win.setAttribute('class','window');
+    win.setAttribute('x', c.x + 3);
+    win.setAttribute('y', c.y + 9);
+    win.setAttribute('width', 5);
+    win.setAttribute('height', 5);
+    g.appendChild(win);
+
+    layer.appendChild(g);
+  });
+}
+function clearHotspots(){
+  const layer = $('hsLayer');
+  if (layer) layer.innerHTML = '';
+}
+function clearDots(){
+  const layer = $('dotsLayer');
+  if (layer) layer.innerHTML = '';
+}
+function clearTrans(){
+  const layer = $('transLayer');
+  if (layer) layer.innerHTML = '';
+}
+function clearWaterFlow(){
+  const layer = $('waterFlowLayer');
+  if (layer) layer.innerHTML = '';
+}
+// Add a "person died" marker at (x,y): halo + red circle + white ✗
+function addCaseDot(x, y, delay){
+  const layer = $('dotsLayer');
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','caseDotGroup');
+  g.setAttribute('transform', `translate(${x},${y})`);
+  // Halo (pulsing background)
+  const halo = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  halo.setAttribute('class','caseDotHalo');
+  halo.setAttribute('r', 9);
+  g.appendChild(halo);
+  // Solid red circle
+  const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  dot.setAttribute('class','caseDotCircle');
+  dot.setAttribute('r', 6);
+  g.appendChild(dot);
+  // ✗ mark inside
+  const mark = document.createElementNS('http://www.w3.org/2000/svg','text');
+  mark.setAttribute('class','caseDotMark');
+  mark.setAttribute('text-anchor','middle');
+  mark.setAttribute('y', 3);
+  mark.textContent = '\u2716';
+  g.appendChild(mark);
+  layer.appendChild(g);
+  safeTimeout(()=>g.classList.add('show'), delay||0);
+}
+// Add a death marker on a specific house (above the house, not on top of it, so it's visible)
+function addDotOnHouse(houseId, delay){
+  const h = HOUSE_POSITIONS.find(p=>p.id===houseId);
+  if (!h) return;
+  // Position dot just above the house roof so the house remains visible
+  addCaseDot(h.x + h.w/2, h.y - 4, delay);
+  const el = document.getElementById(houseId);
+  if (el) el.dataset.hasDot = 'true';
+}
+// Spawn an animated blue water droplet flowing from pump to a target point along a curve
+function spawnWaterDrop(targetX, targetY, contaminated){
+  const layer = $('waterFlowLayer');
+  if (!layer) return;
+  const drop = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  drop.setAttribute('class', 'waterDrop' + (contaminated ? ' contam' : ''));
+  drop.setAttribute('r', 3);
+  drop.setAttribute('cx', 350);
+  drop.setAttribute('cy', 244);
+  layer.appendChild(drop);
+  // Animate via SMIL-free CSS transition: set transform then transition
+  drop.style.transition = 'transform 1.4s cubic-bezier(.55,.05,.5,.95), opacity .4s';
+  // Use requestAnimationFrame to let initial layout settle before animating
+  requestAnimationFrame(()=>{
+    drop.style.transform = `translate(${targetX-350}px, ${targetY-244}px)`;
+  });
+  safeTimeout(()=>{ drop.style.opacity = '0'; }, 1200);
+  safeTimeout(()=>{ if (drop.parentNode) drop.remove(); }, 1700);
+}
+// Spawn many dots clustered around pump for L2
+function spawnClusterDots(){
+  let delay = 0;
+  HOUSE_POSITIONS.forEach(h=>{
+    if (h.nearPump && !document.getElementById(h.id).dataset.hasDot) {
+      addDotOnHouse(h.id, delay);
+      delay += 90;
+    }
+  });
+  // A few sparse far dots
+  const farIds = HOUSE_POSITIONS.filter(h=>!h.nearPump && h.dist>180).map(h=>h.id);
+  for (let i=0; i<3 && i<farIds.length; i++) {
+    addDotOnHouse(farIds[i*2], delay + i*150);
+  }
+}
+
+// ===== PROGRESS BAR =====
+function buildProgressBar(){
+  const p = $('progress');
+  p.innerHTML = '';
+  for (let i=1; i<=6; i++) {
+    const s = document.createElement('div');
+    s.className = 'pSeg';
+    s.id = 'pseg-'+i;
+    p.appendChild(s);
+  }
+}
+function updateProgressBar(){
+  for (let i=1; i<=6; i++) {
+    const s = $('pseg-'+i);
+    if (!s) continue;
+    s.className = 'pSeg';
+    if (i === GS.currentLevel) s.classList.add('current');
+    const rec = GS.scores.find(r=>r.num===i);
+    if (rec) {
+      if (rec.score >= 95) s.classList.add('done100');
+      else if (rec.score >= 80) s.classList.add('done85');
+      else if (rec.score >= 65) s.classList.add('done70');
+      else if (rec.score >= 55) s.classList.add('done60');
+      else s.classList.add('done50');
+    }
+  }
+}
+
+// ===== VOCAB =====
+function toggleVocab(){
+  $('vocabPanel').classList.toggle('open');
+}
+function vocabShow(term){
+  // Bacteria special case: in L1, L2 show "wait" message
+  if (term === 'BACTERIA' && GS.currentLevel < 3) {
+    alert('Bacteria appear when we get closer. Keep going.');
+    return;
+  }
+  toggleVocab();
+  // Find element to highlight
+  let target = null;
+  if (term === 'BACTERIA') target = $('micLensGroup');
+  else if (term === 'CONTAMINATION') target = $('contamPlume');
+  else if (term === 'TRANSMISSION') target = $('transLayer');
+  else if (term === 'OUTBREAK') target = $('clusterRing');
+  if (target) {
+    // simple flash highlight
+    const oldFilter = target.style.filter;
+    target.style.filter = 'drop-shadow(0 0 12px var(--amber))';
+    safeTimeout(()=>{ target.style.filter = oldFilter; }, 1800);
+  }
+}
+function markVocabUsed(term){
+  if (!GS.vocabSeen[term]) GS.vocabSeen[term] = true;
+}
+
+// ===== TOP BAR UPDATES =====
+function setTopBar(levelNum, name){
+  $('lvlBadge').textContent = (levelNum<=4 ? 'Level ' : 'Bonus ') + levelNum;
+  $('lvlName').textContent = name;
+  $('lvlOf').textContent = 'Level ' + levelNum + ' of 6';
+  updateProgressBar();
+}
+function setScore(s){ GS.totalScore = s; $('scoreBox').textContent = 'Score: ' + s; }
+function bumpScore(delta){
+  GS.totalScore += delta;
+  $('scoreBox').textContent = 'Score: ' + GS.totalScore;
+  const fb = document.createElement('div');
+  fb.className = 'fbPlus';
+  fb.textContent = '+' + delta;
+  $('arenaWrap').appendChild(fb);
+  safeTimeout(()=>fb.remove(), 1300);
+}
+
+// ===== AFFIRMATIONS =====
+const AFFIRMS = [
+  (t)=>`${t} is proud of you!`,
+  (t)=>`${t} knew you could do it!`,
+  (t)=>`That's the kind of thinking ${t} loves to see!`,
+  (t)=>`${t} says: you're getting it!`,
+  (t)=>`Strong work — ${t} sees your effort!`,
+  (t)=>`${t} is impressed right now!`,
+  (t)=>`You're showing ${t} what you can do!`,
+  (t)=>`${t} says: keep that energy!`
+];
+let _lastAffirm = -1;
+function pickAffirm(){
+  let i;
+  do { i = Math.floor(Math.random()*AFFIRMS.length); } while (i===_lastAffirm && AFFIRMS.length>1);
+  _lastAffirm = i;
+  return AFFIRMS[i](GS.teacherName);
+}
+
+// ===== CELEBRATIONS =====
+function celebrate(msg, durationMs, withAffirm){
+  const m = document.createElement('div');
+  m.className = 'celebMsg';
+  m.innerHTML = escHtml(msg) + (withAffirm ? '<span class="affirm">'+escHtml(pickAffirm())+'</span>' : '');
+  document.body.appendChild(m);
+  celebSound();
+  spawnConfetti(50);
+  safeTimeout(()=>{ if(m.parentNode) m.remove(); }, durationMs);
+}
+function spawnConfetti(count){
+  const layer = $('celebLayer');
+  count = Math.min(count, 30);
+  const colors = ['#F59E0B','#EF6C6C','#2D8B4E','#FBC85B','#D4A24C'];
+  for (let i=0; i<count; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.background = colors[i % colors.length];
+    p.style.left = (Math.random()*100) + 'vw';
+    p.style.top = '-20px';
+    p.style.transition = 'transform 1.8s cubic-bezier(.3,.7,.4,1), opacity 1.8s';
+    layer.appendChild(p);
+    safeTimeout(()=>{
+      p.style.transform = `translate(${(Math.random()-0.5)*200}px, ${100+Math.random()*60}vh) rotate(${Math.random()*720}deg)`;
+      p.style.opacity = '0';
+    }, 30);
+    safeTimeout(()=>{ if (p.parentNode) p.remove(); }, 2000);
+  }
+}
+
+// Brief inline affirmation under green burst (first-try correct)
+function showInlineAffirm(){
+  const a = document.createElement('div');
+  a.className = 'celebMsg';
+  a.style.background = 'linear-gradient(135deg,#F59E0B,#EF6C6C)';
+  a.style.fontSize = '18px';
+  a.style.padding = '12px 20px';
+  a.style.top = '36%';
+  a.textContent = pickAffirm();
+  document.body.appendChild(a);
+  safeTimeout(()=>{ if(a.parentNode) a.remove(); }, 1500);
+}
+
+// ===== NARRATIVE TYPEWRITER =====
+function clearNarrative(){
+  $('parchBody').innerHTML = '';
+  stopSpeech();
+}
+function setNarrativeDimmed(dimmed){
+  $('narrPanel').classList.toggle('dimmed', dimmed);
+}
+// Render WATCH sentences one at a time with typewriter + read aloud + bold key words
+function playWatch(sentences, vocabKeys, onComplete, totalMs){
+  // sentences: array of strings (may contain **KEY** marks for bolded vocab)
+  closeAllOverlays();
+  clearNarrative();
+  setNarrativeDimmed(false);
+  const body = $('parchBody');
+  const g = GS.arenaGen;
+  let idx = 0;
+  const startedAt = Date.now();
+
+  function renderSentence(raw){
+    // Replace **WORD** with vocab-styled spans
+    const html = raw.replace(/\*\*([A-Z]+)\*\*/g, (m, term)=>{
+      const isFirst = !GS.vocabSeen[term];
+      markVocabUsed(term);
+      return `<span class="vocabKW${isFirst?' firstShow':''}">${term}</span>`;
+    });
+    const p = document.createElement('p');
+    p.innerHTML = html;
+    body.appendChild(p);
+    // Speak (strip ** marks for speech)
+    const plain = raw.replace(/\*\*/g,'');
+    if (GS.readAloud) {
+      speak(plain, ()=>{
+        if (g !== GS.arenaGen) return;
+        idx++;
+        if (idx < sentences.length) safeTimeout(()=>renderSentence(sentences[idx]), 250);
+        else safeTimeout(()=>{ if (onComplete) onComplete(); }, 700);
+      });
+    } else {
+      // No speech — fixed timing per sentence (~2.5s)
+      safeTimeout(()=>{
+        idx++;
+        if (idx < sentences.length) renderSentence(sentences[idx]);
+        else { if (onComplete) onComplete(); }
+      }, 2800);
+    }
+  }
+  renderSentence(sentences[0]);
+
+  // Hard safety timeout: total budget + buffer
+  const safety = (totalMs || (sentences.length*3500)) + 4000;
+  safeTimeout(()=>{
+    if (idx < sentences.length) {
+      // Force finish
+      stopSpeech();
+      // render rest immediately
+      for (let i=idx+1; i<sentences.length; i++) {
+        const raw = sentences[i];
+        const html = raw.replace(/\*\*([A-Z]+)\*\*/g, (m, term)=>`<span class="vocabKW">${term}</span>`);
+        const p = document.createElement('p');
+        p.innerHTML = html;
+        body.appendChild(p);
+      }
+      if (onComplete) onComplete();
+    }
+  }, safety);
+}
+
+// ===== FOCUS BANNER =====
+function showFocusBanner(text, holdMs){
+  const fb = $('focusBanner');
+  fb.textContent = text;
+  fb.classList.remove('fade');
+  fb.classList.add('show');
+  safeTimeout(()=>fb.classList.add('fade'), holdMs||3000);
+}
+function hideFocusBanner(){
+  const fb = $('focusBanner');
+  fb.classList.remove('show','fade');
+}
+
+// ===== HINT LADDER =====
+function showHint1(text, visualFn){
+  if (GS.curHintLevel >= 1) return; // already shown for this attempt block
+  GS.curHintLevel = Math.max(GS.curHintLevel, 1);
+  const bar = document.createElement('div');
+  bar.className = 'coachBar';
+  bar.innerHTML = '<span class="ic">💡</span>' + escHtml(text);
+  $('iz').appendChild(bar);
+  if (visualFn) safeCall(visualFn, 'hint1 visual');
+}
+function showHint2(text, visualFn){
+  GS.curHintLevel = Math.max(GS.curHintLevel, 2);
+  const bar = document.createElement('div');
+  bar.className = 'coachBar hint2';
+  bar.innerHTML = '<span class="ic">🔍</span>' + escHtml(text);
+  $('iz').appendChild(bar);
+  if (visualFn) safeCall(visualFn, 'hint2 visual');
+}
+function showStepByStep(panels, onClose){
+  GS.curHintLevel = Math.max(GS.curHintLevel, 3);
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  let i = 0;
+  function render(){
+    ov.innerHTML = `
+      <div class="overlayCard">
+        <h2>Step ${i+1} of ${panels.length}</h2>
+        <div class="sbsPanel">
+          <span class="sbsNum">${i+1}</span>
+          <div class="sbsCap">${escHtml(panels[i].text)}</div>
+        </div>
+        <div class="btnRow">
+          ${i < panels.length-1 ? '<button class="lockBtn" id="sbsNext">Next</button>' :
+            '<button class="lockBtn" id="sbsNext">Got it — let me try</button>'}
+        </div>
+      </div>`;
+    if (panels[i].visualFn) safeCall(panels[i].visualFn, 'sbs visual');
+    $('sbsNext').onclick = ()=>{
+      if (i < panels.length-1) { i++; render(); }
+      else { ov.remove(); if (onClose) onClose(); }
+    };
+  }
+  document.body.appendChild(ov);
+  render();
+}
+function manualHint(){
+  // Manual hint button — show whatever hint is next in ladder, scoped to current level/phase
+  if (GS.curHintLevel === 0) {
+    const lv = LEVELS[GS.currentLevel-1];
+    if (!lv) return;
+    const cur = currentHintSet();
+    if (cur && cur.hint1) showHint1(cur.hint1.text, cur.hint1.visualFn);
+  } else if (GS.curHintLevel === 1) {
+    const cur = currentHintSet();
+    if (cur && cur.hint2) showHint2(cur.hint2.text, cur.hint2.visualFn);
+  } else if (GS.curHintLevel === 2) {
+    const cur = currentHintSet();
+    if (cur && cur.stepByStep) showStepByStep(cur.stepByStep);
+  }
+}
+function currentHintSet(){
+  const lv = LEVELS[GS.currentLevel-1];
+  if (!lv) return null;
+  // For multi-sub levels (L4, L6), return hints for current substep if defined; else fallback to overall
+  if (GS.curPhase === 'DO1' && lv.hintsDO1) return lv.hintsDO1;
+  if (GS.curPhase === 'DO2' && lv.hintsDO2) return lv.hintsDO2;
+  if (GS.curPhase === 'SUB1' && lv.hintsSub1) return lv.hintsSub1;
+  if (GS.curPhase === 'SUB2' && lv.hintsSub2) return lv.hintsSub2;
+  if (GS.curPhase === 'PROVE' && lv.hintsProve) return lv.hintsProve;
+  return lv.hints;
+}
+
+// ===== SCORING TIERS =====
+function tierScore(){
+  if (GS.curResets >= 1) return 50;
+  if (GS.curHintLevel === 3) return 60;
+  if (GS.curHintLevel === 2) return 70;
+  if (GS.curHintLevel === 1) return 85;
+  return 100;
+}
+
+// ===== I'M STUCK =====
+function imStuck(){
+  if (!confirm("Not sure what to do? I'll move you forward with 50% on this level. OK?")) return;
+  forceAdvance50();
+}
+function forceAdvance50(){
+  closeAllOverlays();
+  GS.arenaGen++;
+  GS.processing = false;
+  recordLevelScore(50, GS.curAttempts || 1);
+  celebrate("Let's move on — you'll see this idea again.", 1800, false);
+  safeTimeout(()=>advanceLevel(), 1900);
+}
+
+// ===== RECORD SCORE / ADVANCE =====
+function recordLevelScore(score, attempts){
+  const lv = LEVELS[GS.currentLevel-1];
+  const dur = Math.round((Date.now() - GS.levelStart)/1000);
+  // Push or replace
+  const idx = GS.scores.findIndex(r=>r.num===GS.currentLevel);
+  const rec = {
+    num: GS.currentLevel, name: lv.name, required: lv.required,
+    score: Math.round(score), attempts: attempts||1, time: dur,
+    hintsUsed: GS.curHintLevel, resets: GS.curResets
+  };
+  if (idx>=0) GS.scores[idx] = rec; else GS.scores.push(rec);
+  updateProgressBar();
+}
+
+function advanceLevel(){
+  closeAllOverlays();
+  GS.processing = false;
+  // Check milestones
+  const next = GS.currentLevel + 1;
+  // Halfway celebration: after Level 2 finishes
+  if (GS.currentLevel === 2 && !GS.shown.halfway) {
+    GS.shown.halfway = true;
+    celebrate("Halfway through the required levels!", 2000, true);
+    safeTimeout(()=>doAdvance(next), 2100);
+    return;
+  }
+  // Every 2 milestone for level 6 covered separately
+  // Required complete after Level 4
+  if (GS.currentLevel === 4 && !GS.shown.reqDone) {
+    GS.shown.reqDone = true;
+    GS.reqComplete = true;
+    showReqCompleteChoice();
+    return;
+  }
+  // Bonus done after Level 6
+  if (GS.currentLevel === 6 && !GS.shown.bonus) {
+    GS.shown.bonus = true;
+    GS.bonusComplete = true;
+    celebrate("BONUS COMPLETE!", 2800, true);
+    safeTimeout(()=>showReceipt(), 2900);
+    return;
+  }
+  doAdvance(next);
+}
+function doAdvance(next){
+  if (next > 6) { showReceipt(); return; }
+  startLevel(next);
+}
+
+function showReqCompleteChoice(){
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="overlayCard">
+      <h2>You did it! 🎉</h2>
+      <p>${escHtml(pickAffirm())}</p>
+      <p>All 4 required levels are done. Want to try the bonus levels for extra credit?</p>
+      <div class="btnRow">
+        <button class="lockBtn" onclick="this.closest('.overlay').remove(); startLevel(5);">Try Bonus Levels</button>
+        <button class="lockBtn" style="background:linear-gradient(180deg,#A0A0A0,#707070)" onclick="this.closest('.overlay').remove(); showReceipt();">See My Score</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  spawnConfetti(50);
+  celebSound();
+}
+
+// ===== RESET LEVEL =====
+function resetCurrentLevel(){
+  // Reset Level: re-start the current level cleanly without touching completed levels
+  if (GS.currentLevel < 1) return;
+  // Force-clear processing & cancel everything
+  GS.processing = false;
+  GS.arenaGen++;
+  closeAllOverlays();
+  stopSpeech();
+  // Reset per-level live state
+  GS.curResets += 1;
+  if (GS.curResets >= 3) {
+    forceAdvance50();
+    return;
+  }
+  GS.curWrongCount = 0;
+  GS.curHintLevel = 0;
+  GS.curAttempts = (GS.curAttempts||1) + 1;
+  GS.curSelected = null;
+  GS.curLockedSubScores = [];
+  GS.curSubStep = 0;
+  // Re-start level
+  startLevel(GS.currentLevel, true);
+}
+
+// ===== NEW RUN =====
+function confirmNewRun(){
+  if (!confirm("Start a new run? Your scores so far will be cleared.")) return;
+  // Reset
+  Object.assign(GS, {
+    currentLevel: 0, totalScore: 0, totalTimeSec: 0,
+    vocabSeen: { BACTERIA:false, CONTAMINATION:false, TRANSMISSION:false, OUTBREAK:false },
+    curWrongCount: 0, curHintLevel: 0, curResets: 0, curAttempts:1,
+    curPhase:'idle', curSubStep:0, curSelected:null, curLockedSubScores:[],
+    rhythmShown: { 1:false, 4:false, 6:false },
+    reqComplete:false, bonusComplete:false,
+    shown:{halfway:false,reqDone:false,bonus:false},
+    scores:[]
+  });
+  GS.arenaGen++;
+  $('receipt').classList.remove('show');
+  closeAllOverlays();
+  $('iz').innerHTML='';
+  buildProgressBar();
+  setScore(0);
+  startLevel(1);
+}
+
+// ===== ARENA HELPERS =====
+function resetArenaVisuals(){
+  // Don't remove dots/houses — just reset states
+  hideFocusBanner();
+  $('gasSwirl').classList.remove('show');
+  $('waterLine').classList.remove('show');
+  $('waterLine').setAttribute('d','');
+  $('clusterRing').classList.remove('show');
+  $('contamPlume').classList.remove('show');
+  $('pumpRing').classList.remove('show');
+  $('bactArrow').classList.remove('show');
+  // Reset building highlights
+  const bh = $('breweryGroup')?.querySelector('.bldgHighlight'); if (bh) bh.classList.remove('show');
+  const wh = $('workhouseGroup')?.querySelector('.bldgHighlight'); if (wh) wh.classList.remove('show');
+  clearTrans();
+  clearWaterFlow();
+  clearHotspots();
+  $('compareChart').classList.remove('show');
+  // Microscope blur depending on level
+  const lg = $('micLensGroup');
+  lg.classList.remove('micSharp');
+  lg.classList.add('micBlur');
+  $('micLabel').classList.remove('show');
+  ['bact1','bact2','bact3','bact4','bact5','bact6'].forEach(id=>{
+    const b = $(id);
+    if (b) b.className.baseVal = 'bact';
+  });
+}
+
+// Apply progressive activation per level
+function applyProgressiveActivation(levelNum){
+  // Microscope dim levels: 1,2 -> heavy dim; L3 brief sharpen; L4,L5 dimmed; L6 full sharp
+  const lg = $('micLensGroup');
+  const isBonus = levelNum >= 5;
+  if (levelNum === 6) {
+    lg.classList.remove('micBlur'); lg.classList.add('micSharp');
+  } else {
+    lg.style.opacity = (levelNum < 3) ? '0.35' : '0.5';
+  }
+  // Brewery/Workhouse only visible from L4+
+  if (levelNum >= 4) {
+    $('breweryGroup').setAttribute('opacity','1');
+    $('workhouseGroup').setAttribute('opacity','1');
+  } else {
+    $('breweryGroup').setAttribute('opacity','0');
+    $('workhouseGroup').setAttribute('opacity','0');
+  }
+  // Cluster ring visible after L2 watch happens (handled in level)
+}
+
+// ===== MECHANIC: HOTSPOT (L1) =====
+// Builds clickable invisible hotspots over houses (or arbitrary regions)
+function buildHotspots(targets, onPick){
+  // targets: array of {id, x, y, r, correct:bool, type:'house'|'street'|'pump'|...}
+  clearHotspots();
+  const layer = $('hsLayer');
+  targets.forEach(t=>{
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx', t.x);
+    c.setAttribute('cy', t.y);
+    c.setAttribute('r', t.r || 22);
+    c.setAttribute('fill','transparent');
+    c.setAttribute('stroke','transparent');
+    c.style.pointerEvents = 'all';
+    c.style.cursor = 'pointer';
+    c.addEventListener('click', ()=>{
+      if (GS.processing) return;
+      GS.processing = true;
+      onPick(t, c);
+      safeTimeout(()=>{ GS.processing=false; }, 500);
+    }, { passive:true });
+    layer.appendChild(c);
+  });
+}
+// Glow target houses with yellow ring
+function glowHouses(houseIds, dur){
+  houseIds.forEach(id=>{
+    const h = document.getElementById(id);
+    if (h) {
+      h.classList.add('yellowGlow');
+      safeTimeout(()=>{ if(h) h.classList.remove('yellowGlow'); }, dur||3000);
+    }
+  });
+}
+
+// ===== MECHANIC: PICK / COACH-CLICK (option cards) =====
+function buildOptionGrid(opts, onLock){
+  const iz = $('iz');
+  // Render prompt + grid + lock button
+  // (caller has appended prompt already)
+  const grid = document.createElement('div');
+  grid.className = 'optGrid' + (opts.length===2 ? ' two' : opts.length===1 ? ' one' : '');
+  opts.forEach((o, idx)=>{
+    const card = document.createElement('button');
+    card.className = 'optCard';
+    card.dataset.idx = idx;
+    card.textContent = o.text;
+    card.onclick = ()=>{
+      if (card.classList.contains('dimmed') || card.classList.contains('locked')) return;
+      // single selection
+      grid.querySelectorAll('.optCard').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      GS.curSelected = idx;
+      lockBtn.disabled = false;
+    };
+    grid.appendChild(card);
+  });
+  iz.appendChild(grid);
+  const lockBtn = document.createElement('button');
+  lockBtn.className = 'lockBtn';
+  lockBtn.textContent = 'Lock In';
+  lockBtn.disabled = true;
+  lockBtn.onclick = ()=>{
+    if (GS.curSelected === null) return;
+    if (GS.processing) return;
+    GS.processing = true;
+    onLock(GS.curSelected, grid, lockBtn);
+    safeTimeout(()=>{ GS.processing=false; }, 400);
+  };
+  iz.appendChild(lockBtn);
+  // Fast-guess gate timing
+  GS.phaseStartTime = Date.now();
+  GS.fastWrongs = GS.fastWrongs || 0;
+  return { grid, lockBtn };
+}
+
+// ===== WRONG-ANSWER FLOW =====
+// Standard wrong handler for option-grid mechanics
+function handleWrong(grid, lockBtn, wrongFeedback, hintSet, onRetry){
+  wrongSound();
+  // Flash wrong card red briefly, then dim it
+  const card = grid.querySelectorAll('.optCard')[GS.curSelected];
+  if (card) {
+    card.classList.remove('selected');
+    card.classList.add('wrong');
+    safeTimeout(()=>{
+      if (card) { card.classList.remove('wrong'); card.classList.add('dimmed'); }
+    }, 600);
+  }
+  GS.curSelected = null;
+  if (lockBtn) lockBtn.disabled = true;
+  GS.curWrongCount++;
+  // Fast guess detection
+  const elapsed = Date.now() - (GS.phaseStartTime||0);
+  if (elapsed < 2000) {
+    GS.fastWrongs = (GS.fastWrongs||0)+1;
+    if (GS.fastWrongs >= 2) {
+      const cb = document.createElement('div');
+      cb.className = 'coachBar';
+      cb.innerHTML = '<span class="ic">⏸</span>Pause — let\'s use the glowing clue.';
+      $('iz').appendChild(cb);
+      GS.fastWrongs = 0;
+      safeTimeout(()=>{ if(cb.parentNode) cb.remove(); }, 4000);
+    }
+  } else {
+    GS.fastWrongs = 0;
+  }
+  // Show coaching from wrongFeedback
+  if (wrongFeedback) {
+    const cb = document.createElement('div');
+    cb.className = 'coachBar';
+    cb.innerHTML = '<span class="ic">💬</span>' + escHtml(wrongFeedback);
+    $('iz').appendChild(cb);
+  }
+  // Hint progression
+  if (GS.curWrongCount === 1 && hintSet && hintSet.hint1) {
+    showHint1(hintSet.hint1.text, hintSet.hint1.visualFn);
+  } else if (GS.curWrongCount === 2 && hintSet && hintSet.hint2) {
+    showHint2(hintSet.hint2.text, hintSet.hint2.visualFn);
+  } else if (GS.curWrongCount >= 3) {
+    // Phase reset (NOT full level reset) — show step-by-step then retry
+    if (hintSet && hintSet.stepByStep) {
+      showStepByStep(hintSet.stepByStep, ()=>{
+        // After SBS, also count a level reset
+        GS.curResets++;
+        GS.curWrongCount = 0;
+        if (GS.curResets >= 3) {
+          forceAdvance50();
+          return;
+        }
+        if (onRetry) onRetry();
+      });
+      return;
+    } else {
+      GS.curResets++;
+      GS.curWrongCount = 0;
+      if (GS.curResets >= 3) { forceAdvance50(); return; }
+    }
+  }
+  // Try Again button to clear coaching and let student retry
+  const ta = document.createElement('button');
+  ta.className = 'tryAgain';
+  ta.textContent = 'Try Again';
+  ta.onclick = ()=>{
+    // Remove coaching bars from this attempt
+    $$('#iz .coachBar').forEach(b=>b.remove());
+    ta.remove();
+    if (onRetry) onRetry();
+    else if (lockBtn) lockBtn.disabled = (GS.curSelected===null);
+  };
+  $('iz').appendChild(ta);
+  // Auto-advance pulled into onRetry by caller
+}
+
+// ===== STAGE 2 INJECTION POINT — LEVELS DATA =====
+const LEVELS = [
+  // ===== LEVEL 1 =====
+  {
+    num: 1, required: true,
+    name: "A Street That's Dying",
+    skill: "Recognizing what map elements mean",
+    mechanic: "Hotspot",
+    focusPrompt: "Watch where the first red dots appear on the map.",
+    // Special: cold open + rhythm framing card
+    coldOpen: true,
+    rhythm: "Heads up — Level 1 starts with a quick tap, then the story begins.",
+    watch: {
+      sentences: [
+        "London, 1854. People are dying on Broad Street.",
+        "Doctors say it is **bad air** from the sewers.",
+        "Three deaths in three days near the same **pump**.",
+        "A doctor named Snow opens his notebook."
+      ],
+      durationMs: 12000
+    },
+    do: {
+      type: 'hotspot',
+      prompt: "Tap a house that has a red death dot on it.",
+      // Correct: any house with a dot (we'll track dot houses)
+      wrongDot: "This house has no red dot. The red dot shows where someone died. Try a house WITH a dot.",
+      wrongNon: "That is a street, not a house. Try a house with a small red dot on it."
+    },
+    prove: {
+      question: "Why did Snow draw a dot for every death?",
+      options: [
+        { text: "To see where the deaths were happening", correct:true },
+        { text: "To count the streets in London" },
+        { text: "To make the map look nice" }
+      ],
+      wrongFeedback: [
+        null,
+        "Streets are lines, not dots. Each dot stands for one person.",
+        "Snow needed answers, not art. The dots show him where deaths happen."
+      ]
+    },
+    hints: {
+      hint1: { text: "Look at the red case dots on the map." },
+      hint2: { text: "The red dots glow yellow — those are houses where someone died.",
+               visualFn: ()=>{
+                 // Glow all dot houses
+                 const dotHouses = HOUSE_POSITIONS.filter(h=>document.getElementById(h.id)?.dataset.hasDot==='true');
+                 glowHouses(dotHouses.map(h=>h.id), 4000);
+               }
+      },
+      stepByStep: [
+        { text: "One dot = one person who died.",
+          visualFn: ()=>{
+            const dotHouses = HOUSE_POSITIONS.filter(h=>document.getElementById(h.id)?.dataset.hasDot==='true');
+            if (dotHouses[0]) glowHouses([dotHouses[0].id], 3000);
+          }
+        },
+        { text: "Snow needed to SEE the deaths to find the pattern.",
+          visualFn: ()=>{
+            const dotHouses = HOUSE_POSITIONS.filter(h=>document.getElementById(h.id)?.dataset.hasDot==='true');
+            glowHouses(dotHouses.map(h=>h.id), 3000);
+          }
+        },
+        { text: "Now choose the answer that explains the dots." }
+      ]
+    }
+  },
+  // ===== LEVEL 2 =====
+  {
+    num: 2, required: true,
+    name: "The Pattern",
+    skill: "Pattern recognition (spatial clustering of an outbreak)",
+    mechanic: "Coach-Click",
+    focusPrompt: "Watch where the new red dots appear as the days go by.",
+    watch: {
+      sentences: [
+        "Three days pass and more people are dying.",
+        "Watch the red dots fill in around the **pump**.",
+        "Far houses have almost no cases.",
+        "The sick houses make a pattern — an **outbreak**."
+      ],
+      durationMs: 14000
+    },
+    do: {
+      type: 'options',
+      prompt: "What do you notice about where the red dots are?",
+      options: [
+        { text: "Most dots are near the pump; far houses have few", correct:true },
+        { text: "Dots are scattered evenly across the whole map" },
+        { text: "Dots are only on the edges of the map" }
+      ],
+      wrongFeedback: [
+        null,
+        "Look again — count the dots near the pump vs the dots far away.",
+        "The edges of the map are almost empty. Look at the center."
+      ],
+      onCorrectFx: ()=>{
+        $('clusterRing').classList.add('show');
+      }
+    },
+    prove: {
+      question: "When the red dots bunch up in one spot, what does that tell us?",
+      options: [
+        { text: "The cases happened by chance" },
+        { text: "The thing making people sick is somewhere near the bunched dots", correct:true },
+        { text: "The weather caused the cases" }
+      ],
+      wrongFeedback: [
+        "If it were chance, dots would be everywhere. They aren't — they're bunched.",
+        null,
+        "Weather covers the whole city. The cluster is in one small spot."
+      ]
+    },
+    hints: {
+      hint1: { text: "Look at the red dots near the pump. Then look at the dots far from the pump. What's different?" },
+      hint2: { text: "The cluster gets a yellow ring. The edges of the map are almost empty.",
+               visualFn: ()=>{ $('clusterRing').classList.add('show'); }
+      },
+      stepByStep: [
+        { text: "Many dots here — around the pump.",
+          visualFn: ()=>{ $('clusterRing').classList.add('show'); }
+        },
+        { text: "Almost no dots here — at the edges of the map.",
+          visualFn: ()=>{
+            // dim outer houses briefly
+            HOUSE_POSITIONS.filter(h=>!h.nearPump).forEach(h=>{
+              const el = document.getElementById(h.id);
+              if (el) {
+                el.classList.add('dimmed');
+                safeTimeout(()=>el.classList.remove('dimmed'), 2500);
+              }
+            });
+          }
+        },
+        { text: "If sickness clusters in one spot, the cause is in that spot too." }
+      ]
+    }
+  }
+  ,
+  // ===== LEVEL 3 =====
+  {
+    num: 3, required: true,
+    name: "Bad Air or Bad Water?",
+    skill: "Hypothesis evaluation",
+    mechanic: "Pick the Match",
+    focusPrompt: "Listen to both theories. Then look at the case dot pattern on the map.",
+    watch: {
+      sentences: [
+        "Most doctors say **bad air** is making people sick.",
+        "Air would cover the whole map — everywhere.",
+        "Snow says it is something in the **pump** water.",
+        "Pump water comes from one spot — a single source."
+      ],
+      durationMs: 16000
+    },
+    do: {
+      type: 'options',
+      prompt: "Which idea fits the dot pattern?",
+      options: [
+        { text: "Bad air rising from the whole neighborhood" },
+        { text: "Rats spreading sickness across all houses" },
+        { text: "Something invisible in the pump water", correct:true }
+      ],
+      wrongFeedback: [
+        "Bad air would make EVERYONE sick. Why are far houses safe?",
+        "Rats live everywhere in London. Why only near the pump?",
+        null
+      ],
+      onCorrectFx: ()=>{
+        drawTransmissionArrows();
+        $('contamPlume').classList.add('show');
+      }
+    },
+    prove: {
+      question: "Why does the case pattern point to water, not air?",
+      options: [
+        { text: "Air spreads everywhere; the cases are bunched in one spot", correct:true },
+        { text: "Water is heavier than air" },
+        { text: "Air smells bad in winter" }
+      ],
+      wrongFeedback: [
+        null,
+        "Weight doesn't explain the pattern. Look at where dots are.",
+        "Smell doesn't show on a map. Look at where dots cluster."
+      ]
+    },
+    hints: {
+      hint1: { text: "Look at the map. Are the dots spread out everywhere, or bunched in one place?" },
+      hint2: { text: "Bad air would cover everything. The water trail goes only to the cluster.",
+               visualFn: ()=>{
+                 $('gasSwirl').classList.add('show');
+                 safeTimeout(()=>{
+                   $('gasSwirl').classList.remove('show');
+                   const wl = $('waterLine');
+                   wl.setAttribute('d','M 350 268 Q 380 290 410 270 M 350 268 Q 320 290 290 270 M 350 268 Q 350 320 380 330');
+                   wl.classList.add('show');
+                 }, 2000);
+               }
+      },
+      stepByStep: [
+        { text: "Air covers everywhere. If air caused this, ALL houses would have dots.",
+          visualFn: ()=>{ $('gasSwirl').classList.add('show'); safeTimeout(()=>$('gasSwirl').classList.remove('show'),3500); }
+        },
+        { text: "Pump water comes from ONE spot — and that's where the dots bunch up.",
+          visualFn: ()=>{
+            $('clusterRing').classList.add('show');
+            const wl = $('waterLine');
+            wl.setAttribute('d','M 350 268 Q 380 290 410 270 M 350 268 Q 320 290 290 270');
+            wl.classList.add('show');
+          }
+        },
+        { text: "Now pick the idea that fits the one-spot pattern." }
+      ]
+    }
+  },
+  // ===== LEVEL 4 =====
+  {
+    num: 4, required: true,
+    name: "The Buildings That Broke the Pattern",
+    skill: "Anomaly identification",
+    mechanic: "Coach-Click (sub-DOs)",
+    focusPrompt: "Look at the brewery first, then the workhouse. Compare their dots to the houses around them.",
+    rhythm: "Heads up — this level has two buildings to look at, one at a time.",
+    watch: {
+      sentences: [
+        "Two buildings near the pump are different from the others.",
+        "Let's look at each one — the **brewery** first, then the **workhouse**."
+      ],
+      durationMs: 9000
+    },
+    subDOs: [
+      {
+        key: 'brewery',
+        focusPrompt: "Look at the brewery — does it have any red dots?",
+        watch: {
+          sentences: [
+            "The **brewery** is right next to the pump.",
+            "But the brewery has zero cases.",
+            "The workers drink beer, not pump water."
+          ],
+          durationMs: 10000
+        },
+        prompt: "What do you notice about the brewery?",
+        options: [
+          { text: "It has more cases than other houses" },
+          { text: "It has zero cases even though it is next to the pump", correct:true },
+          { text: "It looks the same as every other building" }
+        ],
+        wrongFeedback: [
+          "Count the dots ON the brewery. How many do you see?",
+          null,
+          "Other houses have many dots. The brewery has zero. That's different."
+        ],
+        points: 50,
+        onCorrectCaption: "No pump water = no cases."
+      },
+      {
+        key: 'workhouse',
+        focusPrompt: "Now look at the workhouse.",
+        watch: {
+          sentences: [
+            "The **workhouse** is also nearby.",
+            "But the workhouse has its own well.",
+            "Workers drink their own water, not pump water.",
+            "Far fewer cases here too."
+          ],
+          durationMs: 10000
+        },
+        prompt: "What do you notice about the workhouse?",
+        options: [
+          { text: "It has far fewer cases even though it is close to the pump", correct:true },
+          { text: "It has the most cases on the entire map" },
+          { text: "It has no people living in it" }
+        ],
+        wrongFeedback: [
+          null,
+          "Look at where the most dots are — around the pump, not on the workhouse.",
+          "The workhouse has many people. They just have their own water."
+        ],
+        points: 50,
+        onCorrectCaption: "Own well = mostly safe."
+      }
+    ],
+    prove: {
+      question: "Why do the brewery and workhouse matter?",
+      options: [
+        { text: "Beer is healthier than water" },
+        { text: "The pump is in a bad part of town" },
+        { text: "The pump water is what is causing the cases", correct:true }
+      ],
+      wrongFeedback: [
+        "The lesson isn't beer — it's that they didn't drink pump water.",
+        "Bad neighborhoods don't cause clustered cases. Sources do.",
+        null
+      ]
+    },
+    hintsDO1: {
+      hint1: { text: "Look at the highlighted brewery. Count its red dots. Then count dots on houses next to it.",
+               visualFn: ()=>{ $('breweryGroup').querySelector('.bldgHighlight').classList.add('show'); }
+      },
+      hint2: { text: "The brewery has ZERO dots. The houses next to it have many.",
+               visualFn: ()=>{
+                 const neighbors = HOUSE_POSITIONS.filter(h=>h.x>250 && h.x<340 && h.y>200 && h.y<300 && document.getElementById(h.id)?.dataset.hasDot==='true');
+                 glowHouses(neighbors.map(h=>h.id), 4000);
+               }
+      },
+      stepByStep: [
+        { text: "Look ON the brewery. Count the dots — there are zero." },
+        { text: "Now look at the houses next to it. They have many dots." },
+        { text: "The brewery is different. Pick the option that says so." }
+      ]
+    },
+    hintsDO2: {
+      hint1: { text: "Look at the workhouse. Count its dots vs the houses around it.",
+               visualFn: ()=>{ $('workhouseGroup').querySelector('.bldgHighlight').classList.add('show'); }
+      },
+      hint2: { text: "The workhouse has very few dots — far fewer than its neighbors.",
+               visualFn: ()=>{
+                 const neighbors = HOUSE_POSITIONS.filter(h=>h.x>360 && h.x<460 && h.y>200 && h.y<300 && document.getElementById(h.id)?.dataset.hasDot==='true');
+                 glowHouses(neighbors.map(h=>h.id), 4000);
+               }
+      },
+      stepByStep: [
+        { text: "Look ON the workhouse. Count the dots — very few." },
+        { text: "Now look at neighbor houses. They have many more." },
+        { text: "The workhouse is different. Pick the option that says so." }
+      ]
+    },
+    hintsProve: {
+      hint1: { text: "Look at the compare chart in the lower-left. What's the ONE thing both buildings have in common?" },
+      hint2: { text: "Both buildings did NOT drink pump water. That's the key clue." },
+      stepByStep: [
+        { text: "Brewery: didn't drink pump water → no cases." },
+        { text: "Workhouse: didn't drink pump water → very few cases." },
+        { text: "What's the real cause? The pump water itself." }
+      ]
+    },
+    hints: {
+      hint1: { text: "Look at the compare chart." },
+      hint2: { text: "Both buildings avoided pump water." },
+      stepByStep: [
+        { text: "Brewery: no pump water → no cases." },
+        { text: "Workhouse: own well → very few cases." },
+        { text: "The pump water is the cause." }
+      ]
+    }
+  },
+  // ===== LEVEL 5 (Bonus) =====
+  {
+    num: 5, required: false,
+    name: "Snow Acts (Bonus)",
+    skill: "Scientific process sequencing",
+    mechanic: "What Comes Next",
+    focusPrompt: "Watch what Snow does after he finds the pattern.",
+    watch: {
+      sentences: [
+        "Snow brings his map to the city council.",
+        "He shows them the dots clustered around the **pump**.",
+        "The council sees the proof while people are dying.",
+        "Snow points at the handle on the **pump**."
+      ],
+      durationMs: 14000
+    },
+    do: {
+      type: 'whatNext',
+      prompt: "What is the fastest way to stop the OUTBREAK?",
+      steps: [
+        "Map every death",
+        "Find the pump pattern",
+        "???"
+      ],
+      options: [
+        { text: "Quarantine the whole city" },
+        { text: "Remove the pump handle so no one can drink", correct:true },
+        { text: "Wait and study the cases for a year" }
+      ],
+      wrongFeedback: [
+        "Quarantine moves people. The pump is the cause — stop the pump.",
+        null,
+        "Snow had ten days, not a year. People are dying NOW."
+      ],
+      onCorrectFx: ()=>{
+        const handle = $('pumpHandle');
+        if (handle) handle.classList.add('handleLifted');
+        $('pumpRing').classList.remove('show');
+        // Clear transmission arrows / stop dot spread
+        clearTrans();
+      }
+    },
+    prove: {
+      question: "What was Snow's main scientific move?",
+      options: [
+        { text: "He let the disease spread on its own" },
+        { text: "He used data on a map to find a pattern", correct:true },
+        { text: "He guessed about bad air" }
+      ],
+      wrongFeedback: [
+        "He stopped it. He didn't wait.",
+        null,
+        "Bad air was what OTHER doctors believed. Snow used the map."
+      ]
+    },
+    hints: {
+      hint1: { text: "Look at the yellow ring around the pump handle. That's the part Snow is pointing at.",
+               visualFn: ()=>{ $('pumpRing').classList.add('show'); }
+      },
+      hint2: { text: "If no one can use the pump, no one drinks the bad water.",
+               visualFn: ()=>{ $('pumpRing').classList.add('show'); }
+      },
+      stepByStep: [
+        { text: "Snow is pointing at the handle. He can take it off.",
+          visualFn: ()=>{ $('pumpRing').classList.add('show'); }
+        },
+        { text: "People are dying right now. What is the FASTEST stop?" },
+        { text: "Pick the option that takes the handle off." }
+      ]
+    }
+  },
+  // ===== LEVEL 6 (Bonus) =====
+  {
+    num: 6, required: false,
+    name: "The Hidden Killer (Bonus)",
+    skill: "Claim construction with evidence",
+    mechanic: "Claim Builder",
+    focusPrompt: "Look at the microscope view. Then look at what evidence Snow had.",
+    rhythm: "Heads up — this level has two short claims to build, one at a time.",
+    watch: {
+      sentences: [
+        "Snow never saw what was in the pump water.",
+        "He had no microscope — only the map.",
+        "Years later, scientists looked through a microscope.",
+        "Tiny rod-shaped **BACTERIA** filled the pump water."
+      ],
+      durationMs: 18000
+    },
+    subClaims: [
+      {
+        frame: "The pump was the problem because ___.",
+        tiles: [
+          { text: "the red case dots clustered around it", correct:true },
+          { text: "Snow was a famous doctor" },
+          { text: "London had many other pumps" }
+        ],
+        wrongFeedback: "That clue does not come from the map. Try a tile about the dots or the buildings.",
+        points: 50
+      },
+      {
+        frame: "The brewery and workhouse were safer because ___.",
+        tiles: [
+          { text: "they did not drink the pump water", correct:true },
+          { text: "they were bigger buildings" },
+          { text: "the bad air was weaker there" }
+        ],
+        wrongFeedback: "That clue does not come from the map. Try a tile about the buildings.",
+        points: 50
+      }
+    ],
+    prove: {
+      question: "What kind of organism was actually in the pump water?",
+      options: [
+        { text: "A type of fish" },
+        { text: "Toxic air bubbles" },
+        { text: "Bacteria — living things too small to see", correct:true }
+      ],
+      wrongFeedback: [
+        "Fish are big. The microscope view shows tiny rod shapes.",
+        "Bubbles are not alive and not in the water. The microscope shows living shapes.",
+        null
+      ]
+    },
+    hintsSub1: {
+      hint1: { text: "Look at the map. What's Snow's strongest clue?" },
+      hint2: { text: "His clue is the cluster of dots around the pump.",
+               visualFn: ()=>{ $('clusterRing').classList.add('show'); }
+      },
+      stepByStep: [
+        { text: "Snow's evidence came from the MAP — not from being famous or from other pumps." },
+        { text: "Look at where the red dots are bunched." },
+        { text: "Pick the tile about the dot cluster." }
+      ]
+    },
+    hintsSub2: {
+      hint1: { text: "Why didn't the brewery and workhouse get many cases? Look at what they drank.",
+               visualFn: ()=>{
+                 $('breweryGroup').querySelector('.bldgHighlight').classList.add('show');
+                 $('workhouseGroup').querySelector('.bldgHighlight').classList.add('show');
+               }
+      },
+      hint2: { text: "Brewery: beer. Workhouse: own well. Neither used pump water." },
+      stepByStep: [
+        { text: "Brewery workers drank beer, not pump water." },
+        { text: "Workhouse had its own well, not pump water." },
+        { text: "Pick the tile about what they did NOT drink." }
+      ]
+    },
+    hintsProve: {
+      hint1: { text: "Look at the microscope view. What shapes do you see?",
+               visualFn: ()=>{
+                 const lg = $('micLensGroup');
+                 lg.classList.remove('micBlur'); lg.classList.add('micSharp');
+                 ['bact1','bact2','bact3','bact4','bact5','bact6'].forEach(id=>$(id).classList.add('full'));
+               }
+      },
+      hint2: { text: "The rod shapes are living things. They are too small to see without a microscope." },
+      stepByStep: [
+        { text: "These are BACTERIA. They are alive." },
+        { text: "The same shapes are in the pump water (dark plume)." },
+        { text: "Pick the option about bacteria." }
+      ]
+    },
+    hints: {
+      hint1: { text: "Look at the microscope view." },
+      hint2: { text: "The rod shapes are living things — bacteria." },
+      stepByStep: [
+        { text: "Bacteria are too small to see without a microscope." },
+        { text: "They live in water." },
+        { text: "Pick the bacteria option." }
+      ]
+    }
+  }
+];
+
+// ===== LEVEL FLOW CONTROLLER =====
+function startLevel(num, isRestart){
+  closeAllOverlays();
+  stopSpeech();
+  GS.arenaGen++;
+  GS.processing = false;
+  GS.currentLevel = num;
+  GS.levelStart = Date.now();
+  if (!isRestart) {
+    GS.curWrongCount = 0;
+    GS.curHintLevel = 0;
+    GS.curResets = 0;
+    GS.curAttempts = 1;
+    GS.curSubStep = 0;
+    GS.curSelected = null;
+    GS.curLockedSubScores = [];
+  } else {
+    // Restart: clear visual state but keep curResets/curAttempts as set
+    GS.curWrongCount = 0;
+    GS.curHintLevel = 0;
+    GS.curSubStep = 0;
+    GS.curSelected = null;
+    GS.curLockedSubScores = [];
+  }
+  GS.curPhase = 'WATCH';
+  GS.fastWrongs = 0;
+
+  const lv = LEVELS[num-1];
+  if (!lv) { showReceipt(); return; }
+
+  setTopBar(num, lv.name);
+  setNarrativeDimmed(false);
+  $('iz').innerHTML = '';
+  clearNarrative();
+  resetArenaVisuals();
+  applyProgressiveActivation(num);
+  // Show stuck button now that gameplay started
+  $('stuckBtn').style.display = 'block';
+
+  // Pre-build static dots state per level
+  setupLevelArena(num);
+
+  // Show rhythm framing card if applicable
+  if (lv.rhythm && !GS.rhythmShown[num] && !isRestart) {
+    GS.rhythmShown[num] = true;
+    const rc = document.createElement('div');
+    rc.className = 'rhythmCard';
+    rc.innerHTML = '<span class="ic">📌</span>' + escHtml(lv.rhythm);
+    document.body.appendChild(rc);
+    rc.onclick = ()=>rc.remove();
+    safeTimeout(()=>{ if(rc.parentNode) rc.remove(); }, 1200);
+    safeTimeout(()=>continueAfterRhythm(lv), 1300);
+  } else {
+    continueAfterRhythm(lv);
+  }
+}
+
+function continueAfterRhythm(lv){
+  // Level intro card (badge) - we just use the top bar; skip extra modal for speed
+  // Cold open for L1
+  if (lv.coldOpen && GS.currentLevel === 1) {
+    playColdOpen(lv);
+  } else {
+    runWatchPhase(lv);
+  }
+}
+
+// Place starting dots per level (state accumulates across levels)
+function setupLevelArena(num){
+  // Reset visual layers but preserve cumulative dots from prior levels (they remain in DOM)
+  // For L1: ensure 3 dots near pump
+  // For L2: cluster fills
+  // For L3+: cluster persists from L2
+
+  // First, clear all dots if this is a fresh start (currentLevel===1 OR isRestart on L1)
+  if (num === 1) {
+    clearDots();
+    // Reset dot data
+    HOUSE_POSITIONS.forEach(h=>{
+      const el = document.getElementById(h.id);
+      if (el) delete el.dataset.hasDot;
+    });
+  }
+  // For L1, we'll add the 3 initial dots during cold open
+  // For L2+, ensure L1's 3 dots are present (if user jumped/reset to L2 directly)
+  if (num >= 2) {
+    // Place 3 dots near pump if not already
+    const near = HOUSE_POSITIONS.filter(h=>h.dist < 80).slice(0,3);
+    near.forEach(h=>{
+      if (!document.getElementById(h.id).dataset.hasDot) addDotOnHouse(h.id, 0);
+    });
+  }
+  if (num >= 3) {
+    // Ensure cluster fully spawned
+    const near = HOUSE_POSITIONS.filter(h=>h.nearPump);
+    near.forEach(h=>{
+      if (!document.getElementById(h.id).dataset.hasDot) addDotOnHouse(h.id, 0);
+    });
+  }
+  // Hide focus banner / overlays
+  hideFocusBanner();
+}
+
+// ===== L1 COLD OPEN =====
+function playColdOpen(lv){
+  GS.curPhase = 'COLD';
+  const cap = $('coldOpenCap');
+  cap.textContent = "Tap the pump.";
+  cap.classList.add('show');
+  // Soft hint arrow after 5s
+  const arrow = $('coldOpenArrow');
+  const arrowTimer = safeTimeout(()=>{
+    arrow.style.left = '50%';
+    arrow.style.top = '32%';
+    arrow.classList.add('show');
+  }, 5000);
+  // Auto-advance after 10s total
+  const autoTimer = safeTimeout(()=>{
+    // Auto-complete
+    triggerColdOpen(true);
+  }, 10000);
+
+  let triggered = false;
+  function triggerColdOpen(isAuto){
+    if (triggered) return;
+    triggered = true;
+    clearTimeout(arrowTimer);
+    clearTimeout(autoTimer);
+    arrow.classList.remove('show');
+    // Water ripple from pump
+    const ripple = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    ripple.setAttribute('cx',350); ripple.setAttribute('cy',250); ripple.setAttribute('r',10);
+    ripple.setAttribute('fill','none'); ripple.setAttribute('stroke','rgba(120,170,210,.7)');
+    ripple.setAttribute('stroke-width','3');
+    ripple.style.transition = 'r 1.2s ease-out, opacity 1.2s';
+    $('mapSvg').appendChild(ripple);
+    safeTimeout(()=>{
+      ripple.setAttribute('r', 120);
+      ripple.style.opacity = '0';
+    }, 30);
+    safeTimeout(()=>{ if(ripple.parentNode) ripple.remove(); }, 1400);
+    // Pump glows
+    $$('.pump-glow').forEach(g=>g.classList.add('on'));
+    safeTimeout(()=>{ $$('.pump-glow').forEach(g=>g.classList.remove('on')); }, 2000);
+    correctSound();
+    // 3 dots scale up on nearest houses
+    const near = HOUSE_POSITIONS.filter(h=>h.dist<80).slice(0,3);
+    near.forEach((h,i)=>addDotOnHouse(h.id, 400 + i*300));
+    // Caption change
+    safeTimeout(()=>{
+      cap.textContent = isAuto ? "Got it — let's keep going." : "Three people. Three days. All on this street.";
+    }, 600);
+    safeTimeout(()=>{ cap.classList.remove('show'); cap.textContent=''; }, 4500);
+    // Then play WATCH
+    safeTimeout(()=>runWatchPhase(lv), 4800);
+  }
+
+  // Pump click target
+  const pumpGroup = $('pumpGroup');
+  function onPumpClick(){
+    if (triggered) return;
+    triggerColdOpen(false);
+    pumpGroup.removeEventListener('click', onPumpClick);
+  }
+  pumpGroup.style.cursor = 'pointer';
+  pumpGroup.addEventListener('click', onPumpClick, { once:true });
+}
+
+// ===== WATCH PHASE =====
+function runWatchPhase(lv){
+  GS.curPhase = 'WATCH';
+  closeAllOverlays();
+  hideFocusBanner();
+  // Focus prompt banner
+  showFocusBanner(lv.focusPrompt, 3000);
+  // Lock interaction during WATCH
+  $('iz').innerHTML = '<div class="izPrompt">Watch and listen…</div>';
+  setNarrativeDimmed(false);
+  // Special level-specific WATCH visuals
+  applyWatchVisuals(lv.num);
+  // Snow portrait for L1, L5
+  if (lv.num === 1 || lv.num === 5) $('snowPortrait').classList.add('show');
+  else $('snowPortrait').classList.remove('show');
+
+  // Speech-sequenced narrative
+  playWatch(lv.watch.sentences, [], ()=>{
+    safeTimeout(()=>runDoPhase(lv), 600);
+  }, lv.watch.durationMs);
+
+  // Safety: WATCH auto-completes after duration+8s if speech hangs
+  safeTimeout(()=>{
+    if (GS.curPhase === 'WATCH') {
+      stopSpeech();
+      runDoPhase(lv);
+    }
+  }, (lv.watch.durationMs||14000) + 8000);
+}
+
+// Apply level-specific WATCH animations
+function applyWatchVisuals(num){
+  if (num === 2) {
+    // Spawn cluster around pump during watch
+    safeTimeout(()=>spawnClusterDots(), 1500);
+  }
+  if (num === 3) {
+    // Beat 1: gas swirl spreads across whole map (sentences 1-2)
+    safeTimeout(()=>{ $('gasSwirl').classList.add('show'); }, 1000);
+    // Beat 2 (~half): gas fades, water flows from pump to dot houses (CONTAMINATED)
+    safeTimeout(()=>{
+      $('gasSwirl').classList.remove('show');
+      $('contamPlume').classList.add('show');
+      // Quick microscope sharpen (BACTERIA glimpse) + pointer arrow
+      const lg = $('micLensGroup');
+      lg.classList.remove('micBlur'); lg.classList.add('micSharp');
+      $('micLabel').classList.add('show');
+      $('bactArrow').classList.add('show');
+      ['bact1','bact2','bact3','bact4','bact5','bact6'].forEach(id=>{
+        const b = $(id); if (b) b.classList.add('show2');
+      });
+      // Animated contaminated water drops flowing from pump to dot houses
+      const dotHouses = HOUSE_POSITIONS.filter(h=>document.getElementById(h.id)?.dataset.hasDot==='true').slice(0,6);
+      dotHouses.forEach((h, i)=>{
+        safeTimeout(()=>spawnWaterDrop(h.x + h.w/2, h.y - 4, true), i * 250);
+        safeTimeout(()=>spawnWaterDrop(h.x + h.w/2, h.y - 4, true), i * 250 + 600);
+      });
+      // Draw a static water line backbone for context
+      const wl = $('waterLine');
+      wl.setAttribute('d','M 350 270 Q 380 295 410 280 M 350 270 Q 320 295 290 280 M 350 270 Q 350 320 380 340 M 350 270 Q 350 320 320 340');
+      wl.classList.add('show');
+      safeTimeout(()=>{
+        // After ~3s, fade microscope back
+        lg.classList.add('micBlur'); lg.classList.remove('micSharp');
+        $('bactArrow').classList.remove('show');
+        ['bact1','bact2','bact3','bact4','bact5','bact6'].forEach(id=>{
+          const b = $(id); if (b) b.classList.remove('show2');
+        });
+        $('micLabel').classList.remove('show');
+      }, 3000);
+    }, 8000);
+  }
+  if (num === 4) {
+    // Highlight brewery first
+    safeTimeout(()=>{ $('breweryGroup').querySelector('.bldgHighlight').classList.add('show'); }, 600);
+  }
+  if (num === 5) {
+    // Snow at council; pump handle highlighted
+    safeTimeout(()=>{ $('pumpRing').classList.add('show'); }, 4000);
+  }
+  if (num === 6) {
+    // Microscope full sharpen reveal — bacteria appear one by one with pointer arrow
+    safeTimeout(()=>{
+      const lg = $('micLensGroup');
+      lg.classList.remove('micBlur'); lg.classList.add('micSharp');
+      lg.style.opacity = '1';
+      $('micLabel').classList.add('show');
+      $('bactArrow').classList.add('show');
+      ['bact1','bact2','bact3','bact4','bact5','bact6'].forEach((id,i)=>{
+        safeTimeout(()=>{ const b=$(id); if(b) b.classList.add('full'); }, 800 + i*400);
+      });
+      // Contam plume shows bacteria
+      $('contamPlume').classList.add('show');
+    }, 3000);
+  }
+}
+
+// ===== DO PHASE DISPATCH =====
+function runDoPhase(lv){
+  GS.curPhase = 'DO';
+  closeAllOverlays();
+  hideFocusBanner();
+  setNarrativeDimmed(true);
+  // Dispatch by mechanic
+  if (lv.num === 1) return doLevel1(lv);
+  if (lv.num === 2) return doLevel2(lv);
+  if (lv.num === 3) return doLevel3(lv);
+  if (lv.num === 4) return doLevel4(lv);
+  if (lv.num === 5) return doLevel5(lv);
+  if (lv.num === 6) return doLevel6(lv);
+}
+
+// ===== LEVEL 1 DO: Hotspot =====
+function doLevel1(lv){
+  const iz = $('iz');
+  iz.innerHTML = '';
+  const p = document.createElement('div'); p.className='izPrompt';
+  p.textContent = lv.do.prompt;
+  iz.appendChild(p);
+  const sp = document.createElement('div'); sp.className='izSubPrompt';
+  sp.textContent = "Tip: look for the small red dots on houses near the pump.";
+  iz.appendChild(sp);
+
+  // Build hotspots: each house + pump (wrong) + few street regions (wrong)
+  const targets = [];
+  HOUSE_POSITIONS.forEach(h=>{
+    const hasDot = document.getElementById(h.id)?.dataset.hasDot === 'true';
+    targets.push({ id:h.id, x:h.x+h.w/2, y:h.y+h.h/2, r:16, correct:hasDot, type:'house', isDot:hasDot });
+  });
+  // Pump (wrong - non-house)
+  targets.push({ x:350, y:255, r:24, correct:false, type:'pump' });
+  // Street regions (wrong - non-house) — sampled
+  targets.push({ x:80, y:250, r:22, correct:false, type:'street' });
+  targets.push({ x:620, y:250, r:22, correct:false, type:'street' });
+  targets.push({ x:350, y:60, r:22, correct:false, type:'street' });
+  targets.push({ x:350, y:440, r:22, correct:false, type:'street' });
+
+  GS.phaseStartTime = Date.now();
+  buildHotspots(targets, (t, circle)=>{
+    if (t.correct) {
+      // Correct
+      correctSound();
+      const h = HOUSE_POSITIONS.find(p=>p.id===t.id);
+      const houseEl = document.getElementById(t.id);
+      if (houseEl) {
+        houseEl.classList.add('greenGlow');
+        safeTimeout(()=>houseEl.classList.remove('greenGlow'),1200);
+      }
+      bumpScore(100);
+      // Show small label
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+      lbl.setAttribute('x', h.x + h.w/2);
+      lbl.setAttribute('y', h.y - 4);
+      lbl.setAttribute('text-anchor','middle');
+      lbl.setAttribute('font-size', 9);
+      lbl.setAttribute('fill', '#2D8B4E');
+      lbl.setAttribute('font-weight','bold');
+      lbl.textContent = "Death: Day 1";
+      $('mapSvg').appendChild(lbl);
+      safeTimeout(()=>{ if(lbl.parentNode) lbl.remove(); }, 3500);
+      clearHotspots();
+      safeTimeout(()=>runProvePhase(lv), 1400);
+    } else {
+      // Wrong: classify
+      let msg;
+      if (t.type === 'house') msg = lv.do.wrongDot;
+      else msg = lv.do.wrongNon;
+      handleWrongHotspot(circle, msg, lv.hints, targets);
+    }
+  });
+}
+
+function handleWrongHotspot(circle, msg, hintSet, targets){
+  wrongSound();
+  // Red ring at click
+  const c = circle.cloneNode();
+  c.setAttribute('stroke','var(--bad)');
+  c.setAttribute('stroke-width', '3');
+  c.setAttribute('fill','none');
+  c.style.pointerEvents='none';
+  $('mapSvg').appendChild(c);
+  safeTimeout(()=>{ if (c.parentNode) c.remove(); }, 800);
+  GS.curWrongCount++;
+  // Coaching
+  const cb = document.createElement('div');
+  cb.className = 'coachBar';
+  cb.innerHTML = '<span class="ic">💬</span>' + escHtml(msg);
+  $('iz').appendChild(cb);
+  // Glow dot houses
+  const dotHouses = HOUSE_POSITIONS.filter(h=>document.getElementById(h.id)?.dataset.hasDot==='true');
+  glowHouses(dotHouses.map(h=>h.id), 3500);
+  // Hint progression
+  if (GS.curWrongCount === 1 && hintSet?.hint1) showHint1(hintSet.hint1.text, hintSet.hint1.visualFn);
+  else if (GS.curWrongCount === 2 && hintSet?.hint2) showHint2(hintSet.hint2.text, hintSet.hint2.visualFn);
+  else if (GS.curWrongCount >= 3) {
+    if (hintSet?.stepByStep) {
+      showStepByStep(hintSet.stepByStep, ()=>{
+        GS.curResets++;
+        GS.curWrongCount = 0;
+        if (GS.curResets >= 3) { forceAdvance50(); return; }
+        // re-enable for retry
+      });
+    }
+  }
+}
+
+// ===== LEVEL 2 DO: Coach-Click =====
+function doLevel2(lv){
+  const iz = $('iz');
+  iz.innerHTML = '';
+  const p = document.createElement('div'); p.className='izPrompt';
+  p.textContent = lv.do.prompt;
+  iz.appendChild(p);
+  // Soft glow on map
+  const mb = $('mapBox');
+  mb.style.boxShadow = 'inset 0 0 30px rgba(245,158,11,.3)';
+  safeTimeout(()=>mb.style.boxShadow='', 4000);
+
+  GS.phaseStartTime = Date.now();
+  const { grid, lockBtn } = buildOptionGrid(lv.do.options, (idx, grid, btn)=>{
+    const opt = lv.do.options[idx];
+    if (opt.correct) {
+      correctSound();
+      grid.querySelectorAll('.optCard')[idx].classList.add('correct');
+      grid.querySelectorAll('.optCard').forEach(c=>c.classList.add('locked'));
+      btn.disabled = true;
+      bumpScore(100);
+      if (lv.do.onCorrectFx) safeCall(lv.do.onCorrectFx, 'L2 fx');
+      // Caption
+      addArenaCaption("This is an OUTBREAK cluster.", 3000);
+      safeTimeout(()=>runProvePhase(lv), 2200);
+    } else {
+      handleWrong(grid, btn, lv.do.wrongFeedback[idx], lv.hints, ()=>{
+        // retry: nothing else, student can pick again
+      });
+    }
+  });
+}
+
+// Show a temporary caption near top of arena
+function addArenaCaption(text, dur){
+  const cap = document.createElement('div');
+  cap.style.cssText = 'position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(45,139,78,.95);color:#FFF;padding:8px 14px;border-radius:8px;font-weight:bold;z-index:25;font-size:14px;box-shadow:var(--shadow);';
+  cap.textContent = text;
+  $('mapBox').appendChild(cap);
+  safeTimeout(()=>{ if(cap.parentNode) cap.remove(); }, dur||3000);
+}
+
+// ===== PROVE PHASE =====
+function runProvePhase(lv){
+  GS.curPhase = 'PROVE';
+  closeAllOverlays();
+  // Reset hint counters? Per spec: hints carry per phase; we keep curHintLevel across phases for tier scoring
+  const iz = $('iz');
+  iz.innerHTML = '';
+  const p = document.createElement('div'); p.className='izPrompt';
+  p.textContent = lv.prove.question;
+  iz.appendChild(p);
+  GS.curSelected = null;
+  GS.phaseStartTime = Date.now();
+  GS.fastWrongs = 0;
+  GS.curWrongCount = 0; // restart wrong count for this phase
+  const { grid, lockBtn } = buildOptionGrid(lv.prove.options, (idx, grid, btn)=>{
+    const opt = lv.prove.options[idx];
+    if (opt.correct) {
+      correctSound();
+      grid.querySelectorAll('.optCard')[idx].classList.add('correct');
+      grid.querySelectorAll('.optCard').forEach(c=>c.classList.add('locked'));
+      btn.disabled = true;
+      bumpScore(100);
+      // Apply level-specific on-correct PROVE effects
+      proveCorrectEffects(lv.num);
+      // Determine score with current tier
+      const score = tierScore();
+      // First-try affirmation
+      if (score === 100 && GS.curResets === 0 && GS.curHintLevel === 0) {
+        showInlineAffirm();
+      }
+      // For multi-sub-DO levels, the level score may combine sub-DO scores
+      const finalScore = computeLevelFinalScore(score);
+      recordLevelScore(finalScore, GS.curAttempts || 1);
+      safeTimeout(()=>{
+        // celebration for level
+        // Banner
+        const banner = document.createElement('div');
+        banner.className = 'celebMsg';
+        banner.style.background = 'linear-gradient(135deg,#F59E0B,#FBC85B)';
+        banner.style.color = '#FFF';
+        banner.textContent = `Level ${lv.num} complete!`;
+        document.body.appendChild(banner);
+        safeTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 1500);
+        safeTimeout(()=>advanceLevel(), 1600);
+      }, 1500);
+    } else {
+      handleWrong(grid, btn, lv.prove.wrongFeedback[idx], lv.hints, ()=>{
+        // retry — keep wrong dimmed, allow re-pick
+      });
+    }
+  });
+}
+
+function proveCorrectEffects(num){
+  if (num === 2) {
+    $('clusterRing').classList.add('show');
+  }
+  if (num === 3) {
+    // Transmission arrows reinforce
+    drawTransmissionArrows();
+    $('contamPlume').classList.add('show');
+  }
+  if (num === 4) {
+    // Trans arrows to all dot houses except brewery/workhouse
+    drawTransmissionArrows();
+  }
+  if (num === 5) {
+    // Handle removed animation
+    const handle = $('pumpHandle');
+    if (handle) handle.classList.add('handleLifted');
+  }
+  if (num === 6) {
+    // Microscope glow
+    const lg = $('micLensGroup');
+    lg.style.filter = 'drop-shadow(0 0 14px var(--good))';
+    safeTimeout(()=>{ lg.style.filter=''; }, 2500);
+  }
+}
+
+function drawTransmissionArrows(){
+  clearTrans();
+  const layer = $('transLayer');
+  // Draw lines from pump (350,250) to a sample of dot houses
+  const dotHouses = HOUSE_POSITIONS.filter(h=>document.getElementById(h.id)?.dataset.hasDot==='true').slice(0,8);
+  dotHouses.forEach(h=>{
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    const x2 = h.x + h.w/2;
+    const y2 = h.y + h.h/2;
+    path.setAttribute('d', `M 350 250 L ${x2} ${y2}`);
+    path.setAttribute('class','transArrow show');
+    layer.appendChild(path);
+  });
+}
+
+// Compute level final score considering multi-sub-DO levels
+function computeLevelFinalScore(proveScore){
+  // For L4, L6: average sub-DO scores + prove
+  const lv = LEVELS[GS.currentLevel-1];
+  if (lv && lv.subDOs && GS.curLockedSubScores.length === lv.subDOs.length) {
+    const all = [...GS.curLockedSubScores, proveScore];
+    return Math.round(all.reduce((a,b)=>a+b,0) / all.length);
+  }
+  return proveScore;
+}
+
+// ===== LEVEL 3 DO: Pick the Match =====
+function doLevel3(lv){
+  const iz = $('iz');
+  iz.innerHTML = '';
+  const p = document.createElement('div'); p.className='izPrompt';
+  p.textContent = lv.do.prompt;
+  iz.appendChild(p);
+  // Cluster still visible from L2 (clusterRing was set on L2 PROVE correct)
+  const mb = $('mapBox');
+  mb.style.boxShadow = 'inset 0 0 30px rgba(245,158,11,.3)';
+  safeTimeout(()=>mb.style.boxShadow='', 4000);
+
+  GS.phaseStartTime = Date.now();
+  GS.curSelected = null;
+  GS.curWrongCount = 0;
+  GS.fastWrongs = 0;
+  const { grid, lockBtn } = buildOptionGrid(lv.do.options, (idx, grid, btn)=>{
+    const opt = lv.do.options[idx];
+    if (opt.correct) {
+      correctSound();
+      grid.querySelectorAll('.optCard')[idx].classList.add('correct');
+      grid.querySelectorAll('.optCard').forEach(c=>c.classList.add('locked'));
+      btn.disabled = true;
+      bumpScore(100);
+      if (lv.do.onCorrectFx) safeCall(lv.do.onCorrectFx, 'L3 fx');
+      addArenaCaption("Pump water = the source.", 3000);
+      safeTimeout(()=>runProvePhase(lv), 2200);
+    } else {
+      handleWrong(grid, btn, lv.do.wrongFeedback[idx], lv.hints, ()=>{});
+    }
+  });
+}
+
+// ===== LEVEL 4 DO: Two sequential sub-DOs (brewery → workhouse) =====
+function doLevel4(lv){
+  // Show compare chart
+  $('compareChart').classList.add('show');
+  // Reset sub-DO tracking for this level (already reset in startLevel, but be defensive)
+  GS.curLockedSubScores = [];
+  GS.curSubStep = 0;
+  // Begin sub-DO 1 (brewery)
+  startSubDO_L4(lv, 0);
+}
+
+function startSubDO_L4(lv, subIdx){
+  const sub = lv.subDOs[subIdx];
+  // Reset hint state per sub-DO (each sub-DO is scored independently)
+  GS.curWrongCount = 0;
+  GS.curHintLevel = 0;
+  GS.fastWrongs = 0;
+  GS.curSubStep = subIdx;
+
+  // Highlight the relevant building before its mini-WATCH
+  if (sub.key === 'brewery') {
+    $('breweryGroup').querySelector('.bldgHighlight').classList.add('show');
+    $('workhouseGroup').querySelector('.bldgHighlight').classList.remove('show');
+  } else {
+    $('workhouseGroup').querySelector('.bldgHighlight').classList.add('show');
+    $('breweryGroup').querySelector('.bldgHighlight').classList.remove('show');
+  }
+
+  // Show sub-DO focus prompt + play its mini-WATCH narration
+  showFocusBanner(sub.focusPrompt, 2400);
+  setNarrativeDimmed(false);
+  clearNarrative();
+  $('iz').innerHTML = '<div class="izPrompt">Watch and listen…</div>';
+
+  playWatch(sub.watch.sentences, [], ()=>{
+    safeTimeout(()=>renderSubDO_L4_DO(lv, subIdx), 500);
+  }, sub.watch.durationMs);
+
+  // Safety: if speech hangs AND we're still on this sub-DO, force DO render.
+  // Guard against stale fires after sub-DO has advanced (or level changed).
+  safeTimeout(()=>{
+    if (GS.curSubStep !== subIdx) return;          // moved on
+    if (GS.curPhase === 'PROVE') return;           // already past DO
+    if ($('iz').querySelector('.optGrid')) return; // grid already rendered
+    stopSpeech();
+    renderSubDO_L4_DO(lv, subIdx);
+  }, (sub.watch.durationMs||10000) + 8000);
+}
+
+function renderSubDO_L4_DO(lv, subIdx){
+  const sub = lv.subDOs[subIdx];
+  setNarrativeDimmed(true);
+  hideFocusBanner();
+  const iz = $('iz');
+  iz.innerHTML = '';
+  const p = document.createElement('div'); p.className='izPrompt';
+  p.textContent = sub.prompt;
+  iz.appendChild(p);
+
+  // Pick the right hint set for this sub-DO
+  const hintSet = (subIdx === 0) ? lv.hintsDO1 : lv.hintsDO2;
+  GS.phaseStartTime = Date.now();
+  GS.curSelected = null;
+  GS.curWrongCount = 0;
+  GS.fastWrongs = 0;
+
+  const { grid, lockBtn } = buildOptionGrid(sub.options, (idx, grid, btn)=>{
+    const opt = sub.options[idx];
+    if (opt.correct) {
+      correctSound();
+      grid.querySelectorAll('.optCard')[idx].classList.add('correct');
+      grid.querySelectorAll('.optCard').forEach(c=>c.classList.add('locked'));
+      btn.disabled = true;
+      bumpScore(sub.points || 50);
+      // Building glows green
+      if (sub.key === 'brewery') {
+        const bg = $('breweryGroup');
+        bg.querySelector('.bldgHighlight').classList.remove('show');
+        const bh = bg.querySelector('.bigBldgBody');
+        bh.classList.add('greenGlow');
+        safeTimeout(()=>bh.classList.remove('greenGlow'), 1800);
+        // Fill compare chart row
+        const cc1 = $('ccBrew1'); cc1.textContent = "No (beer)"; cc1.classList.add('filled');
+        const cc2 = $('ccBrew2'); cc2.textContent = "No"; cc2.classList.add('filled');
+      } else {
+        const wg = $('workhouseGroup');
+        wg.querySelector('.bldgHighlight').classList.remove('show');
+        const wh = wg.querySelector('.bigBldgBody');
+        wh.classList.add('greenGlow');
+        safeTimeout(()=>wh.classList.remove('greenGlow'), 1800);
+        const cc1 = $('ccWork1'); cc1.textContent = "No (own well)"; cc1.classList.add('filled');
+        const cc2 = $('ccWork2'); cc2.textContent = "Few"; cc2.classList.add('filled');
+      }
+      // Caption
+      if (sub.onCorrectCaption) addArenaCaption(sub.onCorrectCaption, 2800);
+      // Record THIS sub-DO's score (based on hints used FOR THIS sub-DO)
+      const subScore = tierScore();
+      GS.curLockedSubScores.push(subScore);
+      // First-try affirm for this sub-DO
+      if (subScore === 100 && GS.curResets === 0 && GS.curHintLevel === 0) {
+        showInlineAffirm();
+      }
+      // Advance: next sub-DO or PROVE
+      if (subIdx + 1 < lv.subDOs.length) {
+        safeTimeout(()=>startSubDO_L4(lv, subIdx + 1), 2400);
+      } else {
+        safeTimeout(()=>runProvePhase(lv), 2400);
+      }
+    } else {
+      handleWrong(grid, btn, sub.wrongFeedback[idx], hintSet, ()=>{});
+    }
+  });
+}
+
+// ===== LEVEL 5 DO: What Comes Next =====
+function doLevel5(lv){
+  const iz = $('iz');
+  iz.innerHTML = '';
+  const p = document.createElement('div'); p.className='izPrompt';
+  p.textContent = lv.do.prompt;
+  iz.appendChild(p);
+
+  // Render the sequence steps above the option grid
+  const stepRow = document.createElement('div');
+  stepRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px 0;align-items:center';
+  lv.do.steps.forEach((s, i)=>{
+    const card = document.createElement('div');
+    const isQuestion = s === "???";
+    card.style.cssText = `background:${isQuestion ? '#FFE8B8' : '#FFF'};border:2px solid ${isQuestion ? 'var(--amber)' : 'var(--parch-edge)'};
+      border-radius:8px;padding:6px 10px;font-size:13px;font-weight:bold;color:var(--ink);
+      ${isQuestion ? 'animation:yellowGlow 1.4s ease-in-out infinite;':''}`;
+    card.textContent = `${i+1}. ${s}`;
+    stepRow.appendChild(card);
+    if (i < lv.do.steps.length - 1) {
+      const arrow = document.createElement('span');
+      arrow.textContent = '→';
+      arrow.style.cssText = 'font-size:18px;color:var(--amber);font-weight:bold';
+      stepRow.appendChild(arrow);
+    }
+  });
+  iz.appendChild(stepRow);
+
+  GS.phaseStartTime = Date.now();
+  GS.curSelected = null;
+  GS.curWrongCount = 0;
+  GS.fastWrongs = 0;
+  const { grid, lockBtn } = buildOptionGrid(lv.do.options, (idx, grid, btn)=>{
+    const opt = lv.do.options[idx];
+    if (opt.correct) {
+      correctSound();
+      grid.querySelectorAll('.optCard')[idx].classList.add('correct');
+      grid.querySelectorAll('.optCard').forEach(c=>c.classList.add('locked'));
+      btn.disabled = true;
+      bumpScore(100);
+      if (lv.do.onCorrectFx) safeCall(lv.do.onCorrectFx, 'L5 fx');
+      // Update step 3 card visually with the answer
+      const allCards = stepRow.querySelectorAll('div');
+      const last = allCards[allCards.length - 1];
+      if (last) {
+        last.textContent = "3. Remove the pump handle";
+        last.style.background = '#DDF5DD';
+        last.style.borderColor = 'var(--good)';
+        last.style.color = 'var(--good)';
+        last.style.animation = 'none';
+      }
+      addArenaCaption("No handle = no pump water = no new cases.", 3200);
+      safeTimeout(()=>runProvePhase(lv), 2400);
+    } else {
+      handleWrong(grid, btn, lv.do.wrongFeedback[idx], lv.hints, ()=>{});
+    }
+  });
+}
+
+// ===== LEVEL 6 DO: Claim Builder (two sub-claims) =====
+function doLevel6(lv){
+  GS.curLockedSubScores = [];
+  GS.curSubStep = 0;
+  startSubClaim_L6(lv, 0);
+}
+
+function startSubClaim_L6(lv, subIdx){
+  const sub = lv.subClaims[subIdx];
+  // Reset per-sub-claim hint tracking
+  GS.curWrongCount = 0;
+  GS.curHintLevel = 0;
+  GS.fastWrongs = 0;
+  GS.curSubStep = subIdx;
+
+  const iz = $('iz');
+  iz.innerHTML = '';
+  const p = document.createElement('div'); p.className='izPrompt';
+  p.textContent = `Build the sentence. Tap the tile that fits.`;
+  iz.appendChild(p);
+
+  // Sub-claim indicator
+  const indicator = document.createElement('div');
+  indicator.style.cssText = 'font-size:12px;color:var(--ink);opacity:.7;font-weight:bold;margin-bottom:4px';
+  indicator.textContent = `Sentence ${subIdx + 1} of ${lv.subClaims.length}`;
+  iz.appendChild(indicator);
+
+  // Frame row: render the sentence with a blank
+  const frameRow = document.createElement('div');
+  frameRow.className = 'frameRow';
+  const before = sub.frame.split('___')[0];
+  const after = sub.frame.split('___')[1] || '';
+  const beforeSpan = document.createElement('span');
+  beforeSpan.textContent = before;
+  frameRow.appendChild(beforeSpan);
+  const blank = document.createElement('span');
+  blank.className = 'blank';
+  blank.textContent = 'tap a tile';
+  blank.id = 'l6blank_' + subIdx;
+  frameRow.appendChild(blank);
+  const afterSpan = document.createElement('span');
+  afterSpan.textContent = after;
+  frameRow.appendChild(afterSpan);
+  iz.appendChild(frameRow);
+
+  // Shuffle tiles (preserve correct flag)
+  const tiles = sub.tiles.map((t, origIdx)=>({ ...t, origIdx })).slice();
+  for (let i = tiles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+  }
+
+  // Render tile row
+  const tileRow = document.createElement('div');
+  tileRow.className = 'tileRow';
+  iz.appendChild(tileRow);
+
+  const hintSet = (subIdx === 0) ? lv.hintsSub1 : lv.hintsSub2;
+  GS.phaseStartTime = Date.now();
+  GS.fastWrongs = 0;
+
+  tiles.forEach((t, idx)=>{
+    const tile = document.createElement('button');
+    tile.className = 'tile';
+    tile.textContent = t.text;
+    tile.dataset.idx = idx;
+    tile.onclick = ()=>{
+      if (tile.classList.contains('dimmed') || tile.classList.contains('locked') || tile.classList.contains('correct')) return;
+      if (GS.processing) return;
+      GS.processing = true;
+      if (t.correct) {
+        // Correct tile
+        correctSound();
+        tile.classList.add('correct');
+        // Lock all tiles
+        tileRow.querySelectorAll('.tile').forEach(other=>{
+          other.classList.add('locked');
+          other.style.pointerEvents = 'none';
+        });
+        // Fill blank
+        blank.textContent = t.text;
+        blank.classList.add('filled');
+        bumpScore(sub.points || 50);
+        // Read the completed sentence aloud
+        if (GS.readAloud) {
+          const full = before + ' ' + t.text + ' ' + after;
+          safeTimeout(()=>speak(full, null), 300);
+        }
+        // Record sub-claim score
+        const subScore = tierScore();
+        GS.curLockedSubScores.push(subScore);
+        if (subScore === 100 && GS.curResets === 0 && GS.curHintLevel === 0) {
+          showInlineAffirm();
+        }
+        // Advance: next sub-claim or PROVE
+        if (subIdx + 1 < lv.subClaims.length) {
+          safeTimeout(()=>{ GS.processing = false; startSubClaim_L6(lv, subIdx + 1); }, 2800);
+        } else {
+          // Final sub-claim: draw transmission arrows reinforcing the chain
+          safeTimeout(()=>{
+            drawTransmissionArrows();
+          }, 600);
+          safeTimeout(()=>{ GS.processing = false; runProvePhase(lv); }, 2800);
+        }
+      } else {
+        // Wrong tile: shake then dim
+        wrongSound();
+        tile.classList.add('wrong');
+        safeTimeout(()=>{
+          tile.classList.remove('wrong');
+          tile.classList.add('dimmed');
+        }, 500);
+        GS.curWrongCount++;
+        // Coaching bar
+        if (sub.wrongFeedback) {
+          const cb = document.createElement('div');
+          cb.className = 'coachBar';
+          cb.innerHTML = '<span class="ic">💬</span>' + escHtml(sub.wrongFeedback);
+          iz.appendChild(cb);
+          safeTimeout(()=>{ if(cb.parentNode) cb.remove(); }, 5000);
+        }
+        // Fast-guess gate
+        const elapsed = Date.now() - (GS.phaseStartTime||0);
+        if (elapsed < 1500) {
+          GS.fastWrongs = (GS.fastWrongs||0) + 1;
+          if (GS.fastWrongs >= 2) {
+            const cb = document.createElement('div');
+            cb.className = 'coachBar';
+            cb.innerHTML = '<span class="ic">⏸</span>Take a peek at each tile.';
+            iz.appendChild(cb);
+            GS.fastWrongs = 0;
+            safeTimeout(()=>{ if(cb.parentNode) cb.remove(); }, 4000);
+          }
+        }
+        // Hint ladder
+        if (GS.curWrongCount === 1 && hintSet?.hint1) showHint1(hintSet.hint1.text, hintSet.hint1.visualFn);
+        else if (GS.curWrongCount === 2 && hintSet?.hint2) showHint2(hintSet.hint2.text, hintSet.hint2.visualFn);
+        else if (GS.curWrongCount >= 3) {
+          if (hintSet?.stepByStep) {
+            showStepByStep(hintSet.stepByStep, ()=>{
+              GS.curResets++;
+              GS.curWrongCount = 0;
+              // Un-dim all tiles for retry
+              tileRow.querySelectorAll('.tile').forEach(t=>t.classList.remove('dimmed'));
+              if (GS.curResets >= 3) { forceAdvance50(); return; }
+            });
+          } else {
+            GS.curResets++;
+            GS.curWrongCount = 0;
+            if (GS.curResets >= 3) { forceAdvance50(); return; }
+          }
+        }
+        safeTimeout(()=>{ GS.processing = false; }, 400);
+      }
+    };
+    tileRow.appendChild(tile);
+  });
+}
+
+// ===== RECEIPT =====
+function showReceipt(){
+  closeAllOverlays();
+  stopSpeech();
+  clearAllIv();
+  $('stuckBtn').style.display = 'none';
+  $('receipt').classList.add('show');
+  $('receiptTitle').textContent = escHtml(GS.teacherName) + "'s Simulations";
+  // Compute overall
+  const reqScores = GS.scores.filter(s=>s.required).map(s=>s.score);
+  const bonusCount = GS.scores.filter(s=>!s.required).length;
+  const baseGrade = reqScores.length ? Math.round(reqScores.reduce((a,b)=>a+b,0)/reqScores.length) : 0;
+  const bonusPoints = bonusCount * 5;
+  const overall = Math.min(100, baseGrade + bonusPoints);
+  const big = $('bigScore');
+  big.className = 'scoreBig ' + (overall >= 85 ? 'green' : overall >= 70 ? 'yellow' : 'red');
+  const label = overall >= 85 ? 'MASTERY' : overall >= 70 ? 'APPROACHING MASTERY' : 'NEEDS MORE PRACTICE';
+  big.innerHTML = overall + '%<div class="scoreLabel">' + label + '</div>';
+  // Breakdown
+  const tbody = $('breakdownBody');
+  tbody.innerHTML = '';
+  GS.scores.sort((a,b)=>a.num-b.num).forEach(s=>{
+    const tr = document.createElement('tr');
+    if (!s.required) tr.className = 'bonus';
+    const mm = String(Math.floor(s.time/60)).padStart(2,'0');
+    const ss = String(s.time%60).padStart(2,'0');
+    tr.innerHTML = `
+      <td>${s.required ? s.num : '⭐'}</td>
+      <td>${escHtml(s.name)}</td>
+      <td>${s.score}%</td>
+      <td>${s.attempts}</td>
+      <td>${mm}:${ss}</td>`;
+    tbody.appendChild(tr);
+  });
+  const totalSec = GS.scores.reduce((a,s)=>a+s.time,0);
+  const tm = String(Math.floor(totalSec/60)).padStart(2,'0');
+  const ts = String(totalSec%60).padStart(2,'0');
+  let status;
+  if (GS.bonusComplete) status = '⭐ All Complete (with Bonus!)';
+  else if (GS.reqComplete) status = '✅ Required Levels Complete';
+  else status = '⚠️ Some Levels Incomplete';
+  $('totalLine').textContent = `Total Time: ${tm}:${ts}    Status: ${status}`;
+  // Pre-fill name field
+  $('rName').value = GS.studentName || '';
+  $('rName').disabled = false;
+  $('lockNameBtn').disabled = false;
+  $('lockNameBtn').textContent = 'Lock';
+}
+
+function lockName(){
+  const n = $('rName').value.trim();
+  if (!n) { alert('Please type your name first.'); return; }
+  GS.studentName = n;
+  $('rName').disabled = true;
+  $('lockNameBtn').disabled = true;
+  $('lockNameBtn').textContent = '✓ Locked';
+}
+
+// ===== ENTRY =====
+function startSim(){
+  const nm = $('studentName').value.trim();
+  if (!nm) { alert('Please type your name to start.'); return; }
+  GS.studentName = nm;
+  const tn = $('teacherName').value.trim();
+  if (tn) GS.teacherName = tn;
+  $('welcome').style.display = 'none';
+  $('app').style.display = 'flex';
+  // Set page title
+  document.title = `${GS.teacherName}'s Simulations — Micro-organisms`;
+  // Build static elements
+  buildProgressBar();
+  initHouses();
+  setScore(0);
+  GS.startTime = Date.now();
+  startLevel(1);
+}
+
+// Initialize houses on load so SVG references work even before start
+window.addEventListener('DOMContentLoaded', ()=>{
+  initHouses();
+  buildProgressBar();
+  // Wire enter-key shortcut on welcome
+  const sn = $('studentName');
+  if (sn) sn.addEventListener('keydown', e=>{ if(e.key==='Enter') startSim(); });
+});
+</script>
+</body>
+</html>

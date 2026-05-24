@@ -1,0 +1,2505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Mr. Jawad's Simulation — Microorganisms (Soho Lab)</title>
+<style>
+/* ============ THEME: Wednesday Lab — Clean Light ============ */
+:root{
+  --bg1:#F0F4F8; --bg2:#E8EEF4;
+  --lab-blue:#3B82F6; --clinical:#10B981; --purple:#8B5CF6;
+  --ink:#1F2937; --ink2:#4B5563; --paper:#FFFFFF;
+  --gold:#D97706; --warn:#EF4444; --hint:#FFF9C4;
+  --pump:#7C3F1B; --sepia:#7A5C3A; --map-bg:#FAF3E2;
+  --case:#DC2626; --bact:#1F2937; --water-clean:#BEE3F8; --water-dirty:#6B3F1F;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:linear-gradient(180deg,var(--bg1),var(--bg2));overflow:hidden}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+button:focus-visible{outline:3px solid var(--lab-blue);outline-offset:2px}
+
+/* ============ WELCOME SCREEN ============ */
+#welcome{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#F0F4F8,#DBE6F0);z-index:1000;padding:20px}
+.welcome-card{background:var(--paper);max-width:560px;width:100%;border-radius:16px;padding:32px;box-shadow:0 20px 50px rgba(31,41,55,.18)}
+.welcome-card h1{font-size:26px;margin-bottom:6px;color:var(--lab-blue)}
+.welcome-card .sub{color:var(--ink2);margin-bottom:20px;font-size:15px}
+.welcome-card label{display:block;font-weight:600;font-size:14px;margin:14px 0 6px;color:var(--ink2)}
+.welcome-card input{width:100%;padding:14px 16px;font-size:16px;border:2px solid #CBD5E1;border-radius:10px;background:#F8FAFC}
+.welcome-card input:focus{border-color:var(--lab-blue);outline:none}
+#startBtn{margin-top:22px;width:100%;padding:16px;font-size:18px;font-weight:700;background:var(--lab-blue);color:#fff;border-radius:10px;min-height:56px}
+#startBtn:hover{background:#2563EB}
+
+/* ============ GAME LAYOUT ============ */
+#game{position:fixed;inset:0;display:none;flex-direction:column;background:linear-gradient(180deg,var(--bg1),var(--bg2))}
+#topbar{display:flex;align-items:center;gap:12px;padding:8px 16px;background:#fff;border-bottom:2px solid #CBD5E1;box-shadow:0 2px 4px rgba(0,0,0,.04);min-height:48px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--lab-blue);color:#fff;font-weight:700;font-size:13px}
+#roundName{font-weight:700;color:var(--ink);font-size:15px;flex:1}
+.hud-item{display:flex;align-items:center;gap:6px;padding:4px 10px;background:#F1F5F9;border-radius:999px;font-size:13px;font-weight:600}
+.hud-item .lbl{color:var(--ink2)}
+#scoreVal{color:var(--clinical);font-weight:800}
+#progressBar{width:120px;height:8px;background:#E2E8F0;border-radius:4px;overflow:hidden}
+#progressFill{height:100%;background:linear-gradient(90deg,var(--clinical),var(--lab-blue));width:0%;transition:width .4s}
+
+#gameMain{flex:1;display:grid;grid-template-columns:240px 1fr 280px;grid-template-rows:1fr auto;gap:8px;padding:8px;min-height:0}
+#controlPanel{grid-column:1;grid-row:1;background:#fff;border:1px solid #CBD5E1;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-height:0}
+#contextPanel{grid-column:2;grid-row:1;background:var(--map-bg);border:2px solid #C9B98A;border-radius:12px;position:relative;overflow:hidden;min-height:240px}
+#dataPanel{grid-column:3;grid-row:1;background:#fff;border:1px solid #CBD5E1;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0}
+#interactionZone{grid-column:1 / span 3;grid-row:2;background:#fff;border:1px solid #CBD5E1;border-radius:12px;padding:14px;min-height:160px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:36vh}
+
+#bottombar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fff;border-top:2px solid #CBD5E1;min-height:52px}
+.bottom-btn{padding:10px 14px;background:#F1F5F9;color:var(--ink);border-radius:8px;font-weight:600;font-size:14px;min-height:44px;min-width:44px;display:inline-flex;align-items:center;gap:6px}
+.bottom-btn:hover{background:#E2E8F0}
+.bottom-btn:disabled{opacity:.4;cursor:not-allowed}
+#roundCounter{flex:1;text-align:center;color:var(--ink2);font-weight:600;font-size:14px}
+
+/* ============ ARENA: SOHO MAP (SVG-LIKE DIVS) ============ */
+#arenaInner{position:absolute;top:0;left:0;right:0;bottom:0}
+#sohoSvg{width:100%;height:100%;max-width:100%;max-height:100%;display:block}
+.map-label{font-size:9px;fill:var(--sepia);font-family:Georgia,serif;font-style:italic;pointer-events:none}
+.house{fill:#FAF3E2;stroke:var(--sepia);stroke-width:1}
+.house.greyed{fill:#E8E2D2;opacity:.55}
+.street{stroke:var(--sepia);stroke-width:2;fill:none;opacity:.6}
+.pump-icon{fill:#3A2418;stroke:#1F1208;stroke-width:1.5}
+.pump-label{font-size:10px;font-weight:700;fill:#3A2418;font-family:Georgia,serif;text-anchor:middle}
+.cesspool{fill:#5A3A1C;stroke:#3A2410;stroke-width:1}
+.cesspool-label{font-size:8px;fill:#3A2410;font-family:Georgia,serif;text-anchor:middle;font-weight:600}
+.case-dot{fill:var(--case);opacity:0;transform-origin:center;transform:scale(0);transition:opacity .4s,transform .4s}
+.case-dot.on{opacity:.85;transform:scale(1)}
+.case-dot.on{animation:dotPulse 2s ease-in-out infinite}
+@keyframes dotPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+.arrow-path{fill:none;stroke:#D97706;stroke-width:2;stroke-dasharray:5 3;opacity:0;transition:opacity .4s,stroke .4s}
+.arrow-path.on{opacity:.85;animation:arrowFlow 1.8s linear infinite}
+.arrow-path.red{stroke:#DC2626}
+@keyframes arrowFlow{0%{stroke-dashoffset:0}100%{stroke-dashoffset:-16}}
+
+/* Microscope - bottom-right of map */
+#microscope{position:absolute;bottom:10px;right:10px;width:180px;height:180px;border-radius:50%;border:8px solid #1F1208;background:radial-gradient(circle,#E8F4FA 0%,#BEE3F8 100%);overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.4),inset 0 0 0 3px #8B6F2C,inset 0 0 0 6px #C9A04C,inset 0 0 24px rgba(0,0,0,.15)}
+#microscope::before{content:"";position:absolute;left:50%;top:50%;width:1px;height:60%;background:rgba(0,0,0,.18);transform:translate(-50%,-50%);pointer-events:none;z-index:2}
+#microscope::after{content:"";position:absolute;left:50%;top:50%;width:60%;height:1px;background:rgba(0,0,0,.18);transform:translate(-50%,-50%);pointer-events:none;z-index:2}
+#microscope .mag-label{position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.85);color:#1F1208;font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;letter-spacing:.5px;z-index:3;pointer-events:none}
+#microscope.contaminated{background:radial-gradient(circle,#B58348 0%,#6B3F1F 100%);transition:background 1.2s}
+#microscope.clean{background:radial-gradient(circle,#E8F4FA 0%,#BEE3F8 100%);transition:background 1.2s}
+#microscope.contaminated::before,#microscope.contaminated::after{background:rgba(0,0,0,.35)}
+.bacterium{position:absolute;width:18px;height:9px;background:#0B1726;border-radius:50% 50% 50% 50%/70% 70% 30% 30%;opacity:0;transform-origin:center;transform:scale(0) rotate(0deg);transition:opacity .5s,transform .5s;box-shadow:0 1px 2px rgba(0,0,0,.4);border:1px solid #000}
+.bacterium::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:3px;background:#0B1726;border-radius:50%;transform:translate(-50%,-50%) rotate(35deg);box-shadow:0 0 0 .5px #000}
+.bacterium.on{opacity:.95;transform:scale(1) rotate(var(--rot,0deg));animation:bactDrift 4s ease-in-out infinite}
+@keyframes bactDrift{0%,100%{transform:scale(1) translate(0,0) rotate(15deg)}50%{transform:scale(1.05) translate(3px,-2px) rotate(-10deg)}}
+.micro-badge{position:absolute;top:-6px;right:-6px;background:#fff;color:var(--ink);border:2px solid #C9A04C;border-radius:999px;padding:3px 9px;font-size:12px;font-weight:800;box-shadow:0 2px 4px rgba(0,0,0,.15);z-index:5}
+.cases-badge{position:absolute;top:8px;left:8px;background:#fff;color:var(--case);border:2px solid var(--case);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:800;box-shadow:0 2px 4px rgba(0,0,0,.15);z-index:5;opacity:0;transition:opacity .3s}
+.cases-badge.on{opacity:1}
+
+#focusBanner{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(31,41,55,.92);color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;z-index:10;max-width:90%;text-align:center;opacity:0;pointer-events:none;transition:opacity .4s}
+#focusBanner.on{opacity:1}
+#focusBanner.subtle{background:rgba(31,41,55,.55);font-weight:500;font-size:12px}
+
+#pumpHighlight{pointer-events:none}
+.pulse-soft{animation:pulseSoft 1.6s ease-in-out infinite}
+@keyframes pulseSoft{0%,100%{filter:drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 0 8px rgba(217,119,6,.95))}}
+
+/* ============ CONTROL PANEL ============ */
+.panel-title{font-size:13px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;padding-bottom:6px;border-bottom:2px solid #E2E8F0}
+.var-tile{background:#F8FAFC;border:2px solid #CBD5E1;border-radius:10px;padding:10px;position:relative;transition:all .3s}
+.var-tile.active{background:#FEF3C7;border-color:#F59E0B;box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+.var-tile.locked{opacity:.4;pointer-events:none}
+.var-tile.locked::before{content:"🔒";position:absolute;top:6px;right:8px;font-size:14px}
+.var-name{font-weight:700;font-size:13px;color:var(--ink);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.var-current{font-size:12px;color:var(--ink2);margin-bottom:8px}
+.var-current b{color:var(--lab-blue)}
+.var-control{display:flex;gap:6px;margin-top:4px}
+.var-opt{flex:1;padding:8px 4px;font-size:12px;font-weight:600;background:#fff;border:2px solid #CBD5E1;border-radius:6px;color:var(--ink2);min-height:36px;text-align:center}
+.var-opt.sel{background:var(--lab-blue);color:#fff;border-color:var(--lab-blue)}
+.var-opt:hover:not(.sel){background:#E0E7FF}
+#runBtn{margin-top:auto;padding:14px;background:var(--clinical);color:#fff;font-size:15px;font-weight:800;border-radius:10px;min-height:52px;box-shadow:0 3px 8px rgba(16,185,129,.3);transition:all .2s}
+#runBtn:hover:not(:disabled){background:#059669;transform:translateY(-1px)}
+#runBtn:disabled{background:#9CA3AF;cursor:not-allowed;box-shadow:none}
+#runBtn.shake{animation:btnShake .4s}
+@keyframes btnShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* ============ DATA PANEL ============ */
+#dataPanel.hidden{visibility:hidden}
+.data-header{font-size:12px;font-weight:700;color:var(--ink2);background:#F1F5F9;padding:6px 8px;border-radius:6px;text-align:center}
+table.data-table{width:100%;border-collapse:collapse;font-size:12px}
+table.data-table th{background:var(--purple);color:#fff;padding:6px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+table.data-table td{padding:7px 4px;text-align:center;border-bottom:1px solid #E2E8F0;font-weight:600}
+table.data-table tr.current{background:#FEF3C7}
+table.data-table tr.bonus{background:#FEF3C7}
+table.data-table td.error-cell{background:#FECACA;color:#991B1B;cursor:pointer;text-decoration:underline;font-weight:800}
+table.data-table td.error-cell:hover{background:#FCA5A5}
+.cell-pick{display:flex;gap:4px;justify-content:center;margin-top:6px}
+.cell-pick button{flex:1;padding:6px 4px;background:#F1F5F9;border:2px solid #CBD5E1;border-radius:6px;font-size:13px;font-weight:700;min-height:38px}
+.cell-pick button:hover{background:#E0E7FF;border-color:var(--lab-blue)}
+.record-verify-btn{margin-top:10px;padding:12px;background:var(--clinical);color:#fff;font-weight:700;font-size:14px;border-radius:8px;min-height:48px;width:100%}
+.record-verify-btn:hover{background:#059669}
+.record-helper{font-size:11px;color:var(--ink2);text-align:center;font-style:italic;padding:4px}
+
+/* ============ INTERACTION ZONE ============ */
+.phase-title{font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.6px}
+.prompt{font-size:16px;font-weight:600;color:var(--ink);line-height:1.4}
+.opt-grid{display:grid;gap:10px}
+.opt-grid.cols-2{grid-template-columns:1fr 1fr}
+.opt-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.opt-grid.cols-4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:760px){.opt-grid.cols-3,.opt-grid.cols-4{grid-template-columns:1fr 1fr}}
+.opt-card{background:#F8FAFC;border:3px solid #CBD5E1;border-radius:10px;padding:14px;font-size:14px;font-weight:600;text-align:center;min-height:60px;display:flex;align-items:center;justify-content:center;color:var(--ink);transition:all .15s;line-height:1.35}
+.opt-card:hover:not(.dimmed):not(.locked):not(.disabled):not(.correct){background:#E0E7FF;border-color:var(--lab-blue);transform:translateY(-1px)}
+.opt-card.selected{background:#DBEAFE;border-color:var(--lab-blue);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
+.opt-card.correct{background:#D1FAE5;border-color:var(--clinical);color:#065F46}
+.opt-card.wrong{background:#FEE2E2;border-color:var(--warn);animation:wrongShake .4s}
+.opt-card.dimmed{opacity:.4;pointer-events:none;text-decoration:line-through}
+.opt-card.locked,.opt-card.disabled{pointer-events:none;opacity:.5}
+.opt-card.glow{animation:gentleGlow 2s ease-in-out infinite}
+@keyframes gentleGlow{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0)}50%{box-shadow:0 0 0 4px rgba(245,158,11,.4)}}
+@keyframes wrongShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.lock-btn{padding:14px 28px;background:var(--lab-blue);color:#fff;font-size:15px;font-weight:800;border-radius:10px;min-height:52px;margin:0 auto;display:block;min-width:180px;box-shadow:0 3px 8px rgba(59,130,246,.3)}
+.lock-btn:hover:not(:disabled){background:#2563EB;transform:translateY(-1px)}
+.lock-btn:disabled{background:#9CA3AF;cursor:not-allowed;box-shadow:none}
+.try-again-btn{padding:12px 24px;background:#F59E0B;color:#fff;font-weight:800;font-size:14px;border-radius:10px;min-height:48px;display:block;margin:8px auto 0}
+.try-again-btn:hover{background:#D97706}
+
+.predict-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.predict-card{background:#F8FAFC;border:3px solid #CBD5E1;border-radius:12px;padding:18px;cursor:pointer;text-align:center;font-size:15px;font-weight:600;min-height:90px;display:flex;align-items:center;justify-content:center}
+.predict-card:hover{background:#E0E7FF;border-color:var(--lab-blue)}
+.predict-card.selected{background:#DBEAFE;border-color:var(--lab-blue);box-shadow:0 0 0 3px rgba(59,130,246,.25)}
+
+/* Claim builder */
+.claim-sentence{background:#F1F5F9;border:2px solid #CBD5E1;border-radius:10px;padding:14px;font-size:15px;font-weight:600;line-height:1.7;color:var(--ink);text-align:center}
+.claim-blank{display:inline-block;min-width:180px;min-height:32px;border-bottom:2px dashed var(--lab-blue);padding:2px 8px;background:#fff;font-weight:700;color:var(--lab-blue);vertical-align:middle}
+.claim-blank.filled{background:#DBEAFE;border-style:solid}
+.claim-tray{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.claim-tile{background:#F8FAFC;border:2px solid #CBD5E1;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;min-height:54px;line-height:1.3}
+.claim-tile:hover:not(.dimmed):not(.placed){background:#E0E7FF;border-color:var(--lab-blue)}
+.claim-tile.placed{background:#DBEAFE;border-color:var(--lab-blue);opacity:.5;pointer-events:none}
+.claim-tile.dimmed{opacity:.35;pointer-events:none;text-decoration:line-through}
+.claim-tile .ic{font-size:18px;flex-shrink:0}
+
+/* Hotspot */
+.hotspot-instructions{font-size:14px;color:var(--ink2);text-align:center;font-weight:500;margin-top:6px}
+
+/* ============ COACHING / HINTS ============ */
+#coachingBar{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;background:#FEF3C7;border:2px solid #F59E0B;color:#78350F;padding:12px 18px;border-radius:10px;font-size:14px;font-weight:600;max-width:680px;width:90%;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:200;display:none;line-height:1.4}
+#coachingBar.show{display:block;animation:slideUp .3s ease-out}
+#coachingBar.hint1{background:#FEF3C7;border-color:#F59E0B;color:#78350F}
+#coachingBar.hint2{background:#FFE0B2;border-color:#EA580C;color:#7C2D12}
+@keyframes slideUp{from{transform:translate(-50%,16px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
+#stepOverlay{position:fixed;inset:0;background:rgba(15,23,42,.78);display:none;align-items:center;justify-content:center;z-index:500;padding:20px}
+#stepOverlay.show{display:flex}
+.step-modal{background:#fff;border-radius:14px;padding:24px;max-width:520px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.step-modal h3{color:var(--lab-blue);font-size:18px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.step-modal p{font-size:15px;color:var(--ink);line-height:1.5;margin-bottom:16px}
+.step-progress{display:flex;gap:6px;justify-content:center;margin-bottom:14px}
+.step-dot{width:10px;height:10px;border-radius:50%;background:#CBD5E1}
+.step-dot.on{background:var(--lab-blue)}
+.step-next{padding:12px 24px;background:var(--lab-blue);color:#fff;font-weight:700;border-radius:8px;min-height:48px;width:100%}
+
+/* ============ VOCABULARY PANEL ============ */
+#vocabPanel{position:fixed;top:0;right:0;width:340px;height:100%;background:#fff;border-left:2px solid #CBD5E1;box-shadow:-4px 0 16px rgba(0,0,0,.12);transform:translateX(100%);transition:transform .3s;z-index:600;padding:20px;overflow-y:auto}
+#vocabPanel.show{transform:translateX(0)}
+#vocabPanel h2{color:var(--lab-blue);margin-bottom:14px;font-size:20px;display:flex;justify-content:space-between;align-items:center}
+#vocabPanel .close{background:#F1F5F9;border-radius:8px;padding:4px 12px;font-weight:700;min-height:36px}
+.vocab-entry{background:#F8FAFC;border-left:4px solid var(--lab-blue);border-radius:8px;padding:12px;margin-bottom:10px}
+.vocab-name{font-weight:800;color:var(--lab-blue);font-size:15px;display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.vocab-def{font-size:13px;color:var(--ink);line-height:1.4}
+.vocab-where{font-size:11px;color:var(--ink2);font-style:italic;margin-top:5px}
+.vocab-entry.highlight{background:#FEF3C7;border-left-color:#F59E0B;box-shadow:0 0 0 2px rgba(245,158,11,.25)}
+
+/* ============ I'M STUCK BUTTON (FLOATING) ============ */
+#stuckBtn{position:fixed;bottom:64px;right:14px;z-index:9999;background:#F59E0B;color:#fff;padding:10px 16px;border-radius:999px;font-weight:800;font-size:13px;min-height:44px;box-shadow:0 6px 16px rgba(245,158,11,.45);display:flex;align-items:center;gap:6px}
+#stuckBtn:hover{background:#D97706}
+#stuckBtn.hide{display:none}
+
+/* ============ CELEBRATIONS ============ */
+#celeb{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:700;pointer-events:none}
+#celeb.show{display:flex}
+.celeb-banner{background:rgba(16,185,129,.96);color:#fff;padding:20px 40px;border-radius:14px;font-size:28px;font-weight:900;text-align:center;box-shadow:0 12px 30px rgba(0,0,0,.3);animation:celebPop .5s ease-out}
+.celeb-banner.gold{background:rgba(217,119,6,.96)}
+.celeb-banner.purple{background:rgba(139,92,246,.96)}
+.celeb-affirm{margin-top:14px;font-size:18px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.4);font-weight:600;text-align:center}
+@keyframes celebPop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+#particleLayer{position:fixed;inset:0;pointer-events:none;z-index:650}
+.particle{position:absolute;width:10px;height:10px;border-radius:2px;opacity:0}
+.particle.go{animation:partFall 1.8s ease-out forwards}
+@keyframes partFall{0%{opacity:1;transform:translate(0,0) rotate(0deg)}100%{opacity:0;transform:translate(var(--dx,40px),var(--dy,200px)) rotate(360deg)}}
+
+#feedbackBurst{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:60px;font-weight:900;color:var(--clinical);pointer-events:none;z-index:680;opacity:0;text-shadow:0 4px 12px rgba(16,185,129,.4)}
+#feedbackBurst.go{animation:burstFlash .9s ease-out}
+@keyframes burstFlash{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}}
+
+/* ============ COMPLETE & RECEIPT ============ */
+#completeScreen{position:fixed;inset:0;background:linear-gradient(180deg,#F0F4F8,#DBE6F0);display:none;align-items:center;justify-content:center;z-index:900;padding:20px}
+#completeScreen.show{display:flex}
+.complete-card{background:#fff;border-radius:18px;padding:36px;max-width:560px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.18)}
+.complete-card h2{color:var(--clinical);font-size:30px;margin-bottom:14px}
+.complete-checks{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin:18px 0}
+.complete-check{background:#D1FAE5;color:#065F46;padding:6px 14px;border-radius:999px;font-weight:700;font-size:13px}
+.complete-check.bonus{background:#FEF3C7;color:#78350F}
+.complete-msg{font-size:16px;color:var(--ink2);margin-bottom:18px}
+.complete-btn{padding:14px 28px;background:var(--lab-blue);color:#fff;font-weight:800;font-size:16px;border-radius:10px;min-height:52px;min-width:200px}
+
+#receipt{position:fixed;inset:0;background:linear-gradient(180deg,#F0F4F8,#DBE6F0);display:none;overflow-y:auto;z-index:950;padding:24px}
+#receipt.show{display:block}
+.receipt-card{background:#fff;border-radius:14px;max-width:780px;margin:0 auto;padding:28px;box-shadow:0 16px 40px rgba(0,0,0,.16)}
+.receipt-title{text-align:center;font-size:22px;color:var(--lab-blue);font-weight:800}
+.receipt-sub{text-align:center;color:var(--ink2);margin:6px 0 18px}
+.name-row{display:flex;gap:10px;align-items:center;margin-bottom:18px;padding:12px;background:#F8FAFC;border-radius:10px}
+.name-row label{font-weight:700;font-size:14px}
+.name-row input{flex:1;padding:10px 12px;font-size:15px;border:2px solid #CBD5E1;border-radius:8px}
+.name-row input:disabled{background:#E2E8F0}
+.name-lock{padding:10px 18px;background:var(--lab-blue);color:#fff;font-weight:700;border-radius:8px;min-height:44px}
+.score-display{text-align:center;margin:18px 0}
+.score-pct{font-size:64px;font-weight:900;line-height:1}
+.score-pct.green{color:var(--clinical)}
+.score-pct.yellow{color:#CA8A04}
+.score-pct.red{color:var(--warn)}
+.score-tier{font-size:16px;font-weight:700;color:var(--ink2);margin-top:6px}
+.score-next{font-size:14px;color:var(--ink2);margin-top:8px;font-style:italic;max-width:480px;margin-left:auto;margin-right:auto}
+.bonus-badge{display:inline-block;background:#FEF3C7;color:#78350F;padding:6px 14px;border-radius:999px;font-weight:800;font-size:13px;margin-top:8px}
+table.breakdown{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+table.breakdown th{background:var(--lab-blue);color:#fff;padding:8px;text-align:left}
+table.breakdown td{padding:8px;border-bottom:1px solid #E2E8F0}
+table.breakdown tr:nth-child(even) td{background:#F8FAFC}
+table.breakdown td.score-c{font-weight:800;text-align:center}
+table.breakdown td.score-c.green{color:var(--clinical)}
+table.breakdown td.score-c.yellow{color:#CA8A04}
+table.breakdown td.score-c.red{color:var(--warn)}
+.receipt-upload{background:#FEF3C7;color:#78350F;padding:14px;border-radius:10px;text-align:center;font-weight:700;font-size:14px;margin:14px 0}
+.receipt-actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.r-btn{padding:12px 22px;font-weight:700;border-radius:10px;min-height:48px;font-size:14px}
+.r-btn.print{background:var(--lab-blue);color:#fff}
+.r-btn.over{background:#F1F5F9;color:var(--ink)}
+
+@media print{
+  #welcome,#game,#completeScreen,#topbar,#bottombar,#stuckBtn,.receipt-actions,.name-lock,#vocabPanel{display:none !important}
+  body{background:#fff !important;overflow:visible}
+  #receipt{position:static;background:#fff;padding:10px}
+  .receipt-card{box-shadow:none;max-width:100%}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
+/* utility */
+.hidden{display:none !important}
+.fadein{animation:fadeIn .35s ease-out}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+/* ============= UPGRADED VISUAL CSS ============= */
+/* Map title and street labels */
+.map-title{font-family:Georgia,serif;font-size:11px;font-weight:700;fill:#3A2410;letter-spacing:.5px}
+.street-label{font-family:Georgia,serif;font-size:8px;fill:#7A6E58;font-style:italic;letter-spacing:.3px}
+.mini-label{font-family:Georgia,serif;font-size:6px;fill:#5C5040}
+.map-sublabel{font-family:Georgia,serif;font-size:6.5px;fill:#7A6E58;font-style:italic}
+
+/* House parts */
+.house-grp .roof{fill:#8B5A3C;stroke:#5C3A20;stroke-width:.6}
+.house-grp .house{fill:#FAF3E2;stroke:#5C3A20;stroke-width:.6}
+.house-grp .door{fill:#5C3A20}
+.house-grp .window{fill:#9AB8D2;stroke:#5C3A20;stroke-width:.3}
+
+/* Buildings (Brewery / Workhouse) - greyed style for non-cluster anchors */
+.building.greyed rect,.building.greyed polygon,.building.greyed circle,.building.greyed ellipse{opacity:.7}
+.building.greyed text{opacity:.85}
+
+/* Cesspool */
+.cesspool{fill:#3F2812;stroke:#1F1208;stroke-width:1.2}
+.cesspool-label{font-family:Georgia,serif;font-size:7.5px;fill:#1F1208;font-weight:800;letter-spacing:.5px}
+.stink{animation:stinkWave 3s ease-in-out infinite}
+@keyframes stinkWave{0%,100%{transform:translateY(0);opacity:.55}50%{transform:translateY(-4px);opacity:.25}}
+
+/* Pump label box - bright yellow so it really pops */
+.pump-label{font-family:Georgia,serif;font-size:9px;font-weight:800;fill:#1F1208;letter-spacing:.5px}
+#pumpWater{transition:fill 1s,opacity .6s}
+#pumpSparkle{transition:opacity .6s}
+#pumpGroup.dirty #pumpWater{fill:#6B4220}
+#pumpGroup.dirty #pumpSparkle{opacity:0}
+#pumpGroup.clean #pumpWater{fill:#5BB0E8}
+#pumpGroup.clean #pumpSparkle{opacity:.9}
+
+/* Flow channel from cesspool to pump - appears when contaminated water flows */
+#flowChannel{transition:opacity .8s}
+#flowChannel.show{opacity:.85;animation:flowDash 1.2s linear infinite}
+@keyframes flowDash{from{stroke-dashoffset:0}to{stroke-dashoffset:-16}}
+
+/* Case figures (person silhouettes) - replaces .case-dot */
+.case-fig{opacity:0;transform-origin:center;transform:scale(0);transition:opacity .4s,transform .4s}
+.case-fig.on{opacity:.95;transform:scale(1);animation:figPulse 2s ease-in-out infinite}
+@keyframes figPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+
+/* Microscope label inside view */
+.mag-label{font-family:Arial,sans-serif}
+
+/* ============= VARIABLE TILE ICONS ============= */
+.var-icon-row{display:flex;align-items:center;gap:10px;padding:6px 4px 4px;margin-bottom:4px}
+.var-icon{width:42px;height:42px;flex-shrink:0}
+.var-tile .var-current{flex:1;font-size:12px;color:#475569}
+.var-tile .var-current b{color:#1F2937;font-size:13px}
+
+/* Water cup: clean vs dirty */
+#tileWater[data-state="clean"] .cup-water{fill:#5BB0E8;transition:fill .8s}
+#tileWater[data-state="clean"] .cup-mark{fill:#fff;opacity:.85;transition:opacity .8s,fill .8s}
+#tileWater[data-state="contaminated"] .cup-water{fill:#5C3A20;transition:fill .8s}
+#tileWater[data-state="contaminated"] .cup-mark{fill:#3A1F08;opacity:.95;transition:opacity .8s,fill .8s}
+#tileWater[data-state="contaminated"] .cup-mark.m1{transform:translate(2px,4px)}
+#tileWater[data-state="contaminated"] .cup-mark.m2{transform:translate(-3px,-2px)}
+
+/* Thermometer: cold vs warm */
+#tileTemp[data-state="cold"] .therm-fill{fill:#3B82F6;y:30;height:16;transition:fill .8s,y .8s,height .8s}
+#tileTemp[data-state="cold"] .therm-bulb{fill:#3B82F6;transition:fill .8s}
+#tileTemp[data-state="warm"] .therm-fill{fill:#DC2626;y:14;height:32;transition:fill .8s,y .8s,height .8s}
+#tileTemp[data-state="warm"] .therm-bulb{fill:#DC2626;transition:fill .8s}
+
+/* People: few (3) vs many (9) */
+#tileExp[data-state="few"] .p-extra{opacity:0;transition:opacity .6s}
+#tileExp[data-state="many"] .p-extra{opacity:.95;transition:opacity .6s}
+
+/* Active tile glow when student adjusts the unlocked variable */
+.var-tile.changed{background:#FEF3C7;border-color:#F59E0B;box-shadow:0 0 0 3px rgba(245,158,11,.3)}
+
+/* Microscope contaminated-state ring tint */
+#microscope.contaminated{border-color:#3A2418;box-shadow:0 6px 16px rgba(0,0,0,.5),inset 0 0 0 3px #6B4220,inset 0 0 0 6px #A87547,inset 0 0 24px rgba(0,0,0,.25)}
+
+</style>
+</head>
+<body>
+
+<!-- WELCOME -->
+<div id="welcome">
+  <div class="welcome-card">
+    <h1>Soho Lab — Microorganisms</h1>
+    <p class="sub">Cause-and-Effect Lab • 6 rounds • Wednesday</p>
+    <label for="studentInput">Your name</label>
+    <input id="studentInput" type="text" placeholder="Type your name" maxlength="40">
+    <label for="teacherInput">Teacher's name (optional)</label>
+    <input id="teacherInput" type="text" placeholder="Mr. Jawad" maxlength="40">
+    <div style="margin:14px auto;max-width:560px;padding:12px 16px;background:#FFF8E1;border:2px solid #F59E0B;border-left-width:6px;border-radius:8px;color:#78350F;font-size:14px;line-height:1.45;text-align:left;font-family:system-ui,-apple-system,sans-serif;"><strong>⚠️ Take your time.</strong> This sim is built to lock the screen if you rush — by design. Read each prompt carefully before clicking.</div>
+    <button id="startBtn">Start Lab</button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <div id="topbar">
+    <span class="badge">🔬 LAB</span>
+    <span id="roundName">Round 1: Switch the Water</span>
+    <div class="hud-item"><span class="lbl">Score</span> <span id="scoreVal">0</span></div>
+    <div id="progressBar"><div id="progressFill"></div></div>
+  </div>
+
+  <div id="gameMain">
+    <!-- LEFT: Variable Controls -->
+    <div id="controlPanel">
+      <div class="panel-title">Variables</div>
+      <div class="var-tile" id="tileWater" data-state="clean">
+        <div class="var-name">💧 Water Source</div>
+        <div class="var-icon-row">
+          <svg class="var-icon" viewBox="0 0 60 60">
+            <!-- Glass / cup -->
+            <path d="M14,8 L46,8 L42,52 Q42,56 38,56 L22,56 Q18,56 18,52 Z" fill="#fff" stroke="#1F2937" stroke-width="1.6"/>
+            <!-- Water fill (changes color via class) -->
+            <path class="cup-water" d="M16,18 L44,18 L41,52 Q41,54 38,54 L22,54 Q19,54 19,52 Z" fill="#5BB0E8"/>
+            <!-- Sparkle dots (clean) / sludge dots (contaminated) toggled via class -->
+            <circle class="cup-mark m1" cx="24" cy="30" r="1.5" fill="#fff"/>
+            <circle class="cup-mark m2" cx="36" cy="38" r="1.2" fill="#fff"/>
+            <circle class="cup-mark m3" cx="30" cy="46" r="1" fill="#fff"/>
+          </svg>
+          <div class="var-current">Now: <b id="vWaterTxt">Clean</b></div>
+        </div>
+        <div class="var-control">
+          <button class="var-opt" data-var="water" data-val="clean">Clean</button>
+          <button class="var-opt" data-var="water" data-val="contaminated">Dirty</button>
+        </div>
+      </div>
+      <div class="var-tile" id="tileTemp" data-state="cold">
+        <div class="var-name">🌡️ Temperature</div>
+        <div class="var-icon-row">
+          <svg class="var-icon" viewBox="0 0 60 60">
+            <!-- Thermometer body -->
+            <rect x="26" y="6" width="8" height="40" rx="4" fill="#fff" stroke="#1F2937" stroke-width="1.6"/>
+            <!-- Bulb -->
+            <circle cx="30" cy="50" r="8" fill="#fff" stroke="#1F2937" stroke-width="1.6"/>
+            <!-- Liquid in bulb -->
+            <circle class="therm-bulb" cx="30" cy="50" r="6" fill="#3B82F6"/>
+            <!-- Liquid column (height & color via class) -->
+            <rect class="therm-fill" x="28" y="30" width="4" height="16" fill="#3B82F6"/>
+            <!-- Tick marks -->
+            <line x1="22" y1="14" x2="26" y2="14" stroke="#1F2937" stroke-width="1"/>
+            <line x1="22" y1="22" x2="26" y2="22" stroke="#1F2937" stroke-width="1"/>
+            <line x1="22" y1="30" x2="26" y2="30" stroke="#1F2937" stroke-width="1"/>
+            <line x1="22" y1="38" x2="26" y2="38" stroke="#1F2937" stroke-width="1"/>
+          </svg>
+          <div class="var-current">Now: <b id="vTempTxt">Cold</b></div>
+        </div>
+        <div class="var-control">
+          <button class="var-opt" data-var="temp" data-val="cold">Cold</button>
+          <button class="var-opt" data-var="temp" data-val="warm">Warm</button>
+        </div>
+      </div>
+      <div class="var-tile" id="tileExp" data-state="few">
+        <div class="var-name">👥 Drinkers</div>
+        <div class="var-icon-row">
+          <svg class="var-icon" viewBox="0 0 60 60">
+            <!-- 3 people always shown; extra 6 (faded) shown when "many" -->
+            <g class="person p-base">
+              <circle cx="14" cy="20" r="4" fill="#8B5A3C"/>
+              <path d="M8,52 Q8,32 14,32 Q20,32 20,52 Z" fill="#8B5A3C"/>
+            </g>
+            <g class="person p-base">
+              <circle cx="30" cy="20" r="4" fill="#5C7AA8"/>
+              <path d="M24,52 Q24,32 30,32 Q36,32 36,52 Z" fill="#5C7AA8"/>
+            </g>
+            <g class="person p-base">
+              <circle cx="46" cy="20" r="4" fill="#A85C5C"/>
+              <path d="M40,52 Q40,32 46,32 Q52,32 52,52 Z" fill="#A85C5C"/>
+            </g>
+            <g class="person p-extra">
+              <circle cx="14" cy="44" r="2.5" fill="#6B6B6B"/>
+              <path d="M10,58 Q10,48 14,48 Q18,48 18,58 Z" fill="#6B6B6B"/>
+            </g>
+            <g class="person p-extra">
+              <circle cx="22" cy="44" r="2.5" fill="#6B6B6B"/>
+              <path d="M18,58 Q18,48 22,48 Q26,48 26,58 Z" fill="#6B6B6B"/>
+            </g>
+            <g class="person p-extra">
+              <circle cx="30" cy="44" r="2.5" fill="#6B6B6B"/>
+              <path d="M26,58 Q26,48 30,48 Q34,48 34,58 Z" fill="#6B6B6B"/>
+            </g>
+            <g class="person p-extra">
+              <circle cx="38" cy="44" r="2.5" fill="#6B6B6B"/>
+              <path d="M34,58 Q34,48 38,48 Q42,48 42,58 Z" fill="#6B6B6B"/>
+            </g>
+            <g class="person p-extra">
+              <circle cx="46" cy="44" r="2.5" fill="#6B6B6B"/>
+              <path d="M42,58 Q42,48 46,48 Q50,48 50,58 Z" fill="#6B6B6B"/>
+            </g>
+            <g class="person p-extra">
+              <circle cx="54" cy="44" r="2.5" fill="#6B6B6B"/>
+              <path d="M50,58 Q50,48 54,48 Q58,48 58,58 Z" fill="#6B6B6B"/>
+            </g>
+          </svg>
+          <div class="var-current">Now: <b id="vExpTxt">Few</b></div>
+        </div>
+        <div class="var-control">
+          <button class="var-opt" data-var="exposure" data-val="few">Few (3)</button>
+          <button class="var-opt" data-var="exposure" data-val="many">Many (9)</button>
+        </div>
+      </div>
+      <button id="runBtn" disabled>▶ RUN</button>
+    </div>
+
+    <!-- CENTER: Soho Map Arena -->
+    <div id="contextPanel">
+      <div id="arenaInner">
+        <div id="focusBanner"></div>
+        <svg id="sohoSvg" viewBox="0 0 600 400" preserveAspectRatio="xMidYMid meet">
+          <!-- Paper-color base -->
+          <rect x="0" y="0" width="600" height="400" fill="#F4E8CC"/>
+          <!-- Title block -->
+          <rect x="14" y="8" width="172" height="20" fill="#fff" stroke="#5C3A20" stroke-width="0.8" rx="2"/>
+          <text class="map-title" x="100" y="22" text-anchor="middle">SOHO, LONDON — 1854</text>
+
+          <!-- Streets (wider tan bands like dirt roads) -->
+          <g class="streets">
+            <rect x="0" y="124" width="600" height="14" fill="#E5D3A3" stroke="#B89968" stroke-width="0.4"/>
+            <rect x="0" y="195" width="600" height="14" fill="#E5D3A3" stroke="#B89968" stroke-width="0.4"/>
+            <rect x="0" y="275" width="600" height="14" fill="#E5D3A3" stroke="#B89968" stroke-width="0.4"/>
+            <rect x="142" y="0" width="14" height="400" fill="#E5D3A3" stroke="#B89968" stroke-width="0.4"/>
+            <rect x="294" y="0" width="14" height="400" fill="#E5D3A3" stroke="#B89968" stroke-width="0.4"/>
+            <rect x="444" y="0" width="14" height="400" fill="#E5D3A3" stroke="#B89968" stroke-width="0.4"/>
+            <text class="street-label" x="50" y="206">Broad Street</text>
+            <text class="street-label" x="50" y="135">Marshall St</text>
+          </g>
+
+          <!-- Houses -->
+          <g id="houseLayer">
+            <g class="house-grp"><polygon class="roof" points="169,142 181,136 193,142"/><rect class="house" data-h="h1" x="170" y="140" width="22" height="22"/><rect class="door" x="180" y="154" width="2" height="8"/><rect class="window" x="173" y="146" width="3" height="3"/><rect class="window" x="186" y="146" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="199,142 211,136 223,142"/><rect class="house" data-h="h2" x="200" y="140" width="22" height="22"/><rect class="door" x="210" y="154" width="2" height="8"/><rect class="window" x="203" y="146" width="3" height="3"/><rect class="window" x="216" y="146" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="229,142 241,136 253,142"/><rect class="house" data-h="h3" x="230" y="140" width="22" height="22"/><rect class="door" x="240" y="154" width="2" height="8"/><rect class="window" x="233" y="146" width="3" height="3"/><rect class="window" x="246" y="146" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="259,142 271,136 283,142"/><rect class="house" data-h="h4" x="260" y="140" width="22" height="22"/><rect class="door" x="270" y="154" width="2" height="8"/><rect class="window" x="263" y="146" width="3" height="3"/><rect class="window" x="276" y="146" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="169,172 181,166 193,172"/><rect class="house" data-h="h5" x="170" y="170" width="22" height="22"/><rect class="door" x="180" y="184" width="2" height="8"/><rect class="window" x="173" y="176" width="3" height="3"/><rect class="window" x="186" y="176" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="199,172 211,166 223,172"/><rect class="house" data-h="h6" x="200" y="170" width="22" height="22"/><rect class="door" x="210" y="184" width="2" height="8"/><rect class="window" x="203" y="176" width="3" height="3"/><rect class="window" x="216" y="176" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="229,172 241,166 253,172"/><rect class="house" data-h="h7" x="230" y="170" width="22" height="22"/><rect class="door" x="240" y="184" width="2" height="8"/><rect class="window" x="233" y="176" width="3" height="3"/><rect class="window" x="246" y="176" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="259,172 271,166 283,172"/><rect class="house" data-h="h8" x="260" y="170" width="22" height="22"/><rect class="door" x="270" y="184" width="2" height="8"/><rect class="window" x="263" y="176" width="3" height="3"/><rect class="window" x="276" y="176" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="169,212 181,206 193,212"/><rect class="house" data-h="h9" x="170" y="210" width="22" height="22"/><rect class="door" x="180" y="224" width="2" height="8"/><rect class="window" x="173" y="216" width="3" height="3"/><rect class="window" x="186" y="216" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="199,212 211,206 223,212"/><rect class="house" data-h="h10" x="200" y="210" width="22" height="22"/><rect class="door" x="210" y="224" width="2" height="8"/><rect class="window" x="203" y="216" width="3" height="3"/><rect class="window" x="216" y="216" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="229,212 241,206 253,212"/><rect class="house" data-h="h11" x="230" y="210" width="22" height="22"/><rect class="door" x="240" y="224" width="2" height="8"/><rect class="window" x="233" y="216" width="3" height="3"/><rect class="window" x="246" y="216" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="259,212 271,206 283,212"/><rect class="house" data-h="h12" x="260" y="210" width="22" height="22"/><rect class="door" x="270" y="224" width="2" height="8"/><rect class="window" x="263" y="216" width="3" height="3"/><rect class="window" x="276" y="216" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="169,242 181,236 193,242"/><rect class="house" data-h="h13" x="170" y="240" width="22" height="22"/><rect class="door" x="180" y="254" width="2" height="8"/><rect class="window" x="173" y="246" width="3" height="3"/><rect class="window" x="186" y="246" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="199,242 211,236 223,242"/><rect class="house" data-h="h14" x="200" y="240" width="22" height="22"/><rect class="door" x="210" y="254" width="2" height="8"/><rect class="window" x="203" y="246" width="3" height="3"/><rect class="window" x="216" y="246" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="229,242 241,236 253,242"/><rect class="house" data-h="h15" x="230" y="240" width="22" height="22"/><rect class="door" x="240" y="254" width="2" height="8"/><rect class="window" x="233" y="246" width="3" height="3"/><rect class="window" x="246" y="246" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="259,242 271,236 283,242"/><rect class="house" data-h="h16" x="260" y="240" width="22" height="22"/><rect class="door" x="270" y="254" width="2" height="8"/><rect class="window" x="263" y="246" width="3" height="3"/><rect class="window" x="276" y="246" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="59,142 71,136 83,142"/><rect class="house" data-h="o1" x="60" y="140" width="22" height="22"/><rect class="door" x="70" y="154" width="2" height="8"/><rect class="window" x="63" y="146" width="3" height="3"/><rect class="window" x="76" y="146" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="89,172 101,166 113,172"/><rect class="house" data-h="o2" x="90" y="170" width="22" height="22"/><rect class="door" x="100" y="184" width="2" height="8"/><rect class="window" x="93" y="176" width="3" height="3"/><rect class="window" x="106" y="176" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="59,242 71,236 83,242"/><rect class="house" data-h="o3" x="60" y="240" width="22" height="22"/><rect class="door" x="70" y="254" width="2" height="8"/><rect class="window" x="63" y="246" width="3" height="3"/><rect class="window" x="76" y="246" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="99,292 111,286 123,292"/><rect class="house" data-h="o4" x="100" y="290" width="22" height="22"/><rect class="door" x="110" y="304" width="2" height="8"/><rect class="window" x="103" y="296" width="3" height="3"/><rect class="window" x="116" y="296" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="499,142 511,136 523,142"/><rect class="house" data-h="o5" x="500" y="140" width="22" height="22"/><rect class="door" x="510" y="154" width="2" height="8"/><rect class="window" x="503" y="146" width="3" height="3"/><rect class="window" x="516" y="146" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="529,172 541,166 553,172"/><rect class="house" data-h="o6" x="530" y="170" width="22" height="22"/><rect class="door" x="540" y="184" width="2" height="8"/><rect class="window" x="533" y="176" width="3" height="3"/><rect class="window" x="546" y="176" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="499,242 511,236 523,242"/><rect class="house" data-h="o7" x="500" y="240" width="22" height="22"/><rect class="door" x="510" y="254" width="2" height="8"/><rect class="window" x="503" y="246" width="3" height="3"/><rect class="window" x="516" y="246" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="529,292 541,286 553,292"/><rect class="house" data-h="o8" x="530" y="290" width="22" height="22"/><rect class="door" x="540" y="304" width="2" height="8"/><rect class="window" x="533" y="296" width="3" height="3"/><rect class="window" x="546" y="296" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="319,62 331,56 343,62"/><rect class="house" data-h="o9" x="320" y="60" width="22" height="22"/><rect class="door" x="330" y="74" width="2" height="8"/><rect class="window" x="323" y="66" width="3" height="3"/><rect class="window" x="336" y="66" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="359,62 371,56 383,62"/><rect class="house" data-h="o10" x="360" y="60" width="22" height="22"/><rect class="door" x="370" y="74" width="2" height="8"/><rect class="window" x="363" y="66" width="3" height="3"/><rect class="window" x="376" y="66" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="319,332 331,326 343,332"/><rect class="house" data-h="o11" x="320" y="330" width="22" height="22"/><rect class="door" x="330" y="344" width="2" height="8"/><rect class="window" x="323" y="336" width="3" height="3"/><rect class="window" x="336" y="336" width="3" height="3"/></g>
+            <g class="house-grp"><polygon class="roof" points="359,332 371,326 383,332"/><rect class="house" data-h="o12" x="360" y="330" width="22" height="22"/><rect class="door" x="370" y="344" width="2" height="8"/><rect class="window" x="363" y="336" width="3" height="3"/><rect class="window" x="376" y="336" width="3" height="3"/></g>
+          </g>
+
+          <!-- Cesspool→Pump flow channel (hidden until WATCH on contaminated runs) -->
+          <path id="flowChannel" d="M232,133 Q260,160 286,196" stroke="#6B4220" stroke-width="3" stroke-dasharray="5 3" fill="none" opacity="0"/>
+
+          <!-- Brewery (right, greyed) — building + chimney + barrel -->
+          <g class="building greyed">
+            <!-- Body -->
+            <rect x="486" y="78" width="62" height="40" fill="#D5CFC2" stroke="#7A6E58" stroke-width="0.8"/>
+            <!-- Slanted roof -->
+            <polygon points="484,78 517,66 550,78" fill="#9A8A6C" stroke="#5C5040" stroke-width="0.6"/>
+            <!-- Chimney with subtle smoke shape (static) -->
+            <rect x="535" y="58" width="6" height="20" fill="#6B5A40"/>
+            <ellipse cx="538" cy="54" rx="4" ry="3" fill="#C8BEA8" opacity="0.5"/>
+            <ellipse cx="542" cy="48" rx="3" ry="2.2" fill="#C8BEA8" opacity="0.4"/>
+            <!-- Door -->
+            <rect x="513" y="100" width="9" height="18" fill="#6B5A40"/>
+            <!-- Windows (4-pane) -->
+            <rect x="494" y="86" width="7" height="7" fill="#A8B8C8"/>
+            <line x1="497.5" y1="86" x2="497.5" y2="93" stroke="#5C5040" stroke-width="0.4"/>
+            <line x1="494" y1="89.5" x2="501" y2="89.5" stroke="#5C5040" stroke-width="0.4"/>
+            <rect x="533" y="86" width="7" height="7" fill="#A8B8C8"/>
+            <line x1="536.5" y1="86" x2="536.5" y2="93" stroke="#5C5040" stroke-width="0.4"/>
+            <line x1="533" y1="89.5" x2="540" y2="89.5" stroke="#5C5040" stroke-width="0.4"/>
+            <!-- Beer barrel symbol -->
+            <ellipse cx="568" cy="100" rx="7" ry="9" fill="#8B5A3C" opacity="0.6"/>
+            <rect x="561" y="92" width="14" height="16" fill="none" stroke="#5C3A20" stroke-width="0.6" rx="1"/>
+            <line x1="561" y1="96" x2="575" y2="96" stroke="#5C3A20" stroke-width="0.4"/>
+            <line x1="561" y1="104" x2="575" y2="104" stroke="#5C3A20" stroke-width="0.4"/>
+            <!-- Label box -->
+            <rect x="486" y="120" width="62" height="22" fill="#fff" stroke="#5C5040" stroke-width="0.5" rx="2"/>
+            <text class="map-label" x="517" y="132" text-anchor="middle">BREWERY</text>
+            <text class="map-sublabel" x="517" y="140" text-anchor="middle">own well · no cases</text>
+          </g>
+
+          <!-- Workhouse (left, greyed) — larger building, own well -->
+          <g class="building greyed">
+            <!-- Flat industrial roof -->
+            <rect x="28" y="44" width="76" height="6" fill="#9A8A6C"/>
+            <!-- Body -->
+            <rect x="28" y="50" width="76" height="42" fill="#D5CFC2" stroke="#7A6E58" stroke-width="0.8"/>
+            <!-- Door -->
+            <rect x="62" y="76" width="12" height="16" fill="#6B5A40"/>
+            <!-- Industrial windows (2 rows × 4) -->
+            <rect x="34" y="56" width="8" height="8" fill="#A8B8C8"/>
+            <line x1="38" y1="56" x2="38" y2="64" stroke="#5C5040" stroke-width="0.4"/>
+            <rect x="48" y="56" width="8" height="8" fill="#A8B8C8"/>
+            <line x1="52" y1="56" x2="52" y2="64" stroke="#5C5040" stroke-width="0.4"/>
+            <rect x="76" y="56" width="8" height="8" fill="#A8B8C8"/>
+            <line x1="80" y1="56" x2="80" y2="64" stroke="#5C5040" stroke-width="0.4"/>
+            <rect x="90" y="56" width="8" height="8" fill="#A8B8C8"/>
+            <line x1="94" y1="56" x2="94" y2="64" stroke="#5C5040" stroke-width="0.4"/>
+            <rect x="34" y="66" width="8" height="6" fill="#A8B8C8"/>
+            <rect x="48" y="66" width="8" height="6" fill="#A8B8C8"/>
+            <rect x="76" y="66" width="8" height="6" fill="#A8B8C8"/>
+            <rect x="90" y="66" width="8" height="6" fill="#A8B8C8"/>
+            <!-- Own well (mini gray pump) on side -->
+            <circle cx="22" cy="78" r="5" fill="none" stroke="#7A6E58" stroke-width="1.2"/>
+            <rect x="17" y="78" width="10" height="3" fill="#7A6E58"/>
+            <text class="mini-label" x="22" y="92" text-anchor="middle">well</text>
+            <!-- Label box -->
+            <rect x="28" y="94" width="76" height="22" fill="#fff" stroke="#5C5040" stroke-width="0.5" rx="2"/>
+            <text class="map-label" x="66" y="106" text-anchor="middle">WORKHOUSE</text>
+            <text class="map-sublabel" x="66" y="114" text-anchor="middle">own well · no cases</text>
+          </g>
+
+          <!-- Cesspool (persistent, blob shape, stink waves, sludge) -->
+          <g id="cesspoolGroup">
+            <!-- Stink waves above -->
+            <path class="stink" d="M214,108 Q218,103 222,108 Q226,103 230,108" stroke="#5A3D1F" stroke-width="1.4" fill="none" opacity="0.55"/>
+            <path class="stink" d="M222,100 Q226,96 230,100 Q234,96 238,100" stroke="#5A3D1F" stroke-width="1.2" fill="none" opacity="0.45"/>
+            <path class="stink" d="M218,93 Q222,89 226,93 Q230,89 234,93" stroke="#5A3D1F" stroke-width="1" fill="none" opacity="0.35"/>
+            <!-- Cesspool blob -->
+            <path class="cesspool" d="M210,121 Q205,128 212,134 Q220,140 232,138 Q244,138 248,131 Q250,122 242,118 Q230,114 220,116 Q213,116 210,121 Z"/>
+            <!-- Sludge highlights -->
+            <ellipse cx="222" cy="127" rx="6" ry="2" fill="#6B4220" opacity="0.75"/>
+            <ellipse cx="234" cy="131" rx="4" ry="1.6" fill="#6B4220" opacity="0.75"/>
+            <ellipse cx="218" cy="133" rx="3" ry="1.2" fill="#4A2E12" opacity="0.85"/>
+            <!-- Label box -->
+            <rect x="202" y="144" width="50" height="12" fill="#fff" stroke="#4A2E12" stroke-width="0.6" rx="2"/>
+            <text class="cesspool-label" x="227" y="153" text-anchor="middle">CESSPOOL</text>
+          </g>
+
+          <!-- Broad Street Pump (Victorian hand-pump, center) -->
+          <g id="pumpGroup">
+            <!-- Pulse ring (used by JS) -->
+            <circle id="pumpHighlight" cx="300" cy="218" r="36" fill="none" stroke="#F59E0B" stroke-width="3" opacity="0"/>
+            <!-- Stone base / pad -->
+            <ellipse cx="300" cy="252" rx="22" ry="5" fill="#7A6E58" opacity="0.6"/>
+            <rect x="284" y="240" width="32" height="10" fill="#3A2418" stroke="#1F1208" stroke-width="0.6" rx="1"/>
+            <!-- Body cylinder -->
+            <rect x="292" y="206" width="16" height="36" fill="#2A1A10" stroke="#1F1208" stroke-width="0.6"/>
+            <!-- Top cap -->
+            <rect x="289" y="201" width="22" height="7" fill="#3A2418" stroke="#1F1208" stroke-width="0.6" rx="1"/>
+            <!-- Curved handle (lever) -->
+            <path d="M308,200 Q330,193 338,206 L334,210 Q328,201 308,206 Z" fill="#3A2418" stroke="#1F1208" stroke-width="0.6"/>
+            <circle cx="338" cy="208" r="3" fill="#1F1208"/>
+            <!-- Spout sticking out -->
+            <path d="M292,222 L278,222 L278,230 L292,230 Z" fill="#3A2418" stroke="#1F1208" stroke-width="0.6"/>
+            <!-- Water indicator droplet at spout -->
+            <ellipse id="pumpWater" cx="278" cy="236" rx="6" ry="3.5" fill="#5BB0E8" opacity="0.95"/>
+            <!-- Sparkle on water (clean state cue) -->
+            <circle id="pumpSparkle" cx="280" cy="234" r="1.4" fill="#fff" opacity="0.9"/>
+            <!-- Prominent label -->
+            <rect x="262" y="178" width="76" height="18" fill="#FFD93D" stroke="#3A2418" stroke-width="1" rx="3"/>
+            <text class="pump-label" x="300" y="190" text-anchor="middle">BROAD ST PUMP</text>
+          </g>
+
+          <!-- Case dot layer (filled by JS) -->
+          <g id="caseLayer"></g>
+
+          <!-- Arrow layer (filled by JS) -->
+          <g id="arrowLayer"></g>
+        </svg>
+
+        <!-- Microscope -->
+        <div id="microscope" class="clean">
+          <div class="mag-label">400× MICROSCOPE</div>
+          <div class="micro-badge" id="microBadge">0</div>
+          <div id="bactLayer"></div>
+        </div>
+        <div class="cases-badge" id="casesBadge">Cases: 0</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Data Table -->
+    <div id="dataPanel" class="hidden">
+      <div class="data-header">📊 Lab Data</div>
+      <div class="record-helper" id="recordHelper">Check the numbers carefully.</div>
+      <table class="data-table" id="dataTable">
+        <thead>
+          <tr><th>R</th><th>Bacteria</th><th>Cases</th></tr>
+        </thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+      <button class="record-verify-btn" id="looksRightBtn">✓ Looks Right</button>
+    </div>
+  </div>
+
+  <!-- INTERACTION ZONE -->
+  <div id="interactionZone"></div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottombar">
+    <button class="bottom-btn" id="vocabBtn">📖 Vocab</button>
+    <button class="bottom-btn" id="hintBtn">💡 Hint</button>
+    <button class="bottom-btn" id="resetLevelBtn">↻ Reset Round</button>
+    <span id="roundCounter">Round 1 of 6</span>
+    <button class="bottom-btn" id="newRunBtn">⚙ New Run</button>
+  </div>
+</div>
+
+<!-- FLOATING / OVERLAY ELEMENTS -->
+<button id="stuckBtn" class="hide">⚠ I'm Stuck</button>
+<div id="coachingBar"></div>
+<div id="stepOverlay">
+  <div class="step-modal">
+    <h3>💡 Step by Step</h3>
+    <div class="step-progress" id="stepProgress"></div>
+    <p id="stepText"></p>
+    <button class="step-next" id="stepNextBtn">Next</button>
+  </div>
+</div>
+<div id="vocabPanel">
+  <h2>📖 Key Words <button class="close" id="vocabCloseBtn">Close</button></h2>
+  <div class="vocab-entry" id="vocabBacteria">
+    <div class="vocab-name">🦠 BACTERIA</div>
+    <div class="vocab-def">Tiny living things you cannot see.</div>
+    <div class="vocab-where">Look in the microscope (bottom right of map).</div>
+  </div>
+  <div class="vocab-entry" id="vocabContamination">
+    <div class="vocab-name">☠️ CONTAMINATION</div>
+    <div class="vocab-def">Harmful things mixed into something clean.</div>
+    <div class="vocab-where">The cesspool icon next to the pump. Brown plume in the pump water.</div>
+  </div>
+  <div class="vocab-entry" id="vocabTransmission">
+    <div class="vocab-name">➡️ TRANSMISSION</div>
+    <div class="vocab-def">How disease spreads to new people.</div>
+    <div class="vocab-where">Pulsing curved arrows from the pump to houses.</div>
+  </div>
+  <div class="vocab-entry" id="vocabOutbreak">
+    <div class="vocab-name">🔴 OUTBREAK</div>
+    <div class="vocab-def">Many people sick in one place.</div>
+    <div class="vocab-where">Cluster of red dots on the Soho map.</div>
+  </div>
+</div>
+
+<div id="celeb"></div>
+<div id="feedbackBurst"></div>
+<div id="particleLayer"></div>
+
+<!-- COMPLETE SCREEN (before receipt) -->
+<div id="completeScreen">
+  <div class="complete-card">
+    <h2 id="completeTitle">🎉 COMPLETE!</h2>
+    <div class="complete-checks" id="completeChecks"></div>
+    <p class="complete-msg" id="completeMsg">You finished the lab.</p>
+    <button class="complete-btn" id="completeBtn">See Score</button>
+  </div>
+</div>
+
+<!-- RECEIPT -->
+<div id="receipt">
+  <div class="receipt-card">
+    <div class="receipt-title" id="receiptTitle">Mr. Jawad's Simulation</div>
+    <div class="receipt-sub">Microorganisms — Soho Lab • Wednesday Score Report</div>
+    <div class="name-row">
+      <label for="receiptName">Name:</label>
+      <input id="receiptName" type="text" placeholder="Type your name">
+      <button class="name-lock" id="nameLockBtn">Lock</button>
+    </div>
+    <div class="score-display">
+      <div class="score-pct" id="scorePct">0%</div>
+      <div class="score-tier" id="scoreTier"></div>
+      <div class="score-next" id="scoreNext"></div>
+      <div id="bonusBadge"></div>
+    </div>
+    <table class="breakdown">
+      <thead><tr><th>#</th><th>Round</th><th>Score</th><th>Attempts</th><th>Time</th></tr></thead>
+      <tbody id="breakdownBody"></tbody>
+    </table>
+    <div style="text-align:center;color:var(--ink2);font-size:13px;margin:8px 0"><b>Total Time:</b> <span id="totalTime">0:00</span> &nbsp;•&nbsp; <b>Status:</b> <span id="statusTxt"></span></div>
+    <div class="receipt-upload">📸 Take a screenshot of this page and upload it to Google Classroom.</div>
+    <div class="receipt-actions">
+      <button class="r-btn print" id="printBtn">🖨️ Print</button>
+      <button class="r-btn over" id="startOverBtn">↻ Start Over</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ============================================================
+   Mr. Jawad's Simulation — Microorganisms (Soho Lab)
+   Wednesday Cause-and-Effect Lab
+   ============================================================ */
+
+const $ = (id)=>document.getElementById(id);
+const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+
+/* ---------- HTML ESCAPE ---------- */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ---------- safeCall WRAPPER ---------- */
+function safeCall(fn,label){try{return fn();}catch(e){console.error('[safeCall '+(label||'')+']',e);}}
+
+/* ---------- GAME STATE ---------- */
+const _GS = {
+  studentName:'', teacherName:'Mr. Jawad',
+  currentRound:0, currentPhase:'',
+  variables:{water:'clean',temp:'cold',exposure:'few'},
+  initialVars:{water:'clean',temp:'cold',exposure:'few'},
+  overallScore:0,
+  arenaGen:0,
+  _processing:false,
+  startTime:0,
+  roundStartTime:0,
+  hintsUsed:0,
+  resets:0,
+  wrongCount:0,
+  consecutiveFastWrongs:0,
+  recordError:false,
+  recordCorrected:true,
+  predictAnswer:null,
+  proveSelected:null,
+  claimBlanks:[null,null],
+  hotspotWrongs:0,
+  hotspotSameSpot:0,
+  rounds:[],
+  receiptShown:false,
+  completeShownReq:false,
+  completeShownAll:false,
+};
+window._doSelectedId = null;
+
+/* Self-healing watchdog on processing */
+let _procTimeout = null;
+Object.defineProperty(_GS,'processing',{
+  get(){return this._processing;},
+  set(v){
+    this._processing = !!v;
+    if(_procTimeout){clearTimeout(_procTimeout);_procTimeout=null;}
+    if(v){
+      _procTimeout = setTimeout(()=>{
+        console.warn('[watchdog] processing stuck — auto-clearing');
+        this._processing = false;
+        _procTimeout = null;
+      },5000);
+    }
+  }
+});
+const GS = _GS;
+
+/* ---------- safeTimeout with arenaGen ---------- */
+function safeTimeout(fn,ms){
+  const gen = GS.arenaGen;
+  return setTimeout(()=>{
+    if(GS.arenaGen !== gen) return;
+    safeCall(fn,'safeTimeout');
+  },ms);
+}
+
+/* ---------- TRACKED INTERVALS ---------- */
+const _intervals = new Set();
+function setI(fn,ms){const id=setInterval(fn,ms);_intervals.add(id);return id;}
+function clearI(id){if(id){clearInterval(id);_intervals.delete(id);}}
+function clearAllIntervals(){_intervals.forEach(id=>clearInterval(id));_intervals.clear();}
+
+/* ---------- PHASE DEAD-MAN TIMER ---------- */
+let _phaseDeadman = null;
+function armPhaseDeadman(ms){
+  clearPhaseDeadman();
+  const gen = GS.arenaGen;
+  _phaseDeadman = setTimeout(()=>{
+    if(GS.arenaGen !== gen) return;
+    console.warn('[phase deadman] timeout — skipping round');
+    skipCurrentRound('Moving on — you will see this idea again.');
+  },ms);
+}
+function clearPhaseDeadman(){if(_phaseDeadman){clearTimeout(_phaseDeadman);_phaseDeadman=null;}}
+
+/* ---------- LAZY AUDIO ---------- */
+let audioCtx = null;
+function getAudio(){
+  if(!audioCtx){
+    try{audioCtx = new (window.AudioContext||window.webkitAudioContext)();}catch(e){audioCtx=null;}
+  }
+  return audioCtx;
+}
+function beep(freq,dur=0.15,type='sine',vol=0.15){
+  safeCall(()=>{
+    const ctx = getAudio(); if(!ctx) return;
+    const osc = ctx.createOscillator(); const g = ctx.createGain();
+    osc.type=type; osc.frequency.value=freq;
+    g.gain.setValueAtTime(vol,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime+dur);
+  },'beep');
+}
+function soundCorrect(){beep(523,.12);setTimeout(()=>beep(659,.14),100);setTimeout(()=>beep(784,.18),220);}
+function soundWrong(){beep(220,.18,'sawtooth',.1);}
+function soundCelebrate(){beep(523,.12);setTimeout(()=>beep(659,.12),100);setTimeout(()=>beep(784,.12),200);setTimeout(()=>beep(1047,.22),320);}
+
+/* ---------- OVERLAY MANAGEMENT ---------- */
+function closeAllOverlays(){
+  safeCall(()=>{
+    const cb = $('coachingBar'); if(cb){cb.classList.remove('show');cb.classList.remove('hint1','hint2');}
+    const so = $('stepOverlay'); if(so) so.classList.remove('show');
+    const cl = $('celeb'); if(cl){cl.classList.remove('show');cl.innerHTML='';}
+  },'closeAllOverlays');
+}
+
+/* ---------- HOUSES — CASE DOT POSITIONS (relative to SVG viewBox 600x400) ---------- */
+const CLUSTER_HOUSES = ['h1','h2','h3','h4','h5','h6','h7','h8','h9','h10','h11','h12','h13','h14','h15','h16'];
+const OUTER_HOUSES = ['o1','o2','o3','o4','o5','o6','o7','o8','o9','o10','o11','o12'];
+const HOUSE_RECTS = {}; // populated on init
+
+function buildHouseRectMap(){
+  $$('#houseLayer rect').forEach(r=>{
+    const id = r.getAttribute('data-h');
+    if(id) HOUSE_RECTS[id] = {x:+r.getAttribute('x'),y:+r.getAttribute('y'),w:+r.getAttribute('width'),h:+r.getAttribute('height')};
+  });
+}
+
+/* ---------- ARENA STATE UPDATERS ---------- */
+function updatePumpWater(state){
+  const w = $('pumpWater'); if(!w) return;
+  const ms = $('microscope');
+  const pg = $('pumpGroup');
+  const fc = $('flowChannel');
+  if(state==='contaminated'){
+    if(pg){pg.classList.remove('clean');pg.classList.add('dirty');}
+    if(fc) fc.classList.add('show');
+    if(ms){ms.classList.remove('clean');ms.classList.add('contaminated');}
+  }else{
+    if(pg){pg.classList.remove('dirty');pg.classList.add('clean');}
+    if(fc) fc.classList.remove('show');
+    if(ms){ms.classList.remove('contaminated');ms.classList.add('clean');}
+  }
+}
+
+function setBacteriaCount(n){
+  const layer = $('bactLayer'); const badge = $('microBadge');
+  if(!layer||!badge) return;
+  badge.textContent = n;
+  // Clear existing
+  while(layer.firstChild) layer.removeChild(layer.firstChild);
+  const visible = Math.min(15,n);
+  // Spread across 180px microscope using staggered grid + jitter so they don't overlap and stay countable
+  const cols = visible <= 4 ? 2 : (visible <= 9 ? 3 : 4);
+  const cellW = 130/cols, cellH = 130/Math.ceil(visible/cols);
+  for(let i=0;i<visible;i++){
+    const row = Math.floor(i/cols), col = i%cols;
+    const x = 18 + col*cellW + Math.random()*(cellW*0.4);
+    const y = 18 + row*cellH + Math.random()*(cellH*0.4);
+    const rot = Math.floor(Math.random()*360);
+    const b = document.createElement('div');
+    b.className = 'bacterium';
+    b.style.left = x+'px';
+    b.style.top = y+'px';
+    b.style.setProperty('--rot', rot+'deg');
+    b.style.animationDelay = (Math.random()*2)+'s';
+    layer.appendChild(b);
+    safeTimeout(()=>b.classList.add('on'),60+i*45);
+  }
+}
+
+function setCaseDots(count,mode){
+  // mode: 'cluster' (R1-R5 contaminated) or 'reset' (zero)
+  const layer = $('caseLayer'); if(!layer) return;
+  while(layer.firstChild) layer.removeChild(layer.firstChild);
+  if(count<=0){ const cb=$('casesBadge'); if(cb)cb.classList.remove('on'); return; }
+  // pick houses from cluster first, then outer
+  const order = CLUSTER_HOUSES.concat(OUTER_HOUSES);
+  let placed = 0;
+  const ns = 'http://www.w3.org/2000/svg';
+  for(let i=0;i<order.length && placed<count;i++){
+    const hr = HOUSE_RECTS[order[i]]; if(!hr) continue;
+    // 1-2 figures per house for cluster, 1 per outer
+    const dotsHere = (CLUSTER_HOUSES.includes(order[i]) && placed+1<count) ? 2 : 1;
+    for(let d=0;d<dotsHere && placed<count;d++){
+      // Position figure on top of house (just outside the wall to be visible)
+      const cx = hr.x + 4 + d*8 + Math.random()*4;
+      const cy = hr.y - 8 - Math.random()*2;
+      // Build a person silhouette as a <g> with head circle + body path
+      const g = document.createElementNS(ns,'g');
+      g.setAttribute('class','case-fig');
+      const head = document.createElementNS(ns,'circle');
+      head.setAttribute('cx', cx);
+      head.setAttribute('cy', cy);
+      head.setAttribute('r', 1.8);
+      head.setAttribute('fill', '#B91C1C');
+      const body = document.createElementNS(ns,'path');
+      body.setAttribute('d', `M${cx-2.4},${cy+5.5} Q${cx-2.4},${cy+1.5} ${cx},${cy+1.5} Q${cx+2.4},${cy+1.5} ${cx+2.4},${cy+5.5} Z`);
+      body.setAttribute('fill', '#B91C1C');
+      g.appendChild(head); g.appendChild(body);
+      layer.appendChild(g);
+      safeTimeout(()=>g.classList.add('on'),120+placed*60);
+      placed++;
+    }
+  }
+  const cb = $('casesBadge'); if(cb){cb.textContent = 'Cases: '+count; cb.classList.add('on');}
+}
+
+function setTransmissionArrows(level){
+  // level: 0 = off, 1 = few yellow, 2 = many red
+  const layer = $('arrowLayer'); if(!layer) return;
+  while(layer.firstChild) layer.removeChild(layer.firstChild);
+  if(level<=0) return;
+  const targets = level===1 ? CLUSTER_HOUSES.slice(0,4) : CLUSTER_HOUSES.slice(0,10);
+  const ns='http://www.w3.org/2000/svg';
+  targets.forEach((id,i)=>{
+    const hr = HOUSE_RECTS[id]; if(!hr) return;
+    const tx = hr.x + hr.w/2; const ty = hr.y + hr.h/2;
+    const px = 300; const py = 200;
+    const mx = (px+tx)/2; const my = (py+ty)/2 - 20;
+    const p = document.createElementNS(ns,'path');
+    p.setAttribute('class','arrow-path'+(level===2?' red':''));
+    p.setAttribute('d','M '+px+' '+py+' Q '+mx+' '+my+' '+tx+' '+ty);
+    layer.appendChild(p);
+    safeTimeout(()=>p.classList.add('on'),80+i*60);
+  });
+}
+
+function pulsePump(durationMs){
+  const ph = $('pumpHighlight'); if(!ph) return;
+  ph.setAttribute('opacity','1');
+  ph.classList.add('pulse-soft');
+  if(durationMs){
+    safeTimeout(()=>{
+      ph.setAttribute('opacity','0');
+      ph.classList.remove('pulse-soft');
+    },durationMs);
+  }
+}
+function unpulsePump(){
+  const ph = $('pumpHighlight'); if(!ph) return;
+  ph.setAttribute('opacity','0');
+  ph.classList.remove('pulse-soft');
+}
+
+function highlightMicroscope(on){
+  const ms = $('microscope'); if(!ms) return;
+  ms.style.boxShadow = on
+    ? '0 0 0 4px rgba(245,158,11,.85), 0 4px 12px rgba(0,0,0,.25), inset 0 0 0 2px #8B6F2C'
+    : '0 4px 12px rgba(0,0,0,.25), inset 0 0 0 2px #8B6F2C';
+}
+function highlightMap(on){
+  const cp = $('contextPanel'); if(!cp) return;
+  cp.style.boxShadow = on ? '0 0 0 4px rgba(245,158,11,.7)' : '';
+}
+
+/* ---------- FOCUS BANNER ---------- */
+function showFocus(text){
+  const b = $('focusBanner'); if(!b) return;
+  b.textContent = text;
+  b.classList.remove('subtle');
+  b.classList.add('on');
+  safeTimeout(()=>{ b.classList.add('subtle'); },3000);
+}
+function clearFocus(){ const b=$('focusBanner'); if(b){b.classList.remove('on','subtle');b.textContent='';} }
+
+/* ---------- VARIABLE CONTROLS ---------- */
+function syncVarUI(){
+  $('vWaterTxt').textContent = GS.variables.water==='clean'?'Clean':'Contaminated';
+  $('vTempTxt').textContent = GS.variables.temp==='cold'?'Cold':'Warm';
+  $('vExpTxt').textContent = GS.variables.exposure==='few'?'Few':'Many';
+  // Update tile data-state attributes so CSS icons reflect current variable
+  const tw = $('tileWater'); if(tw) tw.setAttribute('data-state', GS.variables.water);
+  const tt = $('tileTemp'); if(tt) tt.setAttribute('data-state', GS.variables.temp);
+  const te = $('tileExp'); if(te) te.setAttribute('data-state', GS.variables.exposure);
+  $$('.var-opt').forEach(b=>{
+    const v = b.getAttribute('data-var'); const val = b.getAttribute('data-val');
+    if(GS.variables[v]===val) b.classList.add('sel'); else b.classList.remove('sel');
+  });
+}
+
+function lockVariables(unlockList){
+  // unlockList = ['water'] etc.
+  const map = {water:'tileWater', temp:'tileTemp', exposure:'tileExp'};
+  Object.keys(map).forEach(k=>{
+    const tile = $(map[k]);
+    if(unlockList.includes(k)){
+      tile.classList.remove('locked'); tile.classList.add('active');
+    }else{
+      tile.classList.add('locked'); tile.classList.remove('active');
+    }
+  });
+}
+function activateVariables(activeList){
+  // Visual highlight only, for R6 all unlocked
+  const map = {water:'tileWater', temp:'tileTemp', exposure:'tileExp'};
+  Object.keys(map).forEach(k=>{
+    const tile = $(map[k]);
+    tile.classList.remove('locked');
+    if(activeList.includes(k)) tile.classList.add('active'); else tile.classList.remove('active');
+  });
+}
+
+/* ---------- DATA TABLE ---------- */
+function showDataPanel(show){
+  const p = $('dataPanel');
+  if(show) p.classList.remove('hidden'); else p.classList.add('hidden');
+}
+function renderDataTable(highlightRound, allowEdit){
+  const tbody = $('dataBody'); if(!tbody) return;
+  tbody.innerHTML = '';
+  GS.rounds.forEach((r,i)=>{
+    if(r.recorded){
+      const tr = document.createElement('tr');
+      if(i===highlightRound-1) tr.classList.add('current');
+      if(r.bonus) tr.classList.add('bonus');
+      const bactErr = (r.errorCell==='bacteria' && !r.errorFixed);
+      const caseErr = (r.errorCell==='cases' && !r.errorFixed);
+      tr.innerHTML =
+        '<td>'+(r.bonus?'⭐':'')+r.num+'</td>'+
+        '<td class="'+(bactErr&&allowEdit?'error-cell':'')+'" data-cell="bacteria" data-round="'+r.num+'">'+r.bacteriaDisplay+'</td>'+
+        '<td class="'+(caseErr&&allowEdit?'error-cell':'')+'" data-cell="cases" data-round="'+r.num+'">'+r.casesDisplay+'</td>';
+      tbody.appendChild(tr);
+    }
+  });
+  if(allowEdit){
+    $$('#dataBody td.error-cell').forEach(td=>{
+      td.addEventListener('click',()=>onErrorCellClick(td));
+    });
+  }
+}
+
+/* ---------- CONFETTI / PARTICLES ---------- */
+const _particles = [];
+(function initParticles(){
+  const layer = $('particleLayer');
+  for(let i=0;i<15;i++){
+    const p = document.createElement('div');
+    p.className='particle';
+    p.style.display='none';
+    layer.appendChild(p);
+    _particles.push(p);
+  }
+})();
+function fireParticles(count,colors){
+  count = Math.min(count,15);
+  const W = window.innerWidth, H = window.innerHeight;
+  for(let i=0;i<count;i++){
+    const p = _particles[i];
+    p.style.display='block';
+    p.classList.remove('go');
+    p.style.background = colors[i%colors.length];
+    p.style.left = (W/2 + (Math.random()*200-100))+'px';
+    p.style.top = (H/2-60)+'px';
+    p.style.setProperty('--dx',(Math.random()*400-200)+'px');
+    p.style.setProperty('--dy',(Math.random()*200+100)+'px');
+    void p.offsetWidth;
+    p.classList.add('go');
+    setTimeout(()=>{p.style.display='none';p.classList.remove('go');},1900);
+  }
+}
+
+/* ---------- AFFIRMATIONS (skill-based, dynamic teacher name) ---------- */
+function affirmations(skill){
+  const t = GS.teacherName || 'Mr. Jawad';
+  const skillMsgs = {
+    cause:[t+' is proud — strong cause and effect thinking!', 'Great cause-and-effect work — '+t+' sees that!'],
+    pattern:[t+' says: you spotted the pattern!', 'Sharp pattern thinking — '+t+' is impressed!'],
+    predict:[t+' knew you could predict it!', 'Strong scientific prediction — '+t+' is proud!'],
+    data:[t+' loves how you checked the data!', 'Great data check — '+t+' sees the care!'],
+    claim:[t+' is proud — solid claim with evidence!', 'Strong claim building — '+t+' sees it!'],
+    synthesis:[t+' says: you put it all together!', 'Master scientist move — '+t+' is impressed!']
+  };
+  const arr = skillMsgs[skill] || [t+' is proud of you!'];
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+/* ---------- CELEBRATIONS ---------- */
+function flashFeedback(text,color){
+  const fb = $('feedbackBurst'); if(!fb) return;
+  fb.textContent = text;
+  fb.style.color = color || 'var(--clinical)';
+  fb.classList.remove('go');
+  void fb.offsetWidth;
+  fb.classList.add('go');
+}
+function celebrate(msg,affirmation,kind){
+  const c = $('celeb'); if(!c) return;
+  c.innerHTML = '';
+  const wrap = document.createElement('div');
+  const banner = document.createElement('div');
+  banner.className = 'celeb-banner'+(kind==='gold'?' gold':kind==='purple'?' purple':'');
+  banner.textContent = msg;
+  wrap.appendChild(banner);
+  if(affirmation){
+    const a = document.createElement('div');
+    a.className = 'celeb-affirm';
+    a.textContent = affirmation;
+    wrap.appendChild(a);
+  }
+  c.appendChild(wrap);
+  c.classList.add('show');
+  fireParticles(15,['#10B981','#3B82F6','#F59E0B','#8B5CF6','#EC4899']);
+  soundCelebrate();
+  safeTimeout(()=>{ c.classList.remove('show'); c.innerHTML=''; },2200);
+}
+
+/* ============================================================
+   ROUNDS DATA (Stage 1: R1 + R2 fully populated. R3-R6 TODO.)
+   ============================================================ */
+const ROUNDS = [
+  /* ============= ROUND 1 ============= */
+  {
+    num:1, name:'Switch the Water', required:true, bonus:false, skill:'cause',
+    focus:'Watch the microscope when you switch the water source from clean to contaminated.',
+    suggestion:'Try toggling Water Source from Clean to Contaminated.',
+    startState:{water:'clean',temp:'cold',exposure:'few'},
+    unlocked:['water'],
+    afterChange:{water:'contaminated',temp:'cold',exposure:'few'},
+    watch:{durationMs:8000, bacteria:8, cases:3, arrows:0, highlight:'microscope', focusElem:'microscope'},
+    record:{bacteria:8, cases:3, errorCell:null},
+    predict:null,
+    prove:{
+      mechanic:'coachClick',
+      prompt:'Pick the count change that matches what you saw in the microscope.',
+      options:[
+        {text:'Bacteria died — the count went from many to zero', correct:false, wrongFb:'The count went UP, not down. Cells appeared, they didn\'t disappear. Watch again.'},
+        {text:'Bacteria multiplied — the count went from zero to many', correct:true},
+        {text:'Bacteria stayed still — the count did not change', correct:false, wrongFb:'The count changed — it didn\'t stay still. Re-count before and after.'}
+      ],
+      wrongHighlight:'microscope'
+    },
+    hints:{
+      hint1:{text:'Look at the microscope view in the lower-right. Count the cells before and after you switched the water.', target:'microscope'},
+      hint2:{text:'Cross out "stayed still — count did not change" — the count clearly changed. Choose between "died — many to zero" and "multiplied — zero to many".', eliminate:2},
+      steps:[
+        {text:'Slide the Water Source back to Clean. Count the cells in the microscope: zero.'},
+        {text:'Slide back to Contaminated. Count again: many cells.'},
+        {text:'Zero to many means they multiplied. Tap option B.'}
+      ]
+    }
+  },
+
+  /* ============= ROUND 2 ============= */
+  {
+    num:2, name:'Heat It Up', required:true, bonus:false, skill:'cause',
+    focus:'Watch the bacteria count in the microscope when you slide temperature from cold to warm.',
+    suggestion:'Try sliding Temperature from Cold to Warm.',
+    startState:{water:'contaminated',temp:'cold',exposure:'few'},
+    unlocked:['temp'],
+    afterChange:{water:'contaminated',temp:'warm',exposure:'few'},
+    watch:{durationMs:8000, bacteria:22, cases:9, arrows:1, highlight:'microscope', focusElem:'microscope'},
+    record:{bacteria:22, cases:9, errorCell:'bacteria', errorDisplay:8, errorOptions:[8,15,22], firstTimeFraming:true},
+    predict:null,
+    prove:{
+      mechanic:'pickMatch',
+      prompt:'Which card matches what just happened?',
+      options:[
+        {text:'Cold water → "Bacteria stay low"', correct:false, wrongFb:'Card A is true, but it\'s not what happened in THIS round. You moved to warm.'},
+        {text:'Warm water → "Bacteria stay low"', correct:false, wrongFb:'Warm water didn\'t keep bacteria low — count them in the microscope.'},
+        {text:'Warm water → "Bacteria multiply fast"', correct:true}
+      ],
+      wrongHighlight:'microscope'
+    },
+    hints:{
+      hint1:{text:'Look at the microscope — count the rod-shaped cells you see RIGHT NOW. Does the R2 number in the data table match what you\'re counting? If not, the table is wrong — fix it.', target:'microscope'},
+      hint2:{text:'Cross out "warm → low" — the count went UP, not stayed low. Choose between "cold → low" and "warm → fast".', eliminate:1},
+      steps:[
+        {text:'R1 cold row shows Bacteria = 8.'},
+        {text:'R2 warm row shows Bacteria = 22 (after you fixed it).'},
+        {text:'22 is much bigger than 8. Warm water makes bacteria multiply fast. Tap card C.'}
+      ]
+    }
+  },
+
+  /* ============= ROUND 3 ============= */
+  {
+    num:3, name:'Many or Few', required:true, bonus:false, skill:'cause',
+    focus:'Watch the case dots on the map when you slide exposure from few to many drinkers.',
+    suggestion:'Try sliding Exposure from Few to Many drinkers.',
+    startState:{water:'contaminated',temp:'warm',exposure:'few'},
+    unlocked:['exposure'],
+    afterChange:{water:'contaminated',temp:'warm',exposure:'many'},
+    watch:{durationMs:8000, bacteria:22, cases:28, arrows:2, highlight:'map', focusElem:'map'},
+    record:{bacteria:22, cases:28, errorCell:'cases', errorDisplay:4, errorOptions:[4,14,28]},
+    predict:null,
+    prove:{
+      mechanic:'hotspot',
+      prompt:'Tap the area on the map where the most cases appeared.',
+      wrongHighlight:'map'
+    },
+    hints:{
+      hint1:{text:'Look at the red dots on the Soho map. Find the biggest, tightest cluster.', target:'map'},
+      hint2:{text:'The cluster isn\'t near the Brewery (right side, no cases — workers drank beer) and isn\'t near the Workhouse (left side, own well — few cases). Look somewhere else on the map.'},
+      steps:[
+        {text:'Find the Broad Street Pump — it\'s the icon in the center of the map.'},
+        {text:'Look at the houses within 3–4 houses of the pump. Count the red dots there: that\'s the cluster.'},
+        {text:'Tap inside that cluster, right next to the pump.'}
+      ]
+    }
+  },
+
+  /* ============= ROUND 4 ============= */
+  {
+    num:4, name:'Predict and Test', required:true, bonus:false, skill:'predict',
+    focus:'Predict what happens to the outbreak if you change the water back to clean.',
+    suggestion:'Change Water Source from Contaminated to Clean.',
+    startState:{water:'contaminated',temp:'warm',exposure:'many'},
+    unlocked:['water'],
+    afterChange:{water:'clean',temp:'warm',exposure:'many'},
+    watch:{durationMs:8000, bacteria:0, cases:0, arrows:0, highlight:'map', focusElem:'map'},
+    record:{bacteria:0, cases:0, errorCell:null},
+    predict:{
+      prompt:'If I change the water to clean, the outbreak will…',
+      options:[
+        {text:'Get bigger and faster', correct:false},
+        {text:'Get smaller and slower', correct:true}
+      ]
+    },
+    prove:{
+      mechanic:'whatComesNext',
+      prompt:'What comes next in the sequence?',
+      sequence:['Water turns clean','Bacteria disappear from microscope'],
+      options:[
+        {text:'The sick people get better and leave the map', correct:false, wrongFb:'Cholera doesn\'t heal that fast — people who got sick are still sick. The map still SHOWS those dots, but no NEW dots appear.'},
+        {text:'New cases stop appearing on the map', correct:true},
+        {text:'Cases spread faster to new houses', correct:false, wrongFb:'Cases didn\'t spread faster — they stopped. Watch the map for NEW dots.'}
+      ],
+      wrongHighlight:'map'
+    },
+    hints:{
+      hint1:{text:'Look at the case dots on the Soho map right now. Are NEW red dots appearing?', target:'map'},
+      hint2:{text:'Cross out "cases spread faster" — the map stopped adding new dots. Choose between "sick people get better" and "new cases stop".', eliminate:2},
+      steps:[
+        {text:'Watch the map. Count NEW red dots: zero.'},
+        {text:'Old red dots are still there — those people are already sick and don\'t recover this fast.'},
+        {text:'But no NEW dots appear. Tap "new cases stop appearing".'}
+      ]
+    }
+  },
+
+  /* ============= ROUND 5 ============= */
+  {
+    num:5, name:'BONUS — Combine Two Bad Variables', required:false, bonus:true, skill:'claim',
+    focus:'Watch what happens when you change BOTH water and the number of drinkers together — without warming things up.',
+    suggestion:'Set Water to Contaminated AND Exposure to Many before pressing RUN.',
+    startState:{water:'clean',temp:'cold',exposure:'few'},
+    unlocked:['water','exposure'],
+    afterChange:{water:'contaminated',temp:'cold',exposure:'many'},
+    watch:{durationMs:10000, bacteria:8, cases:11, arrows:2, highlight:'map', focusElem:'map'},
+    record:{bacteria:8, cases:11, errorCell:null},
+    predict:null,
+    prove:{
+      mechanic:'claimBuilder',
+      prompt:'Build the claim: why does R5 have MORE cases than R1, even though both have the same bacteria count?',
+      tiles:[
+        {icon:'💧', text:'Contaminated water let bacteria appear', correct:true},
+        {icon:'👥', text:'More drinkers spread bacteria to more people', correct:true},
+        {icon:'🌡️', text:'Warm temperature multiplied the bacteria', correct:false},
+        {icon:'🛑', text:'Exposure does not affect cases', correct:false}
+      ]
+    },
+    hints:{
+      hint1:{text:'Compare R1 (water only, few drinkers): Bacteria = 8, Cases = 3. R5 (water + many drinkers): Bacteria = 8, Cases = 11. Bacteria count is the SAME. What\'s different about R5?', target:'map'},
+      hint2:{text:'Cross out "warm temperature multiplied bacteria" — temperature was cold this round, and bacteria stayed at 8. Pick the two TRUE tiles: one about contaminated water, one about drinkers.'},
+      steps:[
+        {text:'Recall R1: contaminated water made bacteria appear (0 → 8).'},
+        {text:'Recall R3: many drinkers spread bacteria to many more houses.'},
+        {text:'R5 combined those two. Tap the water tile (💧) and the drinkers tile (👥) to complete the claim.'}
+      ]
+    }
+  },
+
+  /* ============= ROUND 6 ============= */
+  {
+    num:6, name:'BONUS — Find the Smallest Outbreak', required:false, bonus:true, skill:'synthesis',
+    focus:'Set all three variables to the combination YOU think gives the smallest outbreak — then run it.',
+    suggestion:'Make the outbreak as small as possible. Start with the water.',
+    startState:{water:'contaminated',temp:'warm',exposure:'many'},
+    unlocked:['water','temp','exposure'],
+    afterChange:null,
+    watch:{durationMs:8000, bacteria:0, cases:0, arrows:0, highlight:'microscope', focusElem:'microscope', dynamic:true},
+    record:{bacteria:0, cases:0, errorCell:null, dynamic:true},
+    predict:null,
+    prove:{
+      mechanic:'pickMatch',
+      prompt:'One variable matters more than the others for stopping outbreaks. Which one?',
+      options:[
+        {text:'Water Source', correct:true},
+        {text:'Temperature', correct:false, wrongFb:'Temperature affects how FAST bacteria multiply, but cold contaminated water still has 8 bacteria (look at R1). Temperature is not the master switch.'},
+        {text:'Number of drinkers', correct:false, wrongFb:'Drinkers spread bacteria, but only IF bacteria exist. Clean water has zero bacteria no matter how many people drink. Water is the master switch.'}
+      ],
+      wrongHighlight:'map'
+    },
+    hints:{
+      hint1:{text:'Look at the Bacteria Count column for every row. Every row with CLEAN water shows zero bacteria. Every row with CONTAMINATED water shows bacteria. Which variable controls whether bacteria exist?', target:'microscope'},
+      hint2:{text:'Cross out "Number of drinkers" — drinkers only matter when bacteria already exist. The variable that decides whether bacteria appear at all is the master variable. Pick between water and temperature.', eliminate:2},
+      steps:[
+        {text:'Look at every row with CLEAN water. Bacteria = 0.'},
+        {text:'Look at every row with CONTAMINATED water. Bacteria appear in every one — 8 or 22.'},
+        {text:'Water source decides whether bacteria appear at all. Temperature only changes HOW MANY. Drinkers only spread what exists. Water is the master. Tap option A.'}
+      ]
+    }
+  }
+];
+
+/* Initialize per-round score tracking */
+ROUNDS.forEach(r=>{
+  r.completed=false; r.score=0; r.attempts=0; r.timeSeconds=0;
+  r.hintsUsed=0; r.resets=0; r.recorded=false;
+  r.bacteriaDisplay=''; r.casesDisplay='';
+  r.errorFixed=true;
+});
+
+/* ============================================================
+   PHASE FLOW
+   ============================================================ */
+
+function startRound(idx){
+  GS.processing = false;
+  closeAllOverlays();
+  clearPhaseDeadman();
+  GS.arenaGen++;
+  GS.currentRound = idx;
+  const r = ROUNDS[idx];
+  if(!r){ return finishSimulation(); }
+  GS.roundStartTime = Date.now();
+  GS.hintsUsed = 0; GS.resets = 0; GS.wrongCount = 0; GS.consecutiveFastWrongs = 0;
+  GS.recordError = !!(r.record && r.record.errorCell);
+  GS.recordCorrected = !GS.recordError;
+  GS.predictAnswer = null;
+  GS.proveSelected = null;
+  window._doSelectedId = null;
+  GS.claimBlanks = [null,null];
+  GS.hotspotWrongs = 0; GS.hotspotSameSpot = 0;
+
+  // Reset arena state to round's startState
+  GS.variables = Object.assign({}, r.startState);
+  GS.initialVars = Object.assign({}, r.startState);
+  syncVarUI();
+  updatePumpWater(GS.variables.water);
+  setBacteriaCount(0);
+  setCaseDots(0);
+  setTransmissionArrows(0);
+  unpulsePump();
+  highlightMicroscope(false);
+  highlightMap(false);
+
+  // UI updates
+  $('roundName').textContent = 'Round '+r.num+': '+r.name;
+  $('roundCounter').textContent = 'Round '+r.num+' of 6';
+  $('progressFill').style.width = ((idx)/6*100)+'%';
+  $('resetLevelBtn').disabled = false;
+  $('stuckBtn').classList.remove('hide');
+
+  // Show banner if bonus
+  if(r.bonus){
+    const fb = $('focusBanner');
+    fb.textContent = '⭐ BONUS — Multiple Changes';
+    fb.classList.remove('subtle');
+    fb.classList.add('on');
+    safeTimeout(()=>{ fb.classList.add('subtle'); },2500);
+  }
+
+  // Begin CHANGE phase
+  startChangePhase(r);
+}
+
+function startChangePhase(r){
+  GS.processing = false;
+  GS.currentPhase = 'change';
+  closeAllOverlays();
+  showDataPanel(false);
+  clearFocus();
+
+  if(r.bonus && r.num===6){
+    activateVariables(['water','temp','exposure']);
+  }else{
+    lockVariables(r.unlocked);
+  }
+
+  const iz = $('interactionZone');
+  iz.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'fadein';
+  wrap.innerHTML =
+    '<div class="phase-title">Step 1: CHANGE</div>'+
+    '<div class="prompt">'+esc(r.suggestion || 'Change a variable, then press RUN.')+'</div>'+
+    '<div style="font-size:13px;color:var(--ink2);text-align:center">Move a control on the left. Then press <b>▶ RUN</b>.</div>';
+  iz.appendChild(wrap);
+
+  $('runBtn').disabled = true;
+  updateRunButtonState(r);
+  armPhaseDeadman(240000);
+}
+
+function updateRunButtonState(r){
+  // RUN active only if variables differ from startState
+  let changed = false;
+  Object.keys(r.startState).forEach(k=>{
+    if(GS.variables[k] !== r.startState[k]) changed = true;
+  });
+  // For R6 (all unlocked), require at least one change
+  if(r.num===6){
+    $('runBtn').disabled = !changed;
+  }else if(r.bonus && r.num===5){
+    // Must change BOTH water and exposure (R5 requires both unlocked)
+    const waterChanged = GS.variables.water !== r.startState.water;
+    const expChanged = GS.variables.exposure !== r.startState.exposure;
+    $('runBtn').disabled = !(waterChanged && expChanged);
+  }else{
+    // Only one unlocked — that one must have changed
+    const v = r.unlocked[0];
+    $('runBtn').disabled = (GS.variables[v] === r.startState[v]);
+  }
+}
+
+function onRunClick(){
+  if(GS.processing) return;
+  const r = ROUNDS[GS.currentRound];
+  if(!r) return;
+  // Anti-guessing: no-change block
+  if($('runBtn').disabled){
+    const btn = $('runBtn');
+    btn.classList.add('shake');
+    safeTimeout(()=>btn.classList.remove('shake'),450);
+    showCoaching('You haven\'t changed anything yet. Move the unlocked control first.','hint1',2500);
+    return;
+  }
+  GS.processing = true;
+  // R4: PREDICT phase between CHANGE and WATCH
+  if(r.predict){
+    GS.processing = false;
+    startPredictPhase(r);
+  }else{
+    GS.processing = false;
+    startWatchPhase(r);
+  }
+}
+
+function startPredictPhase(r){
+  GS.processing = false;
+  GS.currentPhase = 'predict';
+  closeAllOverlays();
+  clearFocus();
+  const iz = $('interactionZone'); iz.innerHTML = '';
+  const wrap = document.createElement('div'); wrap.className='fadein';
+  wrap.innerHTML =
+    '<div class="phase-title">Step 2: PREDICT</div>'+
+    '<div class="prompt">'+esc(r.predict.prompt)+'</div>'+
+    '<div class="predict-pair" id="predictPair"></div>';
+  iz.appendChild(wrap);
+  const pp = $('predictPair');
+  r.predict.options.forEach((opt,i)=>{
+    const c = document.createElement('div');
+    c.className = 'predict-card';
+    c.setAttribute('data-idx',i);
+    c.textContent = opt.text;
+    c.addEventListener('click',()=>onPredictPick(i));
+    pp.appendChild(c);
+  });
+  armPhaseDeadman(180000);
+}
+
+function onPredictPick(i){
+  if(GS.processing) return;
+  GS.processing = true;
+  const r = ROUNDS[GS.currentRound];
+  GS.predictAnswer = i;
+  $$('.predict-card').forEach((c,idx)=>{
+    c.classList.remove('selected');
+    if(idx===i) c.classList.add('selected');
+  });
+  safeTimeout(()=>{
+    GS.processing = false;
+    startWatchPhase(r);
+  },700);
+}
+
+function startWatchPhase(r){
+  GS.processing = false;
+  GS.currentPhase = 'watch';
+  closeAllOverlays();
+  showDataPanel(false);
+  // lock variables visually during watch
+  lockVariables([]);
+  // Apply afterChange state — or for R6, use student's current variables
+  if(r.watch && r.watch.dynamic){
+    // R6: outcome depends on student's chosen variables
+    // (Keep GS.variables as student set them)
+  }else{
+    GS.variables = Object.assign({}, r.afterChange || GS.variables);
+  }
+  syncVarUI();
+  updatePumpWater(GS.variables.water);
+
+  // Compute dynamic outcome for R6
+  let watchBact = r.watch.bacteria;
+  let watchCases = r.watch.cases;
+  let watchArrows = r.watch.arrows || 0;
+  if(r.watch.dynamic){
+    const o = computeOutcome(GS.variables);
+    watchBact = o.bacteria; watchCases = o.cases; watchArrows = o.arrows;
+    // Store back to record for data table
+    r.record.bacteria = watchBact; r.record.cases = watchCases;
+  }
+
+  const iz = $('interactionZone'); iz.innerHTML = '';
+  const wrap = document.createElement('div'); wrap.className='fadein';
+  wrap.innerHTML =
+    '<div class="phase-title">Step '+(r.predict?'3':'2')+': WATCH</div>'+
+    '<div class="prompt">Watch carefully. Don\'t look away.</div>'+
+    '<div style="font-size:13px;color:var(--ink2);text-align:center">The simulation is running. Watch the microscope and the map.</div>';
+  iz.appendChild(wrap);
+
+  // Focus prompt
+  showFocus(r.focus);
+
+  // Highlight target
+  if(r.watch.highlight==='microscope') highlightMicroscope(true);
+  else if(r.watch.highlight==='map') highlightMap(true);
+
+  // Animate bacteria + cases + arrows
+  safeTimeout(()=>{
+    setBacteriaCount(watchBact);
+    setCaseDots(watchCases);
+    setTransmissionArrows(watchArrows);
+  },600);
+
+  $('runBtn').disabled = true;
+
+  armPhaseDeadman(180000);
+  safeTimeout(()=>{
+    highlightMicroscope(false);
+    highlightMap(false);
+    if(GS.currentPhase==='watch') startRecordPhase(r);
+  },r.watch.durationMs || 8000);
+}
+
+/* Compute outcome for given variable state (used by R6) */
+function computeOutcome(vars){
+  // Water clean → bacteria 0, cases 0, arrows 0
+  if(vars.water==='clean') return {bacteria:0, cases:0, arrows:0};
+  // Contaminated:
+  let bact = (vars.temp==='warm') ? 22 : 8;
+  let cases, arrows;
+  if(vars.exposure==='many'){
+    cases = (vars.temp==='warm') ? 28 : 11;
+    arrows = 2;
+  }else{
+    cases = (vars.temp==='warm') ? 9 : 3;
+    arrows = 1;
+  }
+  return {bacteria:bact, cases:cases, arrows:arrows};
+}
+
+function startRecordPhase(r){
+  GS.processing = false;
+  GS.currentPhase = 'record';
+  closeAllOverlays();
+  clearFocus();
+  // Auto-record this round
+  r.recorded = true;
+  if(r.record.errorCell==='bacteria'){
+    r.bacteriaDisplay = String(r.record.errorDisplay);
+    r.casesDisplay = String(r.record.cases);
+    r.errorFixed = false;
+  }else if(r.record.errorCell==='cases'){
+    r.bacteriaDisplay = String(r.record.bacteria);
+    r.casesDisplay = String(r.record.errorDisplay);
+    r.errorFixed = false;
+  }else{
+    r.bacteriaDisplay = String(r.record.bacteria);
+    r.casesDisplay = String(r.record.cases);
+    r.errorFixed = true;
+  }
+
+  // First-time framing card (R2 only)
+  if(r.record.firstTimeFraming && !GS._frameShown){
+    GS._frameShown = true;
+    showFirstTimeFramingThenRecord(r);
+    return;
+  }
+
+  showRecordUI(r);
+}
+
+function showFirstTimeFramingThenRecord(r){
+  const iz = $('interactionZone'); iz.innerHTML = '';
+  const wrap = document.createElement('div'); wrap.className='fadein';
+  wrap.innerHTML =
+    '<div class="phase-title">Heads Up</div>'+
+    '<div class="prompt">The computer doesn\'t always record the right number.</div>'+
+    '<div style="font-size:14px;color:var(--ink2);text-align:center;line-height:1.5">Always check the data table against what you saw in the microscope and on the map. <b>You\'re the scientist.</b></div>'+
+    '<button class="lock-btn" id="frameOkBtn">Got It</button>';
+  iz.appendChild(wrap);
+  $('frameOkBtn').addEventListener('click',()=>{ showRecordUI(r); });
+}
+
+function showRecordUI(r){
+  showDataPanel(true);
+  renderDataTable(r.num, !r.errorFixed);
+  const helper = $('recordHelper');
+  helper.textContent = (r.num>=2) ? 'Check the numbers carefully. Compare to the microscope and the map.' : 'Take a look at your data.';
+
+  const iz = $('interactionZone'); iz.innerHTML = '';
+  const wrap = document.createElement('div'); wrap.className='fadein';
+  wrap.innerHTML =
+    '<div class="phase-title">Step '+(r.predict?'4':'3')+': RECORD</div>'+
+    '<div class="prompt">Check the data table on the right.</div>'+
+    '<div style="font-size:13px;color:var(--ink2);text-align:center">Compare it to what you see in the microscope and on the map. Tap "Looks Right" if everything matches — or tap a wrong cell to fix it.</div>';
+  iz.appendChild(wrap);
+
+  $('looksRightBtn').onclick = ()=>onLooksRight(r);
+  armPhaseDeadman(180000);
+}
+
+let _errorAttempts = 0;
+function onErrorCellClick(td){
+  if(GS.processing) return;
+  const r = ROUNDS[GS.currentRound];
+  const cell = td.getAttribute('data-cell');
+  const opts = r.record.errorOptions || [];
+  const correct = (cell==='bacteria') ? r.record.bacteria : r.record.cases;
+  // Build picker
+  let pickHtml = '<div class="cell-pick">';
+  opts.forEach(v=>{
+    pickHtml += '<button data-v="'+v+'">'+v+'</button>';
+  });
+  pickHtml += '</div>';
+  td.innerHTML = pickHtml;
+  td.classList.remove('error-cell');
+  td.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const chosen = +b.getAttribute('data-v');
+      if(chosen===correct){
+        // Fixed!
+        if(cell==='bacteria') r.bacteriaDisplay = String(chosen);
+        else r.casesDisplay = String(chosen);
+        r.errorFixed = true;
+        renderDataTable(r.num, false);
+        showCoaching('Nice catch — the data is right now.','hint1',1800);
+        _errorAttempts = 0;
+      }else{
+        _errorAttempts++;
+        if(_errorAttempts>=2){
+          // Hint 1 fires + auto-correct
+          GS.hintsUsed = Math.max(GS.hintsUsed,1);
+          showCoaching('Look at the microscope and the map count carefully — the correct number is shown there.','hint1',3500);
+          _errorAttempts = 0;
+        }else{
+          showCoaching('That\'s not the right number. Check the '+cell+' count again.','hint1',2500);
+        }
+        renderDataTable(r.num, true);
+      }
+    });
+  });
+}
+
+function onLooksRight(r){
+  if(GS.processing) return;
+  if(!r.errorFixed){
+    // Student tried to confirm bad data
+    GS.hintsUsed = Math.max(GS.hintsUsed,1);
+    const cell = r.record.errorCell==='bacteria' ? 'Bacteria' : 'Case Dots';
+    showCoaching('Check the '+cell+' column carefully. Does this number match what you just saw?','hint1',3500);
+    return;
+  }
+  GS.processing = true;
+  safeTimeout(()=>{
+    GS.processing = false;
+    showDataPanel(false);
+    startProvePhase(r);
+  },400);
+}
+
+function startProvePhase(r){
+  GS.processing = false;
+  GS.currentPhase = 'prove';
+  closeAllOverlays();
+  GS._proveStart = Date.now();
+  // Lock variable controls
+  lockVariables([]);
+  $('runBtn').disabled = true;
+
+  const iz = $('interactionZone'); iz.innerHTML = '';
+  const phaseNum = r.predict ? 5 : 4;
+  const wrap = document.createElement('div'); wrap.className='fadein';
+  wrap.innerHTML =
+    '<div class="phase-title">Step '+phaseNum+': PROVE</div>'+
+    '<div class="prompt">'+esc(r.prove.prompt)+'</div>';
+  iz.appendChild(wrap);
+
+  // Render mechanic
+  const mech = r.prove.mechanic;
+  if(mech==='coachClick') renderCoachClick(r);
+  else if(mech==='pickMatch') renderPickMatch(r);
+  else if(mech==='hotspot') renderHotspot(r);
+  else if(mech==='whatComesNext') renderWhatComesNext(r);
+  else if(mech==='claimBuilder') renderClaimBuilder(r);
+
+  armPhaseDeadman(240000);
+}
+
+/* ---------- MECHANIC: Coach-Click ---------- */
+function renderCoachClick(r){
+  const iz = $('interactionZone');
+  const opts = r.prove.options;
+  const grid = document.createElement('div');
+  grid.className = 'opt-grid cols-'+Math.min(opts.length,3);
+  grid.style.marginTop = '6px';
+  opts.forEach((opt,i)=>{
+    const c = document.createElement('div');
+    c.className = 'opt-card';
+    c.setAttribute('data-idx',i);
+    c.textContent = opt.text;
+    c.addEventListener('click',()=>onMcOptionClick(c,i));
+    grid.appendChild(c);
+  });
+  iz.appendChild(grid);
+  const btn = document.createElement('button');
+  btn.id = 'lockInBtn'; btn.className='lock-btn'; btn.disabled=true; btn.textContent='Lock In';
+  btn.addEventListener('click',()=>onLockIn());
+  iz.appendChild(btn);
+}
+
+/* ---------- MECHANIC: Pick the Match ---------- */
+function renderPickMatch(r){ renderCoachClick(r); }
+
+/* ---------- MC CLICK HANDLERS ---------- */
+function onMcOptionClick(card,i){
+  if(GS.processing) return;
+  if(card.classList.contains('dimmed')||card.classList.contains('locked')||card.classList.contains('disabled')||card.classList.contains('correct')) return;
+  $$('.opt-card').forEach(c=>c.classList.remove('selected'));
+  card.classList.add('selected');
+  window._doSelectedId = String(i);
+  const btn = $('lockInBtn'); if(btn) btn.disabled = false;
+}
+
+function onLockIn(){
+  if(GS.processing) return;
+  const idx = window._doSelectedId;
+  if(idx===null||idx===undefined) return;
+  GS.processing = true;
+  const r = ROUNDS[GS.currentRound];
+  const i = +idx;
+  const opt = r.prove.options[i];
+  // Fast-guess gate
+  const t = Date.now() - (GS._proveStart||Date.now());
+  if(!opt.correct && t < 2000){
+    GS.consecutiveFastWrongs++;
+    if(GS.consecutiveFastWrongs >= 2){
+      // Mini-rewatch fallback (5s pause with re-show of arena highlights)
+      handleFastGuessReset(r);
+      return;
+    }
+  }else if(opt.correct){
+    GS.consecutiveFastWrongs = 0;
+  }
+  if(opt.correct){
+    handleProveCorrect(r,i);
+  }else{
+    handleProveWrong(r,i,opt);
+  }
+}
+
+function handleProveCorrect(r,i){
+  const card = $$('.opt-card')[i]; if(card){card.classList.remove('selected','wrong');card.classList.add('correct');}
+  const btn = $('lockInBtn'); if(btn) btn.disabled=true;
+  // Hide lock-in
+  if(btn) btn.style.display='none';
+  $$('.opt-card').forEach(c=>c.classList.add('locked'));
+  // Score
+  awardRound(r);
+  // Visual feedback
+  soundCorrect();
+  flashFeedback('✓','#10B981');
+  if(r.prove.wrongHighlight==='microscope'){ highlightMicroscope(true); safeTimeout(()=>highlightMicroscope(false),900);}
+  GS.processing = true;
+  safeTimeout(()=>finishRoundAndAdvance(r),1400);
+}
+
+function handleProveWrong(r,i,opt){
+  // Clean up state on every wrong path
+  const wrongIdx = i;
+  window._doSelectedId = null;
+  GS.wrongCount++;
+  // Show wrong styling
+  const cards = $$('.opt-card');
+  cards.forEach(c=>c.classList.remove('selected'));
+  const wc = cards[wrongIdx]; if(wc){ wc.classList.add('wrong'); }
+  // Reset wrong flash after 500ms
+  setTimeout(()=>{ if(wc) wc.classList.remove('wrong'); },520);
+  // Dim wrong on 2nd attempt
+  if(GS.wrongCount>=2 && wc){ wc.classList.add('dimmed'); }
+  soundWrong();
+  const wf = opt.wrongFb || 'Not quite. Try again.';
+  showCoaching(wf,'hint1',3500);
+  // Highlight arena element
+  if(r.prove.wrongHighlight==='microscope'){ highlightMicroscope(true); safeTimeout(()=>highlightMicroscope(false),2200);}
+  if(r.prove.wrongHighlight==='map'){ highlightMap(true); safeTimeout(()=>highlightMap(false),2200);}
+  // Hint ladder
+  if(GS.wrongCount===1){ GS.hintsUsed = Math.max(GS.hintsUsed,1); }
+  else if(GS.wrongCount===2){ GS.hintsUsed = Math.max(GS.hintsUsed,2); showHint2(r); }
+  else if(GS.wrongCount>=3){ GS.hintsUsed = Math.max(GS.hintsUsed,3); showStepByStep(r); }
+  // Add Try Again button
+  ensureTryAgain();
+  // Restore lock-in button state
+  const lb = $('lockInBtn'); if(lb) lb.disabled = true;
+  GS.processing = false;
+}
+
+function ensureTryAgain(){
+  let t = $('tryAgainBtn');
+  if(!t){
+    const iz = $('interactionZone');
+    t = document.createElement('button');
+    t.id = 'tryAgainBtn'; t.className = 'try-again-btn'; t.textContent = '↻ Try Again';
+    t.addEventListener('click',()=>{
+      // Clean dimmed/wrong, re-enable
+      $$('.opt-card').forEach(c=>{
+        c.classList.remove('wrong','selected');
+        // Keep dimmed (already-tried) but allow others
+      });
+      window._doSelectedId = null;
+      const lb = $('lockInBtn'); if(lb) lb.disabled = true;
+      t.remove();
+      GS.processing = false;
+    });
+    iz.appendChild(t);
+  }
+}
+
+function handleFastGuessReset(r){
+  // Mini-rewatch: pause 5s with arena highlights
+  closeAllOverlays();
+  showCoaching('Slowing down — let\'s re-watch the science for a moment.','hint1',4500);
+  const iz = $('interactionZone'); iz.innerHTML = '';
+  iz.innerHTML = '<div class="phase-title">Re-Watch</div><div class="prompt">Watch carefully.</div><div style="font-size:13px;color:var(--ink2);text-align:center">5 seconds...</div>';
+  if(r.watch.highlight==='microscope') highlightMicroscope(true);
+  if(r.watch.highlight==='map') highlightMap(true);
+  GS.consecutiveFastWrongs = 0;
+  safeTimeout(()=>{
+    highlightMicroscope(false); highlightMap(false);
+    GS.resets++; r.resets++;
+    if(r.resets >= 3){
+      // Safety valve: 50% credit + advance
+      r.score = 50; r.completed = true; r.timeSeconds = Math.round((Date.now()-GS.roundStartTime)/1000);
+      showCoaching('Let\'s move on — you\'ll see this idea again.','hint1',2500);
+      safeTimeout(()=>finishRoundAndAdvance(r),1600);
+    }else{
+      startProvePhase(r);
+    }
+  },5000);
+}
+
+function skipCurrentRound(msg){
+  const r = ROUNDS[GS.currentRound]; if(!r) return;
+  closeAllOverlays();
+  if(msg) showCoaching(msg,'hint1',2200);
+  r.score = 50; r.completed = true; r.timeSeconds = Math.round((Date.now()-GS.roundStartTime)/1000);
+  GS.processing = true;
+  safeTimeout(()=>finishRoundAndAdvance(r),1800);
+}
+
+/* ---------- MECHANIC: Hotspot ---------- */
+function renderHotspot(r){
+  const iz = $('interactionZone');
+  const helper = document.createElement('div'); helper.className='hotspot-instructions';
+  helper.textContent = 'Tap the area on the map where the most cases appeared.';
+  iz.appendChild(helper);
+  // Pre-tap attention anchor: pulse the pump for 2s
+  pulsePump(2000);
+  safeTimeout(()=>{ pulsePump(0); const ph=$('pumpHighlight'); if(ph){ph.setAttribute('opacity','.55');ph.classList.add('pulse-soft');} },2000);
+  // Attach click handler to SVG
+  const svg = $('sohoSvg');
+  svg.style.cursor = 'crosshair';
+  const handler = (e)=>onHotspotClick(e,r,handler);
+  svg.addEventListener('click',handler);
+  GS._hotspotHandler = handler;
+}
+
+function onHotspotClick(e,r,handler){
+  if(GS.processing) return;
+  // Convert click to SVG coords
+  const svg = $('sohoSvg');
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const ctm = svg.getScreenCTM().inverse();
+  const p = pt.matrixTransform(ctm);
+  // Correct region: circle around pump (300,200) radius 80 covers cluster
+  const dx = p.x - 300; const dy = p.y - 200;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  // Brewery check
+  const inBrewery = (p.x>=490 && p.x<=548 && p.y>=80 && p.y<=116);
+  if(dist <= 90){
+    // Correct
+    GS.processing = true;
+    svg.removeEventListener('click',handler);
+    svg.style.cursor = 'default';
+    unpulsePump();
+    // Green ring expand
+    const ns = 'http://www.w3.org/2000/svg';
+    const ring = document.createElementNS(ns,'circle');
+    ring.setAttribute('cx',300); ring.setAttribute('cy',200);
+    ring.setAttribute('r',20); ring.setAttribute('fill','none');
+    ring.setAttribute('stroke','#10B981'); ring.setAttribute('stroke-width','4');
+    ring.setAttribute('opacity','.9');
+    svg.appendChild(ring);
+    let rr = 20;
+    const iv = setI(()=>{
+      rr += 4; ring.setAttribute('r',rr); ring.setAttribute('opacity',Math.max(0,1-(rr-20)/80));
+      if(rr>=100){ clearI(iv); ring.remove(); }
+    },30);
+    soundCorrect();
+    flashFeedback('✓','#10B981');
+    awardRound(r);
+    safeTimeout(()=>finishRoundAndAdvance(r),1400);
+  }else{
+    GS.hotspotWrongs++;
+    GS.wrongCount++;
+    // Wrong feedback
+    let msg = 'Look for the DENSEST group of red dots — not just any red dot. Try again.';
+    if(inBrewery){
+      msg = 'The Brewery had NO cases — workers drank beer, not pump water. Find the densest cluster of dots.';
+    }
+    showCoaching(msg,'hint1',3500);
+    soundWrong();
+    // Dim everything except pump cluster
+    highlightMap(true); safeTimeout(()=>highlightMap(false),2200);
+    pulsePump(2200);
+    if(GS.wrongCount===1){ GS.hintsUsed = Math.max(GS.hintsUsed,1); }
+    else if(GS.wrongCount===2){ GS.hintsUsed = Math.max(GS.hintsUsed,2); showHint2(r); }
+    else if(GS.wrongCount>=3){
+      GS.hintsUsed = Math.max(GS.hintsUsed,3);
+      // Reset to start of PROVE: glow correct region softly
+      const ns = 'http://www.w3.org/2000/svg';
+      const ring = document.createElementNS(ns,'circle');
+      ring.setAttribute('cx',300); ring.setAttribute('cy',200);
+      ring.setAttribute('r',80); ring.setAttribute('fill','none');
+      ring.setAttribute('stroke','#F59E0B'); ring.setAttribute('stroke-width','3');
+      ring.setAttribute('opacity','.7');
+      ring.setAttribute('class','pulse-soft');
+      $('sohoSvg').appendChild(ring);
+      r.resets++; GS.resets++;
+      if(r.resets >= 3){
+        ring.remove();
+        r.score = 50; r.completed = true; r.timeSeconds = Math.round((Date.now()-GS.roundStartTime)/1000);
+        showCoaching('Let\'s move on — you\'ll see this idea again.','hint1',2200);
+        safeTimeout(()=>finishRoundAndAdvance(r),1700);
+        return;
+      }
+      showStepByStep(r);
+      safeTimeout(()=>ring.remove(),6000);
+    }
+  }
+}
+
+/* ---------- MECHANIC: What Comes Next ---------- */
+function renderWhatComesNext(r){
+  const iz = $('interactionZone');
+  // Show partial sequence above options
+  const seq = document.createElement('div');
+  seq.style.cssText='background:#F1F5F9;border:2px solid #CBD5E1;border-radius:10px;padding:10px;font-size:14px;font-weight:600;text-align:center;color:var(--ink);line-height:1.5';
+  seq.innerHTML = '<b>Step 1:</b> '+esc(r.prove.sequence[0])+' &nbsp;→&nbsp; <b>Step 2:</b> '+esc(r.prove.sequence[1])+' &nbsp;→&nbsp; <b>Step 3:</b> ???';
+  iz.appendChild(seq);
+  // Render options vertical
+  const grid = document.createElement('div');
+  grid.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:6px';
+  r.prove.options.forEach((opt,i)=>{
+    const c = document.createElement('div');
+    c.className='opt-card';
+    c.setAttribute('data-idx',i);
+    c.textContent = opt.text;
+    c.style.textAlign='left';
+    c.addEventListener('click',()=>onMcOptionClick(c,i));
+    grid.appendChild(c);
+  });
+  iz.appendChild(grid);
+  const btn = document.createElement('button');
+  btn.id='lockInBtn'; btn.className='lock-btn'; btn.disabled=true; btn.textContent='Lock In';
+  btn.addEventListener('click',()=>onLockIn());
+  iz.appendChild(btn);
+}
+
+/* ---------- MECHANIC: Claim Builder ---------- */
+function renderClaimBuilder(r){
+  const iz = $('interactionZone');
+  // Sentence with two blanks
+  const sent = document.createElement('div');
+  sent.className='claim-sentence';
+  sent.innerHTML = 'It got worse because <span class="claim-blank" id="blank0">_____</span> and <span class="claim-blank" id="blank1">_____</span>.';
+  iz.appendChild(sent);
+  // Tile tray
+  const tray = document.createElement('div'); tray.className='claim-tray';
+  r.prove.tiles.forEach((tile,i)=>{
+    const t = document.createElement('div');
+    t.className='claim-tile'; t.setAttribute('data-idx',i);
+    t.innerHTML = '<span class="ic">'+esc(tile.icon)+'</span><span>'+esc(tile.text)+'</span>';
+    t.addEventListener('click',()=>onClaimTileClick(t,i));
+    tray.appendChild(t);
+  });
+  iz.appendChild(tray);
+  const btn = document.createElement('button');
+  btn.id='lockInBtn'; btn.className='lock-btn'; btn.disabled=true; btn.textContent='Lock In';
+  btn.addEventListener('click',()=>onClaimLockIn());
+  iz.appendChild(btn);
+}
+
+let _wrongClaimCount = 0;
+function onClaimTileClick(tile,i){
+  if(GS.processing) return;
+  if(tile.classList.contains('placed')||tile.classList.contains('dimmed')) return;
+  const r = ROUNDS[GS.currentRound];
+  const tileSpec = r.prove.tiles[i];
+  // Fast-guess check happens at lockIn
+  if(!tileSpec.correct){
+    // Wrong tile — shake, then return
+    tile.classList.add('wrong');
+    soundWrong();
+    showCoaching('Read that tile carefully. Does it match what you saw?','hint1',2500);
+    setTimeout(()=>tile.classList.remove('wrong'),520);
+    _wrongClaimCount++;
+    if(_wrongClaimCount>=2){
+      tile.classList.add('dimmed');
+    }
+    GS.wrongCount++;
+    if(GS.wrongCount===1) GS.hintsUsed = Math.max(GS.hintsUsed,1);
+    else if(GS.wrongCount===2){ GS.hintsUsed = Math.max(GS.hintsUsed,2); showHint2(r); }
+    else if(GS.wrongCount>=3){ GS.hintsUsed = Math.max(GS.hintsUsed,3); showStepByStep(r); }
+    return;
+  }
+  // Correct tile — place in first empty blank
+  const blank = GS.claimBlanks[0]===null ? 0 : (GS.claimBlanks[1]===null ? 1 : -1);
+  if(blank<0) return;
+  GS.claimBlanks[blank] = i;
+  const blEl = $('blank'+blank);
+  blEl.textContent = tileSpec.text;
+  blEl.classList.add('filled');
+  tile.classList.add('placed');
+  // Enable lock-in if both blanks filled
+  if(GS.claimBlanks[0]!==null && GS.claimBlanks[1]!==null){
+    $('lockInBtn').disabled = false;
+  }
+}
+
+function onClaimLockIn(){
+  if(GS.processing) return;
+  GS.processing = true;
+  const r = ROUNDS[GS.currentRound];
+  // Both placed and both correct
+  const allCorrect = GS.claimBlanks.every(b=>b!==null && r.prove.tiles[b].correct);
+  if(allCorrect){
+    soundCorrect();
+    flashFeedback('✓','#10B981');
+    $$('.claim-blank').forEach(b=>{b.style.background='#D1FAE5';b.style.borderColor='#10B981';b.style.color='#065F46';});
+    awardRound(r);
+    safeTimeout(()=>finishRoundAndAdvance(r),1500);
+  }else{
+    GS.processing = false;
+  }
+}
+
+/* ---------- HINTS ---------- */
+function showCoaching(text,kind,durationMs){
+  const cb = $('coachingBar');
+  cb.textContent = text;
+  cb.classList.remove('hint1','hint2');
+  cb.classList.add(kind||'hint1');
+  cb.classList.add('show');
+  if(durationMs){
+    safeTimeout(()=>{ cb.classList.remove('show'); },durationMs);
+  }
+}
+
+function showHint2(r){
+  if(!r.hints||!r.hints.hint2) return;
+  const h2 = r.hints.hint2;
+  showCoaching('💡 '+h2.text,'hint2',5000);
+  // Visual elimination
+  if(typeof h2.eliminate==='number'){
+    const cards = $$('.opt-card'); const c = cards[h2.eliminate];
+    if(c){ c.classList.add('dimmed'); }
+  }
+}
+
+let _stepIdx = 0;
+function showStepByStep(r){
+  if(!r.hints||!r.hints.steps) return;
+  _stepIdx = 0;
+  const so = $('stepOverlay');
+  const steps = r.hints.steps;
+  const renderStep = ()=>{
+    $('stepText').textContent = steps[_stepIdx].text;
+    const sp = $('stepProgress'); sp.innerHTML='';
+    steps.forEach((_,i)=>{
+      const d = document.createElement('div');
+      d.className = 'step-dot'+(i<=_stepIdx?' on':'');
+      sp.appendChild(d);
+    });
+    $('stepNextBtn').textContent = (_stepIdx===steps.length-1) ? 'Got it' : 'Next';
+  };
+  renderStep();
+  so.classList.add('show');
+  $('stepNextBtn').onclick = ()=>{
+    _stepIdx++;
+    if(_stepIdx>=steps.length){
+      so.classList.remove('show');
+    }else{
+      renderStep();
+    }
+  };
+}
+
+function showHint1Manual(){
+  const r = ROUNDS[GS.currentRound]; if(!r||!r.hints||!r.hints.hint1) return;
+  GS.hintsUsed = Math.max(GS.hintsUsed,1);
+  showCoaching('💡 '+r.hints.hint1.text,'hint1',5000);
+  // Highlight target element
+  const t = r.hints.hint1.target;
+  if(t==='microscope'){ highlightMicroscope(true); safeTimeout(()=>highlightMicroscope(false),3500); }
+  if(t==='map'){ highlightMap(true); safeTimeout(()=>highlightMap(false),3500); }
+}
+
+/* ---------- SCORING ---------- */
+function awardRound(r){
+  // Tier based on hintsUsed & resets
+  let score;
+  if(r.resets >= 1) score = 50;
+  else if(GS.hintsUsed === 0) score = 100;
+  else if(GS.hintsUsed === 1) score = 85;
+  else if(GS.hintsUsed === 2) score = 70;
+  else score = 60;
+  r.score = score;
+  r.completed = true;
+  r.timeSeconds = Math.round((Date.now()-GS.roundStartTime)/1000);
+  r.attempts = GS.wrongCount + 1;
+  $('scoreVal').textContent = computeOverallScore();
+  // Show affirmation on first-try correct (and not via hint/reset)
+  if(score===100){
+    const a = affirmations(r.skill);
+    showFloatingAffirmation(a);
+  }
+}
+
+function showFloatingAffirmation(text){
+  const fb = document.createElement('div');
+  fb.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) translateY(40px);color:#fff;font-size:18px;font-weight:700;text-shadow:0 2px 8px rgba(16,185,129,.6);z-index:680;pointer-events:none;opacity:0;transition:opacity .4s,transform .8s;background:rgba(16,185,129,.92);padding:10px 22px;border-radius:999px';
+  fb.textContent = text;
+  document.body.appendChild(fb);
+  requestAnimationFrame(()=>{fb.style.opacity='1';fb.style.transform='translate(-50%,-50%) translateY(0)';});
+  setTimeout(()=>{fb.style.opacity='0';},1300);
+  setTimeout(()=>{if(fb.parentNode)fb.remove();},1900);
+}
+
+function computeOverallScore(){
+  const required = ROUNDS.filter(r=>r.required && r.completed);
+  if(required.length===0) return 0;
+  const baseAvg = required.reduce((s,r)=>s+r.score,0)/required.length;
+  const bonusCompleted = ROUNDS.filter(r=>r.bonus && r.completed).length;
+  const score = Math.min(100, Math.round(baseAvg + bonusCompleted*5));
+  GS.overallScore = score;
+  return score;
+}
+
+/* ---------- ROUND TRANSITION ---------- */
+function finishRoundAndAdvance(r){
+  closeAllOverlays();
+  clearPhaseDeadman();
+  $('progressFill').style.width = (((GS.currentRound+1)/6)*100)+'%';
+  // Milestone celebration every 2 rounds
+  const completedCount = ROUNDS.filter(x=>x.completed).length;
+  if(completedCount%2===0 && completedCount>0 && completedCount<6){
+    celebrate('Nice work!', affirmations(r.skill), 'green');
+  }
+  // Required complete check
+  const allReqDone = ROUNDS.filter(x=>x.required).every(x=>x.completed);
+  if(allReqDone && !GS.completeShownReq){
+    GS.completeShownReq = true;
+    safeTimeout(()=>showRequiredCompleteScreen(),1500);
+    return;
+  }
+  const allDone = ROUNDS.every(x=>x.completed);
+  if(allDone){
+    safeTimeout(()=>finishSimulation(),1500);
+    return;
+  }
+  safeTimeout(()=>{
+    GS.processing = false;
+    startRound(GS.currentRound+1);
+  },1500);
+}
+
+function showRequiredCompleteScreen(){
+  const cs = $('completeScreen');
+  $('completeTitle').textContent = '🎉 You Did It!';
+  const checks = $('completeChecks'); checks.innerHTML = '';
+  ROUNDS.forEach(r=>{
+    if(r.completed){
+      const c = document.createElement('span');
+      c.className = 'complete-check'+(r.bonus?' bonus':'');
+      c.textContent = (r.bonus?'⭐ R':'R')+r.num+' ✓';
+      checks.appendChild(c);
+    }
+  });
+  $('completeMsg').textContent = 'You finished the required rounds. Two bonus rounds are open — dare to try?';
+  const btn = $('completeBtn');
+  btn.textContent = 'Keep Going (Bonus)';
+  // Add See Score button
+  const wrap = btn.parentElement;
+  // Clear extras
+  $$('.complete-card .complete-btn-extra').forEach(b=>b.remove());
+  const seeBtn = document.createElement('button');
+  seeBtn.className = 'complete-btn complete-btn-extra';
+  seeBtn.style.background = '#F1F5F9';
+  seeBtn.style.color = 'var(--ink)';
+  seeBtn.style.marginLeft = '10px';
+  seeBtn.textContent = 'See Score';
+  wrap.appendChild(seeBtn);
+  btn.onclick = ()=>{
+    cs.classList.remove('show');
+    safeTimeout(()=>startRound(GS.currentRound+1),300);
+  };
+  seeBtn.onclick = ()=>{
+    cs.classList.remove('show');
+    safeTimeout(()=>finishSimulation(),300);
+  };
+  cs.classList.add('show');
+}
+
+/* ---------- SIMULATION END ---------- */
+function finishSimulation(){
+  if(GS.receiptShown) return;
+  GS.receiptShown = true;
+  closeAllOverlays(); clearAllIntervals(); clearPhaseDeadman();
+  $('stuckBtn').classList.add('hide');
+
+  // Show complete celebration first (3s) then receipt
+  const cs = $('completeScreen');
+  cs.classList.add('show');
+  $('completeTitle').textContent = '🎉 COMPLETE!';
+  const checks = $('completeChecks'); checks.innerHTML = '';
+  ROUNDS.forEach(r=>{
+    if(r.completed){
+      const c = document.createElement('span');
+      c.className = 'complete-check'+(r.bonus?' bonus':'');
+      c.textContent = (r.bonus?'⭐ R':'R')+r.num+' ✓';
+      checks.appendChild(c);
+    }
+  });
+  $('completeMsg').textContent = 'Great work, scientist!';
+  fireParticles(15,['#10B981','#3B82F6','#F59E0B','#8B5CF6','#EC4899']);
+  soundCelebrate();
+  // Remove extras
+  $$('.complete-card .complete-btn-extra').forEach(b=>b.remove());
+  const btn = $('completeBtn');
+  btn.textContent = 'See Score';
+  btn.onclick = ()=>{ cs.classList.remove('show'); showReceipt(); };
+  // Auto-advance after 3s if no click
+  safeTimeout(()=>{
+    if(cs.classList.contains('show')){
+      cs.classList.remove('show');
+      showReceipt();
+    }
+  },4000);
+}
+
+function showReceipt(){
+  $('game').style.display = 'none';
+  const r = $('receipt');
+  const teacher = GS.teacherName || 'Mr. Jawad';
+  $('receiptTitle').textContent = esc(teacher)+"'s Simulation";
+  const pct = computeOverallScore();
+  const pctEl = $('scorePct');
+  pctEl.textContent = pct+'%';
+  pctEl.classList.remove('green','yellow','red');
+  let tier='', nextMsg='';
+  if(pct>=85){ pctEl.classList.add('green'); tier='Mastery'; nextMsg='Great work — you nailed it.'; }
+  else if(pct>=70){ pctEl.classList.add('yellow'); tier='Approaching Mastery'; nextMsg='Solid run. Next target: 85+ (green zone).'; }
+  else{ pctEl.classList.add('red'); tier='Needs More Practice'; nextMsg='You finished — that\'s the most important thing. Next target: 70 (yellow zone). Most students hit it on their second try.'; }
+  $('scoreTier').textContent = tier;
+  $('scoreNext').textContent = nextMsg;
+  // Bonus badge
+  const allBonusDone = ROUNDS.filter(x=>x.bonus).every(x=>x.completed);
+  const someBonus = ROUNDS.filter(x=>x.bonus && x.completed).length;
+  const bb = $('bonusBadge');
+  bb.innerHTML = '';
+  if(allBonusDone){
+    const b = document.createElement('div'); b.className='bonus-badge'; b.textContent='⭐ All Bonuses Complete'; bb.appendChild(b);
+  }else if(someBonus>0){
+    const b = document.createElement('div'); b.className='bonus-badge'; b.textContent='⭐ '+someBonus+' Bonus Complete'; bb.appendChild(b);
+  }
+  // Breakdown
+  const tbody = $('breakdownBody'); tbody.innerHTML = '';
+  let totalSec = 0;
+  ROUNDS.forEach(r=>{
+    if(!r.completed && !r.bonus) return;
+    if(!r.completed && r.bonus) return;
+    totalSec += r.timeSeconds||0;
+    const tr = document.createElement('tr');
+    const cls = r.score>=85?'green':r.score>=70?'yellow':'red';
+    tr.innerHTML =
+      '<td>'+(r.bonus?'⭐':'')+r.num+'</td>'+
+      '<td>'+esc(r.name)+'</td>'+
+      '<td class="score-c '+cls+'">'+r.score+'%</td>'+
+      '<td style="text-align:center">'+r.attempts+'</td>'+
+      '<td style="text-align:center">'+formatTime(r.timeSeconds||0)+'</td>';
+    tbody.appendChild(tr);
+  });
+  $('totalTime').textContent = formatTime(totalSec);
+  const reqDone = ROUNDS.filter(x=>x.required).every(x=>x.completed);
+  const bonusDone = ROUNDS.filter(x=>x.bonus && x.completed).length;
+  $('statusTxt').textContent = reqDone && bonusDone===2 ? '✅ All 6 Complete (Bonus)' : reqDone ? '✅ Required Complete'+(bonusDone>0?(' + '+bonusDone+' Bonus'):'') : 'Incomplete';
+  $('receiptName').value = GS.studentName||'';
+  r.classList.add('show');
+}
+
+function formatTime(sec){
+  const m = Math.floor(sec/60); const s = sec%60;
+  return m+':'+(s<10?'0':'')+s;
+}
+
+/* ---------- RESET / NEW RUN / STUCK ---------- */
+function resetCurrentLevel(){
+  // NEVER check processing — force-clear and execute
+  GS.processing = false;
+  closeAllOverlays();
+  clearPhaseDeadman();
+  GS.arenaGen++;
+  const r = ROUNDS[GS.currentRound];
+  if(!r) return;
+  r.resets = (r.resets||0)+1;
+  startRound(GS.currentRound);
+}
+
+function newRun(){
+  if(!confirm('Start over? Your current progress will be lost.')) return;
+  location.reload();
+}
+
+function handleStuck(){
+  if(!confirm('Move on to the next round? You\'ll get 50% credit for this one.')) return;
+  GS.processing = false;
+  closeAllOverlays();
+  GS.arenaGen++;
+  const r = ROUNDS[GS.currentRound];
+  if(!r) return;
+  r.score = 50; r.completed = true; r.attempts = (GS.wrongCount||0)+1;
+  r.timeSeconds = Math.round((Date.now()-GS.roundStartTime)/1000);
+  finishRoundAndAdvance(r);
+}
+
+/* ---------- VOCAB PANEL ---------- */
+function openVocab(){ $('vocabPanel').classList.add('show'); }
+function closeVocab(){ $('vocabPanel').classList.remove('show'); }
+
+/* ---------- INIT ---------- */
+function init(){
+  buildHouseRectMap();
+  // Welcome
+  $('startBtn').addEventListener('click',()=>{
+    const sn = $('studentInput').value.trim();
+    const tn = $('teacherInput').value.trim();
+    if(!sn){ $('studentInput').focus(); return; }
+    GS.studentName = sn;
+    GS.teacherName = tn || 'Mr. Jawad';
+    document.title = GS.teacherName + "'s Simulation — Microorganisms (Soho Lab)";
+    $('welcome').style.display='none';
+    $('game').style.display='flex';
+    GS.startTime = Date.now();
+    startRound(0);
+  });
+
+  // Variable controls
+  $$('.var-opt').forEach(b=>{
+    b.addEventListener('click',()=>{
+      if(GS.currentPhase!=='change') return;
+      const tile = b.closest('.var-tile');
+      if(tile.classList.contains('locked')) return;
+      const v = b.getAttribute('data-var'); const val = b.getAttribute('data-val');
+      GS.variables[v] = val;
+      syncVarUI();
+      // Update preview state of pump water
+      if(v==='water') updatePumpWater(val);
+      // Update RUN state
+      const r = ROUNDS[GS.currentRound]; if(r) updateRunButtonState(r);
+    });
+  });
+
+  $('runBtn').addEventListener('click',onRunClick);
+  $('looksRightBtn').addEventListener('click',()=>{
+    const r = ROUNDS[GS.currentRound];
+    onLooksRight(r);
+  });
+  $('hintBtn').addEventListener('click',showHint1Manual);
+  $('vocabBtn').addEventListener('click',openVocab);
+  $('vocabCloseBtn').addEventListener('click',closeVocab);
+  $('resetLevelBtn').addEventListener('click',resetCurrentLevel);
+  $('newRunBtn').addEventListener('click',newRun);
+  $('stuckBtn').addEventListener('click',handleStuck);
+
+  // Receipt
+  $('nameLockBtn').addEventListener('click',()=>{
+    const i = $('receiptName');
+    if(!i.disabled){
+      GS.studentName = i.value.trim()||GS.studentName;
+      i.disabled = true;
+      $('nameLockBtn').textContent='Locked';
+    }
+  });
+  $('printBtn').addEventListener('click',()=>window.print());
+  $('startOverBtn').addEventListener('click',()=>{
+    if(confirm('Start over from the beginning?')) location.reload();
+  });
+
+  // visibilitychange: clear intervals on hide
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){ clearAllIntervals(); }
+  });
+
+  // Auto-focus name input
+  $('studentInput').focus();
+}
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
