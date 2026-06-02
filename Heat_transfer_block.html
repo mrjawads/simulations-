@@ -378,20 +378,29 @@ function drawArena() {
         // Canopy layers (3 overlapping circles for lush look)
         const canopyColors = ['#1b5e20','#2e7d32','#388e3c'];
         const offsets = [{dx:0,dy:-0.18,s:0.3},{dx:-0.08,dy:-0.12,s:0.22},{dx:0.1,dy:-0.15,s:0.24}];
+        if (!cell._cGrad) cell._cGrad = {};
         offsets.forEach((o, i) => {
           const cx = tcx + cs * o.dx;
           const cy = tcy + cs * o.dy;
           const cr = cs * o.s * ts;
-          // Canopy shadow
-          const cGrad = ctx.createRadialGradient(cx - cr*0.2, cy - cr*0.2, cr*0.1, cx, cy, cr);
-          cGrad.addColorStop(0, canopyColors[i]);
-          cGrad.addColorStop(0.7, canopyColors[i]);
-          cGrad.addColorStop(1, 'rgba(0,80,0,0.5)');
-          ctx.fillStyle = cGrad;
+          // Canopy gradient — built once in local space (rebuilt only when cell size changes)
+          // and positioned via translate, so it still follows the sway without rebuilding every frame.
+          if (!cell._cGrad[i] || cell._cGradCs !== cs) {
+            const g = ctx.createRadialGradient(-cr*0.2, -cr*0.2, cr*0.1, 0, 0, cr);
+            g.addColorStop(0, canopyColors[i]);
+            g.addColorStop(0.7, canopyColors[i]);
+            g.addColorStop(1, 'rgba(0,80,0,0.5)');
+            cell._cGrad[i] = g;
+          }
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.fillStyle = cell._cGrad[i];
           ctx.beginPath();
-          ctx.arc(cx, cy, cr, 0, Math.PI*2);
+          ctx.arc(0, 0, cr, 0, Math.PI*2);
           ctx.fill();
+          ctx.restore();
         });
+        cell._cGradCs = cs;
 
         // Canopy highlight
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
@@ -435,13 +444,20 @@ function drawArena() {
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fillRect(bx + 4, by + 4, bw, bh);
 
-        // Building body gradient
-        const bGrad = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
-        bGrad.addColorStop(0, cell.buildingColor);
-        bGrad.addColorStop(0.5, lerpColor(cell.buildingColor, '#555', 0.1));
-        bGrad.addColorStop(1, lerpColor(cell.buildingColor, '#333', 0.3));
-        ctx.fillStyle = bGrad;
-        ctx.fillRect(bx, by, bw, bh);
+        // Building body gradient — built once in local space (rebuilt only when cell size
+        // changes) and positioned via translate; the building never moves, so no per-frame rebuild.
+        if (!cell._bGrad || cell._bGradCs !== cs) {
+          const bGrad = ctx.createLinearGradient(0, 0, bw, bh);
+          bGrad.addColorStop(0, cell.buildingColor);
+          bGrad.addColorStop(0.5, lerpColor(cell.buildingColor, '#555', 0.1));
+          bGrad.addColorStop(1, lerpColor(cell.buildingColor, '#333', 0.3));
+          cell._bGrad = bGrad; cell._bGradCs = cs;
+        }
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.fillStyle = cell._bGrad;
+        ctx.fillRect(0, 0, bw, bh);
+        ctx.restore();
 
         // Building highlight edge
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
