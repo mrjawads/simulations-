@@ -368,7 +368,6 @@ function drawBacteria(){
     // shield pulse ring
     if(b.res&&b.shP>0){
       ctx.save();ctx.globalAlpha=b.shP*0.5;ctx.strokeStyle='#FFD54F';ctx.lineWidth=3;
-      ctx.shadowColor='#FFD54F';ctx.shadowBlur=18;
       ctx.beginPath();ctx.arc(b.x,b.y,safeR(b.sz+18),0,Math.PI*2);ctx.stroke();ctx.restore();
     }
     ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.ang);renderB(ctx,b);ctx.restore();
@@ -376,7 +375,7 @@ function drawBacteria(){
   });
   // particles
   G.particles.forEach(function(p){
-    try{ctx.save();ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;ctx.shadowColor=p.col;ctx.shadowBlur=10;
+    try{ctx.save();ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.col;
     ctx.beginPath();ctx.arc(p.x,p.y,safeR(p.sz*p.life),0,Math.PI*2);ctx.fill();ctx.restore();}catch(e){}
   });
 }
@@ -385,13 +384,13 @@ function renderB(ctx,b){
   try{
   var col=b.res?'#ef5350':'#4CAF50',colL=b.res?'#ff8a80':'#a5d6a7',colD=b.res?'#b71c1c':'#1B5E20';
   var sz=b.sz,bW=sz*2.4,bH=sz*1.2;
-  // outer glow
-  ctx.save();ctx.globalAlpha=0.15;ctx.shadowColor=col;ctx.shadowBlur=12;
-  ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(0,0,safeR(bW/2+3),safeR(bH/2+3),0,0,Math.PI*2);ctx.fill();ctx.restore();
-  // body gradient
-  var gr=ctx.createLinearGradient(-bW/2,-bH,bW/2,bH);
-  gr.addColorStop(0,colL);gr.addColorStop(0.35,col);gr.addColorStop(1,colD);
-  ctx.fillStyle=gr;ctx.beginPath();ctx.ellipse(0,0,safeR(bW/2),safeR(bH/2),0,0,Math.PI*2);ctx.fill();
+  // outer glow (shadowless for performance — soft halo via oversized translucent ellipse)
+  ctx.save();ctx.globalAlpha=0.18;
+  ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(0,0,safeR(bW/2+5),safeR(bH/2+5),0,0,Math.PI*2);ctx.fill();ctx.restore();
+  // body gradient (cached per-bacterium so it isn't rebuilt every frame)
+  if(!b._grad){b._grad=ctx.createLinearGradient(-bW/2,-bH,bW/2,bH);
+    b._grad.addColorStop(0,colL);b._grad.addColorStop(0.35,col);b._grad.addColorStop(1,colD);}
+  ctx.fillStyle=b._grad;ctx.beginPath();ctx.ellipse(0,0,safeR(bW/2),safeR(bH/2),0,0,Math.PI*2);ctx.fill();
   // membrane ring
   ctx.save();ctx.globalAlpha=0.15;ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
   ctx.beginPath();ctx.ellipse(0,0,safeR(bW/2-3),safeR(bH/2-2),0,0,Math.PI*2);ctx.stroke();ctx.restore();
@@ -431,7 +430,7 @@ function drawMols(){
     // pill shape with gradient
     var gr=ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,safeR(m.sz));
     gr.addColorStop(0,'#E3F2FD');gr.addColorStop(0.4,'#42A5F5');gr.addColorStop(1,'#0D47A1');
-    ctx.fillStyle=gr;ctx.shadowColor='#42A5F5';ctx.shadowBlur=12;
+    ctx.fillStyle=gr;
     ctx.beginPath();ctx.ellipse(m.x,m.y,safeR(m.sz*1.4),safeR(m.sz*0.8),m.ang||0,0,Math.PI*2);ctx.fill();
     // plus sign
     ctx.globalAlpha=Math.min(m.life,0.5);ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.lineCap='round';
@@ -496,7 +495,7 @@ function doTreat(){
   var mutH=false;
   if(G.mutOn&&G.round>=6&&Math.random()<0.25){
     mutH=true;var picks=normals.filter(function(b){return b.alive;});
-    if(picks.length>0){var p=picks[Math.floor(Math.random()*picks.length)];p.res=true;p.sz=20+(Math.random()-0.5)*4;p.shP=1;fTxt(p.x,p.y,'MUTATED!','#CE93D8');}
+    if(picks.length>0){var p=picks[Math.floor(Math.random()*picks.length)];p.res=true;p.sz=20+(Math.random()-0.5)*4;p._grad=null;p.shP=1;fTxt(p.x,p.y,'MUTATED!','#CE93D8');}
   }
   var cx=G.cvW/2,cy=G.cvH/2,MR=safeR(G.cvW/2);
   var swN=G.dose==='Low'?25:G.dose==='Medium'?50:80;
