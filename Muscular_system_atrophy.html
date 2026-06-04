@@ -323,6 +323,7 @@ function draw(){
     const myGen=gen;
     const c=ctx;
     c.save();
+    try{
     c.scale(dpr,dpr);
     c.clearRect(0,0,W,H);
     ambientT+=0.016;
@@ -440,25 +441,35 @@ function draw(){
         const py=cy+f.oy*massScale;
         const pulse=Math.sin(ambientT*1.5+f.pulse)*1.2;
 
+        // Per-fiber gradients are cached and rebuilt only when the fiber's size or colour
+        // actually changes (quantized key). They are built once in local space and drawn via
+        // translate, so we no longer recreate ~96 radial gradients every frame — the main lag source.
+        const gkey=((sr*2)|0)+'|'+(f.hue|0)+'|'+(f.sat|0)+'|'+(f.lit|0);
+        if(f._gkey!==gkey){
+            f._gkey=gkey;
+            const srr=Math.max(0.5,sr);
+            const fGlow=c.createRadialGradient(0,0,srr*0.5,0,0,srr+4);
+            fGlow.addColorStop(0,`hsla(${f.hue},${f.sat}%,${f.lit}%,0.08)`);
+            fGlow.addColorStop(1,'transparent');
+            f._glow=fGlow;
+            const fg=c.createRadialGradient(-srr*0.25,-srr*0.25,0,0,0,srr);
+            fg.addColorStop(0,`hsla(${f.hue},${f.sat}%,${f.lit+15}%,0.9)`);
+            fg.addColorStop(0.5,`hsla(${f.hue},${f.sat}%,${f.lit}%,0.85)`);
+            fg.addColorStop(1,`hsla(${f.hue},${f.sat-10}%,${f.lit-20}%,0.8)`);
+            f._body=fg;
+        }
+
+        c.save();c.translate(px,py);
         // Outer glow per fiber
-        const fGlowR=sr+4+pulse;
-        const fGlow=c.createRadialGradient(px,py,sr*0.5,px,py,fGlowR);
-        fGlow.addColorStop(0,`hsla(${f.hue},${f.sat}%,${f.lit}%,0.08)`);
-        fGlow.addColorStop(1,'transparent');
-        c.fillStyle=fGlow;
-        c.beginPath();c.arc(px,py,fGlowR,0,Math.PI*2);c.fill();
-
+        c.fillStyle=f._glow;
+        c.beginPath();c.arc(0,0,sr+4+pulse,0,Math.PI*2);c.fill();
         // Main fiber body
-        c.beginPath();c.arc(px,py,sr+pulse*0.5,0,Math.PI*2);
-        const fg=c.createRadialGradient(px-sr*0.25,py-sr*0.25,0,px,py,sr+pulse);
-        fg.addColorStop(0,`hsla(${f.hue},${f.sat}%,${f.lit+15}%,0.9)`);
-        fg.addColorStop(0.5,`hsla(${f.hue},${f.sat}%,${f.lit}%,0.85)`);
-        fg.addColorStop(1,`hsla(${f.hue},${f.sat-10}%,${f.lit-20}%,0.8)`);
-        c.fillStyle=fg;c.fill();
-
+        c.fillStyle=f._body;
+        c.beginPath();c.arc(0,0,sr+pulse*0.5,0,Math.PI*2);c.fill();
         // Specular highlight
-        c.beginPath();c.arc(px-sr*0.2,py-sr*0.2,sr*0.35,0,Math.PI*2);
+        c.beginPath();c.arc(-sr*0.2,-sr*0.2,sr*0.35,0,Math.PI*2);
         c.fillStyle='rgba(255,255,255,0.08)';c.fill();
+        c.restore();
 
         // Myofibril lines (internal structure)
         if(sr>6){
@@ -654,9 +665,11 @@ function draw(){
             }
         }
     }catch(e){}
-
-    c.restore();
-    if(myGen===gen)requestAnimationFrame(draw);
+    }catch(e){ /* keep the rAF loop alive even if a draw call throws — this is what froze the canvas mid-run */ }
+    finally{
+        c.restore();
+        if(myGen===gen)requestAnimationFrame(draw);
+    }
 }
 
 function roundRect(c,x,y,w,h,r){

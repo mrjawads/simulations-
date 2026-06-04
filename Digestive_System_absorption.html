@@ -727,13 +727,18 @@ function drawBloodVessels(L, t) {
     const pulse = Math.sin((t || 0) * 0.005 + i * 0.8) * 2;
     const vw = 7 + Math.sin(i * 1.3) * 2;
 
-    // Vessel glow
+    // Vessel glow (cached radial reused via translate)
     ctx.globalAlpha = 0.15 + Math.sin((t||0)*0.004 + i) * 0.08;
-    const glow = ctx.createRadialGradient(x + pulse, vesselTop + vesselH/2, 0, x + pulse, vesselTop + vesselH/2, 20);
-    glow.addColorStop(0, '#e53935');
-    glow.addColorStop(1, 'transparent');
-    ctx.fillStyle = glow;
-    ctx.fillRect(x - 20 + pulse, vesselTop, 40, vesselH);
+    if(!ctx._vesselGlow){
+      ctx._vesselGlow = ctx.createRadialGradient(0,0,0,0,0,20);
+      ctx._vesselGlow.addColorStop(0, '#e53935');
+      ctx._vesselGlow.addColorStop(1, 'transparent');
+    }
+    ctx.save();
+    ctx.translate(x + pulse, vesselTop + vesselH/2);
+    ctx.fillStyle = ctx._vesselGlow;
+    ctx.fillRect(-20, -vesselH/2, 40, vesselH);
+    ctx.restore();
 
     // Vessel wall
     ctx.globalAlpha = 1;
@@ -810,13 +815,17 @@ function drawVilli(villi, L, t) {
 
     // Villus body with detailed gradient
     ctx.globalAlpha = 1;
-    const vGrad = ctx.createLinearGradient(v.x - bw, 0, v.x + bw, 0);
-    vGrad.addColorStop(0, '#d4836a');
-    vGrad.addColorStop(0.2, '#efa48e');
-    vGrad.addColorStop(0.5, '#ffc4b0');
-    vGrad.addColorStop(0.8, '#efa48e');
-    vGrad.addColorStop(1, '#d4836a');
-    ctx.fillStyle = vGrad;
+    // Cached on the villus (geometry/colours are fixed until villi are rebuilt) — these were
+    // 3 gradients x up to 24 villi = ~72 rebuilds every frame, the main lag source here.
+    if(!v._vGrad){
+      v._vGrad = ctx.createLinearGradient(v.x - bw, 0, v.x + bw, 0);
+      v._vGrad.addColorStop(0, '#d4836a');
+      v._vGrad.addColorStop(0.2, '#efa48e');
+      v._vGrad.addColorStop(0.5, '#ffc4b0');
+      v._vGrad.addColorStop(0.8, '#efa48e');
+      v._vGrad.addColorStop(1, '#d4836a');
+    }
+    ctx.fillStyle = v._vGrad;
     ctx.beginPath();
     ctx.moveTo(v.x - bw, tubeBottom);
     ctx.quadraticCurveTo(v.x - bw - 2 + sway, tipY + v.height * 0.45, v.x - bw/2 + sway, tipY + 2);
@@ -827,11 +836,13 @@ function drawVilli(villi, L, t) {
 
     // Inner highlight (3D roundness)
     ctx.globalAlpha = 0.25;
-    const hlGrad = ctx.createLinearGradient(v.x - 2, tipY, v.x + 3, tubeBottom);
-    hlGrad.addColorStop(0, '#fff');
-    hlGrad.addColorStop(0.3, 'rgba(255,255,255,0.1)');
-    hlGrad.addColorStop(1, 'transparent');
-    ctx.fillStyle = hlGrad;
+    if(!v._hlGrad){
+      v._hlGrad = ctx.createLinearGradient(v.x - 2, tipY, v.x + 3, tubeBottom);
+      v._hlGrad.addColorStop(0, '#fff');
+      v._hlGrad.addColorStop(0.3, 'rgba(255,255,255,0.1)');
+      v._hlGrad.addColorStop(1, 'transparent');
+    }
+    ctx.fillStyle = v._hlGrad;
     ctx.beginPath();
     ctx.moveTo(v.x - 1, tubeBottom - 4);
     ctx.quadraticCurveTo(v.x - 2 + sway, tipY + v.height * 0.3, v.x + sway, tipY + 4);
@@ -865,14 +876,19 @@ function drawVilli(villi, L, t) {
 
     // Pulsing absorption glow at tip
     ctx.globalAlpha = 0.2 + Math.sin((t || 0) * 0.004 + v.phase) * 0.15;
-    const tipGlow = ctx.createRadialGradient(v.x + sway, tipY + 2, 0, v.x + sway, tipY + 2, 14);
-    tipGlow.addColorStop(0, 'rgba(255,183,77,0.9)');
-    tipGlow.addColorStop(0.5, 'rgba(255,183,77,0.3)');
-    tipGlow.addColorStop(1, 'transparent');
-    ctx.fillStyle = tipGlow;
+    if(!drawVilli._tipGlow){
+      drawVilli._tipGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 14);
+      drawVilli._tipGlow.addColorStop(0, 'rgba(255,183,77,0.9)');
+      drawVilli._tipGlow.addColorStop(0.5, 'rgba(255,183,77,0.3)');
+      drawVilli._tipGlow.addColorStop(1, 'transparent');
+    }
+    ctx.save();
+    ctx.translate(v.x + sway, tipY + 2);
+    ctx.fillStyle = drawVilli._tipGlow;
     ctx.beginPath();
-    ctx.arc(v.x + sway, tipY + 2, 14, 0, Math.PI * 2);
+    ctx.arc(0, 0, 14, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 
     // Microvilli brush border (tiny hair-like fringe along the surface)
     ctx.globalAlpha = 0.45;

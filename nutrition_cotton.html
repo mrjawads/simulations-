@@ -962,6 +962,17 @@ function drawPeople() {
   const t = Date.now() / 1000;
   ensurePeople();
 
+  // Build the two glow gradients ONCE (local space, reference scale 1). They were
+  // being rebuilt ~50x every frame (one per person) — the main lag source here.
+  if(!drawPeople._sickGlow){
+    drawPeople._sickGlow = ctx.createRadialGradient(0,-4,2,0,-4,14);
+    drawPeople._sickGlow.addColorStop(0,'rgba(229,57,53,0.15)');
+    drawPeople._sickGlow.addColorStop(1,'transparent');
+    drawPeople._healthyGlow = ctx.createRadialGradient(0,-8,3,0,-8,12);
+    drawPeople._healthyGlow.addColorStop(0,'rgba(76,175,80,0.12)');
+    drawPeople._healthyGlow.addColorStop(1,'transparent');
+  }
+
   for (let i = 0; i < S.pop; i++) {
     const p = townspeople[i];
     const sick = i < S.sickCount;
@@ -971,10 +982,10 @@ function drawPeople() {
 
     if (sick) {
       // --- SICK PERSON ---
-      // Red glow underneath
-      const rg = ctx.createRadialGradient(px, py - 4 * sc, 2, px, py - 4 * sc, 14 * sc);
-      rg.addColorStop(0, 'rgba(229,57,53,0.15)'); rg.addColorStop(1, 'transparent');
-      ctx.fillStyle = rg; ctx.fillRect(px - 14 * sc, py - 18 * sc, 28 * sc, 28 * sc);
+      // Red glow underneath (cached gradient, positioned via translate/scale)
+      ctx.save(); ctx.translate(px, py); ctx.scale(sc, sc);
+      ctx.fillStyle = drawPeople._sickGlow; ctx.fillRect(-14, -18, 28, 28);
+      ctx.restore();
       
       // Collapsed body (lying down)
       ctx.fillStyle = '#ef5350';
@@ -1002,10 +1013,10 @@ function drawPeople() {
       const bounce = Math.sin(t * 2 + p.ph) * 2;
       const walk = Math.sin(t * 3 + p.ph) * 2;
       
-      // Green glow
-      const gg = ctx.createRadialGradient(px, py - 8 * sc + bounce, 3, px, py - 8 * sc + bounce, 12 * sc);
-      gg.addColorStop(0, 'rgba(76,175,80,0.12)'); gg.addColorStop(1, 'transparent');
-      ctx.fillStyle = gg; ctx.fillRect(px - 12 * sc, py - 20 * sc, 24 * sc, 30 * sc);
+      // Green glow (cached gradient, positioned via translate/scale)
+      ctx.save(); ctx.translate(px, py + bounce); ctx.scale(sc, sc);
+      ctx.fillStyle = drawPeople._healthyGlow; ctx.fillRect(-12, -20, 24, 30);
+      ctx.restore();
 
       // Legs
       ctx.strokeStyle = '#2e7d32'; ctx.lineWidth = 2 * sc;

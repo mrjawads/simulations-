@@ -304,15 +304,21 @@ function drawVessels(){
     cx.beginPath();cx.moveTo(v.sx,v.sy);
     cx.bezierCurveTo(v.c1x,v.c1y,v.c2x,v.c2y,v.ex,v.ey);
     cx.strokeStyle=`rgba(100,30,45,${wn>=2?0.08:0.18})`;cx.lineWidth=v.w+1;cx.stroke();
-    // Blood flow core - brightness by O2
+    // Blood flow core - brightness by O2 (gradient cached per vessel; rebuilt only when the
+    // O2 brightness changes by a quantum, not every frame — it's static while O2 holds steady).
     const b=cO2/100;
     cx.beginPath();cx.moveTo(v.sx,v.sy);
     cx.bezierCurveTo(v.c1x,v.c1y,v.c2x,v.c2y,v.ex,v.ey);
-    const vg=cx.createLinearGradient(v.sx,v.sy,v.ex,v.ey);
-    if(b>0.7){vg.addColorStop(0,`rgba(200,50,70,${0.15+b*0.15})`);vg.addColorStop(1,`rgba(50,200,150,${0.08+b*0.1})`);}
-    else if(b>0.5){vg.addColorStop(0,`rgba(180,80,50,${0.1+b*0.1})`);vg.addColorStop(1,`rgba(150,150,50,${0.06+b*0.06})`);}
-    else{vg.addColorStop(0,`rgba(120,40,50,${0.08})`);vg.addColorStop(1,`rgba(80,50,80,${0.04})`);}
-    cx.strokeStyle=vg;cx.lineWidth=v.w;cx.stroke();
+    const _bk=Math.round(b*20);
+    if(v._gradKey!==_bk){
+      v._gradKey=_bk;
+      const vg=cx.createLinearGradient(v.sx,v.sy,v.ex,v.ey);
+      if(b>0.7){vg.addColorStop(0,`rgba(200,50,70,${0.15+b*0.15})`);vg.addColorStop(1,`rgba(50,200,150,${0.08+b*0.1})`);}
+      else if(b>0.5){vg.addColorStop(0,`rgba(180,80,50,${0.1+b*0.1})`);vg.addColorStop(1,`rgba(150,150,50,${0.06+b*0.06})`);}
+      else{vg.addColorStop(0,`rgba(120,40,50,${0.08})`);vg.addColorStop(1,`rgba(80,50,80,${0.04})`);}
+      v._grad=vg;
+    }
+    cx.strokeStyle=v._grad;cx.lineWidth=v.w;cx.stroke();
   });
 }
 
@@ -634,8 +640,7 @@ function drawAthlete(){
 }
 
 function limb(x,y,w,h,c){
-  const g=cx.createLinearGradient(x-w/2,y,x+w/2,y);
-  g.addColorStop(0,c);g.addColorStop(0.5,`rgba(255,255,255,0.03)`);g.addColorStop(1,c);
+  // (removed an unused gradient that was built here every call but never applied)
   cx.beginPath();cx.roundRect(x-w/2,y,w,h,w/2);cx.fillStyle=c;cx.fill();
   // Subtle highlight
   cx.beginPath();cx.roundRect(x-w/4,y+2,w/2,h-4,w/4);cx.fillStyle='rgba(255,255,255,0.03)';cx.fill();

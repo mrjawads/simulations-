@@ -376,16 +376,24 @@ case'ring':
 c.strokeStyle=this.color;c.lineWidth=2;c.beginPath();c.arc(this.x,this.y,this.size,0,Math.PI*2);c.stroke();
 break;
 case'steam':
-c.fillStyle=this.color;
-const grad=c.createRadialGradient(this.x,this.y,0,this.x,this.y,this.size);
-grad.addColorStop(0,'rgba(200,230,255,'+this.alpha*0.5+')');grad.addColorStop(1,'rgba(200,230,255,0)');
-c.fillStyle=grad;c.beginPath();c.arc(this.x,this.y,this.size,0,Math.PI*2);c.fill();
+// Cached steam gradient (fixed colour) reused via translate/scale; alpha preserved exactly
+// (original baked alpha*0.5 on top of the globalAlpha=alpha set above -> alpha*alpha*0.5).
+if(!c._steamGrad){c._steamGrad=c.createRadialGradient(0,0,0,0,0,1);
+  c._steamGrad.addColorStop(0,'rgba(200,230,255,0.5)');c._steamGrad.addColorStop(1,'rgba(200,230,255,0)');}
+c.globalAlpha=this.alpha*this.alpha;
+c.translate(this.x,this.y);c.scale(this.size,this.size);
+c.fillStyle=c._steamGrad;c.beginPath();c.arc(0,0,1,0,Math.PI*2);c.fill();
 break;
 default:
 if(this.type==='glow'||this.type==='spark'||this.type==='heat'){
-const g=c.createRadialGradient(this.x,this.y,0,this.x,this.y,this.size*2);
-g.addColorStop(0,this.color);g.addColorStop(1,'rgba(0,0,0,0)');
-c.fillStyle=g;c.beginPath();c.arc(this.x,this.y,this.size*2,0,Math.PI*2);c.fill();
+// Cache one glow gradient per colour (reused via translate/scale) instead of rebuilding
+// one per particle every frame — the heat-burst lag source (up to ~50 at once).
+if(!c._glowGrad)c._glowGrad={};
+let g=c._glowGrad[this.color];
+if(!g){g=c.createRadialGradient(0,0,0,0,0,1);g.addColorStop(0,this.color);g.addColorStop(1,'rgba(0,0,0,0)');c._glowGrad[this.color]=g;}
+c.save();c.translate(this.x,this.y);c.scale(this.size*2,this.size*2);
+c.fillStyle=g;c.beginPath();c.arc(0,0,1,0,Math.PI*2);c.fill();
+c.restore();
 }
 c.fillStyle=this.color;c.beginPath();c.arc(this.x,this.y,this.size,0,Math.PI*2);c.fill();
 }

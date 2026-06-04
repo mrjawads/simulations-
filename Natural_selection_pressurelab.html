@@ -395,6 +395,20 @@ if(b.dying){a=Math.max(0,b.dt/55);sc=.2+.8*(b.dt/55);
 if(b.spawn){sc=Math.min(1,1-b.st/30);a=Math.max(.15,sc);}
 cx.save();cx.globalAlpha=a;cx.translate(b.x,b.y);cx.scale(sc*b.facing,sc);
 var s=b.s,c=BCOL[b.t];
+// Per-type beetle gradients cached once (local-space coords are transformed at paint time,
+// so one set per type is reused for every beetle) — these 3 were rebuilt for every beetle
+// every frame (3 x up to 28 = ~84/frame), the main lag source here.
+if(!drawBeetle._gc)drawBeetle._gc={};
+var gc=drawBeetle._gc[b.t];
+if(!gc){
+  var _bg=cx.createRadialGradient(-s*.1,-s*.05,s*.08,0,s*.15,s*.55);
+  _bg.addColorStop(0,c.hi);_bg.addColorStop(.4,c.body);_bg.addColorStop(1,c.shell);
+  var _wg=cx.createLinearGradient(-s*.4,-s*.6,s*.1,s*.3);
+  _wg.addColorStop(0,c.hi);_wg.addColorStop(.5,c.body);_wg.addColorStop(1,c.shell);
+  var _pg=cx.createRadialGradient(-s*.08,-s*.7,s*.05,0,-s*.65,s*.4);
+  _pg.addColorStop(0,c.hi);_pg.addColorStop(1,c.shell);
+  gc=drawBeetle._gc[b.t]={body:_bg,wing:_wg,pronotum:_pg};
+}
 
 // Shadow under beetle
 cx.save();cx.globalAlpha=.2;cx.fillStyle='#000';cx.beginPath();
@@ -428,19 +442,15 @@ for(var side=-1;side<=1;side+=2){
 
 // ---- BODY (abdomen) ----
 cx.beginPath();cx.ellipse(0,s*.15,s*.55,s*.5,0,0,6.28);
-var bg=cx.createRadialGradient(-s*.1,-s*.05,s*.08,0,s*.15,s*.55);
-bg.addColorStop(0,c.hi);bg.addColorStop(.4,c.body);bg.addColorStop(1,c.shell);
-cx.fillStyle=bg;cx.fill();cx.strokeStyle=c.shell;cx.lineWidth=1;cx.stroke();
+cx.fillStyle=gc.body;cx.fill();cx.strokeStyle=c.shell;cx.lineWidth=1;cx.stroke();
 
 // ---- WING CASES (elytra) ----
 // Left wing case
 cx.beginPath();cx.ellipse(-s*.15,-s*.15,s*.38,s*.65,-.08,0,6.28);
-var wg1=cx.createLinearGradient(-s*.4,-s*.6,s*.1,s*.3);
-wg1.addColorStop(0,c.hi);wg1.addColorStop(.5,c.body);wg1.addColorStop(1,c.shell);
-cx.fillStyle=wg1;cx.fill();cx.strokeStyle=c.shell;cx.lineWidth=.8;cx.stroke();
+cx.fillStyle=gc.wing;cx.fill();cx.strokeStyle=c.shell;cx.lineWidth=.8;cx.stroke();
 // Right wing case
 cx.beginPath();cx.ellipse(s*.15,-s*.15,s*.38,s*.65,.08,0,6.28);
-cx.fillStyle=wg1;cx.fill();cx.stroke();
+cx.fillStyle=gc.wing;cx.fill();cx.stroke();
 
 // Wing case center line (suture)
 cx.beginPath();cx.moveTo(0,-s*.75);cx.lineTo(0,s*.35);
@@ -461,9 +471,7 @@ cx.restore();
 
 // ---- PRONOTUM (thorax shield) ----
 cx.beginPath();cx.ellipse(0,-s*.65,s*.4,s*.22,0,0,6.28);
-var pg=cx.createRadialGradient(-s*.08,-s*.7,s*.05,0,-s*.65,s*.4);
-pg.addColorStop(0,c.hi);pg.addColorStop(1,c.shell);
-cx.fillStyle=pg;cx.fill();cx.strokeStyle=c.shell;cx.lineWidth=.8;cx.stroke();
+cx.fillStyle=gc.pronotum;cx.fill();cx.strokeStyle=c.shell;cx.lineWidth=.8;cx.stroke();
 
 // ---- HEAD ----
 cx.beginPath();cx.ellipse(0,-s*.88,s*.28,s*.2,0,0,6.28);

@@ -682,6 +682,14 @@ function drawAmbientWind(dt){
 
 function updateParticles(dt,ts){
   var t=ts*0.001;
+  // Vapor-glow gradient built ONCE (normalized) and reused via translate/scale + globalAlpha
+  // for each particle's alpha — it was rebuilt for up to 200 particles every frame.
+  if(!updateParticles._glow){
+    updateParticles._glow=ctx.createRadialGradient(0,0,0,0,0,1);
+    updateParticles._glow.addColorStop(0,'rgba(130,200,255,0.3)');
+    updateParticles._glow.addColorStop(1,'rgba(130,200,255,0)');
+  }
+  var VAPOR_GLOW=updateParticles._glow;
   particles=particles.filter(function(p){
     p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=0.002*dt;
     if(phase>=1&&phase<=2){p.vy-=0.03*dt;p.vx+=(Math.random()-.5)*.08*dt;}
@@ -694,10 +702,12 @@ function updateParticles(dt,ts){
     var pulseSz=nearDew?Math.sin(t*10+p.x*0.1)*2:0;
     var drawR=Math.max(1,p.r+pulseSz);
     if(nearDew||p.r>4){
-      var glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,drawR*2.5);
-      glow.addColorStop(0,'rgba(130,200,255,'+(p.a*p.life*0.3)+')');
-      glow.addColorStop(1,'rgba(130,200,255,0)');
-      ctx.fillStyle=glow;ctx.beginPath();ctx.arc(p.x,p.y,drawR*2.5,0,Math.PI*2);ctx.fill();
+      ctx.save();
+      ctx.globalAlpha=Math.max(0,Math.min(1,p.a*p.life));
+      ctx.translate(p.x,p.y);ctx.scale(drawR*2.5,drawR*2.5);
+      ctx.fillStyle=VAPOR_GLOW;
+      ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.fill();
+      ctx.restore();
     }
     ctx.beginPath();ctx.arc(p.x,p.y,drawR,0,Math.PI*2);
     var al=Math.max(0,p.a*p.life);
@@ -751,13 +761,25 @@ function drawRainDrops(dt){
     var rate=outcome==='Rain'?5:0;
     for(var i=0;i<rate;i++){addDrop(W*0.2+Math.random()*W*0.6,H*0.2+Math.random()*H*0.06);}
   }
+  if(!drawRainDrops._gc)drawRainDrops._gc={};
+  var gc=drawRainDrops._gc;
   drops=drops.filter(function(d){
     d.y+=d.vy*dt;
     if(d.y>gy){addSplash(d.x,gy);return false;}
-    var rg=ctx.createLinearGradient(d.x,d.y,d.x,d.y+d.l);
-    rg.addColorStop(0,'rgba(100,180,255,0)');rg.addColorStop(0.3,'rgba(100,180,255,'+d.a*0.6+')');rg.addColorStop(1,'rgba(140,200,255,'+d.a+')');
+    // Cache one vertical streak gradient per rounded length; per-drop alpha via globalAlpha.
+    var k=Math.round(d.l);
+    var rg=gc[k];
+    if(!rg){
+      rg=ctx.createLinearGradient(0,0,0,k);
+      rg.addColorStop(0,'rgba(100,180,255,0)');rg.addColorStop(0.3,'rgba(100,180,255,0.6)');rg.addColorStop(1,'rgba(140,200,255,1)');
+      gc[k]=rg;
+    }
+    ctx.save();
+    ctx.globalAlpha=Math.max(0,Math.min(1,d.a));
+    ctx.translate(d.x,d.y);
     ctx.strokeStyle=rg;ctx.lineWidth=d.w;
-    ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x+0.5,d.y+d.l);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0.5,d.l);ctx.stroke();
+    ctx.restore();
     ctx.fillStyle='rgba(180,220,255,'+d.a*0.4+')';
     ctx.beginPath();ctx.arc(d.x+0.5,d.y+d.l,1.5,0,Math.PI*2);ctx.fill();
     return true;

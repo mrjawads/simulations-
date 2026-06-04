@@ -1439,7 +1439,16 @@ function drawCloud(){
 }
 
 function updateAndDrawParticles(){
-  // Heat particles
+  // Heat particles — the glow colour is identical for every particle in a frame (it depends
+  // only on temperature), so build ONE normalized gradient per frame and reuse it via
+  // translate/scale instead of rebuilding it once per particle (the lag source on the ramp).
+  const heatPct = Math.max(0, Math.min(1, (state.temperature - 72) / 100));
+  const hr = 255;
+  const hg = Math.max(0, Math.round(200 - heatPct*150));
+  const hb = Math.max(0, Math.round(50*(1-heatPct)));
+  const HEAT_GLOW = ctx.createRadialGradient(0,0,0,0,0,1);
+  HEAT_GLOW.addColorStop(0,`rgba(${hr},${hg},${hb},0.8)`);
+  HEAT_GLOW.addColorStop(1,`rgba(${hr},${hg},${hb},0)`);
   for(let i=heatParticles.length-1;i>=0;i--){
     const p = heatParticles[i];
     p.x += p.vx;
@@ -1449,15 +1458,9 @@ function updateAndDrawParticles(){
 
     ctx.save();
     ctx.globalAlpha=p.life*0.6;
-    const heatPct = Math.max(0, Math.min(1, (state.temperature - 72) / 100));
-    const r = 255;
-    const g = Math.max(0, Math.round(200 - heatPct*150));
-    const b = Math.max(0, Math.round(50*(1-heatPct)));
-    const glow = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*2);
-    glow.addColorStop(0,`rgba(${r},${g},${b},0.8)`);
-    glow.addColorStop(1,`rgba(${r},${g},${b},0)`);
-    ctx.fillStyle=glow;
-    ctx.fillRect(p.x-p.size*2,p.y-p.size*2,p.size*4,p.size*4);
+    ctx.translate(p.x,p.y);ctx.scale(p.size*2,p.size*2);
+    ctx.fillStyle=HEAT_GLOW;
+    ctx.fillRect(-1,-1,2,2);
     ctx.restore();
   }
 

@@ -854,9 +854,8 @@ function drawCells(){
     const breath = 1 + Math.sin(pulsePhase*2 + i*0.7)*0.07;
     const r = cell.r * sizeFactor * breath;
     ctx.save();
-    // Outer glow
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 20 + (state.zone==='ok'?12:0);
+    // Outer glow (shadowBlur removed for performance — it ran on every cell every frame;
+    // the gradient body + coloured membrane still convey the cell's state)
     // Membrane gradient
     const g = ctx.createRadialGradient(cell.x-r*0.3, cell.y-r*0.3, r*0.1, cell.x, cell.y, r);
     g.addColorStop(0, color1);
@@ -1192,16 +1191,20 @@ function drawParticles(){
       ctx.arc(tp.x, tp.y, 1.5+(j/p.trail.length)*3, 0, Math.PI*2);
       ctx.fill();
     });
-    // Core - looks like a small protein molecule
-    ctx.shadowColor = '#42A5F5'; ctx.shadowBlur = 14;
-    const grad = ctx.createRadialGradient(x-2,y-2,1, x,y,6);
-    grad.addColorStop(0,'#fff');
-    grad.addColorStop(0.4,'#64B5F6');
-    grad.addColorStop(1,'#0D47A1');
-    ctx.fillStyle = grad;
+    // Core - looks like a small protein molecule (cached gradient, shadowBlur removed)
+    if(!ctx._insulinGrad){
+      ctx._insulinGrad = ctx.createRadialGradient(-2,-2,1, 0,0,6);
+      ctx._insulinGrad.addColorStop(0,'#fff');
+      ctx._insulinGrad.addColorStop(0.4,'#64B5F6');
+      ctx._insulinGrad.addColorStop(1,'#0D47A1');
+    }
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.fillStyle = ctx._insulinGrad;
     ctx.beginPath();
-    ctx.arc(x, y, 6, 0, Math.PI*2);
+    ctx.arc(0, 0, 6, 0, Math.PI*2);
     ctx.fill();
+    ctx.restore();
     // Inner detail (chain links)
     ctx.fillStyle = 'rgba(255,255,255,.6)';
     ctx.beginPath();
@@ -1224,13 +1227,14 @@ function drawGlucoseDots(){
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(g.rot + pulsePhase);
-    ctx.shadowColor = '#FFEB3B'; ctx.shadowBlur = 10;
-    // Glucose hexagon
-    const hexGrad = ctx.createRadialGradient(0,0,0, 0,0,5);
-    hexGrad.addColorStop(0,'#FFFDE7');
-    hexGrad.addColorStop(0.5,'#FFEB3B');
-    hexGrad.addColorStop(1,'#F57F17');
-    ctx.fillStyle = hexGrad;
+    // Glucose hexagon (shadowBlur removed; gradient is constant so it's built once and reused)
+    if(!ctx._glucoseGrad){
+      ctx._glucoseGrad = ctx.createRadialGradient(0,0,0, 0,0,5);
+      ctx._glucoseGrad.addColorStop(0,'#FFFDE7');
+      ctx._glucoseGrad.addColorStop(0.5,'#FFEB3B');
+      ctx._glucoseGrad.addColorStop(1,'#F57F17');
+    }
+    ctx.fillStyle = ctx._glucoseGrad;
     ctx.beginPath();
     for(let k=0;k<6;k++){
       const ka = (k/6)*Math.PI*2;
