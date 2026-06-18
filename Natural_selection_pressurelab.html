@@ -81,6 +81,9 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:#0f0f1a;color:#e0e0e0;o
 ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:#0a0f1a;}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:3px;}
 /*p2cTouch*/button,a,[role="button"],input,select,textarea,.option,.choice,.card,.btn,.opt{touch-action:manipulation;}
 </style>
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div class="sim-wrap">
@@ -198,7 +201,11 @@ var SKY={
 };
 
 // ============ DRAW FRAME ============
-function drawFrame(t){try{cx.clearRect(0,0,W,H);
+function drawFrame(t){
+var _now=(window.performance&&performance.now)?performance.now():Date.now();
+var dt=drawFrame._last?(_now-drawFrame._last)/16.667:1; drawFrame._last=_now;
+if(!(dt>0))dt=1; if(dt>4)dt=4;
+try{cx.clearRect(0,0,W,H);
 var sk=SKY[theme]||SKY.neutral;
 
 // ---- SKY with gradient ----
@@ -230,7 +237,7 @@ if(sk.sun){
 
 // ---- Clouds ----
 for(var i=0;i<clouds.length;i++){var c=clouds[i];
-c.x+=c.sp;if(c.x>W+c.w)c.x=-c.w;
+c.x+=c.sp*dt;if(c.x>W+c.w)c.x=-c.w;
 cx.save();cx.globalAlpha=c.op*(theme==='predator'?.15:.6);cx.fillStyle='#fff';
 cx.beginPath();cx.ellipse(c.x,c.y,c.w*.5,c.h*.5,0,0,6.28);cx.fill();
 cx.beginPath();cx.ellipse(c.x-c.w*.25,c.y+5,c.w*.3,c.h*.4,0,0,6.28);cx.fill();
@@ -291,12 +298,12 @@ cx.beginPath();cx.arc(0,-f.sz*.3,f.sz*.25,0,6.28);cx.fillStyle='#fbbf24';cx.fill
 cx.restore();}
 
 // ---- Environmental particles ----
-drawEnvP(t);
+drawEnvP(t,dt);
 
 // ---- Pressure wave overlay ----
 if(pressureWave){
   cx.save();var pw=pressureWave;
-  pw.x+=pw.speed;pw.alpha-=.008;
+  pw.x+=pw.speed*dt;pw.alpha-=.008*dt;
   if(pw.alpha<=0||pw.x>W+100){pressureWave=null;}else{
     cx.globalAlpha=pw.alpha*.4;
     var wg=cx.createLinearGradient(pw.x-60,0,pw.x+60,0);
@@ -309,16 +316,16 @@ if(pressureWave){
 var sortedB=beetles.slice().sort(function(a,b){return a.y-b.y;});
 for(var i=0;i<sortedB.length;i++){var b=sortedB[i];
 if(b.alive&&!b.dying){
-  b.x+=b.vx+Math.sin(t*.0008+b.ph)*.2;
-  b.y+=b.vy+Math.cos(t*.001+b.ph)*.1;
+  b.x+=(b.vx+Math.sin(t*.0008+b.ph)*.2)*dt;
+  b.y+=(b.vy+Math.cos(t*.001+b.ph)*.1)*dt;
   // Gentle direction changes
   if(Math.random()<.003){b.vx=(Math.random()-.5)*.5;b.vy=(Math.random()-.5)*.3;b.facing=b.vx>0?1:-1;}
   if(b.x<30){b.vx=Math.abs(b.vx);b.facing=1;}if(b.x>W-30){b.vx=-Math.abs(b.vx);b.facing=-1;}
   if(b.y<H*.5+15)b.vy=Math.abs(b.vy);if(b.y>H-35)b.vy=-Math.abs(b.vy);
 }
-if(b.dying){b.dt--;if(b.dt<=0)b.alive=false;}
-if(b.glow){b.gt--;if(b.gt<=0)b.glow=false;}
-if(b.spawn){b.st--;if(b.st<=0)b.spawn=false;}
+if(b.dying){b.dt-=dt;if(b.dt<=0)b.alive=false;}
+if(b.glow){b.gt-=dt;if(b.gt<=0)b.glow=false;}
+if(b.spawn){b.st-=dt;if(b.st<=0)b.spawn=false;}
 drawBeetle(b,t);}
 
 // ---- Scout highlight ----
@@ -333,7 +340,7 @@ cx.fillText('⚠',b.x,b.y-b.s*1.5);
 cx.setLineDash([]);cx.restore();}}}
 
 // ---- Particles (death/glow) ----
-drawParts(t);
+drawParts(t,dt);
 
 // ---- Group labels with beetle icons ----
 var lbls=[{t:'g',l:'Small Green',x:W*.18,col:'#22c55e'},{t:'b',l:'Med Brown',x:W*.5,col:'#b45309'},{t:'r',l:'Large Red',x:W*.82,col:'#dc2626'}];
@@ -509,8 +516,8 @@ cx.beginPath();cx.arc(s*.2,-s*.92,s*.035,0,6.28);cx.fillStyle='rgba(255,255,255,
 cx.shadowBlur=0;cx.restore();}catch(e){}}
 
 // ============ PARTICLES ============
-function drawParts(t){for(var i=parts.length-1;i>=0;i--){var p=parts[i];p.x+=p.vx;p.y+=p.vy;
-if(p.gravity)p.vy+=.05;p.life-=p.dc;if(p.life<=0){parts.splice(i,1);continue;}
+function drawParts(t,dt){if(!(dt>0))dt=1;for(var i=parts.length-1;i>=0;i--){var p=parts[i];p.x+=p.vx*dt;p.y+=p.vy*dt;
+if(p.gravity)p.vy+=.05*dt;p.life-=p.dc*dt;if(p.life<=0){parts.splice(i,1);continue;}
 cx.save();cx.globalAlpha=p.life;
 if(p.type==='ring'){cx.strokeStyle=p.col;cx.lineWidth=2;cx.beginPath();
 cx.arc(p.x,p.y,p.sz*(1-p.life)*3,0,6.28);cx.stroke();}
@@ -518,7 +525,7 @@ else if(p.type==='star'){cx.fillStyle=p.col||'#fff';cx.font=(p.sz*p.life*2)+'px 
 else{cx.fillStyle=p.col;cx.beginPath();cx.arc(p.x,p.y,p.sz*Math.max(.3,p.life),0,6.28);cx.fill();}
 cx.restore();}}
 
-function drawEnvP(t){for(var i=envP.length-1;i>=0;i--){var p=envP[i];p.x+=p.vx;p.y+=p.vy;p.life-=p.dc;
+function drawEnvP(t,dt){if(!(dt>0))dt=1;for(var i=envP.length-1;i>=0;i--){var p=envP[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=p.dc*dt;
 if(p.life<=0||p.x<-40||p.x>W+40||p.y>H+40){envP.splice(i,1);continue;}
 cx.save();cx.globalAlpha=Math.min(p.life,.55);
 if(p.sh==='c'){cx.fillStyle=p.col;cx.beginPath();cx.arc(p.x,p.y,p.sz,0,6.28);cx.fill();}

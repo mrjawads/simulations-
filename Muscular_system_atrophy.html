@@ -321,13 +321,16 @@ function buildVessels(){
 
 // ============ DRAWING ============
 function draw(){
+    var _now=(window.performance&&performance.now)?performance.now():Date.now();
+    var dt=draw._last?(_now-draw._last)/16.667:1; draw._last=_now;
+    if(!(dt>0))dt=1; if(dt>4)dt=4;
     const myGen=gen;
     const c=ctx;
     c.save();
     try{
     c.scale(dpr,dpr);
     c.clearRect(0,0,W,H);
-    ambientT+=0.016;
+    ambientT+=0.016*dt;
 
     const cx=W*0.42,cy=H*0.46;
     const R=Math.min(W,H)*0.3;
@@ -408,7 +411,7 @@ function draw(){
 
     // === BLOOD VESSELS ===
     bloodVessels.forEach(v=>{
-        v.flowT+=0.02;
+        v.flowT+=0.02*dt;
         c.beginPath();
         const pts=v.pts;
         if(pts.length<2)return;
@@ -432,10 +435,10 @@ function draw(){
 
     // === MUSCLE FIBERS ===
     fibers.forEach((f,i)=>{
-        f.r+=(f.targR-f.r)*0.04;
-        f.hue+=(f.targHue-f.hue)*0.02;
-        f.sat+=(f.targSat-f.sat)*0.02;
-        f.lit+=(f.targLit-f.lit)*0.02;
+        f.r+=(f.targR-f.r)*0.04*dt;
+        f.hue+=(f.targHue-f.hue)*0.02*dt;
+        f.sat+=(f.targSat-f.sat)*0.02*dt;
+        f.lit+=(f.targLit-f.lit)*0.02*dt;
 
         const sr=f.r*massScale;
         const px=cx+f.ox*massScale;
@@ -501,8 +504,8 @@ function draw(){
     if(showXray){
         satCells=satCells.filter(s=>s.life>0);
         satCells.forEach(s=>{
-            s.progress+=s.speed;
-            s.life-=0.005;
+            s.progress+=s.speed*dt;
+            s.life-=0.005*dt;
             // FIX: same shape as particles — life can dip below zero this frame, and
             // c.arc with a negative radius throws InvalidStateError, killing the rAF
             // loop. Skip drawing dead cells; next frame's filter removes them.
@@ -519,9 +522,9 @@ function draw(){
     // === PARTICLES ===
     particles=particles.filter(p=>p.life>0);
     particles.forEach(p=>{
-        p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
-        if(p.type==='shrink'){p.vy+=0.03;p.vx*=0.99;}
-        if(p.type==='grow')p.vy-=0.02;
+        p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=p.decay*dt;
+        if(p.type==='shrink'){p.vy+=0.03*dt;p.vx*=Math.pow(0.99,dt);}
+        if(p.type==='grow')p.vy-=0.02*dt;
         // FIX: life can decrement below zero in this frame (filter ran BEFORE this
         // decrement). A negative life makes sz negative, and createRadialGradient
         // throws on a negative radius — which kills the rAF loop mid-frame and
@@ -542,7 +545,7 @@ function draw(){
 
     // === SHOCKWAVE ===
     if(shockwaveActive){
-        shockwaveR+=4;
+        shockwaveR+=4*dt;
         const alpha=Math.max(0,1-shockwaveR/(R*1.5));
         c.beginPath();c.arc(cx,cy,shockwaveR,0,Math.PI*2);
         c.strokeStyle=`rgba(233,30,99,${alpha*0.3})`;c.lineWidth=3;c.stroke();
@@ -551,7 +554,7 @@ function draw(){
 
     // === OVERUSE GLOW ===
     if(overuseGlow>0){
-        overuseGlow-=0.003;
+        overuseGlow-=0.003*dt;
         const oG=c.createRadialGradient(cx,cy,outerR*0.5,cx,cy,outerR*1.2);
         oG.addColorStop(0,`rgba(255,152,0,${overuseGlow*0.15})`);
         oG.addColorStop(1,'transparent');
@@ -619,7 +622,7 @@ function draw(){
 
     // === PREVIEW OVERLAY: show predicted target on selection (fixes "no visual change" bug) ===
     try{
-        if(previewBumpR){previewBumpR*=0.86;if(Math.abs(previewBumpR)<0.002)previewBumpR=0;}
+        if(previewBumpR){previewBumpR*=Math.pow(0.86,dt);if(Math.abs(previewBumpR)<0.002)previewBumpR=0;}
         if(previewPulse>0&&previewMass!=null&&!isWeekAnim){
             const previewR=R*Math.sqrt(previewMass/100);
             const animR=outerR+(previewR-outerR)*0.3*(1+Math.sin(ambientT*4)*0.18);

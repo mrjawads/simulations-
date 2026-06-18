@@ -96,6 +96,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#0a0a1a;color:#fff;overf
 #sim-title{text-align:center;padding:10px;font-size:15px;font-weight:800;background:linear-gradient(90deg,rgba(255,213,79,0.1),rgba(255,143,0,0.08),rgba(255,213,79,0.1));color:#ffd54f;letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid rgba(255,213,79,0.1);}
 /*p2cTouch*/button,a,[role="button"],input,select,textarea,.option,.choice,.card,.btn,.opt{touch-action:manipulation;}
 </style>
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div id="app">
@@ -190,6 +193,7 @@ let showWind = false;
 let blockLayout = null;
 let animPhase = 'idle';
 let frameCount = 0;
+let dt = 1;
 
 // Seeded random for consistent block layouts per selection
 let seedVal = 1;
@@ -640,9 +644,9 @@ function drawArena() {
   // ---- FLOATING HEAT PARTICLES ----
   if (currentHeatLevel > 0.1) {
     particles.forEach(p => {
-      p.y -= p.speed;
-      p.x += Math.sin(t * 2 + p.phase) * 0.5;
-      p.life -= 0.005;
+      p.y -= p.speed * dt;
+      p.x += Math.sin(t * 2 + p.phase) * 0.5 * dt;
+      p.life -= 0.005 * dt;
       if (p.life <= 0 || p.y < oy - 30) {
         p.y = oy + rows * cs;
         p.x = ox + Math.random() * cols * cs;
@@ -716,17 +720,20 @@ function drawArena() {
 // ==================== HEAT UPDATE ====================
 function updateHeat() {
   if (!blockLayout) return;
-  currentHeatLevel += (targetHeatLevel - currentHeatLevel) * 0.025;
+  currentHeatLevel += (targetHeatLevel - currentHeatLevel) * 0.025 * dt;
   blockLayout.cells.forEach(cell => {
     const tgt = cell.isGreen ? currentHeatLevel * 0.15 : currentHeatLevel;
-    cell.heat += (tgt - cell.heat) * 0.04;
+    cell.heat += (tgt - cell.heat) * 0.04 * dt;
   });
 }
 
 // ==================== ANIMATION LOOP ====================
 function animate() {
   try {
-    frameCount++;
+    var _now=(window.performance&&performance.now)?performance.now():Date.now();
+    dt=animate._last?(_now-animate._last)/16.667:1; animate._last=_now;
+    if(!(dt>0))dt=1; if(dt>4)dt=4;
+    frameCount += dt;
     ctx.clearRect(0, 0, W, H);
     updateHeat();
     drawArena();

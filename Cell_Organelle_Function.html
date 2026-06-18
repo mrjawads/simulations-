@@ -197,6 +197,9 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
 }
 </style>
 
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div class="mjs-polish-overlay" aria-hidden="true"></div>
@@ -344,12 +347,16 @@ function resize(){
 // ========== MAIN LOOP ==========
 function loop(t){
   if(!X)return;
+  /* p2cFix: delta-time — animation was frame-count based (ran ~2x fast on 120Hz ProMotion iPads, slow on weak Chromebooks). dt normalizes to the designed 60fps speed at any refresh rate; clamped so a backgrounded tab can't jump. */
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  var dt=loop._last?(_now-loop._last)/16.667:1; loop._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
   ambientT=t||0;
   X.clearRect(0,0,W,H);
   drawEnvBg();
-  drawEnvParticles();
+  drawEnvParticles(dt);
   drawCellVisual();
-  drawParticles();
+  drawParticles(dt);
   requestAnimationFrame(loop);
 }
 
@@ -453,12 +460,13 @@ function drawEnvBg(){
 }
 
 // ========== ENVIRONMENT PARTICLES ==========
-function drawEnvParticles(){
+function drawEnvParticles(dt){
+  if(dt===undefined)dt=1;
   if(!envAnim.active)return;
   let ep=envAnim.particles;
   for(let i=ep.length-1;i>=0;i--){
     let p=ep[i];
-    p.x+=p.vx;p.y+=p.vy;p.life--;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;
     let a=Math.max(0,p.life/p.ml);
     X.globalAlpha=a*p.a;
     X.fillStyle=p.c;
@@ -638,10 +646,11 @@ function roundRect(ctx,x,y,w,h,r){
 function roundRectFill(ctx,x,y,w,h,r){roundRect(ctx,x,y,w,h,r);ctx.fill();}
 
 // ========== GENERAL PARTICLES ==========
-function drawParticles(){
+function drawParticles(dt){
+  if(dt===undefined)dt=1;
   for(let i=particles.length-1;i>=0;i--){
     let p=particles[i];
-    p.x+=p.vx;p.y+=p.vy;p.life--;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;
     let a=Math.max(0,p.life/p.ml);
     X.globalAlpha=a;X.fillStyle=p.c;
     X.beginPath();X.arc(p.x,p.y,p.s*(.4+a*.6),0,Math.PI*2);X.fill();

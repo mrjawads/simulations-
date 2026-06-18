@@ -173,6 +173,9 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
 }
 </style>
 
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div class="mjs-polish-overlay" aria-hidden="true"></div>
@@ -244,7 +247,7 @@ window.addEventListener('resize',resize);resize();
 // === PARTICLES ===
 let pts=[],fx=[];
 class Pt{constructor(x,y,vx,vy,c,l,s,t){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.c=c;this.l=l;this.ml=l;this.s=s;this.t=t||'c';}
-update(){this.x+=this.vx;this.y+=this.vy;this.vx*=.97;this.vy*=.97;this.l--;}
+update(){var dt=window._dt||1;this.x+=this.vx*dt;this.y+=this.vy*dt;this.vx*=Math.pow(.97,dt);this.vy*=Math.pow(.97,dt);this.l--;}
 draw(ctx){let a=this.l/this.ml;ctx.globalAlpha=a;
 if(this.t==='c'){ctx.fillStyle=this.c;ctx.beginPath();ctx.arc(this.x,this.y,this.s*(.3+a*.7),0,Math.PI*2);ctx.fill();}
 else if(this.t==='s'){ctx.strokeStyle=this.c;ctx.lineWidth=2.5*a;ctx.beginPath();ctx.moveTo(this.x,this.y);ctx.lineTo(this.x-this.vx*5,this.y-this.vy*5);ctx.stroke();}
@@ -278,7 +281,8 @@ function drawBG(){
 
 // === DRAW BRAIN ===
 function drawBrain(){
-  mX.clearRect(0,0,W,H);bp+=.02;nf+=.015;
+  var dt=window._dt||1;
+  mX.clearRect(0,0,W,H);bp+=.02*dt;nf+=.015*dt;
   let avg=(S.focus+S.memory+S.mood)/3;
   let bri=.4+avg*.006;
   let sd={4:.45,6:.7,8:1,10:.88}[S.vars.sleep]||.7;
@@ -361,7 +365,7 @@ function drawBrain(){
 
   // Stress waves
   if(isS&&Math.random()<.3)sWaves.push({r:br*.15,a:.35});
-  sWaves=sWaves.filter(w=>{w.r+=2.5;w.a-=.007;if(w.a<=0)return false;mX.strokeStyle=`rgba(239,68,68,${w.a})`;mX.lineWidth=2;mX.beginPath();mX.arc(cx,cy-br*.05,w.r,0,Math.PI*2);mX.stroke();return true;});
+  sWaves=sWaves.filter(w=>{w.r+=2.5*dt;w.a-=.007*dt;if(w.a<=0)return false;mX.strokeStyle=`rgba(239,68,68,${w.a})`;mX.lineWidth=2;mX.beginPath();mX.arc(cx,cy-br*.05,w.r,0,Math.PI*2);mX.stroke();return true;});
 
   // Caffeine lightning
   if(S.vars.caffeine>=1&&Math.random()<S.vars.caffeine*.06){
@@ -384,7 +388,12 @@ function drawFX(){
 }
 
 // === LOOP ===
-function loop(){drawBG();drawBrain();drawFX();requestAnimationFrame(loop);}loop();
+function loop(){
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  var dt=loop._last?(_now-loop._last)/16.667:1; loop._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
+  window._dt=dt;
+  drawBG();drawBrain();drawFX();requestAnimationFrame(loop);}loop();
 
 // === VAR SELECTION ===
 function pick(el){

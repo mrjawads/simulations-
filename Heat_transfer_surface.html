@@ -101,6 +101,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#
 #completion-overlay .sub-text{font-size:16px;color:#aaa;}
 /*p2cTouch*/button,a,[role="button"],input,select,textarea,.option,.choice,.card,.btn,.opt{touch-action:manipulation;}
 </style>
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div id="app">
@@ -743,6 +746,10 @@ function spawnSunParticle(){
 // ===== MAIN DRAW LOOP =====
 function gameLoop(timestamp){
   try{
+    var _now=(window.performance&&performance.now)?performance.now():Date.now();
+    var dt=gameLoop._last?(_now-gameLoop._last)/16.667:1; gameLoop._last=_now;
+    if(!(dt>0))dt=1; if(dt>4)dt=4;
+    gameLoop._dt=dt;
     if(!ctx || !canvas) { requestAnimationFrame(gameLoop); return; }
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ambientTimer = timestamp || 0;
@@ -1440,6 +1447,7 @@ function drawCloud(){
 }
 
 function updateAndDrawParticles(){
+  const dt = gameLoop._dt || 1;
   // Heat particles — the glow colour is identical for every particle in a frame (it depends
   // only on temperature), so build ONE normalized gradient per frame and reuse it via
   // translate/scale instead of rebuilding it once per particle (the lag source on the ramp).
@@ -1452,9 +1460,9 @@ function updateAndDrawParticles(){
   HEAT_GLOW.addColorStop(1,`rgba(${hr},${hg},${hb},0)`);
   for(let i=heatParticles.length-1;i>=0;i--){
     const p = heatParticles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life -= p.decay;
+    p.x += p.vx*dt;
+    p.y += p.vy*dt;
+    p.life -= p.decay*dt;
     if(p.life<=0){heatParticles.splice(i,1);continue;}
 
     ctx.save();
@@ -1468,8 +1476,8 @@ function updateAndDrawParticles(){
   // Sun particles
   for(let i=sunParticles.length-1;i>=0;i--){
     const p = sunParticles[i];
-    p.y += p.vy;
-    p.life -= 0.012;
+    p.y += p.vy*dt;
+    p.life -= 0.012*dt;
     if(p.life<=0 || p.y > p.targetY){sunParticles.splice(i,1);continue;}
 
     ctx.save();

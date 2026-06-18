@@ -125,6 +125,9 @@ tr.nr{animation:rs .4s ease;}
 .cm{text-align:center;font-size:13px;font-weight:800;padding:8px;border-radius:10px;background:linear-gradient(135deg,rgba(0,200,83,0.12),rgba(0,230,118,0.06));color:#69F0AE;border:2px solid rgba(105,240,174,0.2);}
 /*p2cTouch*/button,a,[role="button"],input,select,textarea,.option,.choice,.card,.btn,.opt{touch-action:manipulation;}
 </style>
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div class="top-bar">🔬 Mr. Jawad's Simulations – Cell Division 🔬</div>
@@ -285,7 +288,8 @@ function drawBg(){
   c.fillText('TISSUE',8,AH-4);
 }
 
-function drawCells(t){
+function drawCells(t,dt){
+  if(dt===undefined)dt=1;
   const c=cX;c.clearRect(0,0,AW,AH);
   const ts=t/1000;
   // Tumor glow
@@ -311,9 +315,9 @@ function drawCells(t){
   HNUC.addColorStop(0,'rgba(255,255,255,0.35)');HNUC.addColorStop(.5,'rgba(129,199,132,0.4)');HNUC.addColorStop(1,'rgba(27,94,32,0.5)');
   for(let i=cells.length-1;i>=0;i--){
     const x=cells[i];
-    if(x.rem){x.remA+=0.03;if(x.remA>=1){cells.splice(i,1);continue;}}
-    if(x.divA>0)x.divA=Math.max(0,x.divA-0.018);
-    if(x.errA>0)x.errA=Math.max(0,x.errA-0.02);
+    if(x.rem){x.remA+=0.03*dt;if(x.remA>=1){cells.splice(i,1);continue;}}
+    if(x.divA>0)x.divA=Math.max(0,x.divA-0.018*dt);
+    if(x.errA>0)x.errA=Math.max(0,x.errA-0.02*dt);
     const pulse=Math.sin(ts*1.8+x.ph)*0.07;
     let r=x.r*(1+pulse);
     let alpha=1;
@@ -409,13 +413,14 @@ function drawCells(t){
   }
 }
 
-function drawFx(t){
+function drawFx(t,dt){
+  if(dt===undefined)dt=1;
   const c=fxX;c.clearRect(0,0,AW,AH);
   // Particles
   for(let i=parts.length-1;i>=0;i--){
-    const p=parts[i];p.life-=0.018;
+    const p=parts[i];p.life-=0.018*dt;
     if(p.life<=0){parts.splice(i,1);continue;}
-    p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=0.08*dt;
     c.globalAlpha=p.life;c.fillStyle=p.col;
     c.beginPath();c.arc(p.x,p.y,p.sz*p.life,0,6.28);c.fill();
     // Trail
@@ -496,7 +501,13 @@ function emit(x,y,col,n,sp){
   }
 }
 
-function loop(t){try{drawBg();drawCells(t);drawFx(t);}catch(e){}raf=requestAnimationFrame(loop);}
+function loop(t){
+  /* p2cFix: delta-time — animation was frame-count based (ran ~2x fast on 120Hz ProMotion iPads, slow on weak Chromebooks). dt normalizes to the designed 60fps speed at any refresh rate; clamped so a backgrounded tab can't jump. Time-based sin/cos (driven by rAF timestamp t) is already refresh-independent and intentionally NOT scaled. */
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  var dt=loop._last?(_now-loop._last)/16.667:1; loop._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
+  try{drawBg();drawCells(t,dt);drawFx(t,dt);}catch(e){}raf=requestAnimationFrame(loop);
+}
 
 // ============ STEP GUIDE ============
 function setStep(s){

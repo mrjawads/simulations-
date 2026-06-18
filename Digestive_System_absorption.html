@@ -160,6 +160,9 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
 }
 </style>
 
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div class="mjs-polish-overlay" aria-hidden="true"></div>
@@ -520,6 +523,8 @@ let sparkles = [];
 let animFrame = null;
 let arenaState = { villiIdx: 2, lenIdx: 1, animating: false, phase: 'idle' };
 let ambientTime = 0;
+/* p2cFix: delta-time normalizer. Motion was frame-count based (ran ~2x fast on 120Hz ProMotion iPads, slow on weak Chromebooks). Each loop sets frameDt at the top; per-frame motion in the loops and in the helpers they call is multiplied by it. frameDt is 1.0 at the designed 60fps and clamped so a backgrounded tab can't jump. */
+let frameDt = 1;
 // Stable villi array so they don't re-randomize every frame
 let cachedVilli = null;
 let cachedVilliKey = '';
@@ -778,7 +783,7 @@ function drawBloodVessels(L, t) {
   // Flowing blood cells
   ctx.globalAlpha = 0.7;
   bloodCells.forEach(bc => {
-    bc.x += bc.speed;
+    bc.x += bc.speed * frameDt;
     if (bc.x > tubeLeft + tubeW + 10) bc.x = tubeLeft - 10;
     const bob = Math.sin((t||0)*0.003 + bc.phase) * 1.5;
     // Red blood cell = biconcave disc drawn as an ellipse
@@ -1030,7 +1035,7 @@ function drawParticles(L, t) {
   // Sparkles (from captures)
   sparkles = sparkles.filter(s => s.life > 0);
   sparkles.forEach(s => {
-    s.x += s.vx; s.y += s.vy; s.life -= 0.02;
+    s.x += s.vx * frameDt; s.y += s.vy * frameDt; s.life -= 0.02 * frameDt;
     ctx.globalAlpha = s.life;
     ctx.fillStyle = s.color;
     ctx.beginPath();
@@ -1140,6 +1145,10 @@ function drawArena(time) {
 
 // ===================== ANIMATION LOOP =====================
 function idleLoop(time) {
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  var dt=idleLoop._last?(_now-idleLoop._last)/16.667:1; idleLoop._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
+  frameDt = dt;
   if (arenaState.animating) return;
   drawArena(time);
   animFrame = requestAnimationFrame(idleLoop);
@@ -1231,6 +1240,10 @@ function runRound() {
   const ANIM_DURATION = 4000;
 
   function animateRound(time) {
+    var _now=(window.performance&&performance.now)?performance.now():Date.now();
+    var dt=animateRound._last?(_now-animateRound._last)/16.667:1; animateRound._last=_now;
+    if(!(dt>0))dt=1; if(dt>4)dt=4;
+    frameDt = dt;
     if (!startTime) startTime = time;
     const elapsed = time - startTime;
     const progress = Math.min(1, elapsed / ANIM_DURATION);
@@ -1241,10 +1254,10 @@ function runRound() {
     // Move particles
     particles.forEach(p => {
       if (p.capturedDone) return;
-      p.x += p.vx;
-      p.y += p.vy;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
       // Slight wobble for organic feel
-      p.y += Math.sin(time * 0.005 + p.x * 0.01) * 0.3;
+      p.y += Math.sin(time * 0.005 + p.x * 0.01) * 0.3 * dt;
 
       // Bounce within tube
       if (p.y < L.tubeTop + 10) { p.y = L.tubeTop + 10; p.vy *= -1; }
@@ -1285,16 +1298,16 @@ function runRound() {
     // Move captured particles down to vessels
     capturedParticles.forEach(cp => {
       if (cp.y < cp.targetY) {
-        cp.y += cp.vy;
+        cp.y += cp.vy * dt;
       } else {
-        cp.alpha = Math.max(0, cp.alpha - 0.02);
+        cp.alpha = Math.max(0, cp.alpha - 0.02 * dt);
       }
     });
 
     // Move waste particles off screen
     wasteParticles.forEach(wp => {
-      wp.x += wp.vx;
-      wp.alpha = Math.max(0, wp.alpha - 0.008);
+      wp.x += wp.vx * dt;
+      wp.alpha = Math.max(0, wp.alpha - 0.008 * dt);
     });
 
     if (progress < 1) {

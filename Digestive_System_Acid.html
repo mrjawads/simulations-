@@ -839,17 +839,20 @@ function newRun() {
 let frameCount = 0;
 
 function renderLoop() {
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  var dt=renderLoop._last?(_now-renderLoop._last)/16.667:1; renderLoop._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
   try {
     frameCount++;
     resizeCanvas();
     ctx.clearRect(0, 0, stW, stH);
     drawStomach();
-    drawFoodChunks();
-    drawEnzymeParticles();
+    drawFoodChunks(dt);
+    drawEnzymeParticles(dt);
     drawAcidWaves();
     drawErosionHoles();
-    drawBurstParticles();
-    drawAmbientBubbles();
+    drawBurstParticles(dt);
+    drawAmbientBubbles(dt);
     drawLabels();
   } catch(e) {}
   animId = requestAnimationFrame(renderLoop);
@@ -932,13 +935,14 @@ function drawStomach() {
 }
 
 // ========== DRAW FOOD CHUNKS ==========
-function drawFoodChunks() {
+function drawFoodChunks(dt) {
+  if(!(dt>0))dt=1;
   try {
     let isBread = round <= 5;
     foodChunks.forEach(c => {
       // Float around gently
-      c.x += c.vx + Math.sin(frameCount * 0.01 + c.y) * 0.1;
-      c.y += c.vy + Math.cos(frameCount * 0.01 + c.x) * 0.08;
+      c.x += (c.vx + Math.sin(frameCount * 0.01 + c.y) * 0.1) * dt;
+      c.y += (c.vy + Math.cos(frameCount * 0.01 + c.x) * 0.08) * dt;
 
       // Hard contain within stomach ellipse
       let dx = c.x - stCx;
@@ -946,8 +950,8 @@ function drawFoodChunks() {
       let dist = Math.sqrt((dx * dx) / (stRx * stRx) + (dy * dy) / (stRy * stRy));
       if (dist > 0.7) {
         // Strong push back toward center
-        c.vx -= dx * 0.01;
-        c.vy -= dy * 0.01;
+        c.vx -= dx * 0.01 * dt;
+        c.vy -= dy * 0.01 * dt;
       }
       if (dist > 0.8) {
         // Hard clamp — force back inside
@@ -958,8 +962,8 @@ function drawFoodChunks() {
         c.vy *= -0.3;
       }
       // Dampen velocity to prevent buildup
-      c.vx *= 0.98;
-      c.vy *= 0.98;
+      c.vx *= Math.pow(0.98, dt);
+      c.vy *= Math.pow(0.98, dt);
 
       if (c.size < 2) return;
 
@@ -1042,13 +1046,14 @@ function drawFoodChunks() {
 }
 
 // ========== ENZYME PARTICLES ==========
-function drawEnzymeParticles() {
+function drawEnzymeParticles(dt) {
+  if(!(dt>0))dt=1;
   try {
     enzymeParticles.forEach(p => {
-      p.angle += 0.02;
-      p.pulse += 0.08;
-      p.x += Math.cos(p.angle) * p.speed;
-      p.y += Math.sin(p.angle) * p.speed;
+      p.angle += 0.02 * dt;
+      p.pulse += 0.08 * dt;
+      p.x += Math.cos(p.angle) * p.speed * dt;
+      p.y += Math.sin(p.angle) * p.speed * dt;
 
       // Contain hard inside stomach
       let dx = p.x - stCx;
@@ -1120,15 +1125,16 @@ function drawErosionHoles() {
 }
 
 // ========== BURST PARTICLES ==========
-function drawBurstParticles() {
+function drawBurstParticles(dt) {
+  if(!(dt>0))dt=1;
   try {
     for (let i = burstParticles.length - 1; i >= 0; i--) {
       let p = burstParticles[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life--;
-      p.vx *= 0.95;
-      p.vy *= 0.95;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      p.vx *= Math.pow(0.95, dt);
+      p.vy *= Math.pow(0.95, dt);
 
       if (p.life <= 0) { burstParticles.splice(i, 1); continue; }
 
@@ -1144,11 +1150,12 @@ function drawBurstParticles() {
 }
 
 // ========== AMBIENT BUBBLES ==========
-function drawAmbientBubbles() {
+function drawAmbientBubbles(dt) {
+  if(!(dt>0))dt=1;
   try {
     ambientBubbles.forEach(b => {
-      b.y -= b.speed;
-      b.x += Math.sin(frameCount * 0.02 + b.x) * 0.3;
+      b.y -= b.speed * dt;
+      b.x += Math.sin(frameCount * 0.02 + b.x) * 0.3 * dt;
       if (b.y < stCy - stRy * 0.7) {
         b.y = stCy + stRy * 0.5;
         let angle = Math.random() * Math.PI;

@@ -70,6 +70,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#060610;color:#e0e0e
 .cm.ec{background:rgba(255,214,0,0.06);border:1px solid rgba(255,214,0,0.15);color:#ffd600}
 /*p2cTouch*/button,a,[role="button"],input,select,textarea,.option,.choice,.card,.btn,.opt{touch-action:manipulation;}
 </style>
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div class="G">
@@ -229,7 +232,8 @@ function bz(v,t){
 }
 
 // ===== DRAWING =====
-function drawBG(){
+function drawBG(dt){
+  if(!(dt>0))dt=1;
   const g=cx.createRadialGradient(W*0.27,H*0.4,0,W*0.5,H*0.5,W*0.9);
   g.addColorStop(0,'#0a0a20');g.addColorStop(0.5,'#060612');g.addColorStop(1,'#030308');
   cx.fillStyle=g;cx.fillRect(0,0,W,H);
@@ -250,7 +254,7 @@ function drawBG(){
   }
   // Ambient cells
   cells.forEach(c=>{
-    c.x+=c.vx;c.y+=c.vy;c.phase+=0.02;
+    c.x+=c.vx*dt;c.y+=c.vy*dt;c.phase+=0.02*dt;
     if(c.x<-20)c.x=W+20;if(c.x>W+20)c.x=-20;
     if(c.y<-20)c.y=H+20;if(c.y>H+20)c.y=-20;
     const pulse=1+Math.sin(c.phase)*0.3;
@@ -323,13 +327,14 @@ function drawVessels(){
   });
 }
 
-function drawFlows(){
+function drawFlows(dt){
+  if(!(dt>0))dt=1;
   const spd=0.3+cO2/100;
   const bright=cO2>70;
   flows.forEach(f=>{
     const v=vessels[f.vi];if(!v)return;
-    f.t+=f.sp*spd;
-    if(f.t>1)f.t-=1;
+    f.t+=f.sp*spd*dt;
+    while(f.t>1)f.t-=1;
     const pt=bz(v,f.t);
     f.trail.push({x:pt.x,y:pt.y});
     if(f.trail.length>f.maxTrail)f.trail.shift();
@@ -654,12 +659,15 @@ function shoe(x,y){
 }
 
 function frame(){
-  tk++;
-  drawBG();drawGround();
-  cHR+=(tHR-cHR)*0.025;cO2+=(tO2-cO2)*0.025;
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  var dt=frame._last?(_now-frame._last)/16.667:1; frame._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
+  tk+=dt;
+  drawBG(dt);drawGround();
+  cHR+=(tHR-cHR)*0.025*dt;cO2+=(tO2-cO2)*0.025*dt;
   const hSp=0.35+(cHR/180)*3;
-  hp+=hSp*0.028;
-  drawVessels();drawFlows();drawHeart();drawO2();drawECG();drawAthlete();
+  hp+=hSp*0.028*dt;
+  drawVessels();drawFlows(dt);drawHeart();drawO2();drawECG();drawAthlete();
   requestAnimationFrame(frame);
 }
 

@@ -119,6 +119,9 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
 }
 </style>
 
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div class="mjs-polish-overlay" aria-hidden="true"></div>
@@ -269,6 +272,7 @@ let targetOrganColors = {brain:'#4caf50', muscles:'#4caf50'};
 let breathAnimFrame = 0;
 let isBreathing = false;
 let ambientTime = 0;
+let frameDt = 1;
 
 function initCanvas(){
   canvas = document.getElementById('canvas');
@@ -302,11 +306,15 @@ function lerpColor(a,b,t){
 }
 
 function draw(){
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  var dt=draw._last?(_now-draw._last)/16.667:1; draw._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
+  frameDt=dt;
   try {
     const w = canvas.width / window.devicePixelRatio;
     const h = canvas.height / window.devicePixelRatio;
     ctx.clearRect(0,0,w,h);
-    ambientTime += 0.02;
+    ambientTime += 0.02*dt;
 
     // Background gradient
     const bg = ctx.createLinearGradient(0,0,0,h);
@@ -502,9 +510,9 @@ function drawOxygenParticles(cx, cy, w, h){
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
   particles.forEach(p => {
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life -= p.decay;
+    p.x += p.vx*frameDt;
+    p.y += p.vy*frameDt;
+    p.life -= p.decay*frameDt;
     if(p.life <= 0) p.dead = true;
     const alpha = Math.max(0, p.life);
     ctx.shadowColor = '#42a5f5';
@@ -525,9 +533,9 @@ function drawCO2Particles(cx, cy, w, h){
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
   co2Particles.forEach(p => {
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life -= p.decay;
+    p.x += p.vx*frameDt;
+    p.y += p.vy*frameDt;
+    p.life -= p.decay*frameDt;
     if(p.life <= 0) p.dead = true;
     const alpha = Math.max(0, p.life);
     ctx.fillStyle = `rgba(158,158,158,${alpha})`;
@@ -545,7 +553,7 @@ function drawAlveoli(cx, cy, w, h){
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
   alveoliBubbles.forEach(b => {
-    b.life -= b.decay;
+    b.life -= b.decay*frameDt;
     if(b.life <= 0) b.dead = true;
     const alpha = Math.max(0, b.life) * 0.6;
     ctx.strokeStyle = `rgba(244,143,177,${alpha})`;

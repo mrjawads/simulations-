@@ -144,6 +144,9 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
 }
 </style>
 
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div class="mjs-polish-overlay" aria-hidden="true"></div>
@@ -329,10 +332,11 @@ function drawTrees(){
 }
 
 function initDeer(){deer=[];let count=Math.min(Math.floor(S.pop/7),28);let gY=H*.43;for(let i=0;i<count;i++){deer.push({x:25+Math.random()*(W-50),y:gY+15+Math.random()*(H-gY-75),sz:12+Math.random()*10,vx:(-1+Math.random()*2)*.3,ph:Math.random()*Math.PI*2});}}
-function drawDeer(){
+function drawDeer(dt){
+  dt=dt||1;
   let t=performance.now();
   deer.forEach(d=>{
-    d.x+=d.vx+Math.sin(d.ph+t*.0008)*.12;
+    d.x+=(d.vx+Math.sin(d.ph+t*.0008)*.12)*dt;
     if(d.x<15){d.vx=Math.abs(d.vx);}if(d.x>W-15){d.vx=-Math.abs(d.vx);}
     cx.save();cx.translate(d.x,d.y);let s=d.sz/18;cx.scale(d.vx<0?-s:s,s);
     cx.fillStyle='rgba(0,0,0,.12)';cx.beginPath();cx.ellipse(0,15,11,3,0,0,Math.PI*2);cx.fill();
@@ -351,9 +355,10 @@ function drawDeer(){
 }
 
 function initWolves(){wolves=[];let count=S.pred==='many'?4:S.pred==='few'?1:0;if(S.boostActive)count+=2;let gY=H*.45;for(let i=0;i<count;i++){wolves.push({x:40+Math.random()*(W-80),y:gY+20+Math.random()*(H-gY-80),sz:15+Math.random()*6,vx:(-1+Math.random()*2)*.35});}}
-function drawWolves(){
+function drawWolves(dt){
+  dt=dt||1;
   wolves.forEach(w=>{
-    w.x+=w.vx;if(w.x<20)w.vx=Math.abs(w.vx);if(w.x>W-20)w.vx=-Math.abs(w.vx);
+    w.x+=w.vx*dt;if(w.x<20)w.vx=Math.abs(w.vx);if(w.x>W-20)w.vx=-Math.abs(w.vx);
     cx.save();cx.translate(w.x,w.y);let s=w.sz/16;cx.scale(w.vx<0?-s:s,s);
     cx.fillStyle='rgba(0,0,0,.1)';cx.beginPath();cx.ellipse(0,13,10,3,0,0,Math.PI*2);cx.fill();
     cx.fillStyle='#666';cx.beginPath();cx.ellipse(0,0,11,6.5,0,0,Math.PI*2);cx.fill();
@@ -371,7 +376,7 @@ function drawWolves(){
 }
 
 function spawnBurst(good){let gY=H*.42;for(let i=0;i<(good?14:8);i++){particles.push({x:W*.15+Math.random()*W*.7,y:gY+20+Math.random()*H*.35,vx:(-2+Math.random()*4),vy:-1.5-Math.random()*3,life:70+Math.random()*40,ml:110,r:good?3+Math.random()*4:2+Math.random()*3,color:good?`hsl(${120+Math.random()*40},80%,50%)`:`hsl(${0+Math.random()*25},75%,50%)`});}}
-function updateParticles(){for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.life--;if(p.life<=0){particles.splice(i,1);continue;}cx.save();cx.globalAlpha=p.life/p.ml;cx.fillStyle=p.color;cx.beginPath();cx.arc(p.x,p.y,p.r*(p.life/p.ml),0,Math.PI*2);cx.fill();cx.restore();}}
+function updateParticles(dt){dt=dt||1;for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=.04*dt;p.life-=dt;if(p.life<=0){particles.splice(i,1);continue;}cx.save();cx.globalAlpha=p.life/p.ml;cx.fillStyle=p.color;cx.beginPath();cx.arc(p.x,p.y,p.r*(p.life/p.ml),0,Math.PI*2);cx.fill();cx.restore();}}
 
 function drawHealthRing(){
   let rx=W-48,ry=48,r=26,n=S.hp/100;
@@ -406,7 +411,10 @@ function drawHabBoundary(){
 }
 
 function frame(){
-  cx.clearRect(0,0,W,H);drawSky();drawGround();drawHabBoundary();drawTrees();drawDeer();drawWolves();updateParticles();drawHealthRing();drawPopCounter();
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  var dt=frame._last?(_now-frame._last)/16.667:1; frame._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
+  cx.clearRect(0,0,W,H);drawSky();drawGround();drawHabBoundary();drawTrees();drawDeer(dt);drawWolves(dt);updateParticles(dt);drawHealthRing();drawPopCounter();
   try{ drawPickPreview(); }catch(e){}
   requestAnimationFrame(frame);
 }

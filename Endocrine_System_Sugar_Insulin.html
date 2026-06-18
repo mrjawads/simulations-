@@ -398,6 +398,7 @@ const scorePopups = [];
 const bgMolecules = [];
 let surpriseSnack = null;
 let pulsePhase = 0, sugarAnim = 50, animatingRelease = false;
+let _dt = 1; // delta-time normalization factor (1.0 at 60fps), set each frame in draw()
 
 const FLOW_SEED = [];
 for(let i=0;i<24;i++) FLOW_SEED.push({offset:i*0.042, layer:i%2});
@@ -519,9 +520,13 @@ const CELL_POSITIONS = [
 
 function draw(){
   try {
-    pulsePhase += 0.04;
-    state.scanLine = (state.scanLine + 1.5) % H;
-    if(state.releaseFlash > 0) state.releaseFlash -= 0.04;
+    var _now=(window.performance&&performance.now)?performance.now():Date.now();
+    var dt=draw._last?(_now-draw._last)/16.667:1; draw._last=_now;
+    if(!(dt>0))dt=1; if(dt>4)dt=4;
+    _dt=dt;
+    pulsePhase += 0.04*dt;
+    state.scanLine = (state.scanLine + 1.5*dt) % H;
+    if(state.releaseFlash > 0) state.releaseFlash -= 0.04*dt;
 
     ctx.clearRect(0,0,W,H);
 
@@ -605,7 +610,7 @@ function drawScanLine(){
 function drawBgMolecules(){
   ctx.save();
   bgMolecules.forEach(m=>{
-    m.x += m.vx; m.y += m.vy; m.rot += m.vrot;
+    m.x += m.vx*_dt; m.y += m.vy*_dt; m.rot += m.vrot*_dt;
     if(m.x<-20) m.x = W+20; if(m.x>W+20) m.x = -20;
     if(m.y<-20) m.y = H+20; if(m.y>H+20) m.y = -20;
     ctx.save();
@@ -1162,7 +1167,7 @@ function drawFaceBadge(){
 function drawParticles(){
   for(let i = particles.length-1; i >= 0; i--){
     const p = particles[i];
-    p.progress += p.speed;
+    p.progress += p.speed*_dt;
     if(p.progress >= 1){
       // Burst at cell - receptor docking effect
       sparkles.push({x:p.tx, y:p.ty, vx:0, vy:0, life:25, color:'#42A5F5'});
@@ -1218,7 +1223,7 @@ function drawParticles(){
 function drawGlucoseDots(){
   for(let i = glucoseDots.length-1; i >= 0; i--){
     const g = glucoseDots[i];
-    g.progress += g.speed;
+    g.progress += g.speed*_dt;
     if(g.progress >= 1){ glucoseDots.splice(i,1); continue; }
     const t = g.progress;
     const cpx = (g.x+g.tx)/2;
@@ -1256,8 +1261,8 @@ function drawSparkles(){
     const s = sparkles[i];
     s.life--;
     if(s.life <= 0){ sparkles.splice(i,1); continue; }
-    s.x += s.vx; s.y += s.vy;
-    s.vy += 0.18;
+    s.x += s.vx*_dt; s.y += s.vy*_dt;
+    s.vy += 0.18*_dt;
     const a = s.life/70;
     ctx.save();
     ctx.globalAlpha = a;
@@ -1281,7 +1286,7 @@ function drawSparkles(){
 function drawScorePopups(){
   for(let i = scorePopups.length-1; i >= 0; i--){
     const p = scorePopups[i];
-    p.life--; p.y += p.vy; p.vy *= 0.96;
+    p.life--; p.y += p.vy*_dt; p.vy *= Math.pow(0.96, _dt);
     if(p.life <= 0){ scorePopups.splice(i,1); continue; }
     const a = p.life/60;
     ctx.save();
@@ -1302,9 +1307,9 @@ function drawFoodIcons(){
     const f = foodIcons[i];
     f.life--;
     if(f.life <= 0){ foodIcons.splice(i,1); continue; }
-    f.x += f.vx; f.y += f.vy; f.rot += f.vrot;
+    f.x += f.vx*_dt; f.y += f.vy*_dt; f.rot += f.vrot*_dt;
     if(f.y > H*0.32){ f.vy *= -0.4; f.vx *= 0.8; f.y = H*0.32; }
-    f.vy += 0.18;
+    f.vy += 0.18*_dt;
     ctx.save();
     ctx.globalAlpha = Math.min(1, f.life/30);
     ctx.translate(f.x, f.y);
@@ -1321,8 +1326,8 @@ function drawSurpriseSnack(){
   if(!surpriseSnack) return;
   const s = surpriseSnack;
   s.life--;
-  s.y += s.vy;
-  s.vy += 0.25;
+  s.y += s.vy*_dt;
+  s.vy += 0.25*_dt;
   if(s.y > H*0.18 && s.bounces > 0){
     s.vy = -Math.abs(s.vy)*0.6; s.bounces--;
   }

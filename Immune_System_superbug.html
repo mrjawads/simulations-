@@ -101,6 +101,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#
 #comboDisp{margin-top:4px;font-size:12px;font-weight:700;color:#CE93D8;min-height:18px;}
 /*p2cTouch*/button,a,[role="button"],input,select,textarea,.option,.choice,.card,.btn,.opt{touch-action:manipulation;}
 </style>
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div id="startScreen">
@@ -294,46 +297,51 @@ function clampB(){
 }
 
 /* ===== PHYSICS UPDATE ===== */
-function updatePhysics(){
-  tick++;
+function updatePhysics(dt){
+  if(!(dt>0))dt=1;
+  tick+=dt;
   var cx=G.cvW/2,cy=G.cvH/2,R=safeR(G.cvW/2-30);
   // bacteria
   G.bacteria.forEach(function(b){
     if(!b.alive||b.dying)return;
-    b.wanderAng+=((Math.random()-0.5)*0.25);
-    b.vx+=Math.cos(b.wanderAng)*0.015;b.vy+=Math.sin(b.wanderAng)*0.015;
-    b.vx*=0.97;b.vy*=0.97;
+    b.wanderAng+=((Math.random()-0.5)*0.25)*dt;
+    b.vx+=Math.cos(b.wanderAng)*0.015*dt;b.vy+=Math.sin(b.wanderAng)*0.015*dt;
+    b.vx*=Math.pow(0.97,dt);b.vy*=Math.pow(0.97,dt);
     var dx=b.x-cx,dy=b.y-cy,dist=Math.sqrt(dx*dx+dy*dy);
     var edge=R-b.sz-20;
-    if(dist>edge&&edge>0){var push=(dist-edge)/(R-edge)*0.12;b.vx-=(dx/dist)*push;b.vy-=(dy/dist)*push;}
+    if(dist>edge&&edge>0){var push=(dist-edge)/(R-edge)*0.12;b.vx-=(dx/dist)*push*dt;b.vy-=(dy/dist)*push*dt;}
     if(dist>R-b.sz){var a=Math.atan2(dy,dx);b.x=cx+Math.cos(a)*(R-b.sz-2);b.y=cy+Math.sin(a)*(R-b.sz-2);b.vx*=0.3;b.vy*=0.3;}
-    b.x+=b.vx;b.y+=b.vy;
+    b.x+=b.vx*dt;b.y+=b.vy*dt;
     var ta=Math.atan2(b.vy,b.vx),df=ta-b.ang;
     while(df>Math.PI)df-=Math.PI*2;while(df<-Math.PI)df+=Math.PI*2;
-    b.ang+=df*0.06;b.fP+=0.05;
+    b.ang+=df*0.06*dt;b.fP+=0.05*dt;
   });
   // animation states
   G.bacteria.forEach(function(b){
-    if(b.dying){b.dA+=0.035;if(b.dA>=1){b.dying=false;b.alive=false;}}
-    if(b.born){b.bA+=0.025;if(b.bA>=1)b.born=false;}
-    if(b.res&&b.shP>0)b.shP-=0.012;
+    if(b.dying){b.dA+=0.035*dt;if(b.dA>=1){b.dying=false;b.alive=false;}}
+    if(b.born){b.bA+=0.025*dt;if(b.bA>=1)b.born=false;}
+    if(b.res&&b.shP>0)b.shP-=0.012*dt;
   });
   // particles
-  G.particles.forEach(function(p){p.x+=p.vx;p.y+=p.vy;p.life-=0.025;p.vy+=0.06;});
+  G.particles.forEach(function(p){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=0.025*dt;p.vy+=0.06*dt;});
   G.particles=G.particles.filter(function(p){return p.life>0;});
   // molecules
-  G.molecules.forEach(function(m){m.x+=m.vx;m.y+=m.vy;m.life-=0.007;});
+  G.molecules.forEach(function(m){m.x+=m.vx*dt;m.y+=m.vy*dt;m.life-=0.007*dt;});
   G.molecules=G.molecules.filter(function(m){return m.life>0;});
   // ambient particles
   G.ambients.forEach(function(a){
-    a.x+=a.vx+Math.sin(tick*0.01+a.sz)*0.15;a.y+=a.vy+Math.cos(tick*0.01+a.sz)*0.15;
+    a.x+=(a.vx+Math.sin(tick*0.01+a.sz)*0.15)*dt;a.y+=(a.vy+Math.cos(tick*0.01+a.sz)*0.15)*dt;
     var dx=a.x-cx,dy=a.y-cy,d=Math.sqrt(dx*dx+dy*dy);
     if(d>R-10){var an=Math.atan2(dy,dx);a.x=cx+Math.cos(an)*(R-12);a.y=cy+Math.sin(an)*(R-12);a.vx*=-0.5;a.vy*=-0.5;}
   });
 }
 
 /* ===== RENDER ===== */
-function loop(){try{if(ready){drawBG();updatePhysics();drawBacteria();drawMols();}}catch(e){}requestAnimationFrame(loop);}
+function loop(){
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  var dt=loop._last?(_now-loop._last)/16.667:1; loop._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
+  try{if(ready){drawBG();updatePhysics(dt);drawBacteria();drawMols();}}catch(e){}requestAnimationFrame(loop);}
 
 function drawBacteria(){
   var cv=EL('bCanvas');if(!cv)return;

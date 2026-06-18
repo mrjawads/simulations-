@@ -209,6 +209,9 @@ button:hover:not(:disabled):not(.locked):not(.disabled):not(.lk),
 }
 </style>
 
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div class="mjs-polish-overlay" aria-hidden="true"></div>
@@ -344,17 +347,18 @@ constructor(x,y,vx,vy,color,size,life,type){
 this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.color=color;this.size=size;
 this.life=life;this.maxLife=life;this.type=type||'circle';this.alpha=1;this.rotation=Math.random()*Math.PI*2;this.rotSpeed=(Math.random()-0.5)*0.1;
 }
-update(){
-this.x+=this.vx;this.y+=this.vy;this.life--;this.alpha=Math.max(0,this.life/this.maxLife);this.rotation+=this.rotSpeed;
+update(dt){
+dt=(dt>0)?dt:1;
+this.x+=this.vx*dt;this.y+=this.vy*dt;this.life-=dt;this.alpha=Math.max(0,this.life/this.maxLife);this.rotation+=this.rotSpeed*dt;
 switch(this.type){
-case'sweatDrop':this.vy+=0.12;this.vx*=0.99;break;
-case'steam':this.vy-=0.04;this.size+=0.06;this.alpha*=0.97;break;
-case'frost':this.vx*=0.97;this.vy*=0.97;this.rotation+=0.02;break;
-case'heat':this.vy-=0.06;this.size+=0.03;this.alpha*=0.98;break;
-case'glow':this.size*=0.998;break;
-case'spark':this.vy+=0.08;this.vx*=0.98;this.size*=0.97;break;
-case'ring':this.size+=1.5;this.alpha*=0.96;break;
-case'ambient':this.vy-=0.15;this.alpha=Math.sin(this.life/this.maxLife*Math.PI)*0.25;break;
+case'sweatDrop':this.vy+=0.12*dt;this.vx*=Math.pow(0.99,dt);break;
+case'steam':this.vy-=0.04*dt;this.size+=0.06*dt;this.alpha*=Math.pow(0.97,dt);break;
+case'frost':this.vx*=Math.pow(0.97,dt);this.vy*=Math.pow(0.97,dt);this.rotation+=0.02*dt;break;
+case'heat':this.vy-=0.06*dt;this.size+=0.03*dt;this.alpha*=Math.pow(0.98,dt);break;
+case'glow':this.size*=Math.pow(0.998,dt);break;
+case'spark':this.vy+=0.08*dt;this.vx*=Math.pow(0.98,dt);this.size*=Math.pow(0.97,dt);break;
+case'ring':this.size+=1.5*dt;this.alpha*=Math.pow(0.96,dt);break;
+case'ambient':this.vy-=0.15*dt;this.alpha=Math.sin(this.life/this.maxLife*Math.PI)*0.25;break;
 }
 return this.life>0&&this.alpha>0.005&&this.size>0.2;
 }
@@ -477,7 +481,8 @@ const c=BODY_COLORS[key]||BODY_COLORS.ok;
 bodyState.color=c.fill;bodyState.glowColor=c.glow;bodyState.strokeColor=c.stroke;
 }
 
-function drawBody(c,W,H,t){
+function drawBody(c,W,H,t,dt){
+dt=(dt>0)?dt:1;
 const cx=W*0.5, cy=H*0.42;
 const sx=bodyState.shiverActive?Math.sin(t*0.6)*4:0;
 
@@ -595,7 +600,7 @@ c.fillStyle=bodyState.flashColor;
 bodyPath();c.fill();
 torsoPath();c.fill();
 c.globalAlpha=1;
-bodyState.flashAlpha=Math.max(0,bodyState.flashAlpha-0.02);
+bodyState.flashAlpha=Math.max(0,bodyState.flashAlpha-0.02*dt);
 }
 
 c.restore();
@@ -604,7 +609,8 @@ c.restore();
 // ══════════════════════════════════════
 // THERMOMETER GAUGE (Canvas)
 // ══════════════════════════════════════
-function drawGauge(c,W,H,t){
+function drawGauge(c,W,H,t,dt){
+dt=(dt>0)?dt:1;
 const gx=70, gy=H*0.15, gw=36, gh=H*0.55;
 const bulbR=24;
 
@@ -639,7 +645,7 @@ c.fillStyle='#66bb6a';c.fillText('OK',gx+gw/2+8,gy+gh*0.5+4);
 c.fillStyle='#42a5f5';c.fillText('LOW',gx+gw/2+8,gy+gh-8);
 
 // Needle position (gaugeValue 0=cold/bottom, 100=hot/top)
-gaugeValue+=(targetGauge-gaugeValue)*0.06;
+gaugeValue+=(targetGauge-gaugeValue)*0.06*dt;
 const needleY=gy+gh-(gaugeValue/100)*gh;
 
 // Needle glow
@@ -710,32 +716,37 @@ c.fillStyle=vg;c.fillRect(0,0,W,H);
 // MAIN RENDER LOOP
 // ══════════════════════════════════════
 let frame=0;
+let animTime=0;
 let animId;
 
 function render(){
 animId=requestAnimationFrame(render);
+var _now=(window.performance&&performance.now)?performance.now():Date.now();
+var dt=render._last?(_now-render._last)/16.667:1; render._last=_now;
+if(!(dt>0))dt=1; if(dt>4)dt=4;
 const W=canvas.width,H=canvas.height;
 if(W===0||H===0)return;
 frame++;
+animTime+=dt;
 
 ctx.clearRect(0,0,W,H);
-drawBG(ctx,W,H,frame);
+drawBG(ctx,W,H,animTime);
 
 // Ambient particles
 if(frame%8===0)emit('ambient',1);
 
 // Update & draw particles
-particles=particles.filter(p=>p.update());
+particles=particles.filter(p=>p.update(dt));
 particles.forEach(p=>p.draw(ctx));
 
 // Shiver
 if(bodyState.shiverActive){
-bodyState.shiverTimer++;
+bodyState.shiverTimer+=dt;
 if(bodyState.shiverTimer>70){bodyState.shiverActive=false;bodyState.shiverTimer=0;}
 }
 
-drawBody(ctx,W,H,frame);
-drawGauge(ctx,W,H,frame);
+drawBody(ctx,W,H,animTime,dt);
+drawGauge(ctx,W,H,animTime,dt);
 }
 
 // ══════════════════════════════════════

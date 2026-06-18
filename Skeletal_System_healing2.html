@@ -109,6 +109,9 @@ table.dtbl tr:hover td{background:rgba(255,255,255,.03);}
 @media(max-width:850px){.main-grid{grid-template-columns:1fr;}.arena-wrap{min-height:420px;}}
 /*p2cTouch*/button,a,[role="button"],input,select,textarea,.option,.choice,.card,.btn,.opt{touch-action:manipulation;}
 </style>
+<style>/*p2cBtnFeel: instant visible press feedback on tap (touch devices have no :hover, so a tap previously showed nothing until JS reacted). Pure additive CSS; only active during the press.*/
+button:not([disabled]):active,[role="button"]:active,.btn:active,.ctrl-btn:not(.locked):active,.action-btn:active,.overlay-btn:active,.start-btn:not([disabled]):active,.copy-btn:active,.opt:active,.option:active,.choice:active{transform:scale(.97);filter:brightness(1.15);}
+</style>
 </head>
 <body>
 <div id="app">
@@ -224,6 +227,7 @@ let vars={blood:'normal',move:'immobilized',nut:'adequate'};
 let rows=[];
 let canvas,ctx,W,H,dpr;
 let animId,time=0;
+let dt=1; // p2cFix: delta-time factor, 1.0 at 60fps; set each frame in loop(), read by per-frame draw helpers
 
 // Arena visual state
 let stage=0; // 0=fracture,1=clot,2=callus,3=harden
@@ -599,6 +603,10 @@ function resetAll(){
 
 // ===== RENDER =====
 function loop(ts){
+  /* p2cFix: delta-time — animation was frame-count based (ran ~2x fast on 120Hz ProMotion iPads, slow on weak Chromebooks). dt normalizes to the designed 60fps speed at any refresh rate; clamped so a backgrounded tab can't jump. */
+  var _now=(window.performance&&performance.now)?performance.now():Date.now();
+  dt=loop._last?(_now-loop._last)/16.667:1; loop._last=_now;
+  if(!(dt>0))dt=1; if(dt>4)dt=4;
   time=ts||0;
   try{render();}catch(e){}
   requestAnimationFrame(loop);
@@ -651,7 +659,7 @@ function spawnCellLabel(text,x,y,color){
 function drawFloaters(){
   for(let i=floaters.length-1;i>=0;i--){
     const f=floaters[i];
-    f.y+=f.vy; f.vy*=.985; f.life-=f.decay;
+    f.y+=f.vy*dt; f.vy*=Math.pow(.985,dt); f.life-=f.decay*dt;
     if(f.life<=0){floaters.splice(i,1);continue;}
     ctx.globalAlpha=Math.min(f.life*1.4,1);
     ctx.font='bold '+f.size+'px Segoe UI, Arial';
@@ -667,7 +675,7 @@ function drawFloaters(){
 function drawConfetti(){
   for(let i=confetti.length-1;i>=0;i--){
     const c=confetti[i];
-    c.x+=c.vx; c.y+=c.vy; c.vy+=.04; c.rot+=c.vrot; c.life-=c.decay;
+    c.x+=c.vx*dt; c.y+=c.vy*dt; c.vy+=.04*dt; c.rot+=c.vrot*dt; c.life-=c.decay*dt;
     if(c.life<=0||c.y>H+30){confetti.splice(i,1);continue;}
     ctx.save();
     ctx.globalAlpha=Math.min(c.life*1.3,1);
@@ -684,7 +692,7 @@ function drawConfetti(){
 function drawCellLabels(){
   for(let i=cellLabels.length-1;i>=0;i--){
     const l=cellLabels[i];
-    l.life-=l.decay; l.y-=.3;
+    l.life-=l.decay*dt; l.y-=.3*dt;
     if(l.life<=0){cellLabels.splice(i,1);continue;}
     ctx.save();
     ctx.globalAlpha=Math.min(l.life*1.3,1);
@@ -703,7 +711,7 @@ function drawCellLabels(){
 function drawDayCounter(){
   if(!healActive||dayTarget<=0)return;
   // smoothly tick dayCount toward target
-  dayCount=Math.min(dayCount+(dayTarget-dayCount)*.012+.05,dayTarget);
+  dayCount=Math.min(dayCount+((dayTarget-dayCount)*.012+.05)*dt,dayTarget);
   const day=Math.floor(dayCount);
   const x=W-90, y=20;
   ctx.save();
@@ -718,7 +726,7 @@ function drawDayCounter(){
 
 function drawResultFlash(){
   if(!resultFlash)return;
-  resultFlash.life-=.012;
+  resultFlash.life-=.012*dt;
   if(resultFlash.life<=0){resultFlash=null;return;}
   const a=Math.min(resultFlash.life*1.4,1);
   ctx.save();
@@ -735,7 +743,7 @@ function drawResultFlash(){
 
 function drawRoundFlash(){
   if(!roundFlash)return;
-  roundFlash.life-=.014;
+  roundFlash.life-=.014*dt;
   if(roundFlash.life<=0){roundFlash=null;return;}
   const a=Math.min(roundFlash.life*1.4,1);
   ctx.save();
@@ -910,7 +918,7 @@ function drawVesselFlow(){
   const bT=H*.06,bB=H*.94,fY=H*.5;
 
   vesselFlow.forEach(v=>{
-    v.t+=v.speed;
+    v.t+=v.speed*dt;
     if(v.t>1)v.t-=1;
     // Vessel path along the bone edge
     const x=v.side<0?bL+5:bR-5;
@@ -930,9 +938,9 @@ function drawBloodCells(){
   RBC_GRAD.addColorStop(0,'rgba(180,30,30,.3)');RBC_GRAD.addColorStop(.4,'rgba(220,50,50,.9)');RBC_GRAD.addColorStop(.7,'rgba(200,40,40,.8)');RBC_GRAD.addColorStop(1,'rgba(160,20,20,.2)');
   for(let i=bloodCells.length-1;i>=0;i--){
     const p=bloodCells[i];
-    p.wobble+=p.wobbleSpd;
-    p.x+=p.vx;p.y+=p.vy+Math.sin(p.wobble)*0.5;
-    p.life-=p.decay;
+    p.wobble+=p.wobbleSpd*dt;
+    p.x+=p.vx*dt;p.y+=(p.vy+Math.sin(p.wobble)*0.5)*dt;
+    p.life-=p.decay*dt;
     if(p.life<=0){bloodCells.splice(i,1);continue;}
     // RBC shape - disc
     ctx.save();
@@ -956,7 +964,7 @@ function drawBloodCells(){
 function drawCallusParticles(){
   for(let i=callusP.length-1;i>=0;i--){
     const p=callusP[i];
-    p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=p.decay*dt;
     if(p.life<=0){callusP.splice(i,1);continue;}
     ctx.globalAlpha=p.life*.6;
     ctx.fillStyle='rgba(144,202,249,.7)';
@@ -974,10 +982,10 @@ function drawOsteoWorkers(){
   OSTEO_GRAD.addColorStop(0,'rgba(255,183,77,.9)');OSTEO_GRAD.addColorStop(.6,'rgba(255,152,0,.7)');OSTEO_GRAD.addColorStop(1,'rgba(230,126,34,.2)');
   for(let i=osteoWorkers.length-1;i>=0;i--){
     const o=osteoWorkers[i];
-    o.progress=Math.min(o.progress+o.speed,1);
+    o.progress=Math.min(o.progress+o.speed*dt,1);
     const x=o.x+(o.targetX-o.x)*o.progress;
     const y=o.y+(o.targetY-o.y)*o.progress;
-    if(o.progress>=1){o.life-=.01;}
+    if(o.progress>=1){o.life-=.01*dt;}
     if(o.life<=0){osteoWorkers.splice(i,1);continue;}
     // Draw worker cell
     ctx.save();
@@ -1002,7 +1010,7 @@ function drawOsteoWorkers(){
 function drawCalciumParticles(){
   for(let i=calciumP.length-1;i>=0;i--){
     const p=calciumP[i];
-    p.x+=p.vx;p.y+=p.vy;p.sparkle+=p.sparkSpd;p.life-=p.decay;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.sparkle+=p.sparkSpd*dt;p.life-=p.decay*dt;
     if(p.life<=0){calciumP.splice(i,1);continue;}
     ctx.save();ctx.globalAlpha=p.life;
     // Crystal shape
@@ -1021,7 +1029,7 @@ function drawCalciumParticles(){
 function drawWBC(){
   for(let i=wbcP.length-1;i>=0;i--){
     const p=wbcP[i];
-    p.x+=p.vx;p.y+=p.vy;p.life-=p.decay;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=p.decay*dt;
     if(p.life<=0){wbcP.splice(i,1);continue;}
     ctx.globalAlpha=p.life;
     const col=p.help?'rgba(129,199,132,.7)':'rgba(239,83,80,.5)';
@@ -1041,7 +1049,7 @@ function drawWBC(){
 
 function drawAmbient(){
   ambientP.forEach(p=>{
-    p.x+=p.vx;p.y+=p.vy;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;
     if(p.x>W+10)p.x=-10;
     if(p.y<-10)p.y=H+10;
     if(p.y>H+10)p.y=-10;
