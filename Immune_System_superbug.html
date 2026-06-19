@@ -500,7 +500,7 @@ function doTreat(){
   var normals=G.bacteria.filter(function(b){return b.alive&&!b.res;});
   var resists=G.bacteria.filter(function(b){return b.alive&&b.res;});
   var killN=Math.round(normals.length*totalEff);
-  var killR=Math.round(resists.length*totalEff*0.08);
+  var killR=Math.round(resists.length*totalEff*0.85);
   var mutH=false;
   if(G.mutOn&&G.round>=6&&Math.random()<0.25){
     mutH=true;var picks=normals.filter(function(b){return b.alive;});
@@ -539,9 +539,19 @@ function fTxt(x,y,text,color){
 
 function multiplyPhase(){
   G.bacteria=G.bacteria.filter(function(b){return b.alive;});
+  /* RESISTANCE MODEL FIX 2026-06-18: make the student decision chart correct.
+     An INCOMPLETE course selects for resistance (some surviving normal germs turn resistant),
+     and a course's COMPLETENESS sets the regrowth mix (a finished course lets normal flora
+     recover, so resistance falls; stopping early lets resistant survivors dominate).
+     ue: Stop Early .33 / Partial .66 / Full 1.0. */
+  var _ue=G.dur==='Stop Early'?0.33:G.dur==='Partial'?0.66:1.0;
+  var _selN=G.bacteria.filter(function(b){return b.alive&&!b.res;});
+  var _nConv=Math.round(_selN.length*0.22*(1-_ue));
+  if(_nConv>0){_selN.slice().sort(function(){return Math.random()-0.5;}).slice(0,_nConv).forEach(function(b){b.res=true;b._grad=null;b.shP=1;});}
   var alive=G.bacteria.length,deadSlots=BACT-alive;if(deadSlots<=0)return;
   var rA=G.bacteria.filter(function(b){return b.res;}),nA=G.bacteria.filter(function(b){return !b.res;});
-  var rNew=Math.round(deadSlots*0.70),nNew=deadSlots-rNew;
+  var _S=0.05+0.75*(1-_ue);
+  var rNew=Math.round(deadSlots*_S),nNew=deadSlots-rNew;
   var canAdd=Math.max(0,MAX_BACT-G.bacteria.length);
   rNew=Math.min(rNew,canAdd);nNew=Math.min(nNew,Math.max(0,canAdd-rNew));
   var cx=G.cvW/2,cy=G.cvH/2,R=safeR(G.cvW/2-60);
